@@ -26,6 +26,7 @@
     <module>fusion-json</module>
     <module>fusion-http-server</module>
     <module>fusion-testing</module>
+    <module>fusion-documentation</module>
   </modules>
 
   <dependencies>
@@ -62,5 +63,4 @@
       </plugin>
     </plugins>
   </build>
-
 </project>
