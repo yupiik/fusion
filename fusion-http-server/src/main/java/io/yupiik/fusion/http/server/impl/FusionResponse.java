@@ -1,9 +1,12 @@
 package io.yupiik.fusion.http.server.impl;
 
 import io.yupiik.fusion.http.server.api.Cookie;
+import io.yupiik.fusion.http.server.api.IOConsumer;
 import io.yupiik.fusion.http.server.api.Response;
 import io.yupiik.fusion.http.server.impl.flow.BytesPublisher;
+import io.yupiik.fusion.http.server.impl.flow.WriterPublisher;
 
+import java.io.Writer;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -18,7 +21,7 @@ public class FusionResponse implements Response {
     private final Flow.Publisher<ByteBuffer> body;
 
     private FusionResponse(final int status, final Map<String, List<String>> headers, final List<Cookie> cookies,
-                          final Flow.Publisher<ByteBuffer> body) {
+                           final Flow.Publisher<ByteBuffer> body) {
         this.status = status;
         this.headers = headers;
         this.cookies = cookies;
@@ -84,6 +87,11 @@ public class FusionResponse implements Response {
         @Override
         public Response.Builder body(final String body) {
             return body(new BytesPublisher(body));
+        }
+
+        @Override
+        public Response.Builder body(final IOConsumer<Writer> bodyHandler) {
+            return body(new WriterPublisher(bodyHandler));
         }
 
         @Override

@@ -2,6 +2,7 @@ package io.yupiik.fusion.http.server.api;
 
 import io.yupiik.fusion.http.server.impl.FusionResponse;
 
+import java.io.Writer;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +32,8 @@ public interface Response {
         Builder body(Flow.Publisher<ByteBuffer> writer);
 
         Builder body(String body);
+
+        Builder body(IOConsumer<Writer> bodyHandler);
 
         Response build();
     }

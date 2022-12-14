@@ -9,6 +9,8 @@ import io.yupiik.fusion.framework.api.container.context.subclass.SupplierDelegat
 import io.yupiik.fusion.framework.processor.test.Compiler;
 import io.yupiik.fusion.http.server.api.Cookie;
 import io.yupiik.fusion.http.server.api.Request;
+import io.yupiik.fusion.http.server.impl.flow.BytesPublisher;
+import io.yupiik.fusion.http.server.impl.io.RequestBodyAggregator;
 import io.yupiik.fusion.http.server.spi.Endpoint;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -34,6 +36,7 @@ import java.util.stream.Stream;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -555,7 +558,8 @@ class FusionProcessorTest {
                             "test.p.HttpEndpoints$getAndEndsWithFooPath$FusionHttpEndpoint",
                             "test.p.HttpEndpoints$getAndFooPath$FusionHttpEndpoint",
                             "test.p.HttpEndpoints$getAndRegexFooPath$FusionHttpEndpoint",
-                            "test.p.HttpEndpoints$getAndStartsWithFooPath$FusionHttpEndpoint"),
+                            "test.p.HttpEndpoints$getAndStartsWithFooPath$FusionHttpEndpoint",
+                            "test.p.HttpEndpoints$greet$FusionHttpEndpoint"),
                     container.getBeans().getBeans().keySet().stream()
                             .filter(Class.class::isInstance)
                             .map(Class.class::cast)
@@ -593,10 +597,21 @@ class FusionProcessorTest {
                 assertFalse(instance.matches(new SimpleRequest()));
 
                 final var attributes = new HashMap<String, Object>();
-                assertTrue(instance.matches(new SimpleRequest("GET", "/foo/bar/foo", attributes)));;
+                assertTrue(instance.matches(new SimpleRequest("GET", "/foo/bar/foo", attributes)));
 
                 final var matcher = attributes.get("fusion.http.matcher");
                 assertInstanceOf(Matcher.class, matcher);
+            });
+            withInstance(container, loader, "test.p.HttpEndpoints$greet$FusionHttpEndpoint", Endpoint.class, instance -> {
+                assertFalse(instance.matches(new SimpleRequest()));
+                assertTrue(instance.matches(new SimpleRequest("POST", "/greet", Map.of())));
+
+                final var response = assertDoesNotThrow(() -> instance.handle(
+                        new SimpleRequest("POST", "/greet", Map.of(), new BytesPublisher("{\"name\":\"fusion\"}")))
+                        .toCompletableFuture().get());
+                assertEquals(200, response.status());
+                assertEquals(Map.of("content-type", List.of("application/json")), response.headers());
+                assertEquals("{\"message\":\"Hello fusion!\"}", assertDoesNotThrow(() -> new RequestBodyAggregator(response.body()).promise().toCompletableFuture().get()));
             });
         });
     }
@@ -608,9 +623,13 @@ class FusionProcessorTest {
         }
     }
 
-    private record SimpleRequest(String method, String path, Map<String, Object> attributes) implements Request {
+    private record SimpleRequest(String method, String path, Map<String, Object> attributes, Flow.Publisher<ByteBuffer> body) implements Request {
         private SimpleRequest() {
-            this("GET", "/foo", new HashMap<>());
+            this("GET", "/foo", new HashMap<>(), null);
+        }
+
+        private SimpleRequest(final String method, final String path, final Map<String, Object> attributes) {
+            this(method, path, attributes, null);
         }
 
         @Override
@@ -625,7 +644,7 @@ class FusionProcessorTest {
 
         @Override
         public Flow.Publisher<ByteBuffer> body() {
-            return null;
+            return body;
         }
 
         @Override

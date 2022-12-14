@@ -1,18 +1,22 @@
 package io.yupiik.fusion.http.server.impl.servlet;
 
+import io.yupiik.fusion.http.server.api.HttpException;
+import io.yupiik.fusion.http.server.api.Request;
+import io.yupiik.fusion.http.server.api.Response;
+import io.yupiik.fusion.http.server.impl.flow.WriterPublisher;
+import io.yupiik.fusion.http.server.impl.io.CloseOnceWriter;
+import io.yupiik.fusion.http.server.spi.Endpoint;
 import jakarta.servlet.AsyncContext;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import io.yupiik.fusion.http.server.api.Request;
-import io.yupiik.fusion.http.server.api.Response;
-import io.yupiik.fusion.http.server.spi.Endpoint;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.util.List;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Flow;
 import java.util.logging.Logger;
 
@@ -55,7 +59,11 @@ public class FusionServlet extends HttpServlet {
             try {
                 if (ex != null) {
                     logger.log(SEVERE, ex, ex::getMessage);
-                    resp.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                    if (unwrap(ex) instanceof HttpException he) {
+                        writeResponse(resp, he.getResponse());
+                    } else {
+                        resp.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                    }
                 } else {
                     writeResponse(resp, response);
                 }
@@ -63,6 +71,13 @@ public class FusionServlet extends HttpServlet {
                 asyncContext.complete();
             }
         });
+    }
+
+    private Throwable unwrap(final Throwable ex) {
+        if (ex instanceof CompletionException) {
+            return ex.getCause();
+        }
+        return ex;
     }
 
     private void writeResponse(final HttpServletResponse resp, final Response response) {
@@ -102,57 +117,63 @@ public class FusionServlet extends HttpServlet {
         final var body = response.body();
         if (body != null) {
             try {
-                final var stream = resp.getOutputStream();
-                final var channel = Channels.newChannel(stream);
-                body.subscribe(new Flow.Subscriber<>() {
-                    private Flow.Subscription subscription;
-                    private boolean closed = false;
-
-                    @Override
-                    public void onSubscribe(final Flow.Subscription subscription) {
-                        this.subscription = subscription;
-                        this.subscription.request(1);
+                if (body instanceof WriterPublisher wp) { // optimize this path
+                    try (final var writer = new CloseOnceWriter(resp.getWriter())) {
+                        wp.getDelegate().accept(writer);
                     }
+                } else {
+                    final var stream = resp.getOutputStream();
+                    final var channel = Channels.newChannel(stream);
+                    body.subscribe(new Flow.Subscriber<>() {
+                        private Flow.Subscription subscription;
+                        private boolean closed = false;
 
-                    @Override
-                    public void onNext(final ByteBuffer item) {
-                        try {
-                            channel.write(item);
-
-                            stream.flush(); // todo: make it configurable? idea is to enable to support SSE or things like that easily
-
-                            subscription.request(1);
-                        } catch (final IOException e) {
-                            subscription.cancel();
-                            onError(e);
+                        @Override
+                        public void onSubscribe(final Flow.Subscription subscription) {
+                            this.subscription = subscription;
+                            this.subscription.request(1);
                         }
-                    }
 
-                    @Override
-                    public void onError(final Throwable throwable) {
-                        if (!resp.isCommitted()) {
-                            resp.setStatus(500);
-                        }
-                        doClose();
-                    }
+                        @Override
+                        public void onNext(final ByteBuffer item) {
+                            try {
+                                channel.write(item);
 
-                    @Override
-                    public void onComplete() {
-                        doClose();
-                    }
+                                stream.flush(); // todo: make it configurable? idea is to enable to support SSE or things like that easily
 
-                    private synchronized void doClose() {
-                        if (closed) {
-                            return;
+                                subscription.request(1);
+                            } catch (final IOException e) {
+                                subscription.cancel();
+                                onError(e);
+                            }
                         }
-                        try {
-                            channel.close();
-                        } catch (final IOException e) {
-                            logger.log(SEVERE, e, e::getMessage);
+
+                        @Override
+                        public void onError(final Throwable throwable) {
+                            if (!resp.isCommitted()) {
+                                resp.setStatus(500);
+                            }
+                            doClose();
                         }
-                        closed = true;
-                    }
-                });
+
+                        @Override
+                        public void onComplete() {
+                            doClose();
+                        }
+
+                        private synchronized void doClose() {
+                            if (closed) {
+                                return;
+                            }
+                            try {
+                                channel.close();
+                            } catch (final IOException e) {
+                                logger.log(SEVERE, e, e::getMessage);
+                            }
+                            closed = true;
+                        }
+                    });
+                }
             } catch (final IOException e) {
                 throw new IllegalStateException(e);
             }

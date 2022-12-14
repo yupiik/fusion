@@ -483,7 +483,11 @@ public class FusionProcessor extends AbstractProcessor {
         try {
             final var generation = new HttpEndpointGenerator(
                     processingEnv, elements, beanForHttpEndpoints,
-                    names.packageName(), names.className() + "$" + method.getSimpleName(), method).get();
+                    names.packageName(), names.className() + "$" + method.getSimpleName(), method,
+                    Stream.concat(
+                                    knownJsonModels.stream(),
+                                    jsonModels.keySet().stream())
+                            .collect(toSet())).get();
             writeGeneratedClass(method, generation.endpoint());
             // todo: openapi?
 
