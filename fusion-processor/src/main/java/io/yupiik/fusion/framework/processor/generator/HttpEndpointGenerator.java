@@ -65,17 +65,15 @@ public class HttpEndpointGenerator extends BaseGenerator implements Supplier<Htt
                 .map(it -> {
                     final var param = ParsedType.of(it.asType());
                     if (isRequest(param)) {
-                        return new Param(null, null, null, null, "request", null);
+                        return new Param(null, null, "request", null);
                     }
                     if (isJson(param)) {
                         return new Param(
                                 "final " + JsonMapper.class.getName() + " jsonMapper",
-                                "  private final " + JsonMapper.class.getName() + " jsonMapper;",
-                                "  this.jsonMapper = jsonMapper;",
                                 "lookup(container, " + JsonMapper.class.getName() + ".class, dependents)",
-                                "new " + RequestBodyAggregator.class.getName() + "(request.body())" +
-                                        ".promise()" +
-                                        ".thenApply(payload -> jsonMapper.fromString(" +
+                                "new " + RequestBodyAggregator.class.getName() + "(request.body())\n" +
+                                        "          .promise()\n" +
+                                        "          .thenApply(payload -> jsonMapper.fromString(" +
                                         switch (param.type()) {
                                             case CLASS -> param.className() + ".class";
                                             case PARAMETERIZED_TYPE -> // todo: store it in fields for speed - avoid alloc - or is it rare enough?
@@ -95,11 +93,6 @@ public class HttpEndpointGenerator extends BaseGenerator implements Supplier<Htt
                 // todo: note that we can add an option to only generate the bean since we could do new DefaultEndpoint and bypass the endpoint class
                 new GeneratedClass(packagePrefix + endpointClassName, packageLine +
                         "public class " + endpointClassName + " extends " + DefaultEndpoint.class.getName() + " {\n" +
-                        params.stream()
-                                .map(Param::constructorField)
-                                .filter(Objects::nonNull)
-                                .distinct()
-                                .collect(joining("\n", "", "\n")) +
                         Stream.concat(
                                         Stream.of("final " + enclosingClassName + " root"),
                                         Stream.concat(
@@ -114,19 +107,10 @@ public class HttpEndpointGenerator extends BaseGenerator implements Supplier<Htt
                                         ", ",
                                         "  public " + endpointClassName + "(",
                                         ") {\n")) +
-                        "    super(" +
-                        matcher.priority() + ", " +
-                        matcherOf(matcher) + ", " +
-                        handler(params, returnType, isReturnTypeJson) + ");\n" +
-                        Stream.concat(
-                                        !isReturnTypeJson ?
-                                                Stream.empty() :
-                                                Stream.of("  this.jsonMapper = jsonMapper;"),
-                                        params.stream()
-                                                .map(Param::constructorDeclaration)
-                                                .filter(Objects::nonNull))
-                                .distinct()
-                                .collect(joining("\n", "", "\n")) +
+                        "    super(\n" +
+                        "      " + matcher.priority() + ",\n" +
+                        "      " + matcherOf(matcher) + ",\n" +
+                        "      " + handler(params, returnType, isReturnTypeJson) + ");\n" +
                         "  }\n" +
                         "}\n" +
                         "\n"),
@@ -134,9 +118,11 @@ public class HttpEndpointGenerator extends BaseGenerator implements Supplier<Htt
                         new GeneratedClass(packagePrefix + endpointClassName + '$' + FusionBean.class.getSimpleName(), packageLine +
                                 "public class " + endpointClassName + '$' + FusionBean.class.getSimpleName() + " extends " + BaseBean.class.getName() + "<" + endpointClassName + "> {\n" +
                                 "  public " + endpointClassName + '$' + FusionBean.class.getSimpleName() + "() {\n" +
-                                "    super(" +
-                                endpointClassName + ".class, " + findScope(method) + ".class, " +
-                                findPriority(method) + ", " + Map.class.getName() + ".of());\n" +
+                                "    super(\n" +
+                                "      " + endpointClassName + ".class,\n" +
+                                "      " + findScope(method) + ".class,\n" +
+                                "      " + findPriority(method) + ",\n" +
+                                "      " + Map.class.getName() + ".of());\n" +
                                 "  }\n" +
                                 "\n" +
                                 "  @Override\n" +
@@ -167,7 +153,7 @@ public class HttpEndpointGenerator extends BaseGenerator implements Supplier<Htt
         final var out = new StringBuilder();
         int indent = 0;
         for (final var param : asyncParams) {
-            out.append((param.invocation() + ".thenCompose(" + param.promiseName() + " ->\n").indent(indent));
+            out.append((param.invocation() + "\n          .thenCompose(" + param.promiseName() + " ->\n").indent(indent));
             indent += 2;
         }
 
@@ -185,7 +171,7 @@ public class HttpEndpointGenerator extends BaseGenerator implements Supplier<Htt
                 yield CompletableFuture.class.getName() + ".completedStage(" + call + ")";
             }
             case CLASS -> CompletableFuture.class.getName() + ".completedStage(" + call + ")";
-        }).indent(indent).stripTrailing();
+        }).indent(indent + "          ".length()).stripTrailing();
         out.append(result);
 
         if (!asyncParams.isEmpty()) {
@@ -194,11 +180,11 @@ public class HttpEndpointGenerator extends BaseGenerator implements Supplier<Htt
 
         return "request -> " + out +
                 (!returnJson ? "" : "\n" +
-                        "    .thenApply(jsonResult -> " + Response.class.getName() + ".of()\n" +
-                        "        .status(200)\n" +
-                        "        .header(\"content-type\", \"application/json\")\n" +
-                        "        .body(jsonMapper.toString(jsonResult))\n" +
-                        "        .build())");
+                        "          .thenApply(jsonResult -> " + Response.class.getName() + ".of()\n" +
+                        "            .status(200)\n" +
+                        "            .header(\"content-type\", \"application/json\")\n" +
+                        "            .body(jsonMapper.toString(jsonResult))\n" +
+                        "            .build())");
     }
 
     private String matcherOf(final HttpMatcher matcher) {
@@ -207,7 +193,7 @@ public class HttpEndpointGenerator extends BaseGenerator implements Supplier<Htt
                         switch (matcher.methods().length) {
                             case 0 -> null;
                             case 1 -> "new " + ValueMatcher.class.getName() + "<>(" +
-                                    Request.class.getName() + "::method, \"" + matcher.methods()[0] + "\")";
+                                    Request.class.getName() + "::method, \"" + matcher.methods()[0] + "\", String::equalsIgnoreCase)";
                             default -> "new " + CaseInsensitiveValuesMatcher.class.getName() + "<>(" +
                                     Request.class.getName() + "::method, " +
                                     Stream.of(matcher.methods()).map(it -> "\"" + it + "\"").collect(joining(", ")) + ")";
@@ -228,7 +214,7 @@ public class HttpEndpointGenerator extends BaseGenerator implements Supplier<Htt
                 .toList();
         return matchers.isEmpty() ?
                 "request -> true" :
-                matchers.stream().collect(joining(").and(", "(", ")"));
+                matchers.stream().collect(joining(")\n          .and(", "(", ")"));
     }
 
     private boolean isRequest(final ParsedType param) {
@@ -246,7 +232,7 @@ public class HttpEndpointGenerator extends BaseGenerator implements Supplier<Htt
     public record Generation(GeneratedClass endpoint, GeneratedClass bean) {
     }
 
-    public record Param(String constructorParam, String constructorField, String constructorDeclaration, String lookup,
+    public record Param(String constructorParam, String lookup,
                         String invocation, String promiseName) {
     }
 }
