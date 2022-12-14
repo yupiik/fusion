@@ -1,0 +1,5 @@
+= Fusion Framework
+
+See fusion-documentation for the documentation.
+
+Pre-requisite: Maven >= 3.8 and Java >= 17.

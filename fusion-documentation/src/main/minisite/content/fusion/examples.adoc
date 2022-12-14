@@ -1,0 +1,285 @@
+= Fusion framework Examples
+:minisite-index: 200
+:minisite-index-title: Example
+:minisite-index-description: Example gallery.
+:minisite-index-icon: vial
+:toc:
+
+[abstract]
+This page lists some common examples using Fusion framework.
+
+== Defining a Bean _without_ injections
+
+If a bean has an injection or an event listener it will be automatically defined as a bean, but in some cases, you want to define a bean on a plain class without any injection nor event listener.
+For such a case, you can mark the class with `@Bean`:
+
+[source,java]
+----
+@Bean
+public class MyService {
+    public int magicNumber() {
+        return 42;
+    }
+}
+----
+
+This simple definition enables you to inject this bean in other beans.
+
+== Defining a Bean with injection(s)
+
+The common use case of an framework is to get injected some bean without exactly knowing how it was created or initialized.
+Here is how to get an injection with Fusion framework:
+
+[source,java]
+----
+public class MyService {
+    @Injection
+    ConfigService config;
+
+    // ...
+}
+----
+
+IMPORTANT: do *NOT* use `private` fields, it is not yet supported.
+
+Alternatively, you can use constructor injections:
+
+[source,java]
+----
+@ApplicationScoped // any marker making it a bean, can be as simple as @Bean
+public class MyService {
+    private final ConfigService config; <1>
+
+    public MyService(final ConfigService service) { <2>
+        this.config = service;
+    }
+
+    protected MyService() { <3>
+        this.config = null;
+    }
+}
+----
+<.> The injected values can be defined normally since injections happen with the constructor, you can even precompute the data you need in the bean and not store the injection itself,
+<.> The constructor injection (the selected one is the most public one - `public` wins over `protected`) and with the most parameters,
+<.> The no-arg constructor - only needed for scopes using subclassing like `@ApplicationScoped`.
+
+== Create a bean in a custom fashion without a class
+
+It can happen you need to reuse some custom factory and code the initialization of a bean.
+For such a case you can mark a method with `@Bean`.
+Injections can be done in the enclosing bean if needed:
+
+[source,java]
+----
+@DefaultScoped // enclosing class is a bean
+public class MyProducer {
+    @Injection
+    ConfigService conf;
+
+    @Bean
+    public DataSource dataSource() {
+        return new DataSourcefactory(conf).create();
+    }
+}
+----
+
+IMPORTANT: as of today, you can mark the producer method with a scope but lazy scopes (like `@ApplicationScoped` are not really lazy until you implement yourself the lazyness - but scope is respected, i.e. if it is `@ApplicationScoped` it will be a singleton).
+
+TIP: if the returned type implements `AutoCloseable`, `close()` will be called to destroy the bean instance(s).
+
+== Injection of a list/set
+
+IMPORTANT: injections of `List` or `Set` are done by resolving the parameter type of the injection.
+
+[source,java]
+----
+public class MyService {
+    @Injection
+    List<MySpi> implementations;
+}
+----
+
+TIP: you can put on the implementations (or beans) the annotation `@Order` to sort their position in the `List` - ignored for `Set`.
+
+== Listen to an event
+
+Beans can communicate loosely between them thanks to events.
+The bus is synchronous and sorted using `@Order` annotation.
+
+[source,java]
+----
+public class MyListener {
+    public void onStart(@Event final Start start) {
+        System.out.println("Application started");
+    }
+
+    public void onStop(@Event final Stop stop) {
+        System.out.println("Application stopped");
+    }
+}
+----
+
+Example of ordered event listener (default being `1000`):
+
+[source,java]
+----
+public void onStart(@Event @Order(990) final Start start);
+----
+
+TIP: listening to `Start` event can enable a lazy instance (`@ApplicationScoped`) to be forced to be initialized.
+
+== Emit an event
+
+To emit an event simply inject the `Emitter` and send the needed event:
+
+[source,java]
+----
+public class CustomerService {
+    @Injection
+    Emitter emitter;
+
+    public void createCustomer(final Customer customer) {
+        emitter.emit(customer);
+    }
+}
+----
+
+== Create a configuration model [[configuration_model]]
+
+A configuration model is a record marked with `@RootConfiguration`:
+
+[source,java]
+----
+@RootConfiguration("server")
+public record ServerConfiguration(int port, String accessLogPattern) {}
+----
+
+This simple configuration will read the system properties `server.port`, `server.accessLogPattern` (or environment variables `SERVER_PORT`, `SERVER_ACCESSLOGPATTERN`) to fill the values.
+The instance of `ServerConfiguration` can be injected in any bean:
+
+[source,java]
+----
+@Bean
+public class MyServer {
+    private final ServerConfiguration conf;
+
+    public MyServer(final ServerConfiguration conf) {
+        this.conf = conf;
+    }
+
+    // ...
+}
+----
+
+If you want to customize the name of the property you can use `@Property`.
+
+Finally, you can register you own source of values creating a bean of type `ConfigurationSource`.
+
+== Create a JSON model [[json_model]]
+
+A JSON model is a record marked with `@JsonModel`:
+
+[source,java]
+----
+@JsonModel
+public record ServerConfiguration(int port, String accessLogPattern) {}
+----
+
+Then simply inject the `JsonMapper` in any bean to read/write such a model:
+
+[source,java]
+----
+@Bean
+public class MyServer {
+    private final JsonMapper conf;
+
+    public MyServer(final JsonMapper mapper) {
+        this.mapper = mapper;
+    }
+
+    // ... mapper.toString(serverconf) / mapper.fromString(ServerConfiguration.class, "{}");
+}
+----
+
+== Handle unknown JSON attributes
+
+A JSON model is a record marked with `@JsonModel`:
+
+[source,java]
+----
+@JsonModel
+public record MyModel(
+        // known attribute
+        String name,
+        // unknown attributes/extensions
+        @JsonOthers Map<String, Object> extensions) {}
+----
+
+This will match this JSON:
+
+[source,json]
+----
+{
+  "name": "fusion",
+  "x-foo": true,
+  "boney": "M"
+}
+----
+
+And convert it to the following record mapping: `MyModel[name=fusion, extensions={x-foo=true,boney=M}]`.
+
+== Define a custom HTTP endpoint
+
+=== Implement a custom explicit Endpoint bean
+
+[source,java]
+----
+@Bean
+public class MyEndpoint implements Endpoint {
+    ....
+}
+----
+
+=== Implement a custom implicit Endpoint
+
+[source,java]
+----
+@HttpMatcher(...)
+public CompletionStage<Response> myEndpoint(final Request request) {
+    ....
+}
+
+// or
+
+
+@HttpMatcher(...)
+public Response myEndpoint(final Request request) {
+    ....
+}
+----
+
+== Start the container
+
+To launch the application you need to start the container.
+It is done in two phases:
+
+* Configure the runtime
+* Launch the runtime.
+
+Here is how to do it:
+
+[source,java]
+----
+try (
+    final var container = ConfiguringContainer
+        .of() <1>
+        .start() <2>
+) {
+    // use the container or just await for the end of the application
+}
+----
+<.> Get a `ConfiguringContainer` which enables you to disable bean autodiscovery, to replace beans etc...
+<.> Launch the runtime container (you can look up beans there).
+
+TIP: you can also just reuse `io.yupiik.fusion.framework.api.main.Launcher` main which will start the default container.
+You can implement a custom `Awaiter` to not let the container shutdown immediately if you need - webserver does it by default.

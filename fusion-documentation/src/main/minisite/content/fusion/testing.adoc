@@ -1,0 +1,50 @@
+= Fusion Testing
+
+[abstract]
+Fusion Testing provides a way to start/stop a container for your tests and get injections in your test classes through method parameters.
+
+== Example
+
+[source,java]
+----
+@FusionSupport
+class Mytest {
+    @Test
+    void run(@Fusion final MyService service) {
+        // ...
+    }
+}
+----
+
+== Runner flavors
+
+There are two runner flavors:
+
+* `FusionSupport` which starts and stops the container per test class,
+* `MonoFusionSupport` which starts and stops the container per JVM - faster but does not isolate all classes.
+
+[TIP]
+--
+using a custom JUnit 5 `Extension` where you set system properties in a static block, you can configure the container before it starts.
+It is recommended to combine it in a custom annotation to control the ordering and ease the usage:
+
+[source,java]
+----
+@Target(TYPE)
+@Retention(RUNTIME)
+@MonoFusionSupport
+@ExtendsWith(MyAppSupport.MyConf.class)
+public @interface MyAppSupport {
+    class MyConf implements Extension {
+        static {
+            // do the configuration
+            System.setProperty("....", "....");
+        }
+    }
+}
+----
+
+Then simply replace fusion annotation by `MyAppSupport`.
+
+Alternatively you can register a test `ConfigurationSource` bean if you prefer but this extension option enables to also start global services like dependencies mock or a database.
+--

@@ -1,0 +1,66 @@
+= framework and GraalVM (native-image)
+:minisite-index: 500
+:minisite-index-title: GraalVM
+:minisite-index-description: GraalVM support.
+:minisite-index-icon: server
+
+To convert your application to a native binary - assuming your dependencies are native friendly like Fusion framework, you can use Apache Geronimo Arthur maven plugin.
+
+Assuming you use this main for example:
+
+[source,java]
+----
+package demo.fusion;
+
+import io.yupiik.fusion.framework.api.ConfiguringContainer;
+import io.yupiik.fusion.framework.api.lifecycle.Start;
+import io.yupiik.fusion.framework.api.scope.ApplicationScoped;
+import io.yupiik.fusion.framework.build.api.event.OnEvent;
+import io.yupiik.fusion.framework.build.api.lifecycle.Init;
+
+@ApplicationScoped
+public class Greeter {
+    @Init
+    protected void init() {
+        System.out.println("> Init");
+    }
+
+    public void onStart(@OnEvent final Start start) {
+        System.out.println("> start: " + start);
+    }
+
+    public static void main(final String... args) {
+        try (final var container = ConfiguringContainer.of().start()) {
+            // no-op
+        }
+    }
+}
+----
+
+You can just add this plugin:
+
+[source,xml]
+----
+<plugin>
+  <groupId>org.apache.geronimo.arthur</groupId>
+  <artifactId>arthur-maven-plugin</artifactId>
+  <version>1.0.5</version>
+  <configuration>
+    <graalVersion>22.3.0.r17</graalVersion>
+    <main>demo.fusion.Greeter</main>
+  </configuration>
+</plugin>
+----
+
+And run `mvn package arthur:native-image` and you will get your binary in `target/`.
+
+[TIP]
+--
+if you are a purist, and depending your needs and Arthur version you can need to add the following configuration to avoid warnings:
+
+[source,xml]
+----
+<enableAllSecurityServices>false</enableAllSecurityServices>
+<allowIncompleteClasspath>false</allowIncompleteClasspath>
+----
+--

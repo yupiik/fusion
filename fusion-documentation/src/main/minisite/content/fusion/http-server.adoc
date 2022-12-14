@@ -1,0 +1,97 @@
+= HTTP Server
+
+HTTP server module provides an abstraction over an Apache Tomcat server.
+
+== Dependency
+
+[source,xml]
+----
+<dependency>
+  <groupId>io.yupiik.fusion</groupId>
+  <artifactId>fusion-http-server</artifactId>
+  <version>${fusion.version}</artifactId>
+</dependency>
+----
+
+IMPORTANT: annotations - design API - is in `fusion-build-api` and is only useful at build time.
+
+== Usage
+
+By default, if you use Fusion IoC, the webservice will be started.
+You can customize the configuration listening for `WebServer.Configuration` event.
+
+Defining an endpoint can be done creating an `Endpoint` bean and implementing the matcher (`matches`) and handler which will return a `Response` thanks the builder:
+
+[source,java]
+----
+@Bean
+public class Greeting implements Endpoint {
+    @Override
+    public boolean matches(final Request request) {
+        return "GET".equals(request.method());
+    }
+
+    @Override
+    public CompletionStage<Response> handle(final Request request) {
+        return completedFuture(Response.of()
+                .body("{\"hello\":true}")
+                .build());
+    }
+}
+----
+
+== Configuration
+
+Most of the configuration can be customized using an event listener on `WebServer.Configuration` and unwrapping the instance as a `TomcatWebServerConfiguration` you have access to a full Tomcat server customization (HTTP/2.0, WebSocket and so on).
+
+However, there are a few system properties/environment variables (uppercased and with underscores instead of dots) you can set:
+
+* To skip the initialization of the server at startup: `fusion.http-server.start=[true|false]`. This can be useful to not start the server in tests for example,
+* To set the HTTP port to use: `fusion.http-server.port=<port>`, note that setting 0 will make the port random and you can inject `WebServer.Configuration` to read its value,
+* To set the host to use: `fusion.http-server.host=<host>`,
+* To set the access log pattern to use: `fusion.http-server.accessLogPattern=<...>`, see link:https://tomcat.apache.org/tomcat-11.0-doc/config/valve.html#Access_Logging[Tomcat] documentation for pattern details,
+* To set the webapp directory: `fusion.http-server.base=/path/to/www`. It can be useful to serve static websites if you configure the right servlets,
+* To set the fusion default servlet mapping: `fusion.http-server.fusionServletMapping=/`. It can be useful if you want to bind it to a subcontext to use standard servlets for other things like serving base directory,
+* To set if UTF-8 is enforced (default) or not over the requests/responses: `fusion.http-server.utf8Setup=true`.
+
+== High level API
+
+The first option to define an endpoint as a bean - automatically picked - is to use `Endpoint.of` API:
+
+[source,java]
+----
+@Bean
+public Endpoint myGreetingEndpoint() {
+    return Endpoint.of(
+            // matching impl
+            request -> "GET".equals(request.method()) &&
+                request.path().startsWith("/greet") &&
+                request.query() != null &&
+                request.query().startsWith("name="),
+            // endpoint impl - can be delegated to any bean
+            request -> completableStage(Response.of()
+                .status(200)
+                .header("content-type", "application/json")
+                .body(jsonMapper.toString(
+                        new Greet(request.query().substring("name=".length()))))
+                .build()));
+}
+----
+
+The alternative is to use `@HttpMatcher` API:
+
+[source,java]
+----
+@HttpMatcher(method = "GET", pathMatching = EXACT, path = "/greet")
+public CompletionStage<Response> myGreetingEndpoint() {
+    return completableStage(Response.of()
+        .status(200)
+        .header("content-type", "application/json")
+        .body(jsonMapper.toString(
+                new Greet(request.query().substring("name=".length()))))
+        .build());
+}
+----
+
+TIP: if your endpoint is fully synchronous you can drop the `CompletionStage` wrapper: `public CompletionStage<Response> myGreetingEndpoint();`.
+You can also pass as first parameter a `Request` parameter.

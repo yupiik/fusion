@@ -1,0 +1,126 @@
+= Fusion framework Setup
+:minisite-index: 300
+:minisite-index-title: Setup
+:minisite-index-description: Set up a new project.
+:minisite-index-icon: building
+
+The framework uses three main modules:
+
+* API: the runtime API, it is the runtime API, mainly resolution/look-up oriented
+* Build API: it is the API only required at build time, it is intended to be used to trigger the generation of the runtime classes using processor module,
+* Processor: it contains the magic generating most of the runtime and making the framework efficient and light.
+
+Therefore the project will generally get the _api_ in scope _compile_, the build api in scope _provided_ or _optional_ and the processor either in scope _provided_/_optional_ or just defined as an annotation processor in your compiler configuration.
+
+IMPORTANT: the generation process assumes the annotation processor is aware of all classes, depending the tools you generate you can need to disable incremental compilation as of today to ensure all classes are seen by the generator.
+
+== Maven
+
+=== Simplest
+
+The simplest is to just add the API (scope `compile`) and processor (scope `provided`):
+
+[source,xml]
+----
+<dependencies>
+  <dependency>
+    <groupId>io.yupiik.fusion</groupId>
+    <artifactId>fusion-api</artifactId>
+    <version>${minoho-framework.version}</version>
+  </dependency>
+  <dependency>
+    <groupId>io.yupiik.fusion</groupId>
+    <artifactId>fusion-processor</artifactId>
+    <version>${minoho-framework.version}</version>
+    <scope>provided</scope>
+  </dependency>
+</dependencies>
+----
+
+TIP: if can be sane to compile your project with maven (`mvn compile` or `mvn process-classes`) instead of relying on your IDE.
+This is indeed a general rule but, in this case, will enable to avoid the pitfalls of a fake incremental compilation (compiling only a few source files using the precompiled project output).
+This last case can lead to missing bean, you can obviously delete the `target` folder of your project to force your IDE to recompile but it is saner to just rely on a properly compile phase.
+
+=== IDE/Jetbrains Idea
+
+Until you configure IDEA to use maven to compile, it can happen it compiles a single source (at least not the whole module properly like Maven by default) so the output can miss some beans.
+If it happens (`java: java.lang.IllegalArgumentException: Unsupported type: 'com.superbiz.MyJsonModel', known models: [....]` at compile time or `NoClassDefFoundError`/`No bean matching type '...'` at test/runtime for example),
+then just `Rebuild` the project, command is in `Build` menu (shortcut: `Alt+B` -> `R` by default).
+
+Ultimately just drop the `target`/`out` folder if it is not about adding a file but more about removing a file (incremental support of such a change is not great as of today - but this is not specific to this project ;)).
+
+=== Use ECJ compiler (Eclipse)
+
+For ECJ to work you need to ensure the argument `-sourcepath` is set in compiler configuration and import `plexus-compiler-eclipse` (Maven):
+
+[source,xml]
+----
+<plugin>
+  <groupId>org.apache.maven.plugins</groupId>
+  <artifactId>maven-compiler-plugin</artifactId>
+  <version>3.10.1</version>
+  <configuration>
+    <compilerId>eclipse</compilerId>
+    <compilerArguments>
+      <sourcepath>${project.basedir}/src/main/java</sourcepath>
+    </compilerArguments>
+  </configuration>
+  <dependencies>
+    <dependency>
+      <groupId>org.codehaus.plexus</groupId>
+      <artifactId>plexus-compiler-eclipse</artifactId>
+      <version>2.12.1</version>
+    </dependency>
+  </dependencies>
+</plugin>
+----
+
+=== Do not expose processor in code completion
+
+A more advanced option would be to define the api in scope `compile`, the build API in scope `provided` and the processor only in `maven-compiler-plugin`.
+
+This option is more complex in terms of configuration but has the advantage to not expose the processor in the IDE (completion).
+
+Here is what it can look like:
+
+[source,xml]
+----
+<project>
+  <dependencies>
+    <dependency>
+      <groupId>io.yupiik.fusion</groupId>
+      <artifactId>fusion-api</artifactId>
+      <version>${minoho-framework.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.yupiik.fusion</groupId>
+      <artifactId>fusion-build-api</artifactId>
+      <version>${minoho-framework.version}</version>
+      <scope>provided</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.10.1</version>
+        <configuration>
+          <annotationProcessorPaths>
+            <annotationProcessorPath>
+              <groupId>io.yupiik.fusion</groupId>
+              <artifactId>fusion-processor</artifactId>
+              <version>${minoho-framework.version}</version>
+            </annotationProcessorPath>
+          </annotationProcessorPaths>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>
+----
+
+IMPORTANT: disabling the incremental compilation there is generally a good idea, in particular on CI but not having the processor in provided scope will make your IDE no more able to generate properly classes in general.
+So a better option can be to stick to previous dependencies only option (by default maven recompiles properly the module - don't set `<useIncrementalCompilation>false</useIncrementalCompilation>` it means do not use incremental compilation).
+

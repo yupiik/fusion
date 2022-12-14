@@ -1,0 +1,90 @@
+= Fusion JSON support
+:minisite-index: 400
+:minisite-index-title: JSON
+:minisite-index-description: Json Mapper.
+:minisite-index-icon: wifi
+
+Fusion JSON proposes a `JsonMapper` API which intends to support `record` models.
+
+Here the supported features list:
+
+* Models must be records or `List<X>` of a supported type, or a `Map<String, X>` of a supported type
+* Supported primitives are
+** `String`
+** `String`, `BigDecimal` (represented as `string` in JSON but incoming data can be a number), `{b,B}oolean`, `{d,D}ouble`, `int`/`Integer`, `{l,L}ouble`, `OffsetDateTime`, `ZonedDateTime`, `LocalDate`, `LocalDateTime`
+* Generic mapper is supported, it will bind `Object` as a `Map<String, Object>` values being `String` for JSON strings, `BigDecimal` for JSON numbers, another `Map<String, Object>` for JSON objects and `List<Object>` for JSON lists,
+* A simple post processor prettifier (takes a JSON as input and formats it). It is used decorating the default `JsonMapper`: `io.yupiik.fusion.json.pretty.PrettyJsonMapper`,
+* The Fusion annotation processor will generate the JSON "codecs" from the code when a record is marked with `@JsonModel`, the codec will be reflection free,
+* You can customize the attribute names using `@JsonProperty` on the record members,
+* You can map all unknown attributes in a `Map<String, Object>` member marked with `@JsonOthers` annotation.
+
+IMPORTANT: static model (annotations) are in `fusion-build-api` which is a `provided` bundle - build time only.
+
+== Runtime Dependency
+
+[source,xml]
+----
+<dependency>
+  <groupId>${project.groupId}</groupId>
+  <artifactId>fusion-json</artifactId>
+  <version>${project.version}</version>
+</dependency>
+----
+
+== Example
+
+To modelise the flow you just have to define a record marked with `@JsonModel`:
+
+[source,java]
+.Model
+----
+@JsonModel
+public record MyModel(
+    @JsonProperty("boolean") boolean aBool,
+    BigDecimal bigDecimal,
+    int integer,
+    Integer nullableInt,
+    long lg,
+    double more,
+    String simplest,
+    LocalDate date,
+    LocalDateTime dateTime,
+    OffsetDateTime offset,
+    ZonedDateTime zoned,
+    Object generic,
+    AnotherModel nested,
+    List<Boolean> booleanList,
+    List<BigDecimal> bigDecimalList,
+    List<Integer> intList,
+    Collection<Long> longList,
+    List<Double> doubleList,
+    Set<String> stringList,
+    List<LocalDate> dateList,
+    List<LocalDateTime> dateTimeList,
+    List<OffsetDateTime> offsetList,
+    List<ZonedDateTime> zonedList,
+    List<Object> genericList,
+    List<AnotherModel> nestedList,
+    Map<String, String> mapStringString,
+    Map<String, Integer> mapStringInt,
+    Map<String, AnotherModel> mapNested) {
+}
+----
+
+Then read/write data using `JsonMapper`:
+
+[source,java]
+----
+@Bean
+public class MyService extends HttpServlet {
+    @Injection
+    JsonMapper mapper;
+
+    @Override
+    public void doGet(final HttpServletRequest req, final HttpServletResponse resp) throws IOException {
+        try (final var out = resp.getWriter()) {
+            mapper.write(createMyModelInstance(req), out);
+        }
+    }
+}
+----

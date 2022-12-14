@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>io.yupiik.fusion</groupId>
+    <artifactId>fusion</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>fusion-documentation</artifactId>
+  <name>Fusion :: Framework :: Documentation</name>
+
+  <dependencies>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>fusion-processor</artifactId>
+      <version>${project.version}</version>
+      <scope>provided</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>io.yupiik.maven</groupId>
+        <artifactId>yupiik-tools-maven-plugin</artifactId>
+        <version>1.1.2</version>
+        <configuration>
+          <siteBase>/fusion/</siteBase>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
+  <profiles>
+    <profile> <!--  by default we want changes we do in the project to be reflected in the doc even without building it  -->
+      <id>generate-content-but-not-site</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>io.yupiik.maven</groupId>
+            <artifactId>yupiik-tools-maven-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>buildDoc</id>
+                <phase>prepare-package</phase>
+                <goals>
+                  <goal>minisite</goal>
+                </goals>
+                <configuration>
+                  <skipRendering>true</skipRendering>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    <profile> <!--  mvn clean package -Pgh-pages  -->
+      <id>gh-pages</id>
+      <properties>
+        <minisite.serverId>github.com</minisite.serverId>
+      </properties>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>io.yupiik.maven</groupId>
+            <artifactId>yupiik-tools-maven-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>gh-pages</id>
+                <phase>prepare-package</phase>
+                <goals>
+                  <goal>minisite</goal>
+                </goals>
+                <configuration>
+                  <git>
+                    <ignore>false</ignore>
+                    <noJekyll>true</noJekyll>
+                    <serverId>${minisite.serverId}</serverId>
+                    <branch>refs/heads/gh-pages</branch>
+                    <url>https://github.com/yupiik/fusion.git</url>
+                  </git>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
+</project>

@@ -1,0 +1,11 @@
+target
+.idea
+*.iws
+*.ipr
+*.iml
+.settings
+.classpath
+.project
+ignored.*
+generated
+generated_*
