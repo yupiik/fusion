@@ -62,7 +62,7 @@ public class ObjectJsonCodec implements JsonCodec<Object> {
             writer.write(JsonStrings.escape(s));
             return;
         }
-        if (value instanceof Boolean || value instanceof BigDecimal) {
+        if (value instanceof Boolean || value instanceof Number) {
             writer.write(String.valueOf(value));
             return;
         }

@@ -56,7 +56,11 @@ public abstract class BaseGenerator {
     }
 
     protected void appendGenerationVersion(final StringBuilder out) {
-        out.append("@").append(Generation.class.getName()).append("(version = 1)\n");
+        out.append(generationVersion());
+    }
+
+    protected String generationVersion() {
+        return "@" + Generation.class.getName() + "(version = 1)\n";
     }
 
     protected boolean isComparable(final TypeMirror type) {

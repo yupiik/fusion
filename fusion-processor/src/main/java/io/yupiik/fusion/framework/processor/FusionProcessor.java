@@ -12,6 +12,7 @@ import io.yupiik.fusion.framework.build.api.http.HttpMatcher;
 import io.yupiik.fusion.framework.build.api.json.JsonModel;
 import io.yupiik.fusion.framework.build.api.json.JsonOthers;
 import io.yupiik.fusion.framework.build.api.json.JsonProperty;
+import io.yupiik.fusion.framework.build.api.jsonrpc.JsonRpc;
 import io.yupiik.fusion.framework.build.api.lifecycle.Destroy;
 import io.yupiik.fusion.framework.build.api.lifecycle.Init;
 import io.yupiik.fusion.framework.build.api.order.Order;
@@ -24,6 +25,7 @@ import io.yupiik.fusion.framework.processor.generator.ConfigurationFactoryGenera
 import io.yupiik.fusion.framework.processor.generator.HttpEndpointGenerator;
 import io.yupiik.fusion.framework.processor.generator.JsonCodecBeanGenerator;
 import io.yupiik.fusion.framework.processor.generator.JsonCodecGenerator;
+import io.yupiik.fusion.framework.processor.generator.JsonRpcEndpointGenerator;
 import io.yupiik.fusion.framework.processor.generator.ListenerGenerator;
 import io.yupiik.fusion.framework.processor.generator.MethodBeanGenerator;
 import io.yupiik.fusion.framework.processor.generator.ModuleGenerator;
@@ -92,6 +94,7 @@ import static javax.tools.StandardLocation.SOURCE_PATH;
         "fusion.generateModule", // toggle to enable/disable the automatic module generation (see moduleFqn)
         "fusion.moduleFqn", // fully qualified name of the generated module if generateModule=true
         "fusion.generateBeanForHttpEndpoints", // if not false all endpoints (@HttpMatcher) will get a bean
+        "fusion.generateBeanForJsonRpcEndpoints", // if not false all JSON-RPC methods (@JsonRpc) will get a bean
         "fusion.generateJsonSchemas", // if not false {schemas:[...]} is generated in the location set there or META-INF/fusion/json/schemas.json
         "fusion.generateBeanForJsonCodec", // if not false a bean will be generated for the JSON codecs and make them available to JsonMapper
         "fusion.generateConfigurationDocMetadata", // if not false it will generate a JSON metadata for configuration, by default in META-INF/fusion/configuration/documentation.json else in the value set to the option
@@ -104,6 +107,9 @@ import static javax.tools.StandardLocation.SOURCE_PATH;
         "io.yupiik.fusion.framework.build.api.json.JsonProperty",
         // HTTP
         "io.yupiik.fusion.framework.build.api.http.HttpMatcher",
+        // JSON-RPC
+        "io.yupiik.fusion.framework.build.api.jsonrpc.JsonRpc",
+        "io.yupiik.fusion.framework.build.api.jsonrpc.JsonRpcParam",
         // CONFIGURATION
         "io.yupiik.fusion.framework.build.api.configuration.RootConfiguration",
         "io.yupiik.fusion.framework.build.api.configuration.Property",
@@ -125,6 +131,7 @@ public class FusionProcessor extends AbstractProcessor {
     private boolean generateBeansForConfiguration;
     private boolean beanForJsonCodecs;
     private boolean beanForHttpEndpoints;
+    private boolean beanForJsonRpcEndpoints;
     private String docsMetadataLocation;
     private String jsonSchemaLocation;
 
@@ -154,6 +161,7 @@ public class FusionProcessor extends AbstractProcessor {
 
         emitNotes = !Boolean.parseBoolean(processingEnv.getOptions().getOrDefault("fusion.skipNotes", "true"));
         beanForHttpEndpoints = Boolean.parseBoolean(processingEnv.getOptions().getOrDefault("fusion.generateBeanForHttpEndpoints", "true"));
+        beanForJsonRpcEndpoints = Boolean.parseBoolean(processingEnv.getOptions().getOrDefault("fusion.generateBeanForJsonRpcEndpoints", "true"));
         beanForJsonCodecs = Boolean.parseBoolean(processingEnv.getOptions().getOrDefault("fusion.generateBeanForJsonCodec", "true"));
         generateBeansForConfiguration = Boolean.parseBoolean(processingEnv.getOptions().getOrDefault("fusion.generateBeanForRootConfiguration", "true"));
         docsMetadataLocation = ofNullable(processingEnv.getOptions().getOrDefault("fusion.generateConfigurationDocMetadata", "true"))
@@ -196,6 +204,12 @@ public class FusionProcessor extends AbstractProcessor {
                 .map(ExecutableElement.class::cast)
                 .toList();
 
+        // find JSON-RPC endpoints
+        final var jsonRpcEndpoints = roundEnv.getElementsAnnotatedWith(JsonRpc.class).stream()
+                .filter(it -> it.getKind() == METHOD && it instanceof ExecutableElement)
+                .map(ExecutableElement.class::cast)
+                .toList();
+
         // find jsonModels
         final var jsonModels = Stream.concat(
                         roundEnv.getElementsAnnotatedWith(JsonModel.class).stream(),
@@ -222,7 +236,9 @@ public class FusionProcessor extends AbstractProcessor {
         // add beans without any injection and with @Bean OR a built-in scope OR with an event listener
         final var listeners = roundEnv.getElementsAnnotatedWith(OnEvent.class);
         final var explicitBeans = roundEnv.getElementsAnnotatedWith(io.yupiik.fusion.framework.build.api.scanning.Bean.class);
-        beans.putAll(findAllBeans(roundEnv, listeners, explicitBeans, httpEndpoints)
+        beans.putAll(findAllBeans(
+                roundEnv, listeners, explicitBeans,
+                Stream.concat(httpEndpoints.stream(), jsonRpcEndpoints.stream()).toList())
                 .filter(it -> !beans.containsKey(it))
                 .collect(toMap(identity(), i -> new ArrayList<>( /* see handleSuperClassesInjections() */))));
 
@@ -231,6 +247,7 @@ public class FusionProcessor extends AbstractProcessor {
         beans.forEach((bean, injections) -> handleSuperClassesInjections(beans, bean, injections));
 
         // generate beans, listeners, ...
+        jsonRpcEndpoints.forEach(this::generateJsonRpcEndpoint);
         httpEndpoints.forEach(this::generateHttpEndpoint);
         configurations.forEach(this::generateConfigurationFactory);
         jsonModels.forEach(this::generateJsonCodec);
@@ -353,10 +370,10 @@ public class FusionProcessor extends AbstractProcessor {
     }
 
     private Stream<Bean> findAllBeans(final RoundEnvironment roundEnv, final Set<? extends Element> listeners,
-                                      final Set<? extends Element> explicitBeans, final List<ExecutableElement> httpEndpoints) {
+                                      final Set<? extends Element> explicitBeans, final List<ExecutableElement> methodHolders) {
         return Stream.of(
                         explicitBeans.stream(),
-                        httpEndpoints.stream().map(ExecutableElement::getEnclosingElement),
+                        methodHolders.stream().map(ExecutableElement::getEnclosingElement),
                         roundEnv.getElementsAnnotatedWith(Order.class).stream(),
                         Stream.of(ApplicationScoped.class, DefaultScoped.class)
                                 .flatMap(it -> roundEnv.getElementsAnnotatedWith(it).stream()),
@@ -467,6 +484,34 @@ public class FusionProcessor extends AbstractProcessor {
                 final var bean = new BeanConfigurationGenerator(processingEnv, elements, names.packageName(), names.className()).get();
                 writeGeneratedClass(confElt, bean);
                 allBeans.put(bean.name(), pathOf(element).toString());
+            }
+        } catch (final IOException | RuntimeException e) {
+            processingEnv.getMessager().printMessage(ERROR, e.getMessage());
+        }
+    }
+
+    private void generateJsonRpcEndpoint(final ExecutableElement method) {
+        if (method.getEnclosingElement() == null || method.getEnclosingElement().getKind() != CLASS) {
+            processingEnv.getMessager().printMessage(ERROR, "'" + method + "' is not enclosed by a class: '" + method.getEnclosingElement() + "'");
+            return;
+        }
+
+        final var names = ParsedName.of(method.getEnclosingElement());
+        try {
+            final var generation = new JsonRpcEndpointGenerator(
+                    processingEnv, elements, beanForJsonRpcEndpoints,
+                    names.packageName(), names.className() + "$" + method.getSimpleName(), method,
+                    Stream.concat(
+                                    knownJsonModels.stream(),
+                                    jsonModels.keySet().stream())
+                            .collect(toSet())).get();
+            writeGeneratedClass(method, generation.endpoint());
+            // todo: openrpc?
+
+            final var bean = generation.bean();
+            if (bean != null) {
+                writeGeneratedClass(method, bean);
+                allBeans.put(bean.name(), pathOf((TypeElement) method.getEnclosingElement()).toString());
             }
         } catch (final IOException | RuntimeException e) {
             processingEnv.getMessager().printMessage(ERROR, e.getMessage());

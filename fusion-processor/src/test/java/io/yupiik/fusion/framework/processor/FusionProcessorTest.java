@@ -1,19 +1,24 @@
 package io.yupiik.fusion.framework.processor;
 
+import io.yupiik.fusion.framework.api.ConfiguringContainer;
 import io.yupiik.fusion.framework.api.Instance;
 import io.yupiik.fusion.framework.api.RuntimeContainer;
 import io.yupiik.fusion.framework.api.container.FusionListener;
 import io.yupiik.fusion.framework.api.container.FusionModule;
 import io.yupiik.fusion.framework.api.container.context.subclass.DelegatingContext;
 import io.yupiik.fusion.framework.api.container.context.subclass.SupplierDelegatingContext;
+import io.yupiik.fusion.framework.processor.test.CompilationClassLoader;
 import io.yupiik.fusion.framework.processor.test.Compiler;
 import io.yupiik.fusion.http.server.api.Cookie;
 import io.yupiik.fusion.http.server.api.Request;
 import io.yupiik.fusion.http.server.impl.flow.BytesPublisher;
 import io.yupiik.fusion.http.server.impl.io.RequestBodyAggregator;
 import io.yupiik.fusion.http.server.spi.Endpoint;
+import io.yupiik.fusion.jsonrpc.JsonRpcEndpoint;
 import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestFactory;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
@@ -45,6 +50,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
 class FusionProcessorTest {
     @Test
@@ -547,6 +553,129 @@ class FusionProcessorTest {
                 .compileAndAsserts((loader, container) -> assertEquals(7, container.getBeans().getBeans().size()));
     }
 
+    @TestFactory
+    Stream<DynamicTest> jsonRpc(@TempDir final Path work) throws IOException {
+        final var compiler = new Compiler(work, "JsonRpcEndpoints").assertCompiles(0);
+        final var loader = new CompilationClassLoader(compiler.getClasses());
+        final var container = ConfiguringContainer.of().start();
+        final var endpointInstance = container.lookup(JsonRpcEndpoint.class);
+        final var instance = endpointInstance.instance();
+
+        return Stream.of(
+                        dynamicTest("jsonRpc_generatedMethods", () -> assertEquals(
+                                List.of(
+                                        "test.p.JsonRpcEndpoints$arg$FusionJsonRpcMethod",
+                                        "test.p.JsonRpcEndpoints$asynResult$FusionJsonRpcMethod",
+                                        "test.p.JsonRpcEndpoints$fail$FusionJsonRpcMethod",
+                                        "test.p.JsonRpcEndpoints$paramTypes$FusionJsonRpcMethod",
+                                        "test.p.JsonRpcEndpoints$req$FusionJsonRpcMethod",
+                                        "test.p.JsonRpcEndpoints$result$FusionJsonRpcMethod"),
+                                container.getBeans().getBeans().keySet().stream()
+                                        .filter(Class.class::isInstance)
+                                        .map(Class.class::cast)
+                                        .map(Class::getName)
+                                        .filter(it -> it.endsWith("$FusionJsonRpcMethod"))
+                                        .sorted()
+                                        .toList())),
+                        dynamicTest("jsonRpc_unknownMethod", () -> assertJsonRpc(instance,
+                                "{\"jsonrpc\":\"2.0\",\"method\":\"unknown\"}",
+                                "{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32601,\"message\":\"Unknown method (unknown)\"}}")),
+                        dynamicTest("jsonRpc_sync_outputOnly", () -> assertJsonRpc(instance,
+                                "{\"jsonrpc\":\"2.0\",\"method\":\"test1\"}",
+                                "{\"jsonrpc\":\"2.0\",\"result\":{\"name\":\"test1\"}}")),
+                        dynamicTest("jsonRpc_async_outputOnly", () -> assertJsonRpc(instance,
+                                "{\"jsonrpc\":\"2.0\",\"method\":\"test2\"}",
+                                "{\"jsonrpc\":\"2.0\",\"result\":{\"name\":\"test2\"}}")),
+                        dynamicTest("jsonRpc_singleParam", () -> assertJsonRpc(instance,
+                                "{\"jsonrpc\":\"2.0\",\"method\":\"arg\",\"params\":{\"wrapper\":{\"name\":\"noisuf\"}}}",
+                                "{\"jsonrpc\":\"2.0\",\"result\":{\"name\":\"fusion\"}}")),
+                        dynamicTest("jsonRpc_singleParam+request", () -> assertJsonRpc(instance,
+                                "{\"jsonrpc\":\"2.0\",\"method\":\"req\",\"params\":{\"input\":{\"name\":\"fusion\"}}}",
+                                "{\"jsonrpc\":\"2.0\",\"result\":{\"name\":\"fusion (/jsonrpc)\"}}")),
+                        dynamicTest("jsonRpc_sync_failure", () -> assertJsonRpc(instance,
+                                "{\"jsonrpc\":\"2.0\",\"method\":\"fail\",\"params\":{\"direct\":true}}",
+                                "{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-2,\"message\":\"oops for test\"}}")),
+                        dynamicTest("jsonRpc_async_failure", () -> assertJsonRpc(instance,
+                                "{\"jsonrpc\":\"2.0\",\"method\":\"fail\"}",
+                                "{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-2,\"message\":\"oops for test [promise]\"}}")),
+                        dynamicTest("jsonRpc_paramTypes_defaults", () -> assertJsonRpc(instance,
+                                "{\"jsonrpc\":\"2.0\",\"method\":\"paramTypes\",\"params\":{}}",
+                                "{\"jsonrpc\":\"2.0\",\"result\":\"" +
+                                        "null\\n" +
+                                        "false\\n" +
+                                        "null\\n" +
+                                        "0\\n" +
+                                        "null\\n" +
+                                        "0\\n" +
+                                        "null\\n" +
+                                        "null\\n" +
+                                        "null\\n" +
+                                        "null\\n" +
+                                        "null\\n" +
+                                        "null\\n" +
+                                        "null\\n" +
+                                        "null\\n" +
+                                        "null\\n" +
+                                        "null\\n" +
+                                        "null\\n" +
+                                        "null\\n" +
+                                        "null\\n" +
+                                        "null\\n" +
+                                        "null\"}")),
+                        dynamicTest("jsonRpc_paramTypes", () -> assertJsonRpc(instance,
+                                "{\"jsonrpc\":\"2.0\",\"method\":\"paramTypes\",\"params\":{" +
+                                        "\"object\": {\"whatever\":\"works\"}," +
+                                        "\"bool\": true," +
+                                        "\"boolWrapper\": true," +
+                                        "\"integer\": 1," +
+                                        "\"intWrapper\": 2," +
+                                        "\"longNumber\": 3," +
+                                        "\"longWrapper\": 4," +
+                                        "\"string\": \"something\"," +
+                                        "\"model\": {\"name\":\"fusion\"}," +
+                                        "\"objectList\": [{\"idx\":1},{\"idx\":2}]," +
+                                        "\"boolWrapperList\": [true, false]," +
+                                        "\"intWrapperList\": [10, 20]," +
+                                        "\"longWrapperList\": [30, 40]," +
+                                        "\"stringList\": [\"simple\", \"hard\"]," +
+                                        "\"modelList\": [ {\"name\":\"fusion in list\"} ]," +
+                                        "\"objectMap\": {\"k1\":{\"obj\":true}}," +
+                                        "\"boolWrapperMap\": {\"kb\":true}," +
+                                        "\"intWrapperMap\":{\"ki\":100}," +
+                                        "\"longWrapperMap\":{\"kl\":200}," +
+                                        "\"stringMap\":{\"ks\":\"val\"}," +
+                                        "\"modelMap\":{\"km\": {\"name\":\"fusion in map\"}}" +
+                                        "}}",
+                                "{\"jsonrpc\":\"2.0\",\"result\":\"" +
+                                        "{whatever=works}\\n" +
+                                        "true\\n" +
+                                        "true\\n" +
+                                        "1\\n" +
+                                        "2\\n" +
+                                        "3\\n" +
+                                        "4\\n" +
+                                        "something\\n" +
+                                        "MyInput[name=fusion]\\n" +
+                                        "[{idx=1}, {idx=2}]\\n" +
+                                        "[true, false]\\n" +
+                                        "[10, 20]\\n" +
+                                        "[30, 40]\\n" +
+                                        "[simple, hard]\\n" +
+                                        "[MyInput[name=fusion in list]]\\n" +
+                                        "{k1={obj=true}}\\n" +
+                                        "{kb=true}\\n" +
+                                        "{ki=100}\\n" +
+                                        "{kl=200}\\n" +
+                                        "{ks=val}\\n" +
+                                        "{km=MyInput[name=fusion in map]}" +
+                                        "\"}")))
+                .onClose(() -> {
+                    endpointInstance.close();
+                    container.close();
+                    loader.close();
+                });
+    }
+
     @Test
     void httpEndpoint(@TempDir final Path work) throws IOException {
         final var compiler = new Compiler(work, "HttpEndpoints");
@@ -608,10 +737,10 @@ class FusionProcessorTest {
                 assertTrue(instance.matches(new SimpleRequest("POST", "/greet", Map.of())));
 
                 final var response = assertDoesNotThrow(() -> instance.handle(
-                        new SimpleRequest("POST", "/greet", Map.of(), new BytesPublisher("{\"name\":\"fusion\"}")))
+                                new SimpleRequest("POST", "/greet", Map.of(), new BytesPublisher("{\"name\":\"fusion\"}")))
                         .toCompletableFuture().get());
                 assertEquals(200, response.status());
-                assertEquals(Map.of("content-type", List.of("application/json")), response.headers());
+                assertEquals(Map.of("content-type", List.of("application/json;charset=utf-8")), response.headers());
                 assertEquals("{\"message\":\"Hello fusion!\"}", assertDoesNotThrow(() -> new RequestBodyAggregator(response.body()).promise().toCompletableFuture().get()));
             });
             withInstance(container, loader, "test.p.HttpEndpoints$greetStage$FusionHttpEndpoint", Endpoint.class, instance -> {
@@ -619,13 +748,19 @@ class FusionProcessorTest {
                 assertTrue(instance.matches(new SimpleRequest("POST", "/greetstage", Map.of())));
 
                 final var response = assertDoesNotThrow(() -> instance.handle(
-                        new SimpleRequest("POST", "/greetstage", Map.of(), new BytesPublisher("{\"name\":\"fusion\"}")))
+                                new SimpleRequest("POST", "/greetstage", Map.of(), new BytesPublisher("{\"name\":\"fusion\"}")))
                         .toCompletableFuture().get());
                 assertEquals(200, response.status());
-                assertEquals(Map.of("content-type", List.of("application/json")), response.headers());
+                assertEquals(Map.of("content-type", List.of("application/json;charset=utf-8")), response.headers());
                 assertEquals("{\"message\":\"Hello fusion!\"}", assertDoesNotThrow(() -> new RequestBodyAggregator(response.body()).promise().toCompletableFuture().get()));
             });
         });
+    }
+
+    private <A> void withInstance(final RuntimeContainer container, final Class<A> type, final Consumer<A> consumer) {
+        try (final var instance = container.lookup(type)) {
+            consumer.accept(type.cast(instance.instance()));
+        }
     }
 
     private <A> void withInstance(final RuntimeContainer container, final Function<String, Class<?>> loader, final String name,
@@ -635,7 +770,20 @@ class FusionProcessorTest {
         }
     }
 
-    private record SimpleRequest(String method, String path, Map<String, Object> attributes, Flow.Publisher<ByteBuffer> body) implements Request {
+    private void assertJsonRpc(final JsonRpcEndpoint instance, final String request, final String response) {
+        final var handled = assertDoesNotThrow(() -> instance.handle(jsonRpc(request))
+                .toCompletableFuture().get());
+        assertEquals(200, handled.status());
+        assertEquals(Map.of("content-type", List.of("application/json;charset=utf-8")), handled.headers());
+        assertEquals(response, assertDoesNotThrow(() -> new RequestBodyAggregator(handled.body()).promise().toCompletableFuture().get()));
+    }
+
+    private Request jsonRpc(final String payload) {
+        return new SimpleRequest("POST", "/jsonrpc", new HashMap<>(), new BytesPublisher(payload));
+    }
+
+    private record SimpleRequest(String method, String path, Map<String, Object> attributes,
+                                 Flow.Publisher<ByteBuffer> body) implements Request {
         private SimpleRequest() {
             this("GET", "/foo", new HashMap<>(), null);
         }

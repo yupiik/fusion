@@ -55,6 +55,18 @@
         </exclusion>
       </exclusions>
     </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>fusion-jsonrpc</artifactId>
+      <version>${project.version}</version>
+      <scope>provided</scope> <!-- for reactor ordering -->
+      <exclusions>
+        <exclusion>
+          <groupId>*</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
 
     <dependency>
       <groupId>org.apache.tomcat</groupId>

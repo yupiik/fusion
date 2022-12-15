@@ -27,6 +27,7 @@
     <module>fusion-http-server</module>
     <module>fusion-testing</module>
     <module>fusion-documentation</module>
+    <module>fusion-jsonrpc</module>
   </modules>
 
   <dependencies>

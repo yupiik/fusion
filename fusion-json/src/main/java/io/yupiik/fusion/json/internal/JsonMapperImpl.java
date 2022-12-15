@@ -1,6 +1,7 @@
 package io.yupiik.fusion.json.internal;
 
 import io.yupiik.fusion.framework.api.configuration.Configuration;
+import io.yupiik.fusion.framework.api.container.Types;
 import io.yupiik.fusion.json.JsonMapper;
 import io.yupiik.fusion.json.internal.codec.BigDecimalJsonCodec;
 import io.yupiik.fusion.json.internal.codec.BooleanJsonCodec;
@@ -35,12 +36,14 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.function.Function.identity;
+import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toMap;
 
 public class JsonMapperImpl implements JsonMapper {
@@ -134,48 +137,90 @@ public class JsonMapperImpl implements JsonMapper {
                 writer.write("null");
                 return;
             }
+
+            if (instance instanceof Collection<?> collection) {
+                if (collection.isEmpty()) {
+                    writer.write("[]");
+                    return;
+                }
+
+                final var firstItem = collection.stream().filter(Objects::nonNull).findFirst().orElse(null);
+                if (firstItem != null) {
+                    if (firstItem instanceof Map<?,?>) { // consider it is just an object
+                        final JsonCodec jsonCodec = codecs.get(Object.class);
+                        jsonCodec.write(collection, new JsonCodec.SerializationContext(writer, this::codecLookup));
+                        return;
+                    }
+
+                    final var itemClass = firstItem.getClass();
+
+                    final var key = new Types.ParameterizedTypeImpl(Collection.class, itemClass);
+                    final JsonCodec existing = codecs.get(key);
+                    if (existing != null) {
+                        existing.write(collection, new JsonCodec.SerializationContext(writer, this::codecLookup));
+                        return;
+                    }
+
+                    final var itemCodec = (JsonCodec<?>) codecs.get(itemClass);
+                    if (itemCodec == null) {
+                        throw missingCodecException(itemClass);
+                    }
+
+                    final var wrapper = new CollectionJsonCodec<>(itemCodec, List.class, () -> (Collection) new ArrayList<>());
+                    codecs.putIfAbsent(key, wrapper);
+                    wrapper.write(collection, new JsonCodec.SerializationContext(writer, this::codecLookup));
+                    return;
+                }
+
+                writer.write(collection.stream().map(it -> "null").collect(joining(",", "[", "]")));
+                return;
+            }
+
+            if (instance instanceof Map<?, ?> map) {
+                if (map.isEmpty()) {
+                    writer.write("{}");
+                    return;
+                }
+
+                final var entry = map.entrySet().stream()
+                        .filter(it -> it.getValue() != null)
+                        .findFirst()
+                        .orElse(null);
+                if (entry != null && entry.getKey() instanceof String && entry.getValue() != null) {
+                    if (entry.getValue() instanceof Map<?,?>) { // consider it is just an object
+                        final JsonCodec jsonCodec = codecs.get(Object.class);
+                        jsonCodec.write(map, new JsonCodec.SerializationContext(writer, this::codecLookup));
+                        return;
+                    }
+
+                    final var itemClass = entry.getValue().getClass();
+
+                    final var key = new Types.ParameterizedTypeImpl(Map.class, String.class, itemClass);
+                    final JsonCodec existing = codecs.get(key);
+                    if (existing != null) {
+                        existing.write(map, new JsonCodec.SerializationContext(writer, this::codecLookup));
+                        return;
+                    }
+
+                    final var itemCodec = (JsonCodec<?>) codecs.get(itemClass);
+                    if (itemCodec == null) {
+                        throw missingCodecException(itemClass);
+                    }
+                    final var wrapper = new MapJsonCodec<>(itemCodec);
+                    codecs.putIfAbsent(key, wrapper);
+                    wrapper.write((Map) map, new JsonCodec.SerializationContext(writer, this::codecLookup));
+                    return;
+                }
+
+                writer.write(map.keySet().stream()
+                        .map(it -> '"' + JsonStrings.escape(String.valueOf(it)) + "\":null")
+                        .collect(joining(",", "{", "}")));
+                return;
+            }
+
             final var clazz = instance.getClass();
             final var codec = (JsonCodec<A>) codecs.get(clazz);
             if (codec == null) {
-                if (instance instanceof Collection<?> collection) {
-                    if (collection.isEmpty()) {
-                        writer.write("[]");
-                        return;
-                    }
-
-                    final var firstItem = collection.iterator().next();
-                    if (firstItem != null) {
-                        final var itemClass = firstItem.getClass();
-                        final var itemCodec = (JsonCodec<?>) codecs.get(itemClass);
-                        if (itemCodec == null) {
-                            throw missingCodecException(itemClass);
-                        }
-                        final var wrapper = new CollectionJsonCodec<>(itemCodec, List.class, () -> (Collection) new ArrayList<>());
-                        codecs.putIfAbsent(clazz, wrapper);
-                        wrapper.write(collection, new JsonCodec.SerializationContext(writer, this::codecLookup));
-                        return;
-                    }
-                }
-
-                if (instance instanceof Map<?, ?> map) {
-                    if (map.isEmpty()) {
-                        writer.write("{}");
-                        return;
-                    }
-
-                    final var entry = map.entrySet().iterator().next();
-                    if (entry != null && entry.getKey() instanceof String && entry.getValue() != null) {
-                        final var itemClass = entry.getValue().getClass();
-                        final var itemCodec = (JsonCodec<?>) codecs.get(itemClass);
-                        if (itemCodec == null) {
-                            throw missingCodecException(itemClass);
-                        }
-                        final var wrapper = new MapJsonCodec<>(itemCodec);
-                        codecs.putIfAbsent(clazz, wrapper);
-                        wrapper.write((Map) map, new JsonCodec.SerializationContext(writer, this::codecLookup));
-                        return;
-                    }
-                }
                 throw missingCodecException(clazz);
             }
 

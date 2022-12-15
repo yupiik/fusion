@@ -9,6 +9,7 @@ import io.yupiik.fusion.framework.processor.Bean;
 import io.yupiik.fusion.framework.processor.FusionProcessor;
 import io.yupiik.fusion.http.server.api.Request;
 import io.yupiik.fusion.json.JsonMapper;
+import io.yupiik.fusion.jsonrpc.JsonRpcHandler;
 
 import java.io.File;
 import java.io.IOException;
@@ -133,11 +134,12 @@ public class Compiler {
         final var version = Runtime.version().version().get(0).toString();
         final var cp = String.join(
                 File.pathSeparator,
+                Bean.class.getProtectionDomain().getCodeSource().getLocation().getFile(),
                 Injection.class.getProtectionDomain().getCodeSource().getLocation().getFile(),
                 Generation.class.getProtectionDomain().getCodeSource().getLocation().getFile(),
                 JsonMapper.class.getProtectionDomain().getCodeSource().getLocation().getFile(),
                 Request.class.getProtectionDomain().getCodeSource().getLocation().getFile(),
-                Bean.class.getProtectionDomain().getCodeSource().getLocation().getFile());
+                JsonRpcHandler.class.getProtectionDomain().getCodeSource().getLocation().getFile());
         final var cmd = Stream.concat(
                         Stream.of(
                                 "--release", version,
