@@ -55,6 +55,11 @@ public class HttpEndpoints {
         return completedFuture(Response.of().status(206).header("java-method", "getAndRegexFooPath").build());
     }
 
+    @HttpMatcher(methods = "POST", pathMatching = HttpMatcher.PathMatching.EXACT, path = "/greetstage")
+    public CompletionStage<GreetResponse> greetStage(final GreetRequest request) {
+        return completedFuture(new GreetResponse("Hello " + request.name() + "!"));
+    }
+
     @HttpMatcher(methods = "POST", pathMatching = HttpMatcher.PathMatching.EXACT, path = "/greet")
     public GreetResponse greet(final GreetRequest request) {
         return new GreetResponse("Hello " + request.name() + "!");

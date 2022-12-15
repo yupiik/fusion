@@ -559,7 +559,8 @@ class FusionProcessorTest {
                             "test.p.HttpEndpoints$getAndFooPath$FusionHttpEndpoint",
                             "test.p.HttpEndpoints$getAndRegexFooPath$FusionHttpEndpoint",
                             "test.p.HttpEndpoints$getAndStartsWithFooPath$FusionHttpEndpoint",
-                            "test.p.HttpEndpoints$greet$FusionHttpEndpoint"),
+                            "test.p.HttpEndpoints$greet$FusionHttpEndpoint",
+                            "test.p.HttpEndpoints$greetStage$FusionHttpEndpoint"),
                     container.getBeans().getBeans().keySet().stream()
                             .filter(Class.class::isInstance)
                             .map(Class.class::cast)
@@ -608,6 +609,17 @@ class FusionProcessorTest {
 
                 final var response = assertDoesNotThrow(() -> instance.handle(
                         new SimpleRequest("POST", "/greet", Map.of(), new BytesPublisher("{\"name\":\"fusion\"}")))
+                        .toCompletableFuture().get());
+                assertEquals(200, response.status());
+                assertEquals(Map.of("content-type", List.of("application/json")), response.headers());
+                assertEquals("{\"message\":\"Hello fusion!\"}", assertDoesNotThrow(() -> new RequestBodyAggregator(response.body()).promise().toCompletableFuture().get()));
+            });
+            withInstance(container, loader, "test.p.HttpEndpoints$greetStage$FusionHttpEndpoint", Endpoint.class, instance -> {
+                assertFalse(instance.matches(new SimpleRequest()));
+                assertTrue(instance.matches(new SimpleRequest("POST", "/greetstage", Map.of())));
+
+                final var response = assertDoesNotThrow(() -> instance.handle(
+                        new SimpleRequest("POST", "/greetstage", Map.of(), new BytesPublisher("{\"name\":\"fusion\"}")))
                         .toCompletableFuture().get());
                 assertEquals(200, response.status());
                 assertEquals(Map.of("content-type", List.of("application/json")), response.headers());
