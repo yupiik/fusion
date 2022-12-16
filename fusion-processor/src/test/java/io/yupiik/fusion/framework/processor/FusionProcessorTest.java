@@ -14,6 +14,9 @@ import io.yupiik.fusion.http.server.api.Request;
 import io.yupiik.fusion.http.server.impl.flow.BytesPublisher;
 import io.yupiik.fusion.http.server.impl.io.RequestBodyAggregator;
 import io.yupiik.fusion.http.server.spi.Endpoint;
+import io.yupiik.fusion.json.internal.JsonMapperImpl;
+import io.yupiik.fusion.json.internal.codec.ObjectJsonCodec;
+import io.yupiik.fusion.json.internal.formatter.SimplePrettyFormatter;
 import io.yupiik.fusion.jsonrpc.JsonRpcEndpoint;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DynamicTest;
@@ -41,6 +44,7 @@ import java.util.stream.Stream;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
+import static java.util.Optional.empty;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -423,68 +427,404 @@ class FusionProcessorTest {
                         (loader, mapper) -> { // ensure JSON-Schemas are generated
                             try (final var in = requireNonNull(Thread.currentThread().getContextClassLoader()
                                     .getResourceAsStream("META-INF/fusion/json/schemas.json"))) {
-                                assertEquals("" +
-                                                "{\"schemas\":{" +
-                                                "\"test.p.JsonRecords.AllInOne\":{" +
-                                                "\"$id\":\"test.p.JsonRecords.AllInOne\"," +
-                                                "\"type\":\"object\",\"properties\":{" +
-                                                "\"aBool\":{\"type\":\"boolean\"}," +
-                                                "\"bigNumber\":{\"type\":\"string\",\"nullable\":true}," +
-                                                "\"integer\":{\"type\":\"integer\",\"format\":\"int32\"}," +
-                                                "\"nullableInt\":{\"type\":\"integer\",\"format\":\"int32\",\"nullable\":true}," +
-                                                "\"lg\":{\"type\":\"number\",\"format\":\"int64\"}," +
-                                                "\"more\":{\"type\":\"number\"}," +
-                                                "\"simplest\":{\"type\":\"string\",\"nullable\":true}," +
-                                                "\"date\":{\"type\":\"string\",\"format\":\"date\",\"nullable\":true}," +
-                                                "\"dateTime\":{\"type\":\"string\",\"pattern\":\"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?(\\\\.[0-9]*)?$\",\"nullable\":true}," +
-                                                "\"offset\":{\"type\":\"string\",\"pattern\":\"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?(\\\\.[0-9]*)?([+-]?[0-9]{2}:[0-9]{2})?Z?$\",\"nullable\":true}," +
-                                                "\"zoned\":{\"type\":\"string\",\"pattern\":\"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?(\\\\.[0-9]*)?([+-]?[0-9]{2}:[0-9]{2})?Z?(\\\\[.*\\\\])?$\",\"nullable\":true}," +
-                                                "\"generic\":{\"type\":\"object\",\"additionalProperties\":true,\"nullable\":true}," +
-                                                "\"nested\":{\"$ref\":\"#/schemas/test.p.JsonRecords.StringHolder\",\"nullable\":true}," +
-                                                "\"booleanList\":{\"type\":\"array\",\"items\":{\"type\":\"boolean\",\"nullable\":true},\"nullable\":true}," +
-                                                "\"bigNumbers\":{\"type\":\"array\",\"items\":{\"type\":\"string\",\"nullable\":true},\"nullable\":true}," +
-                                                "\"intList\":{\"type\":\"array\",\"items\":{\"type\":\"integer\",\"format\":\"int32\",\"nullable\":true},\"nullable\":true}," +
-                                                "\"longList\":{\"type\":\"array\",\"items\":{\"type\":\"number\",\"format\":\"int64\",\"nullable\":true},\"nullable\":true}," +
-                                                "\"doubleList\":{\"type\":\"array\",\"items\":{\"type\":\"number\",\"nullable\":true},\"nullable\":true}," +
-                                                "\"stringList\":{\"type\":\"array\",\"items\":{\"type\":\"string\",\"nullable\":true},\"nullable\":true}," +
-                                                "\"dateList\":{\"type\":\"array\",\"items\":{\"type\":\"string\",\"format\":\"date\",\"nullable\":true},\"nullable\":true}," +
-                                                "\"dateTimeList\":{\"type\":\"array\",\"items\":{\"type\":\"string\",\"pattern\":\"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?(\\\\.[0-9]*)?$\",\"nullable\":true}," +
-                                                "\"nullable\":true},\"offsetList\":{\"type\":\"array\",\"items\":{\"type\":\"string\",\"pattern\":\"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?(\\\\.[0-9]*)?([+-]?[0-9]{2}:[0-9]{2})?Z?$\",\"nullable\":true}," +
-                                                "\"nullable\":true},\"zonedList\":{\"type\":\"array\",\"items\":{\"type\":\"string\",\"pattern\":\"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?(\\\\.[0-9]*)?([+-]?[0-9]{2}:[0-9]{2})?Z?(\\\\[.*\\\\])?$\",\"nullable\":true}," +
-                                                "\"nullable\":true},\"genericList\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"additionalProperties\":true,\"nullable\":true},\"nullable\":true}," +
-                                                "\"nestedList\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/schemas/test.p.JsonRecords.StringHolder\",\"nullable\":true},\"nullable\":true}," +
-                                                "\"mapStringString\":{\"type\":\"object\",\"additionalProperties\":{\"type\":\"string\",\"nullable\":true},\"nullable\":true}," +
-                                                "\"mapStringInt\":{\"type\":\"object\",\"additionalProperties\":{\"type\":\"integer\",\"format\":\"int32\",\"nullable\":true},\"nullable\":true}," +
-                                                "\"mapNested\":{\"type\":\"object\",\"additionalProperties\":{\"$ref\":\"#/schemas/test.p.JsonRecords.StringHolder\",\"nullable\":true},\"nullable\":true}," +
-                                                "\"others\":{\"type\":\"object\",\"additionalProperties\":{\"type\":\"object\",\"additionalProperties\":true,\"nullable\":true},\"nullable\":true}}}," +
-                                                "\"test.p.JsonRecords.StringHolder\":{\"$id\":\"test.p.JsonRecords.StringHolder\",\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\",\"nullable\":true}}}," +
-                                                "\"test.p.JsonRecords.StrongTyping\":{" +
-                                                "\"$id\":\"test.p.JsonRecords.StrongTyping\",\"type\":\"object\",\"properties\":{" +
-                                                "\"aBool\":{\"type\":\"boolean\"},\"bigNumber\":{\"type\":\"string\",\"nullable\":true}," +
-                                                "\"integer\":{\"type\":\"integer\",\"format\":\"int32\"},\"nullableInt\":{\"type\":\"integer\",\"format\":\"int32\",\"nullable\":true}," +
-                                                "\"lg\":{\"type\":\"number\",\"format\":\"int64\"},\"more\":{\"type\":\"number\"}," +
-                                                "\"simplest\":{\"type\":\"string\",\"nullable\":true},\"date\":{\"type\":\"string\",\"format\":\"date\",\"nullable\":true}," +
-                                                "\"dateTime\":{\"type\":\"string\",\"pattern\":\"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?(\\\\.[0-9]*)?$\",\"nullable\":true}," +
-                                                "\"offset\":{\"type\":\"string\",\"pattern\":\"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?(\\\\.[0-9]*)?([+-]?[0-9]{2}:[0-9]{2})?Z?$\",\"nullable\":true}," +
-                                                "\"zoned\":{\"type\":\"string\",\"pattern\":\"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?(\\\\.[0-9]*)?([+-]?[0-9]{2}:[0-9]{2})?Z?(\\\\[.*\\\\])?$\",\"nullable\":true}," +
-                                                "\"generic\":{\"type\":\"object\",\"additionalProperties\":true,\"nullable\":true}," +
-                                                "\"nested\":{\"$ref\":\"#/schemas/test.p.JsonRecords.StringHolder\",\"nullable\":true}," +
-                                                "\"booleanList\":{\"type\":\"array\",\"items\":{\"type\":\"boolean\",\"nullable\":true},\"nullable\":true}," +
-                                                "\"bigNumbers\":{\"type\":\"array\",\"items\":{\"type\":\"string\",\"nullable\":true},\"nullable\":true}," +
-                                                "\"intList\":{\"type\":\"array\",\"items\":{\"type\":\"integer\",\"format\":\"int32\",\"nullable\":true},\"nullable\":true}," +
-                                                "\"longList\":{\"type\":\"array\",\"items\":{\"type\":\"number\",\"format\":\"int64\",\"nullable\":true},\"nullable\":true}," +
-                                                "\"doubleList\":{\"type\":\"array\",\"items\":{\"type\":\"number\",\"nullable\":true},\"nullable\":true}," +
-                                                "\"stringList\":{\"type\":\"array\",\"items\":{\"type\":\"string\",\"nullable\":true},\"nullable\":true}," +
-                                                "\"dateList\":{\"type\":\"array\",\"items\":{\"type\":\"string\",\"format\":\"date\",\"nullable\":true},\"nullable\":true}," +
-                                                "\"dateTimeList\":{\"type\":\"array\",\"items\":{\"type\":\"string\",\"pattern\":\"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?(\\\\.[0-9]*)?$\",\"nullable\":true},\"nullable\":true}," +
-                                                "\"offsetList\":{\"type\":\"array\",\"items\":{\"type\":\"string\",\"pattern\":\"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?(\\\\.[0-9]*)?([+-]?[0-9]{2}:[0-9]{2})?Z?$\",\"nullable\":true},\"nullable\":true}," +
-                                                "\"zonedList\":{\"type\":\"array\",\"items\":{\"type\":\"string\",\"pattern\":\"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?(\\\\.[0-9]*)?([+-]?[0-9]{2}:[0-9]{2})?Z?(\\\\[.*\\\\])?$\",\"nullable\":true},\"nullable\":true}," +
-                                                "\"genericList\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"additionalProperties\":true,\"nullable\":true},\"nullable\":true}," +
-                                                "\"nestedList\":{\"type\":\"array\",\"items\":{\"$ref\":\"#/schemas/test.p.JsonRecords.StringHolder\",\"nullable\":true},\"nullable\":true}," +
-                                                "\"mapStringString\":{\"type\":\"object\",\"additionalProperties\":{\"type\":\"string\",\"nullable\":true},\"nullable\":true}," +
-                                                "\"mapStringInt\":{\"type\":\"object\",\"additionalProperties\":{\"type\":\"integer\",\"format\":\"int32\",\"nullable\":true},\"nullable\":true}," +
-                                                "\"mapNested\":{\"type\":\"object\",\"additionalProperties\":{\"$ref\":\"#/schemas/test.p.JsonRecords.StringHolder\",\"nullable\":true},\"nullable\":true}}}}}",
-                                        new String(in.readAllBytes(), UTF_8));
+                                assertEquals("""
+                                                {
+                                                  "schemas": {
+                                                    "test.p.JsonRecords.AllInOne": {
+                                                      "type": "object",
+                                                      "properties": {
+                                                        "aBool": {
+                                                          "nullable": false,
+                                                          "type": "boolean"
+                                                        },
+                                                        "bigNumber": {
+                                                          "nullable": true,
+                                                          "type": "string"
+                                                        },
+                                                        "bigNumbers": {
+                                                          "type": "array",
+                                                          "items": {
+                                                            "nullable": true,
+                                                            "type": "string"
+                                                          }
+                                                        },
+                                                        "booleanList": {
+                                                          "type": "array",
+                                                          "items": {
+                                                            "nullable": true,
+                                                            "type": "boolean"
+                                                          }
+                                                        },
+                                                        "date": {
+                                                          "nullable": true,
+                                                          "format": "date",
+                                                          "type": "string"
+                                                        },
+                                                        "dateList": {
+                                                          "type": "array",
+                                                          "items": {
+                                                            "nullable": true,
+                                                            "format": "date",
+                                                            "type": "string"
+                                                          }
+                                                        },
+                                                        "dateTime": {
+                                                          "nullable": true,
+                                                          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?(\\\\.[0-9]*)?$",
+                                                          "type": "string"
+                                                        },
+                                                        "dateTimeList": {
+                                                          "type": "array",
+                                                          "items": {
+                                                            "nullable": true,
+                                                            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?(\\\\.[0-9]*)?$",
+                                                            "type": "string"
+                                                          }
+                                                        },
+                                                        "doubleList": {
+                                                          "type": "array",
+                                                          "items": {
+                                                            "nullable": true,
+                                                            "type": "integer",
+                                                            "$id": "number"
+                                                          }
+                                                        },
+                                                        "generic": {
+                                                          "nullable": true,
+                                                          "additionalProperties": true,
+                                                          "type": "object"
+                                                        },
+                                                        "genericList": {
+                                                          "type": "array",
+                                                          "items": {
+                                                            "nullable": true,
+                                                            "additionalProperties": true,
+                                                            "type": "object"
+                                                          }
+                                                        },
+                                                        "intList": {
+                                                          "type": "array",
+                                                          "items": {
+                                                            "nullable": true,
+                                                            "format": "int32",
+                                                            "type": "integer"
+                                                          }
+                                                        },
+                                                        "integer": {
+                                                          "nullable": false,
+                                                          "format": "int32",
+                                                          "type": "integer"
+                                                        },
+                                                        "lg": {
+                                                          "nullable": false,
+                                                          "format": "int64",
+                                                          "type": "integer",
+                                                          "$id": "number"
+                                                        },
+                                                        "longList": {
+                                                          "type": "array",
+                                                          "items": {
+                                                            "nullable": true,
+                                                            "format": "int64",
+                                                            "type": "integer",
+                                                            "$id": "number"
+                                                          }
+                                                        },
+                                                        "mapNested": {
+                                                          "nullable": true,
+                                                          "additionalProperties": {
+                                                            "nullable": true,
+                                                            "$ref": "#/schemas/test.p.JsonRecords.StringHolder"
+                                                          },
+                                                          "type": "object"
+                                                        },
+                                                        "mapStringInt": {
+                                                          "nullable": true,
+                                                          "additionalProperties": {
+                                                            "nullable": true,
+                                                            "format": "int32",
+                                                            "type": "integer"
+                                                          },
+                                                          "type": "object"
+                                                        },
+                                                        "mapStringString": {
+                                                          "nullable": true,
+                                                          "additionalProperties": {
+                                                            "nullable": true,
+                                                            "type": "string"
+                                                          },
+                                                          "type": "object"
+                                                        },
+                                                        "more": {
+                                                          "nullable": false,
+                                                          "type": "integer",
+                                                          "$id": "number"
+                                                        },
+                                                        "nested": {
+                                                          "nullable": true,
+                                                          "$ref": "#/schemas/test.p.JsonRecords.StringHolder"
+                                                        },
+                                                        "nestedList": {
+                                                          "type": "array",
+                                                          "items": {
+                                                            "nullable": true,
+                                                            "$ref": "#/schemas/test.p.JsonRecords.StringHolder"
+                                                          }
+                                                        },
+                                                        "nullableInt": {
+                                                          "nullable": true,
+                                                          "format": "int32",
+                                                          "type": "integer"
+                                                        },
+                                                        "offset": {
+                                                          "nullable": true,
+                                                          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?(\\\\\\\\.[0-9]*)?([+-]?[0-9]{2}:[0-9]{2})?Z?$",
+                                                          "type": "string"
+                                                        },
+                                                        "offsetList": {
+                                                          "type": "array",
+                                                          "items": {
+                                                            "nullable": true,
+                                                            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?(\\\\\\\\.[0-9]*)?([+-]?[0-9]{2}:[0-9]{2})?Z?$",
+                                                            "type": "string"
+                                                          }
+                                                        },
+                                                        "others": {
+                                                          "nullable": true,
+                                                          "additionalProperties": {
+                                                            "nullable": true,
+                                                            "additionalProperties": true,
+                                                            "type": "object"
+                                                          },
+                                                          "type": "object"
+                                                        },
+                                                        "simplest": {
+                                                          "nullable": true,
+                                                          "type": "string"
+                                                        },
+                                                        "stringList": {
+                                                          "type": "array",
+                                                          "items": {
+                                                            "nullable": true,
+                                                            "type": "string"
+                                                          }
+                                                        },
+                                                        "zoned": {
+                                                          "nullable": true,
+                                                          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?(\\\\.[0-9]*)?([+-]?[0-9]{2}:[0-9]{2})?Z?(\\\\[.*\\\\])?$",
+                                                          "type": "string"
+                                                        },
+                                                        "zonedList": {
+                                                          "type": "array",
+                                                          "items": {
+                                                            "nullable": true,
+                                                            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?(\\\\.[0-9]*)?([+-]?[0-9]{2}:[0-9]{2})?Z?(\\\\[.*\\\\])?$",
+                                                            "type": "string"
+                                                          }
+                                                        }
+                                                      },
+                                                      "$id": "test.p.JsonRecords.AllInOne"
+                                                    },
+                                                    "test.p.JsonRecords.StringHolder": {
+                                                      "type": "object",
+                                                      "properties": {
+                                                        "name": {
+                                                          "nullable": true,
+                                                          "type": "string"
+                                                        }
+                                                      },
+                                                      "$id": "test.p.JsonRecords.StringHolder"
+                                                    },
+                                                    "test.p.JsonRecords.StrongTyping": {
+                                                      "type": "object",
+                                                      "properties": {
+                                                        "aBool": {
+                                                          "nullable": false,
+                                                          "type": "boolean"
+                                                        },
+                                                        "bigNumber": {
+                                                          "nullable": true,
+                                                          "type": "string"
+                                                        },
+                                                        "bigNumbers": {
+                                                          "type": "array",
+                                                          "items": {
+                                                            "nullable": true,
+                                                            "type": "string"
+                                                          }
+                                                        },
+                                                        "booleanList": {
+                                                          "type": "array",
+                                                          "items": {
+                                                            "nullable": true,
+                                                            "type": "boolean"
+                                                          }
+                                                        },
+                                                        "date": {
+                                                          "nullable": true,
+                                                          "format": "date",
+                                                          "type": "string"
+                                                        },
+                                                        "dateList": {
+                                                          "type": "array",
+                                                          "items": {
+                                                            "nullable": true,
+                                                            "format": "date",
+                                                            "type": "string"
+                                                          }
+                                                        },
+                                                        "dateTime": {
+                                                          "nullable": true,
+                                                          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?(\\\\.[0-9]*)?$",
+                                                          "type": "string"
+                                                        },
+                                                        "dateTimeList": {
+                                                          "type": "array",
+                                                          "items": {
+                                                            "nullable": true,
+                                                            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?(\\\\.[0-9]*)?$",
+                                                            "type": "string"
+                                                          }
+                                                        },
+                                                        "doubleList": {
+                                                          "type": "array",
+                                                          "items": {
+                                                            "nullable": true,
+                                                            "type": "integer",
+                                                            "$id": "number"
+                                                          }
+                                                        },
+                                                        "generic": {
+                                                          "nullable": true,
+                                                          "additionalProperties": true,
+                                                          "type": "object"
+                                                        },
+                                                        "genericList": {
+                                                          "type": "array",
+                                                          "items": {
+                                                            "nullable": true,
+                                                            "additionalProperties": true,
+                                                            "type": "object"
+                                                          }
+                                                        },
+                                                        "intList": {
+                                                          "type": "array",
+                                                          "items": {
+                                                            "nullable": true,
+                                                            "format": "int32",
+                                                            "type": "integer"
+                                                          }
+                                                        },
+                                                        "integer": {
+                                                          "nullable": false,
+                                                          "format": "int32",
+                                                          "type": "integer"
+                                                        },
+                                                        "lg": {
+                                                          "nullable": false,
+                                                          "format": "int64",
+                                                          "type": "integer",
+                                                          "$id": "number"
+                                                        },
+                                                        "longList": {
+                                                          "type": "array",
+                                                          "items": {
+                                                            "nullable": true,
+                                                            "format": "int64",
+                                                            "type": "integer",
+                                                            "$id": "number"
+                                                          }
+                                                        },
+                                                        "mapNested": {
+                                                          "nullable": true,
+                                                          "additionalProperties": {
+                                                            "nullable": true,
+                                                            "$ref": "#/schemas/test.p.JsonRecords.StringHolder"
+                                                          },
+                                                          "type": "object"
+                                                        },
+                                                        "mapStringInt": {
+                                                          "nullable": true,
+                                                          "additionalProperties": {
+                                                            "nullable": true,
+                                                            "format": "int32",
+                                                            "type": "integer"
+                                                          },
+                                                          "type": "object"
+                                                        },
+                                                        "mapStringString": {
+                                                          "nullable": true,
+                                                          "additionalProperties": {
+                                                            "nullable": true,
+                                                            "type": "string"
+                                                          },
+                                                          "type": "object"
+                                                        },
+                                                        "more": {
+                                                          "nullable": false,
+                                                          "type": "integer",
+                                                          "$id": "number"
+                                                        },
+                                                        "nested": {
+                                                          "nullable": true,
+                                                          "$ref": "#/schemas/test.p.JsonRecords.StringHolder"
+                                                        },
+                                                        "nestedList": {
+                                                          "type": "array",
+                                                          "items": {
+                                                            "nullable": true,
+                                                            "$ref": "#/schemas/test.p.JsonRecords.StringHolder"
+                                                          }
+                                                        },
+                                                        "nullableInt": {
+                                                          "nullable": true,
+                                                          "format": "int32",
+                                                          "type": "integer"
+                                                        },
+                                                        "offset": {
+                                                          "nullable": true,
+                                                          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?(\\\\\\\\.[0-9]*)?([+-]?[0-9]{2}:[0-9]{2})?Z?$",
+                                                          "type": "string"
+                                                        },
+                                                        "offsetList": {
+                                                          "type": "array",
+                                                          "items": {
+                                                            "nullable": true,
+                                                            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?(\\\\\\\\.[0-9]*)?([+-]?[0-9]{2}:[0-9]{2})?Z?$",
+                                                            "type": "string"
+                                                          }
+                                                        },
+                                                        "simplest": {
+                                                          "nullable": true,
+                                                          "type": "string"
+                                                        },
+                                                        "stringList": {
+                                                          "type": "array",
+                                                          "items": {
+                                                            "nullable": true,
+                                                            "type": "string"
+                                                          }
+                                                        },
+                                                        "zoned": {
+                                                          "nullable": true,
+                                                          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?(\\\\.[0-9]*)?([+-]?[0-9]{2}:[0-9]{2})?Z?(\\\\[.*\\\\])?$",
+                                                          "type": "string"
+                                                        },
+                                                        "zonedList": {
+                                                          "type": "array",
+                                                          "items": {
+                                                            "nullable": true,
+                                                            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?(\\\\.[0-9]*)?([+-]?[0-9]{2}:[0-9]{2})?Z?(\\\\[.*\\\\])?$",
+                                                            "type": "string"
+                                                          }
+                                                        }
+                                                      },
+                                                      "$id": "test.p.JsonRecords.StrongTyping"
+                                                    }
+                                                  }
+                                                }""",
+                                        new SimplePrettyFormatter(new JsonMapperImpl(List.of(new ObjectJsonCodec()), c -> empty()))
+                                                .apply(new String(in.readAllBytes(), UTF_8)));
                             } catch (final IOException e) {
                                 fail(e);
                             }
@@ -527,9 +867,9 @@ class FusionProcessorTest {
                         (loader, mapper) -> { // ensure JSON-Schemas are generated even when there is a loop
                             try (final var in = requireNonNull(Thread.currentThread().getContextClassLoader()
                                     .getResourceAsStream("META-INF/fusion/json/schemas.json"))) {
-                                assertEquals("{\"schemas\":{" +
-                                                "\"test.p.JsonCycle\":{\"$id\":\"test.p.JsonCycle\",\"type\":\"object\",\"properties\":{" +
-                                                "\"parent\":{\"$ref\":\"#/schemas/test.p.JsonCycle\",\"nullable\":true},\"name\":{\"type\":\"string\",\"nullable\":true}}}}}",
+                                assertEquals("{\"schemas\":{\"test.p.JsonCycle\":{\"type\":\"object\",\"properties\":" +
+                                                "{\"name\":{\"nullable\":true,\"type\":\"string\"}," +
+                                                "\"parent\":{\"nullable\":true,\"$ref\":\"#/schemas/test.p.JsonCycle\"}},\"$id\":\"test.p.JsonCycle\"}}}",
                                         new String(in.readAllBytes(), UTF_8));
                             } catch (final IOException e) {
                                 fail(e);
@@ -668,7 +1008,370 @@ class FusionProcessorTest {
                                         "{kl=200}\\n" +
                                         "{ks=val}\\n" +
                                         "{km=MyInput[name=fusion in map]}" +
-                                        "\"}")))
+                                        "\"}")),
+                        dynamicTest("jsonRpc_openrpc", () -> {
+                            try (final var in = requireNonNull(Thread.currentThread().getContextClassLoader()
+                                    .getResourceAsStream("META-INF/fusion/jsonrpc/openrpc.json"))) {
+                                assertEquals("""
+                                                {
+                                                  "schemas": {
+                                                    "test.p.JsonRpcEndpoints.MyInput": {
+                                                      "type": "object",
+                                                      "properties": {
+                                                        "name": {
+                                                          "nullable": true,
+                                                          "type": "string"
+                                                        }
+                                                      },
+                                                      "$id": "test.p.JsonRpcEndpoints.MyInput"
+                                                    },
+                                                    "test.p.JsonRpcEndpoints.MyResult": {
+                                                      "type": "object",
+                                                      "properties": {
+                                                        "name": {
+                                                          "nullable": true,
+                                                          "type": "string"
+                                                        }
+                                                      },
+                                                      "$id": "test.p.JsonRpcEndpoints.MyResult"
+                                                    }
+                                                  },
+                                                  "methods": {
+                                                    "arg": {
+                                                      "description": "",
+                                                      "errors": [],
+                                                      "name": "arg",
+                                                      "paramStructure": "either",
+                                                      "params": [
+                                                        {
+                                                          "name": "wrapper",
+                                                          "schema": {
+                                                            "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyInput"
+                                                          }
+                                                        }
+                                                      ],
+                                                      "result": {
+                                                        "name": "result",
+                                                        "schema": {
+                                                          "nullable": true,
+                                                          "additionalProperties": {
+                                                            "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyResult"
+                                                          },
+                                                          "type": "object"
+                                                        }
+                                                      },
+                                                      "summary": ""
+                                                    },
+                                                    "fail": {
+                                                      "description": "",
+                                                      "errors": [],
+                                                      "name": "fail",
+                                                      "paramStructure": "either",
+                                                      "params": [
+                                                        {
+                                                          "name": "direct",
+                                                          "schema": {
+                                                            "nullable": false,
+                                                            "type": "boolean"
+                                                          }
+                                                        }
+                                                      ],
+                                                      "result": {
+                                                        "name": "result",
+                                                        "schema": {
+                                                          "nullable": true,
+                                                          "additionalProperties": {
+                                                            "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyResult"
+                                                          },
+                                                          "type": "object"
+                                                        }
+                                                      },
+                                                      "summary": ""
+                                                    },
+                                                    "paramTypes": {
+                                                      "description": "",
+                                                      "errors": [],
+                                                      "name": "paramTypes",
+                                                      "paramStructure": "either",
+                                                      "params": [
+                                                        {
+                                                          "name": "object",
+                                                          "schema": {
+                                                            "nullable": true,
+                                                            "additionalProperties": true,
+                                                            "type": "object"
+                                                          }
+                                                        },
+                                                        {
+                                                          "name": "bool",
+                                                          "schema": {
+                                                            "nullable": false,
+                                                            "type": "boolean"
+                                                          }
+                                                        },
+                                                        {
+                                                          "name": "boolWrapper",
+                                                          "schema": {
+                                                            "nullable": true,
+                                                            "type": "boolean"
+                                                          }
+                                                        },
+                                                        {
+                                                          "name": "integer",
+                                                          "schema": {
+                                                            "nullable": false,
+                                                            "format": "int32",
+                                                            "type": "integer"
+                                                          }
+                                                        },
+                                                        {
+                                                          "name": "intWrapper",
+                                                          "schema": {
+                                                            "nullable": true,
+                                                            "format": "int32",
+                                                            "type": "integer"
+                                                          }
+                                                        },
+                                                        {
+                                                          "name": "longNumber",
+                                                          "schema": {
+                                                            "nullable": false,
+                                                            "format": "int64",
+                                                            "type": "integer"
+                                                          }
+                                                        },
+                                                        {
+                                                          "name": "longWrapper",
+                                                          "schema": {
+                                                            "nullable": true,
+                                                            "format": "int64",
+                                                            "type": "integer"
+                                                          }
+                                                        },
+                                                        {
+                                                          "name": "string",
+                                                          "schema": {
+                                                            "nullable": true,
+                                                            "type": "string"
+                                                          }
+                                                        },
+                                                        {
+                                                          "name": "model",
+                                                          "schema": {
+                                                            "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyInput"
+                                                          }
+                                                        },
+                                                        {
+                                                          "name": "objectList",
+                                                          "schema": {
+                                                            "nullable": true,
+                                                            "type": "array",
+                                                            "items": {
+                                                              "nullable": true,
+                                                              "additionalProperties": true,
+                                                              "type": "object"
+                                                            }
+                                                          }
+                                                        },
+                                                        {
+                                                          "name": "boolWrapperList",
+                                                          "schema": {
+                                                            "nullable": true,
+                                                            "type": "array",
+                                                            "items": {
+                                                              "nullable": true,
+                                                              "type": "boolean"
+                                                            }
+                                                          }
+                                                        },
+                                                        {
+                                                          "name": "intWrapperList",
+                                                          "schema": {
+                                                            "nullable": true,
+                                                            "type": "array",
+                                                            "items": {
+                                                              "nullable": true,
+                                                              "format": "int32",
+                                                              "type": "integer"
+                                                            }
+                                                          }
+                                                        },
+                                                        {
+                                                          "name": "longWrapperList",
+                                                          "schema": {
+                                                            "nullable": true,
+                                                            "type": "array",
+                                                            "items": {
+                                                              "nullable": true,
+                                                              "format": "int64",
+                                                              "type": "integer"
+                                                            }
+                                                          }
+                                                        },
+                                                        {
+                                                          "name": "stringList",
+                                                          "schema": {
+                                                            "nullable": true,
+                                                            "type": "array",
+                                                            "items": {
+                                                              "nullable": true,
+                                                              "type": "string"
+                                                            }
+                                                          }
+                                                        },
+                                                        {
+                                                          "name": "modelList",
+                                                          "schema": {
+                                                            "nullable": true,
+                                                            "type": "array",
+                                                            "items": {
+                                                              "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyInput"
+                                                            }
+                                                          }
+                                                        },
+                                                        {
+                                                          "name": "objectMap",
+                                                          "schema": {
+                                                            "nullable": true,
+                                                            "additionalProperties": {
+                                                              "nullable": true,
+                                                              "additionalProperties": true,
+                                                              "type": "object"
+                                                            },
+                                                            "type": "object"
+                                                          }
+                                                        },
+                                                        {
+                                                          "name": "boolWrapperMap",
+                                                          "schema": {
+                                                            "nullable": true,
+                                                            "additionalProperties": {
+                                                              "nullable": true,
+                                                              "type": "boolean"
+                                                            },
+                                                            "type": "object"
+                                                          }
+                                                        },
+                                                        {
+                                                          "name": "intWrapperMap",
+                                                          "schema": {
+                                                            "nullable": true,
+                                                            "additionalProperties": {
+                                                              "nullable": true,
+                                                              "format": "int32",
+                                                              "type": "integer"
+                                                            },
+                                                            "type": "object"
+                                                          }
+                                                        },
+                                                        {
+                                                          "name": "longWrapperMap",
+                                                          "schema": {
+                                                            "nullable": true,
+                                                            "additionalProperties": {
+                                                              "nullable": true,
+                                                              "format": "int64",
+                                                              "type": "integer"
+                                                            },
+                                                            "type": "object"
+                                                          }
+                                                        },
+                                                        {
+                                                          "name": "stringMap",
+                                                          "schema": {
+                                                            "nullable": true,
+                                                            "additionalProperties": {
+                                                              "nullable": true,
+                                                              "type": "string"
+                                                            },
+                                                            "type": "object"
+                                                          }
+                                                        },
+                                                        {
+                                                          "name": "modelMap",
+                                                          "schema": {
+                                                            "nullable": true,
+                                                            "additionalProperties": {
+                                                              "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyInput"
+                                                            },
+                                                            "type": "object"
+                                                          }
+                                                        }
+                                                      ],
+                                                      "result": {
+                                                        "name": "result",
+                                                        "schema": {
+                                                          "nullable": true,
+                                                          "type": "string"
+                                                        }
+                                                      },
+                                                      "summary": ""
+                                                    },
+                                                    "req": {
+                                                      "description": "",
+                                                      "errors": [],
+                                                      "name": "req",
+                                                      "paramStructure": "either",
+                                                      "params": [
+                                                        {
+                                                          "name": "input",
+                                                          "schema": {
+                                                            "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyInput"
+                                                          }
+                                                        }
+                                                      ],
+                                                      "result": {
+                                                        "name": "result",
+                                                        "schema": {
+                                                          "nullable": true,
+                                                          "additionalProperties": {
+                                                            "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyResult"
+                                                          },
+                                                          "type": "object"
+                                                        }
+                                                      },
+                                                      "summary": ""
+                                                    },
+                                                    "test1": {
+                                                      "description": "",
+                                                      "errors": [],
+                                                      "name": "test1",
+                                                      "paramStructure": "either",
+                                                      "params": [],
+                                                      "result": {
+                                                        "name": "result",
+                                                        "schema": {
+                                                          "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyResult"
+                                                        }
+                                                      },
+                                                      "summary": ""
+                                                    },
+                                                    "test2": {
+                                                      "description": "",
+                                                      "errors": [],
+                                                      "name": "test2",
+                                                      "paramStructure": "either",
+                                                      "params": [],
+                                                      "result": {
+                                                        "name": "result",
+                                                        "schema": {
+                                                          "nullable": true,
+                                                          "additionalProperties": {
+                                                            "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyResult"
+                                                          },
+                                                          "type": "object"
+                                                        }
+                                                      },
+                                                      "summary": ""
+                                                    }
+                                                  }
+                                                }""",
+                                        new SimplePrettyFormatter(new JsonMapperImpl(List.of(new ObjectJsonCodec()), c -> empty()))
+                                                .apply(new String(in.readAllBytes(), UTF_8)));
+                            } catch (final IOException e) {
+                                fail(e);
+                            }
+                        }))
                 .onClose(() -> {
                     endpointInstance.close();
                     container.close();

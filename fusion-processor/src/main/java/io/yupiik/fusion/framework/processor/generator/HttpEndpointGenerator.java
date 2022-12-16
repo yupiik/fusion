@@ -48,7 +48,6 @@ public class HttpEndpointGenerator extends BaseHttpEndpointGenerator implements 
         final boolean isReturnTypeJson = isJson(returnType);
 
         return new Generation(
-                // todo: note that we can add an option to only generate the bean since we could do new DefaultEndpoint and bypass the endpoint class
                 new GeneratedClass(packagePrefix + endpointClassName, packageLine +
                         generationVersion() +
                         "public class " + endpointClassName + " extends " + DefaultEndpoint.class.getName() + " {\n" +

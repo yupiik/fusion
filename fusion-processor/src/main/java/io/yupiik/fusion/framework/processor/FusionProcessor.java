@@ -31,6 +31,8 @@ import io.yupiik.fusion.framework.processor.generator.MethodBeanGenerator;
 import io.yupiik.fusion.framework.processor.generator.ModuleGenerator;
 import io.yupiik.fusion.framework.processor.generator.SubclassGenerator;
 import io.yupiik.fusion.framework.processor.meta.Docs;
+import io.yupiik.fusion.framework.processor.meta.JsonSchema;
+import io.yupiik.fusion.framework.processor.meta.PartialOpenRPC;
 import io.yupiik.fusion.framework.processor.meta.renderer.doc.DocJsonRenderer;
 import io.yupiik.fusion.json.internal.JsonStrings;
 
@@ -95,6 +97,7 @@ import static javax.tools.StandardLocation.SOURCE_PATH;
         "fusion.moduleFqn", // fully qualified name of the generated module if generateModule=true
         "fusion.generateBeanForHttpEndpoints", // if not false all endpoints (@HttpMatcher) will get a bean
         "fusion.generateBeanForJsonRpcEndpoints", // if not false all JSON-RPC methods (@JsonRpc) will get a bean
+        "fusion.generatePartialOpenRPC", // if not false {schemas:[...],methods:[]} is generated in the location set there or META-INF/fusion/jsonrpc/openrpc.json
         "fusion.generateJsonSchemas", // if not false {schemas:[...]} is generated in the location set there or META-INF/fusion/json/schemas.json
         "fusion.generateBeanForJsonCodec", // if not false a bean will be generated for the JSON codecs and make them available to JsonMapper
         "fusion.generateConfigurationDocMetadata", // if not false it will generate a JSON metadata for configuration, by default in META-INF/fusion/configuration/documentation.json else in the value set to the option
@@ -134,6 +137,7 @@ public class FusionProcessor extends AbstractProcessor {
     private boolean beanForJsonRpcEndpoints;
     private String docsMetadataLocation;
     private String jsonSchemaLocation;
+    private String openrpcLocation;
 
     private Elements elements;
 
@@ -144,7 +148,8 @@ public class FusionProcessor extends AbstractProcessor {
     private final Map<String, String> allBeans = new HashMap<>();
     private final Map<String, String> allListeners = new HashMap<>();
     private final Map<String, Collection<Docs.ClassDoc>> allConfigurationsDocs = new HashMap<>();
-    private Map<String, GeneratedFrom> allJsonSchemas; // if null don't store them
+    private Map<String, GeneratedJsonSchema> allJsonSchemas; // if null don't store them
+    private PartialOpenRPC partialOpenRPC; // if null don't store them
 
     @Override
     public SourceVersion getSupportedSourceVersion() {
@@ -172,6 +177,10 @@ public class FusionProcessor extends AbstractProcessor {
                 .filter(it -> !"false".equals(it))
                 .map(it -> "true".equals(it) ? "META-INF/fusion/json/schemas.json" : it)
                 .orElse(null);
+        openrpcLocation = ofNullable(processingEnv.getOptions().getOrDefault("fusion.generatePartialOpenRPC", "true"))
+                .filter(it -> !"false".equals(it))
+                .map(it -> "true".equals(it) ? "META-INF/fusion/jsonrpc/openrpc.json" : it)
+                .orElse(null);
         knownJsonModels = ServiceLoader.load(FusionModule.class).stream()
                 .map(ServiceLoader.Provider::get)
                 .flatMap(FusionModule::beans)
@@ -183,6 +192,9 @@ public class FusionProcessor extends AbstractProcessor {
 
         if (jsonSchemaLocation != null) {
             allJsonSchemas = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        }
+        if (openrpcLocation != null) {
+            partialOpenRPC = new PartialOpenRPC(new TreeMap<>(String.CASE_INSENSITIVE_ORDER), new TreeMap<>(String.CASE_INSENSITIVE_ORDER));
         }
     }
 
@@ -247,10 +259,10 @@ public class FusionProcessor extends AbstractProcessor {
         beans.forEach((bean, injections) -> handleSuperClassesInjections(beans, bean, injections));
 
         // generate beans, listeners, ...
-        jsonRpcEndpoints.forEach(this::generateJsonRpcEndpoint);
         httpEndpoints.forEach(this::generateHttpEndpoint);
         configurations.forEach(this::generateConfigurationFactory);
         jsonModels.forEach(this::generateJsonCodec);
+        jsonRpcEndpoints.forEach(this::generateJsonRpcEndpoint); // after json models to get schemas
         beans.forEach(this::generateBean);
         explicitBeans.stream()
                 .filter(it -> it.getKind() == METHOD)
@@ -278,6 +290,7 @@ public class FusionProcessor extends AbstractProcessor {
         try {
             generateConfMetadata();
             generateJsonMetadata();
+            generateOpenRPCMetadata();
         } catch (final IOException | RuntimeException e) {
             processingEnv.getMessager().printMessage(ERROR, e.getMessage());
         }
@@ -294,13 +307,29 @@ public class FusionProcessor extends AbstractProcessor {
                     .collect(toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a /* drop state one if duplicated */))
                     .entrySet().stream()
                     .sorted(Map.Entry.comparingByKey())
-                    .map(e -> JsonStrings.escape(e.getKey()) + ":" + e.getValue().content())
+                    .map(e -> JsonStrings.escape(e.getKey()) + ":" + e.getValue().content().toJson())
                     .collect(joining(",", "{\"schemas\":{", "}}")));
         }
 
         allJsonSchemas.clear();
         if (emitNotes) {
             processingEnv.getMessager().printMessage(NOTE, "Generated '" + jsonSchemaLocation + "'");
+        }
+    }
+
+    private void generateOpenRPCMetadata() throws IOException {
+        if (openrpcLocation == null || partialOpenRPC == null || (partialOpenRPC.schemas().isEmpty() && partialOpenRPC.methods().isEmpty())) {
+            return;
+        }
+
+        final var json = processingEnv.getFiler().createResource(CLASS_OUTPUT, "", openrpcLocation);
+        try (final var out = json.openWriter()) {
+            out.write(partialOpenRPC.toJson());
+        }
+
+        partialOpenRPC = null;
+        if (emitNotes) {
+            processingEnv.getMessager().printMessage(NOTE, "Generated '" + openrpcLocation + "'");
         }
     }
 
@@ -438,13 +467,13 @@ public class FusionProcessor extends AbstractProcessor {
 
         final var names = ParsedName.of(element);
         try {
-            final var schemas = allJsonSchemas == null ? null : new HashMap<String, String>();
+            final var schemas = allJsonSchemas == null ? null : new HashMap<String, JsonSchema>();
             final var generator = new JsonCodecGenerator(processingEnv, elements, names.packageName(), names.className(), element, knownJsonModels, schemas);
             final var generation = generator.get();
             if (schemas != null && !schemas.isEmpty()) {
                 final var source = pathOf(element).toString();
                 allJsonSchemas.putAll(schemas.entrySet().stream()
-                        .collect(toMap(Map.Entry::getKey, e -> new GeneratedFrom(source, e.getValue()))));
+                        .collect(toMap(Map.Entry::getKey, e -> new GeneratedJsonSchema(source, e.getValue()))));
             }
             writeGeneratedClass(model, generation);
             jsonModels.put(generation.name(), element);
@@ -504,9 +533,13 @@ public class FusionProcessor extends AbstractProcessor {
                     Stream.concat(
                                     knownJsonModels.stream(),
                                     jsonModels.keySet().stream())
-                            .collect(toSet())).get();
+                            .collect(toSet()),
+                    partialOpenRPC,
+                    allJsonSchemas.values().stream()
+                            .map(GeneratedJsonSchema::content)
+                            .filter(it -> it.id() != null)
+                            .collect(toMap(JsonSchema::id, identity()))).get();
             writeGeneratedClass(method, generation.endpoint());
-            // todo: openrpc?
 
             final var bean = generation.bean();
             if (bean != null) {
@@ -783,6 +816,6 @@ public class FusionProcessor extends AbstractProcessor {
         }
     }
 
-    private record GeneratedFrom(String source, String content) {
+    private record GeneratedJsonSchema(String source, JsonSchema content) {
     }
 }

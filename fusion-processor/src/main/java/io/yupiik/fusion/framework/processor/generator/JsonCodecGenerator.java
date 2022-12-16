@@ -1,9 +1,10 @@
 package io.yupiik.fusion.framework.processor.generator;
 
-import io.yupiik.fusion.framework.processor.Elements;
 import io.yupiik.fusion.framework.build.api.json.JsonModel;
 import io.yupiik.fusion.framework.build.api.json.JsonOthers;
 import io.yupiik.fusion.framework.build.api.json.JsonProperty;
+import io.yupiik.fusion.framework.processor.Elements;
+import io.yupiik.fusion.framework.processor.meta.JsonSchema;
 import io.yupiik.fusion.json.internal.JsonStrings;
 import io.yupiik.fusion.json.internal.codec.BaseJsonCodec;
 import io.yupiik.fusion.json.internal.codec.CollectionJsonCodec;
@@ -17,7 +18,6 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 import java.io.IOException;
-import java.lang.reflect.Type;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -39,6 +39,7 @@ import java.util.stream.Stream;
 
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.joining;
+import static java.util.stream.Collectors.toMap;
 import static javax.lang.model.element.ElementKind.RECORD;
 
 public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGenerator.GeneratedClass> {
@@ -48,11 +49,11 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
     private final String className;
     private final TypeElement element;
     private final Collection<String> models;
-    private final Map<String, String> jsonSchemas;
+    private final Map<String, JsonSchema> jsonSchemas;
 
     public JsonCodecGenerator(final ProcessingEnvironment processingEnv, final Elements elements,
                               final String packageName, final String className, final TypeElement element,
-                              final Collection<String> models, final Map<String, String> jsonSchemasCollector) {
+                              final Collection<String> models, final Map<String, JsonSchema> jsonSchemasCollector) {
         super(processingEnv, elements);
         this.packageName = packageName;
         this.className = className;
@@ -103,17 +104,14 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
         return new GeneratedClass(packagePrefix + className + SUFFIX, out.toString());
     }
 
-    private String generateSchema(final String fqn, final List<Param> params) {
-        return "" +
-                "{" +
-                "\"$id\":\"" + fqn + "\"," +
-                "\"type\":\"object\"," +
-                "\"properties\":{" +
-                params.stream()
-                        .map(param -> JsonStrings.escape(param.jsonName()) + ":" + param.schema())
-                        .collect(joining(",")) +
-                "}" +
-                "}";
+    private JsonSchema generateSchema(final String fqn, final List<Param> params) {
+        return new JsonSchema(
+                null,
+                fqn,
+                "object",
+                null, null, null, null,
+                params.stream().collect(toMap(Param::jsonName, Param::schema)),
+                null);
     }
 
     private StringBuilder generateCodec(final String modelClass, final List<Param> params) {
@@ -618,36 +616,41 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
                     .replace("\r", "\\\r");
         }
 
-        public String schema() {
+        public JsonSchema schema() {
             return switch (types.paramType()) {
-                case VALUE -> valueSchemaNotClosed();
-                case MAP ->
-                        "{\"type\":\"object\",\"additionalProperties\":" + valueSchemaNotClosed() + "},\"nullable\":true";
-                case LIST, SET -> "{\"type\":\"array\",\"items\":" + valueSchemaNotClosed() + "},\"nullable\":true";
-            } + /*todo: add description etc...*/ "}";
+                case VALUE -> valueSchema();
+                case MAP -> new JsonSchema(
+                        null, null, "object", true, null, null,
+                        valueSchema().asMap(), null, null);
+                case LIST, SET -> new JsonSchema(
+                        null, null, "array", null, null, null,
+                        null, null, valueSchema());
+            };
         }
 
-        private String valueSchemaNotClosed() {
+        private JsonSchema valueSchema() {
             final var testedType = ofNullable(types.argTypeIfNotValue()).orElse(type()).toString().replace('$', '.');
             return switch (types.paramTypeDef()) {
-                case BOOLEAN -> "{\"type\":\"boolean\"" + (!"boolean".equals(testedType) ? ",\"nullable\":true" : "");
+                case BOOLEAN ->
+                        new JsonSchema(null, null, "boolean", !"boolean".equals(testedType), null, null, null, null, null);
                 case INTEGER ->
-                        "{\"type\":\"integer\",\"format\":\"int32\"" + (!"int".equals(testedType) ? ",\"nullable\":true" : "");
+                        new JsonSchema(null, null, "integer", !"int".equals(testedType), "int32", null, null, null, null);
                 case LONG ->
-                        "{\"type\":\"number\",\"format\":\"int64\"" + (!"long".equals(testedType) ? ",\"nullable\":true" : "");
-                case DOUBLE -> "{\"type\":\"number\"" + (!"double".equals(testedType) ? ",\"nullable\":true" : "");
+                        new JsonSchema(null, "number", "integer", !"long".equals(testedType), "int64", null, null, null, null);
+                case DOUBLE ->
+                        new JsonSchema(null, "number", "integer", !"double".equals(testedType), null, null, null, null, null);
                 // there is not yet a "decimal" format but number is not safe enough for big_decimal
-                case BIG_DECIMAL -> "{\"type\":\"string\",\"nullable\":true";
-                case STRING -> "{\"type\":\"string\",\"nullable\":true";
-                case LOCAL_DATE -> "{\"type\":\"string\",\"format\":\"date\",\"nullable\":true";
+                case BIG_DECIMAL -> new JsonSchema(null, null, "string", true, null, null, null, null, null);
+                case STRING -> new JsonSchema(null, null, "string", true, null, null, null, null, null);
+                case LOCAL_DATE -> new JsonSchema(null, null, "string", true, "date", null, null, null, null);
                 case LOCAL_DATE_TIME ->
-                        "{\"type\":\"string\",\"pattern\":\"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?(\\\\.[0-9]*)?$\",\"nullable\":true";
+                        new JsonSchema(null, null, "string", true, null, "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?(\\.[0-9]*)?$", null, null, null);
                 case OFFSET_DATE_TIME ->
-                        "{\"type\":\"string\",\"pattern\":\"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?(\\\\.[0-9]*)?([+-]?[0-9]{2}:[0-9]{2})?Z?$\",\"nullable\":true";
+                        new JsonSchema(null, null, "string", true, null, "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?(\\\\.[0-9]*)?([+-]?[0-9]{2}:[0-9]{2})?Z?$", null, null, null);
                 case ZONED_DATE_TIME ->
-                        "{\"type\":\"string\",\"pattern\":\"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?(\\\\.[0-9]*)?([+-]?[0-9]{2}:[0-9]{2})?Z?(\\\\[.*\\\\])?$\",\"nullable\":true";
-                case MODEL -> "{\"$ref\":\"#/schemas/" + testedType + "\",\"nullable\":true";
-                case GENERIC_OBJECT -> "{\"type\":\"object\",\"additionalProperties\":true,\"nullable\":true";
+                        new JsonSchema(null, null, "string", true, null, "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?(\\.[0-9]*)?([+-]?[0-9]{2}:[0-9]{2})?Z?(\\[.*\\])?$", null, null, null);
+                case MODEL -> new JsonSchema("#/schemas/" + testedType, null, null, true, null, null, null, null, null);
+                case GENERIC_OBJECT -> new JsonSchema(null, null, "object", true, null, null, true, null, null);
             };
         }
     }
