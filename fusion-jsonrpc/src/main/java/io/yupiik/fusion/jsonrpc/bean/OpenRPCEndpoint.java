@@ -30,9 +30,20 @@ public class OpenRPCEndpoint extends BaseBean<OpenRPCEndpoint.Impl> implements F
     private String openrpcVersion = "1.2.6";
     private List<Server> servers = List.of();
     private Info info = new Info("1.0.0", "JSON-RPC API", null, null, null);
+    private List<ErrorValue> globalErrors = List.of(
+            new ErrorValue(-32700, "Request deserialization error.", null),
+            new ErrorValue(-32603, "Exception message, missing JSON-RPC response.", null),
+            new ErrorValue(-32601, "Unknown JSON-RPC method.", null),
+            new ErrorValue(-32600, "Invalid request: wrong JSON-RPC version attribute or request JSON type.", null),
+            new ErrorValue(-2, "Exception message, unhandled exception", null));
 
     public OpenRPCEndpoint() {
         super(Impl.class, DefaultScoped.class, 1000, Map.of());
+    }
+
+    public OpenRPCEndpoint setGlobalErrors(final List<ErrorValue> globalErrors) {
+        this.globalErrors = globalErrors;
+        return this;
     }
 
     public OpenRPCEndpoint setMethodName(final String methodName) {
@@ -57,7 +68,7 @@ public class OpenRPCEndpoint extends BaseBean<OpenRPCEndpoint.Impl> implements F
 
     @Override
     public OpenRPCEndpoint.Impl create(final RuntimeContainer container, final List<Instance<?>> dependents) {
-        return new Impl(container, methodName, openrpcVersion, info, servers);
+        return new Impl(container, methodName, openrpcVersion, info, servers, globalErrors);
     }
 
     protected static class Impl implements JsonRpcMethod {
@@ -65,7 +76,7 @@ public class OpenRPCEndpoint extends BaseBean<OpenRPCEndpoint.Impl> implements F
         private final String name;
 
         protected Impl(final RuntimeContainer container, final String methodName, final String openrpcVersion,
-                       final Info info, final List<Server> servers) {
+                       final Info info, final List<Server> servers, final List<ErrorValue> globalErrors) {
             this.name = methodName;
             try (final var mapper = container.lookup(JsonMapper.class)) {
                 var usedServers = servers;
@@ -75,12 +86,16 @@ public class OpenRPCEndpoint extends BaseBean<OpenRPCEndpoint.Impl> implements F
                         usedServers = List.of(new Server("http://" + configuration.host() + ":" + configuration.port() + "/jsonrpc"));
                     }
                 }
-                precomputed = completedFuture(compute(openrpcVersion, info, usedServers, mapper.instance()));
+                precomputed = completedFuture(compute(
+                        openrpcVersion, info, usedServers,
+                        globalErrors.stream().map(ErrorValue::asMap).toList(),
+                        mapper.instance()));
             }
         }
 
         @SuppressWarnings("unchecked")
-        protected String compute(final String openrpcVersion, final Info info, final List<Server> servers, final JsonMapper mapper) {
+        protected String compute(final String openrpcVersion, final Info info, final List<Server> servers,
+                                 final List<Map<String, Object>> globalErrors, final JsonMapper mapper) {
             final var schemas = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
             final var methods = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
             try {
@@ -89,6 +104,7 @@ public class OpenRPCEndpoint extends BaseBean<OpenRPCEndpoint.Impl> implements F
                 while (resources.hasMoreElements()) {
                     try (final var in = resources.nextElement().openStream()) {
                         final var partial = (Map<String, Object>) mapper.fromString(Object.class, new String(in.readAllBytes(), UTF_8)
+                                // this could/should be moved to rewriting the object tree visiting it but this is easier for now
                                 .replace("#/schemas/", "#/components/schemas/"));
                         ofNullable(partial.get("schemas"))
                                 .filter(Map.class::isInstance)
@@ -105,12 +121,30 @@ public class OpenRPCEndpoint extends BaseBean<OpenRPCEndpoint.Impl> implements F
             }
 
             final var out = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+            final var allMethods = methods.values();
             out.putAll(Map.of(
                     "openrpc", openrpcVersion,
                     "info", info.asMap(),
                     "servers", servers.stream().map(Server::asMap).toList(),
                     "components", Map.of("schemas", schemas),
-                    "methods", methods.values()));
+                    "methods", globalErrors == null || globalErrors.isEmpty() ? allMethods : allMethods.stream()
+                            .map(it -> {
+                                if (it instanceof Map<?, ?> map) {
+                                    final var newMethod = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+                                    newMethod.putAll((Map<String, ?>) map);
+                                    if (!map.containsKey("errors")) {
+                                        newMethod.put("errors", globalErrors);
+                                    } else {
+                                        final var errors = map.get("errors");
+                                        if (errors instanceof List<?> list) {
+                                            newMethod.put("errors", Stream.concat(list.stream(), globalErrors.stream()).toList());
+                                        }
+                                    }
+                                    return newMethod;
+                                }
+                                return it;
+                            })
+                            .toList()));
             return mapper.toString(out);
         }
 
@@ -128,6 +162,17 @@ public class OpenRPCEndpoint extends BaseBean<OpenRPCEndpoint.Impl> implements F
     public record Server(String url) {
         private Map<String, Object> asMap() {
             return Map.of("url", url);
+        }
+    }
+
+    public record ErrorValue(int code, String message, Object data) {
+        private Map<String, Object> asMap() {
+            return Stream.of(
+                            entry("code", code),
+                            message != null ? entry("message", message) : null,
+                            data != null ? entry("data", data) : null)
+                    .filter(Objects::nonNull)
+                    .collect(toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a, LinkedHashMap::new));
         }
     }
 

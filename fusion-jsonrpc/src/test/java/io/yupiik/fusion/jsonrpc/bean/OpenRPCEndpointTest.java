@@ -5,6 +5,7 @@ import io.yupiik.fusion.framework.api.Instance;
 import io.yupiik.fusion.framework.api.RuntimeContainer;
 import io.yupiik.fusion.framework.api.container.FusionBean;
 import io.yupiik.fusion.http.server.api.WebServer;
+import io.yupiik.fusion.http.server.impl.tomcat.TomcatWebServerConfiguration;
 import io.yupiik.fusion.json.JsonMapper;
 import io.yupiik.fusion.json.internal.formatter.SimplePrettyFormatter;
 import io.yupiik.fusion.json.internal.framework.JsonMapperBean;
@@ -30,47 +31,7 @@ class OpenRPCEndpointTest {
 
                     @Override
                     public WebServer.Configuration create(final RuntimeContainer container, final List<Instance<?>> dependents) {
-                        return new WebServer.Configuration() {
-                            @Override
-                            public WebServer.Configuration fusionServletMapping(final String mapping) {
-                                return null;
-                            }
-
-                            @Override
-                            public WebServer.Configuration utf8Setup(final boolean enabled) {
-                                return null;
-                            }
-
-                            @Override
-                            public WebServer.Configuration base(final String webappBaseDir) {
-                                return null;
-                            }
-
-                            @Override
-                            public WebServer.Configuration port(final int port) {
-                                return null;
-                            }
-
-                            @Override
-                            public WebServer.Configuration host(final String host) {
-                                return null;
-                            }
-
-                            @Override
-                            public WebServer.Configuration accessLogPattern(final String accessLogPattern) {
-                                return null;
-                            }
-
-                            @Override
-                            public String host() {
-                                return "somehost";
-                            }
-
-                            @Override
-                            public int port() {
-                                return 1234;
-                            }
-                        };
+                        return new TomcatWebServerConfiguration().host("somehost").port(1234);
                     }
                 })
                 .start();
@@ -113,9 +74,29 @@ class OpenRPCEndpointTest {
                               "methods": [
                                 {
                                   "description": "",
-                                  "errors": [],
+                                  "errors": [
+                                    {
+                                      "code": -32700,
+                                      "message": "Request deserialization error."
+                                    },
+                                    {
+                                      "code": -32603,
+                                      "message": "Exception message, missing JSON-RPC response."
+                                    },
+                                    {
+                                      "code": -32601,
+                                      "message": "Unknown JSON-RPC method."
+                                    },
+                                    {
+                                      "code": -32600,
+                                      "message": "Invalid request: wrong JSON-RPC version attribute or request JSON type."
+                                    },
+                                    {
+                                      "code": -2,
+                                      "message": "Exception message, unhandled exception"
+                                    }
+                                  ],
                                   "name": "arg",
-                                  "paramStructure": "either",
                                   "params": [
                                     {
                                       "name": "wrapper",
@@ -124,6 +105,7 @@ class OpenRPCEndpointTest {
                                       }
                                     }
                                   ],
+                                  "paramStructure": "either",
                                   "result": {
                                     "name": "result",
                                     "schema": {
@@ -138,9 +120,29 @@ class OpenRPCEndpointTest {
                                 },
                                 {
                                   "description": "",
-                                  "errors": [],
+                                  "errors": [
+                                    {
+                                      "code": -32700,
+                                      "message": "Request deserialization error."
+                                    },
+                                    {
+                                      "code": -32603,
+                                      "message": "Exception message, missing JSON-RPC response."
+                                    },
+                                    {
+                                      "code": -32601,
+                                      "message": "Unknown JSON-RPC method."
+                                    },
+                                    {
+                                      "code": -32600,
+                                      "message": "Invalid request: wrong JSON-RPC version attribute or request JSON type."
+                                    },
+                                    {
+                                      "code": -2,
+                                      "message": "Exception message, unhandled exception"
+                                    }
+                                  ],
                                   "name": "fail",
-                                  "paramStructure": "either",
                                   "params": [
                                     {
                                       "name": "direct",
@@ -150,6 +152,7 @@ class OpenRPCEndpointTest {
                                       }
                                     }
                                   ],
+                                  "paramStructure": "either",
                                   "result": {
                                     "name": "result",
                                     "schema": {
@@ -164,9 +167,29 @@ class OpenRPCEndpointTest {
                                 },
                                 {
                                   "description": "",
-                                  "errors": [],
+                                  "errors": [
+                                    {
+                                      "code": -32700,
+                                      "message": "Request deserialization error."
+                                    },
+                                    {
+                                      "code": -32603,
+                                      "message": "Exception message, missing JSON-RPC response."
+                                    },
+                                    {
+                                      "code": -32601,
+                                      "message": "Unknown JSON-RPC method."
+                                    },
+                                    {
+                                      "code": -32600,
+                                      "message": "Invalid request: wrong JSON-RPC version attribute or request JSON type."
+                                    },
+                                    {
+                                      "code": -2,
+                                      "message": "Exception message, unhandled exception"
+                                    }
+                                  ],
                                   "name": "paramTypes",
-                                  "paramStructure": "either",
                                   "params": [
                                     {
                                       "name": "object",
@@ -372,6 +395,7 @@ class OpenRPCEndpointTest {
                                       }
                                     }
                                   ],
+                                  "paramStructure": "either",
                                   "result": {
                                     "name": "result",
                                     "schema": {
@@ -383,9 +407,29 @@ class OpenRPCEndpointTest {
                                 },
                                 {
                                   "description": "",
-                                  "errors": [],
+                                  "errors": [
+                                    {
+                                      "code": -32700,
+                                      "message": "Request deserialization error."
+                                    },
+                                    {
+                                      "code": -32603,
+                                      "message": "Exception message, missing JSON-RPC response."
+                                    },
+                                    {
+                                      "code": -32601,
+                                      "message": "Unknown JSON-RPC method."
+                                    },
+                                    {
+                                      "code": -32600,
+                                      "message": "Invalid request: wrong JSON-RPC version attribute or request JSON type."
+                                    },
+                                    {
+                                      "code": -2,
+                                      "message": "Exception message, unhandled exception"
+                                    }
+                                  ],
                                   "name": "req",
-                                  "paramStructure": "either",
                                   "params": [
                                     {
                                       "name": "input",
@@ -394,6 +438,7 @@ class OpenRPCEndpointTest {
                                       }
                                     }
                                   ],
+                                  "paramStructure": "either",
                                   "result": {
                                     "name": "result",
                                     "schema": {
@@ -408,10 +453,31 @@ class OpenRPCEndpointTest {
                                 },
                                 {
                                   "description": "",
-                                  "errors": [],
+                                  "errors": [
+                                    {
+                                      "code": -32700,
+                                      "message": "Request deserialization error."
+                                    },
+                                    {
+                                      "code": -32603,
+                                      "message": "Exception message, missing JSON-RPC response."
+                                    },
+                                    {
+                                      "code": -32601,
+                                      "message": "Unknown JSON-RPC method."
+                                    },
+                                    {
+                                      "code": -32600,
+                                      "message": "Invalid request: wrong JSON-RPC version attribute or request JSON type."
+                                    },
+                                    {
+                                      "code": -2,
+                                      "message": "Exception message, unhandled exception"
+                                    }
+                                  ],
                                   "name": "test1",
-                                  "paramStructure": "either",
                                   "params": [],
+                                  "paramStructure": "either",
                                   "result": {
                                     "name": "result",
                                     "schema": {
@@ -422,10 +488,31 @@ class OpenRPCEndpointTest {
                                 },
                                 {
                                   "description": "",
-                                  "errors": [],
+                                  "errors": [
+                                    {
+                                      "code": -32700,
+                                      "message": "Request deserialization error."
+                                    },
+                                    {
+                                      "code": -32603,
+                                      "message": "Exception message, missing JSON-RPC response."
+                                    },
+                                    {
+                                      "code": -32601,
+                                      "message": "Unknown JSON-RPC method."
+                                    },
+                                    {
+                                      "code": -32600,
+                                      "message": "Invalid request: wrong JSON-RPC version attribute or request JSON type."
+                                    },
+                                    {
+                                      "code": -2,
+                                      "message": "Exception message, unhandled exception"
+                                    }
+                                  ],
                                   "name": "test2",
-                                  "paramStructure": "either",
                                   "params": [],
+                                  "paramStructure": "either",
                                   "result": {
                                     "name": "result",
                                     "schema": {
