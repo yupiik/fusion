@@ -9,6 +9,8 @@
   <version>1.0.0-SNAPSHOT</version>
   <packaging>pom</packaging>
   <name>Fusion :: Framework</name>
+  <description>Reflectionless and selfcontained framework (no jakarta/spring/guice dependency).</description>
+  <url>https://yupiik.github.io/fusion/</url>
 
   <properties>
     <maven.compiler.release>17</maven.compiler.release>
@@ -31,6 +33,12 @@
   </modules>
 
   <dependencies>
+    <dependency>
+      <groupId>io.yupiik.logging</groupId>
+      <artifactId>yupiik-logging-jul</artifactId>
+      <version>1.0.6</version>
+      <scope>test</scope>
+    </dependency>
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter</artifactId>
@@ -62,6 +70,8 @@
         <version>3.10.1</version>
         <configuration>
           <release>${maven.compiler.release}</release>
+          <encoding>UTF-8</encoding>
+          <parameters>true</parameters>
           <compilerArgs>
             <compilerArg>-Xlint:unchecked</compilerArg>
           </compilerArgs>
@@ -71,12 +81,155 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <version>3.0.0-M7</version>
+        <configuration>
+          <trimStackTrace>false</trimStackTrace>
+          <systemPropertyVariables>
+            <java.util.logging.manager>io.yupiik.logging.jul.YupiikLogManager</java.util.logging.manager>
+            <java.net.preferIPv4Stack>true</java.net.preferIPv4Stack>
+          </systemPropertyVariables>
+        </configuration>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
         <version>3.3.0</version>
       </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-source-plugin</artifactId>
+        <version>3.2.1</version>
+        <executions>
+          <execution>
+            <id>attach-sources</id>
+            <goals>
+              <goal>jar-no-fork</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-release-plugin</artifactId>
+        <version>3.0.0-M1</version>
+        <configuration>
+          <autoVersionSubmodules>true</autoVersionSubmodules>
+          <releaseProfiles>release</releaseProfiles>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.sonatype.plugins</groupId>
+        <artifactId>nexus-staging-maven-plugin</artifactId>
+        <version>1.6.8</version>
+        <extensions>true</extensions>
+        <configuration>
+          <serverId>ossrh</serverId>
+          <nexusUrl>https://oss.sonatype.org/</nexusUrl>
+          <autoReleaseAfterClose>true</autoReleaseAfterClose>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-site-plugin</artifactId>
+        <version>3.8.2</version>
+      </plugin>
     </plugins>
   </build>
+
+  <profiles>
+    <profile>
+      <id>release</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-javadoc-plugin</artifactId>
+            <version>3.2.0</version>
+            <executions>
+              <execution>
+                <id>attach-javadocs</id>
+                <goals>
+                  <goal>jar</goal>
+                </goals>
+              </execution>
+            </executions>
+            <configuration>
+              <source>11</source>
+              <doclint>none</doclint>
+              <encoding>UTF-8</encoding>
+              <failOnError>false</failOnError>
+            </configuration>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-gpg-plugin</artifactId>
+            <version>1.6</version>
+            <executions>
+              <execution>
+                <id>sign-artifacts</id>
+                <phase>verify</phase>
+                <goals>
+                  <goal>sign</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
+
+  <licenses>
+    <license>
+      <name>Apache License, Version 2.0</name>
+      <url>https://github.com/yupiik/uship/blob/master/LICENSE</url>
+      <distribution>may be downloaded from the Maven repository</distribution>
+    </license>
+  </licenses>
+
+  <developers>
+    <developer>
+      <name>Romain Manni-Bucau</name>
+      <id>rmannibucau</id>
+      <roles>
+        <role>Contributor</role>
+      </roles>
+      <timezone>+1</timezone>
+    </developer>
+    <developer>
+      <name>Francois Papon</name>
+      <id>fpapon</id>
+      <roles>
+        <role>Contributor</role>
+      </roles>
+      <timezone>+1</timezone>
+    </developer>
+  </developers>
+
+  <scm>
+    <connection>scm:git:https://github.com/yupiik/fusion.git</connection>
+    <developerConnection>scm:git:https://github.com/yupiik/fusion.git</developerConnection>
+    <url>https://github.com/yupiik/fusion.git</url>
+  </scm>
+
+  <organization>
+    <name>Yupiik SAS</name>
+    <url>https://www.yupiik.com</url>
+  </organization>
+
+  <inceptionYear>2022</inceptionYear>
+
+  <distributionManagement>
+    <snapshotRepository>
+      <id>ossrh</id>
+      <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+    </snapshotRepository>
+    <repository>
+      <id>ossrh</id>
+      <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+    </repository>
+  </distributionManagement>
 </project>

@@ -1,0 +1,14 @@
+{
+  "skip": true,
+  "name": "Fusion",
+  "description": "Reflectionless and selfcontained framework (no jakarta/spring/guice dependency).",
+  "website": "https://www.yupiik.io/fusion",
+  "logo": "https://www.yupiik.com/img/logo.png",
+  "group": "Yupiik Stack",
+  "categories": [
+    "java",
+    "microservice",
+    "jsonrpc",
+    "graalvm"
+  ]
+}
