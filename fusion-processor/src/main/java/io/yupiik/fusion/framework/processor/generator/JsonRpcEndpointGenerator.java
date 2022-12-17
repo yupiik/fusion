@@ -24,6 +24,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static java.util.Objects.requireNonNull;
 import static java.util.Optional.ofNullable;
@@ -31,6 +32,12 @@ import static java.util.stream.Collectors.joining;
 
 public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implements Supplier<BaseHttpEndpointGenerator.Generation> {
     private static final String SUFFIX = "$FusionJsonRpcMethod";
+    private static final List<PartialOpenRPC.ErrorValue> DEFAULT_ERROR_VALUES = List.of(
+            new PartialOpenRPC.ErrorValue(-32700, "Request deserialization error.", null),
+            new PartialOpenRPC.ErrorValue(-32603, "Exception message, missing JSON-RPC response.", null),
+            new PartialOpenRPC.ErrorValue(-32601, "Unknown JSON-RPC method.", null),
+            new PartialOpenRPC.ErrorValue(-32600, "Invalid request: wrong JSON-RPC version attribute or request JSON type.", null),
+            new PartialOpenRPC.ErrorValue(-2, "Exception message, unhandled exception", null));
 
     private final PartialOpenRPC openRPC;
     private final Map<String, JsonSchema> allJsonSchemas;
@@ -85,7 +92,11 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
                             "result",
                             null, null, null,
                             getSchema(new EnrichedParsedType(returnType))),
-                    List.of()));
+                    Stream.concat(
+                                    Stream.of(endpoint.errors())
+                                            .map(it -> new PartialOpenRPC.ErrorValue(it.code(), it.documentation(), null)),
+                                    DEFAULT_ERROR_VALUES.stream())
+                            .toList()));
         }
 
         return new BaseHttpEndpointGenerator.Generation(

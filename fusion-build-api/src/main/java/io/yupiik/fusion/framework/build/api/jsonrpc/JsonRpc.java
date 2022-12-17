@@ -18,4 +18,9 @@ public @interface JsonRpc {
      * @return documentation of the method.
      */
     String documentation() default "";
+
+    /**
+     * @return documented errors for the method.
+     */
+    JsonRpcError[] errors() default {};
 }

@@ -1039,7 +1039,28 @@ class FusionProcessorTest {
                                                   "methods": {
                                                     "arg": {
                                                       "description": "",
-                                                      "errors": [],
+                                                      "errors": [
+                                                        {
+                                                          "code": -32700,
+                                                          "message": "Request deserialization error."
+                                                        },
+                                                        {
+                                                          "code": -32603,
+                                                          "message": "Exception message, missing JSON-RPC response."
+                                                        },
+                                                        {
+                                                          "code": -32601,
+                                                          "message": "Unknown JSON-RPC method."
+                                                        },
+                                                        {
+                                                          "code": -32600,
+                                                          "message": "Invalid request: wrong JSON-RPC version attribute or request JSON type."
+                                                        },
+                                                        {
+                                                          "code": -2,
+                                                          "message": "Exception message, unhandled exception"
+                                                        }
+                                                      ],
                                                       "name": "arg",
                                                       "paramStructure": "either",
                                                       "params": [
@@ -1064,7 +1085,28 @@ class FusionProcessorTest {
                                                     },
                                                     "fail": {
                                                       "description": "",
-                                                      "errors": [],
+                                                      "errors": [
+                                                        {
+                                                          "code": -32700,
+                                                          "message": "Request deserialization error."
+                                                        },
+                                                        {
+                                                          "code": -32603,
+                                                          "message": "Exception message, missing JSON-RPC response."
+                                                        },
+                                                        {
+                                                          "code": -32601,
+                                                          "message": "Unknown JSON-RPC method."
+                                                        },
+                                                        {
+                                                          "code": -32600,
+                                                          "message": "Invalid request: wrong JSON-RPC version attribute or request JSON type."
+                                                        },
+                                                        {
+                                                          "code": -2,
+                                                          "message": "Exception message, unhandled exception"
+                                                        }
+                                                      ],
                                                       "name": "fail",
                                                       "paramStructure": "either",
                                                       "params": [
@@ -1090,7 +1132,28 @@ class FusionProcessorTest {
                                                     },
                                                     "paramTypes": {
                                                       "description": "",
-                                                      "errors": [],
+                                                      "errors": [
+                                                        {
+                                                          "code": -32700,
+                                                          "message": "Request deserialization error."
+                                                        },
+                                                        {
+                                                          "code": -32603,
+                                                          "message": "Exception message, missing JSON-RPC response."
+                                                        },
+                                                        {
+                                                          "code": -32601,
+                                                          "message": "Unknown JSON-RPC method."
+                                                        },
+                                                        {
+                                                          "code": -32600,
+                                                          "message": "Invalid request: wrong JSON-RPC version attribute or request JSON type."
+                                                        },
+                                                        {
+                                                          "code": -2,
+                                                          "message": "Exception message, unhandled exception"
+                                                        }
+                                                      ],
                                                       "name": "paramTypes",
                                                       "paramStructure": "either",
                                                       "params": [
@@ -1309,7 +1372,28 @@ class FusionProcessorTest {
                                                     },
                                                     "req": {
                                                       "description": "",
-                                                      "errors": [],
+                                                      "errors": [
+                                                        {
+                                                          "code": -32700,
+                                                          "message": "Request deserialization error."
+                                                        },
+                                                        {
+                                                          "code": -32603,
+                                                          "message": "Exception message, missing JSON-RPC response."
+                                                        },
+                                                        {
+                                                          "code": -32601,
+                                                          "message": "Unknown JSON-RPC method."
+                                                        },
+                                                        {
+                                                          "code": -32600,
+                                                          "message": "Invalid request: wrong JSON-RPC version attribute or request JSON type."
+                                                        },
+                                                        {
+                                                          "code": -2,
+                                                          "message": "Exception message, unhandled exception"
+                                                        }
+                                                      ],
                                                       "name": "req",
                                                       "paramStructure": "either",
                                                       "params": [
@@ -1334,7 +1418,28 @@ class FusionProcessorTest {
                                                     },
                                                     "test1": {
                                                       "description": "",
-                                                      "errors": [],
+                                                      "errors": [
+                                                        {
+                                                          "code": -32700,
+                                                          "message": "Request deserialization error."
+                                                        },
+                                                        {
+                                                          "code": -32603,
+                                                          "message": "Exception message, missing JSON-RPC response."
+                                                        },
+                                                        {
+                                                          "code": -32601,
+                                                          "message": "Unknown JSON-RPC method."
+                                                        },
+                                                        {
+                                                          "code": -32600,
+                                                          "message": "Invalid request: wrong JSON-RPC version attribute or request JSON type."
+                                                        },
+                                                        {
+                                                          "code": -2,
+                                                          "message": "Exception message, unhandled exception"
+                                                        }
+                                                      ],
                                                       "name": "test1",
                                                       "paramStructure": "either",
                                                       "params": [],
@@ -1348,7 +1453,28 @@ class FusionProcessorTest {
                                                     },
                                                     "test2": {
                                                       "description": "",
-                                                      "errors": [],
+                                                      "errors": [
+                                                        {
+                                                          "code": -32700,
+                                                          "message": "Request deserialization error."
+                                                        },
+                                                        {
+                                                          "code": -32603,
+                                                          "message": "Exception message, missing JSON-RPC response."
+                                                        },
+                                                        {
+                                                          "code": -32601,
+                                                          "message": "Unknown JSON-RPC method."
+                                                        },
+                                                        {
+                                                          "code": -32600,
+                                                          "message": "Invalid request: wrong JSON-RPC version attribute or request JSON type."
+                                                        },
+                                                        {
+                                                          "code": -2,
+                                                          "message": "Exception message, unhandled exception"
+                                                        }
+                                                      ],
                                                       "name": "test2",
                                                       "paramStructure": "either",
                                                       "params": [],
