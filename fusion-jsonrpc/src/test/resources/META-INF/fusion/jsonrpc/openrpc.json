@@ -1,0 +1,353 @@
+{
+  "schemas": {
+    "test.p.JsonRpcEndpoints.MyInput": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "nullable": true,
+          "type": "string"
+        }
+      },
+      "$id": "test.p.JsonRpcEndpoints.MyInput"
+    },
+    "test.p.JsonRpcEndpoints.MyResult": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "nullable": true,
+          "type": "string"
+        }
+      },
+      "$id": "test.p.JsonRpcEndpoints.MyResult"
+    }
+  },
+  "methods": {
+    "arg": {
+      "description": "",
+      "errors": [],
+      "name": "arg",
+      "paramStructure": "either",
+      "params": [
+        {
+          "name": "wrapper",
+          "schema": {
+            "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyInput"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {
+          "nullable": true,
+          "additionalProperties": {
+            "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyResult"
+          },
+          "type": "object"
+        }
+      },
+      "summary": ""
+    },
+    "fail": {
+      "description": "",
+      "errors": [],
+      "name": "fail",
+      "paramStructure": "either",
+      "params": [
+        {
+          "name": "direct",
+          "schema": {
+            "nullable": false,
+            "type": "boolean"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {
+          "nullable": true,
+          "additionalProperties": {
+            "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyResult"
+          },
+          "type": "object"
+        }
+      },
+      "summary": ""
+    },
+    "paramTypes": {
+      "description": "",
+      "errors": [],
+      "name": "paramTypes",
+      "paramStructure": "either",
+      "params": [
+        {
+          "name": "object",
+          "schema": {
+            "nullable": true,
+            "additionalProperties": true,
+            "type": "object"
+          }
+        },
+        {
+          "name": "bool",
+          "schema": {
+            "nullable": false,
+            "type": "boolean"
+          }
+        },
+        {
+          "name": "boolWrapper",
+          "schema": {
+            "nullable": true,
+            "type": "boolean"
+          }
+        },
+        {
+          "name": "integer",
+          "schema": {
+            "nullable": false,
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        {
+          "name": "intWrapper",
+          "schema": {
+            "nullable": true,
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        {
+          "name": "longNumber",
+          "schema": {
+            "nullable": false,
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        {
+          "name": "longWrapper",
+          "schema": {
+            "nullable": true,
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        {
+          "name": "string",
+          "schema": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        {
+          "name": "model",
+          "schema": {
+            "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyInput"
+          }
+        },
+        {
+          "name": "objectList",
+          "schema": {
+            "nullable": true,
+            "type": "array",
+            "items": {
+              "nullable": true,
+              "additionalProperties": true,
+              "type": "object"
+            }
+          }
+        },
+        {
+          "name": "boolWrapperList",
+          "schema": {
+            "nullable": true,
+            "type": "array",
+            "items": {
+              "nullable": true,
+              "type": "boolean"
+            }
+          }
+        },
+        {
+          "name": "intWrapperList",
+          "schema": {
+            "nullable": true,
+            "type": "array",
+            "items": {
+              "nullable": true,
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        },
+        {
+          "name": "longWrapperList",
+          "schema": {
+            "nullable": true,
+            "type": "array",
+            "items": {
+              "nullable": true,
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        },
+        {
+          "name": "stringList",
+          "schema": {
+            "nullable": true,
+            "type": "array",
+            "items": {
+              "nullable": true,
+              "type": "string"
+            }
+          }
+        },
+        {
+          "name": "modelList",
+          "schema": {
+            "nullable": true,
+            "type": "array",
+            "items": {
+              "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyInput"
+            }
+          }
+        },
+        {
+          "name": "objectMap",
+          "schema": {
+            "nullable": true,
+            "additionalProperties": {
+              "nullable": true,
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "object"
+          }
+        },
+        {
+          "name": "boolWrapperMap",
+          "schema": {
+            "nullable": true,
+            "additionalProperties": {
+              "nullable": true,
+              "type": "boolean"
+            },
+            "type": "object"
+          }
+        },
+        {
+          "name": "intWrapperMap",
+          "schema": {
+            "nullable": true,
+            "additionalProperties": {
+              "nullable": true,
+              "format": "int32",
+              "type": "integer"
+            },
+            "type": "object"
+          }
+        },
+        {
+          "name": "longWrapperMap",
+          "schema": {
+            "nullable": true,
+            "additionalProperties": {
+              "nullable": true,
+              "format": "int64",
+              "type": "integer"
+            },
+            "type": "object"
+          }
+        },
+        {
+          "name": "stringMap",
+          "schema": {
+            "nullable": true,
+            "additionalProperties": {
+              "nullable": true,
+              "type": "string"
+            },
+            "type": "object"
+          }
+        },
+        {
+          "name": "modelMap",
+          "schema": {
+            "nullable": true,
+            "additionalProperties": {
+              "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyInput"
+            },
+            "type": "object"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {
+          "nullable": true,
+          "type": "string"
+        }
+      },
+      "summary": ""
+    },
+    "req": {
+      "description": "",
+      "errors": [],
+      "name": "req",
+      "paramStructure": "either",
+      "params": [
+        {
+          "name": "input",
+          "schema": {
+            "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyInput"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {
+          "nullable": true,
+          "additionalProperties": {
+            "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyResult"
+          },
+          "type": "object"
+        }
+      },
+      "summary": ""
+    },
+    "test1": {
+      "description": "",
+      "errors": [],
+      "name": "test1",
+      "paramStructure": "either",
+      "params": [],
+      "result": {
+        "name": "result",
+        "schema": {
+          "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyResult"
+        }
+      },
+      "summary": ""
+    },
+    "test2": {
+      "description": "",
+      "errors": [],
+      "name": "test2",
+      "paramStructure": "either",
+      "params": [],
+      "result": {
+        "name": "result",
+        "schema": {
+          "nullable": true,
+          "additionalProperties": {
+            "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyResult"
+          },
+          "type": "object"
+        }
+      },
+      "summary": ""
+    }
+  }
+}

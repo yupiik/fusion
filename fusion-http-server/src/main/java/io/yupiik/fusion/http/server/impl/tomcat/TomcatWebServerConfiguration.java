@@ -175,6 +175,11 @@ public class TomcatWebServerConfiguration implements WebServer.Configuration {
     }
 
     @Override
+    public String host() {
+        return defaultHost;
+    }
+
+    @Override
     public int port() {
         return getPort();
     }

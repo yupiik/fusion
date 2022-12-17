@@ -51,6 +51,11 @@ public class ContainerImpl implements ConfiguringContainer, RuntimeContainer {
     @Override
     public RuntimeContainer start() {
         if (disableAutoDiscovery) {
+            contexts.doRegister(new ApplicationFusionContext(), new DefaultFusionContext());
+            beans.doRegister(defaultBeans().toArray(FusionBean<?>[]::new));
+            if (listeners.hasDirectListener(Start.class)) {
+                listeners.fire(this, new Start());
+            }
             return this;
         }
 

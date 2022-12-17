@@ -258,6 +258,57 @@ public Response myEndpoint(final Request request) {
 }
 ----
 
+== Define a JSON-RPC endpoint
+
+[source,java]
+----
+public class Endpoints {
+    @JsonRpc("copy")
+    public MyResult result(final MyInput input) {
+        return new MyResult(input.name());
+    }
+
+    @JsonModel
+    public record MyResult(String name) {
+    }
+
+    @JsonModel
+    public record MyInput(String name) {
+    }
+}
+----
+
+== Define a "reactive" JSON-RPC endpoint
+
+[source,java]
+----
+public class Endpoints {
+    private final MyRemoteService remote;
+
+    public Endpoints(final MyRemoteService remote) {
+        this.remote = remote;
+    }
+
+    @JsonRpc("remoteById")
+    public CompletionStage<MyResult> result(final String id) {
+        return remote.invoke(id);
+    }
+}
+----
+
+== Register OpenRPC endpoint
+
+It is possible to register an OpenRPC endpoint named `openrpc` to serve JSON-RPC specification:
+
+[source,java]
+----
+@Bean
+public OpenRPCEndpoint openrpc() {
+    return new OpenRPCEndpoint()
+        /*.setInfo(new Info(...))*/;
+}
+----
+
 == Start the container
 
 To launch the application you need to start the container.
@@ -283,3 +334,28 @@ try (
 
 TIP: you can also just reuse `io.yupiik.fusion.framework.api.main.Launcher` main which will start the default container.
 You can implement a custom `Awaiter` to not let the container shutdown immediately if you need - webserver does it by default.
+
+== Test with JUnit 5
+
+[source,java]
+----
+@FusionSupport <1>
+class FusionSupportTest {
+    @Test
+    void run(@Fusion final Emitter emitter) { <2>
+        assertNotNull(emitter);
+    }
+}
+----
+<.> Mark the class to run tests under a container context (it is started/stopped automatically),
+<.> Inject container beans in test parameters (mark them with `@Fusion`).
+
+Alternatively you can run a single container for all tests:
+
+[source,java]
+----
+@MonoFusionSupport
+class FusionSupportTest {
+    // same as before
+}
+----

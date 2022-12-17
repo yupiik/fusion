@@ -79,6 +79,11 @@ public interface WebServer extends AutoCloseable, Unwrappable {
         Configuration accessLogPattern(String accessLogPattern);
 
         /**
+         * @return the runtime host.
+         */
+        String host();
+
+        /**
          * @return the runtime port, enables to get the active port once the server started and the startup value was 0.
          */
         int port();
