@@ -3,6 +3,7 @@ package io.yupiik.fusion.framework.build.api.order;
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 
+import static java.lang.annotation.ElementType.METHOD;
 import static java.lang.annotation.ElementType.PARAMETER;
 import static java.lang.annotation.ElementType.TYPE;
 import static java.lang.annotation.RetentionPolicy.SOURCE;
@@ -14,7 +15,7 @@ import static java.lang.annotation.RetentionPolicy.SOURCE;
  *     <li>A {@link io.yupiik.fusion.framework.build.api.scanning.Bean}  (explicit or not) to sort its position in a {@link java.util.Collection} injection if not {@link Comparable}.</li>
  * </ul>
  */
-@Target({PARAMETER, TYPE})
+@Target({PARAMETER, TYPE, METHOD})
 @Retention(SOURCE)
 public @interface Order {
     int value();
