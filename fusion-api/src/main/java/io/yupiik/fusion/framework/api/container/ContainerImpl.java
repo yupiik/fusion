@@ -25,12 +25,15 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiPredicate;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
+import static java.util.Comparator.comparing;
 import static java.util.Optional.empty;
 import static java.util.stream.Collectors.joining;
 
@@ -59,25 +62,33 @@ public class ContainerImpl implements ConfiguringContainer, RuntimeContainer {
             return this;
         }
 
-        final var modules = loadModules().toList();
+        final var modules = loadModules()
+                .sorted(comparing(FusionModule::priority))
+                .toList();
 
         // beans
-        beans.doRegister(Stream.concat(
+        beans.doRegister(filter(
+                Stream.concat(
                         modules.stream()
                                 .flatMap(FusionModule::beans),
-                        defaultBeans())
+                        defaultBeans()),
+                modules.stream().map(FusionModule::beanFilter))
                 .toArray(FusionBean<?>[]::new));
 
         // contexts
-        contexts.doRegister(Stream.concat(
+        contexts.doRegister(filter(
+                Stream.concat(
                         // default scopes
                         Stream.of(new ApplicationFusionContext(), new DefaultFusionContext()),
                         // discovered ones (through module)
-                        modules.stream().flatMap(FusionModule::contexts))
+                        modules.stream().flatMap(FusionModule::contexts)),
+                modules.stream().map(FusionModule::contextFilter))
                 .toArray(FusionContext[]::new));
 
         // listeners
-        listeners.doRegister(modules.stream().flatMap(FusionModule::listeners)
+        listeners.doRegister(filter(
+                modules.stream().flatMap(FusionModule::listeners),
+                modules.stream().map(FusionModule::listenerFilter))
                 .toArray(FusionListener[]::new));
 
         // startup event
@@ -260,6 +271,11 @@ public class ContainerImpl implements ConfiguringContainer, RuntimeContainer {
                 new ProvidedInstanceBean<>(ApplicationScoped.class, Emitter.class, () -> this),
                 new ProvidedInstanceBean<>(DefaultScoped.class, RuntimeContainer.class, () -> this),
                 new ConfigurationBean());
+    }
+
+    private <A> Stream<A> filter(final Stream<A> input, final Stream<BiPredicate<RuntimeContainer, A>> predicates) {
+        final var predicate = predicates.filter(Objects::nonNull).reduce(null, (a, b) -> a == null ? b : a.and(b));
+        return predicate == null ? input : input.filter(it -> predicate.test(this, it));
     }
 
     @SuppressWarnings("unchecked")
