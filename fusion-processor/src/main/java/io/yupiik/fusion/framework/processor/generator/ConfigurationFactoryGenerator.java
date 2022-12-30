@@ -69,7 +69,7 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
             out.append("package ").append(packageName).append(";\n\n");
         }
         out.append("public class ").append(confClassName).append(" implements ")
-                .append(Supplier.class.getName()).append("<").append(pckPrefix).append(className).append("> {\n");
+                .append(Supplier.class.getName()).append("<").append(pckPrefix).append(className.replace('$', '.')).append("> {\n");
         out.append("  private final ").append(Configuration.class.getName()).append(" configuration;\n");
         out.append("\n");
         out.append("  public ").append(confClassName).append("(final ").append(Configuration.class.getName()).append(" configuration) {\n");
@@ -77,8 +77,8 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
         out.append("  }\n");
         out.append("\n");
         out.append("  @Override\n");
-        out.append("  public ").append(pckPrefix).append(className).append(" get() {\n");
-        out.append(createRecordInstance(element, pckPrefix + className, propPrefix, propPrefix, nestedClasses));
+        out.append("  public ").append(pckPrefix).append(className.replace('$', '.')).append(" get() {\n");
+        out.append(createRecordInstance(element, pckPrefix + className.replace('$', '.'), propPrefix, propPrefix, nestedClasses));
         out.append("  }\n");
         if (!nestedClasses.isEmpty()) {
             out.append("\n").append(String.join("\n",
@@ -235,7 +235,7 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
         this.docStack.getLast().items().add(new Docs.DocItem(docName, desc, required, null));
         return "configuration.get(" + name + ")" +
                 mapper +
-                (required ? ".orElseThrow(() -> new IllegalArgumentException(\"No value for '\"" + name + "\"'\"))" : ".orElse(" + defaultValue + ")");
+                (required ? ".orElseThrow(() -> new IllegalArgumentException(\"No value for '" + name.substring(1, name.length() - 1) + "'\"))" : ".orElse(" + defaultValue + ")");
     }
 
     private String listOf(final String valueMapper) {

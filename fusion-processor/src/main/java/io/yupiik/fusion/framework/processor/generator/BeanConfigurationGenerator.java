@@ -35,17 +35,17 @@ public class BeanConfigurationGenerator extends BaseGenerator implements Supplie
             out.append("package ").append(packageName).append(";\n\n");
         }
         out.append("public class ").append(simpleName).append(" extends ")
-                .append(BaseBean.class.getName()).append("<").append(pckPrefix).append(className).append("> {\n");
+                .append(BaseBean.class.getName()).append("<").append(pckPrefix).append(className.replace('$', '.')).append("> {\n");
         out.append("  public ").append(simpleName).append("() {\n");
         out.append("    super(")
-                .append(pckPrefix).append(className).append(".class, ")
+                .append(pckPrefix).append(className.replace('$', '.')).append(".class, ")
                 .append(DefaultScoped.class.getName()).append(".class, ")
                 .append("1000, ")
                 .append(Map.class.getName()).append(".of());\n");
         out.append("  }\n");
         out.append("\n");
         out.append("  @Override\n");
-        out.append("  public ").append(className).append(" create(final ").append(RuntimeContainer.class.getName())
+        out.append("  public ").append(className.replace('$', '.')).append(" create(final ").append(RuntimeContainer.class.getName())
                 .append(" container, final ")
                 .append(List.class.getName()).append("<").append(Instance.class.getName()).append("<?>> dependents) {\n");
         out.append("    final var conf = lookup(container, ").append(Configuration.class.getName()).append(".class, dependents);\n");
