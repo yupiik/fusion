@@ -48,3 +48,16 @@ Then simply replace fusion annotation by `MyAppSupport`.
 
 Alternatively you can register a test `ConfigurationSource` bean if you prefer but this extension option enables to also start global services like dependencies mock or a database.
 --
+
+== Testing a Launcher application
+
+Particularly for CLI applications (using an `Launcher` and an `Awaiter` getting `Args` injected for example), you can use `@FusionCLITest` as a replacement of `@Test`.
+It will enable you to get an automatic execution of `Launcher` based on the annotation `args` value and to get injected `Stdout` and `Stderr` to validate the outputs.
+
+[source,java]
+----
+@FusionCLITest(args = {"test", "run"})
+void run(final Stdout stdout) {
+    assertEquals("...", stdout.content().strip());
+}
+----

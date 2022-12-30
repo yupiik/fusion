@@ -411,7 +411,7 @@ public class JsonParser implements AutoCloseable {
                 endOfValueInBuffer = -1;
 
                 while ((n = readNextChar()) > '\u001F' && n != '\\' && n != '"') {
-                    //read fast
+                    // read fast
                 }
 
                 endOfValueInBuffer = bufferPos;
