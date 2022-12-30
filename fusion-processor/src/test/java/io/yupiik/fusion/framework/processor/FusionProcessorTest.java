@@ -1,12 +1,16 @@
 package io.yupiik.fusion.framework.processor;
 
+import io.yupiik.fusion.cli.CliAwaiter;
 import io.yupiik.fusion.framework.api.ConfiguringContainer;
 import io.yupiik.fusion.framework.api.Instance;
 import io.yupiik.fusion.framework.api.RuntimeContainer;
 import io.yupiik.fusion.framework.api.container.FusionListener;
 import io.yupiik.fusion.framework.api.container.FusionModule;
+import io.yupiik.fusion.framework.api.container.bean.BaseBean;
 import io.yupiik.fusion.framework.api.container.context.subclass.DelegatingContext;
 import io.yupiik.fusion.framework.api.container.context.subclass.SupplierDelegatingContext;
+import io.yupiik.fusion.framework.api.main.Args;
+import io.yupiik.fusion.framework.api.scope.DefaultScoped;
 import io.yupiik.fusion.framework.processor.test.CompilationClassLoader;
 import io.yupiik.fusion.framework.processor.test.Compiler;
 import io.yupiik.fusion.http.server.api.Cookie;
@@ -1460,10 +1464,29 @@ class FusionProcessorTest {
         });
     }
 
-    private <A> void withInstance(final RuntimeContainer container, final Class<A> type, final Consumer<A> consumer) {
-        try (final var instance = container.lookup(type)) {
-            consumer.accept(type.cast(instance.instance()));
-        }
+    @Test
+    void command(@TempDir final Path work) throws IOException {
+        final var compiler = new Compiler(work, "Commands");
+        compiler.compileAndAsserts((loader, container) -> {
+            assertEquals(
+                    List.of("test.p.Commands$C1$FusionCliCommand"),
+                    container.getBeans().getBeans().keySet().stream()
+                            .filter(Class.class::isInstance)
+                            .map(Class.class::cast)
+                            .map(Class::getName)
+                            .filter(it -> it.endsWith("$FusionCliCommand"))
+                            .sorted()
+                            .toList());
+
+            System.clearProperty("test.p.Commands$C1");
+            withInstance(container, loader, "io.yupiik.fusion.cli.CliAwaiter", CliAwaiter.class, CliAwaiter::await);
+        }, new BaseBean<Args>(Args.class, DefaultScoped.class, 1000, Map.of()) {
+            @Override
+            public Args create(final RuntimeContainer container, final List<Instance<?>> dependents) {
+                return new Args(List.of("c1", "--c1-name", "set from test"));
+            }
+        });
+        assertEquals("set from test, bean = true", System.clearProperty("test.p.Commands$C1"));
     }
 
     private <A> void withInstance(final RuntimeContainer container, final Function<String, Class<?>> loader, final String name,

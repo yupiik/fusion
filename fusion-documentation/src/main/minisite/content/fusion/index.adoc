@@ -29,6 +29,7 @@ For cloud applications, being the most reactive possible is a key criteria so Fu
 * Adding `fusion-json` module, you can get JSON records mapping support without reflection,
 * Adding `fusion-http-server` module, you get an Apache Tomcat abstraction enabling to write any HTTP endpoint in an efficient and GraalVM friendly manner,
 * Adding xref:testing.adoc[`fusion-testing`] module, you get some JUnit 5 integration enabling to test easily your code.
+* Adding xref:cli.adoc[`fusion-cli`] module, you can generate simple CLI applications just writing commands.
 
 TIP: you can find examples on the xref:examples.adoc[examples] page.
 

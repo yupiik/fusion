@@ -7,6 +7,9 @@ import io.yupiik.fusion.framework.api.container.FusionBean;
  * @param <T> the bean type.
  */
 public interface Instance<T> extends AutoCloseable {
+    /**
+     * @return the bean this instance was created from if any, else {@code null}.
+     */
     FusionBean<T> bean();
 
     /**

@@ -88,8 +88,7 @@ public abstract class BaseGenerator {
     }
 
     protected boolean isAutocloseable(final TypeMirror type) {
-        final var types = processingEnv.getTypeUtils();
-        return types.isAssignable(type, autocloseable);
+        return processingEnv.getTypeUtils().isAssignable(type, autocloseable);
     }
 
     protected TypeElement asElement(final ProcessingEnvironment processingEnv, final Class<?> type) {

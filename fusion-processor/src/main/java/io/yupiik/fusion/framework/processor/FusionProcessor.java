@@ -5,6 +5,7 @@ import io.yupiik.fusion.framework.api.container.FusionListener;
 import io.yupiik.fusion.framework.api.container.FusionModule;
 import io.yupiik.fusion.framework.api.scope.ApplicationScoped;
 import io.yupiik.fusion.framework.api.scope.DefaultScoped;
+import io.yupiik.fusion.framework.build.api.cli.Command;
 import io.yupiik.fusion.framework.build.api.configuration.RootConfiguration;
 import io.yupiik.fusion.framework.build.api.container.LazyContext;
 import io.yupiik.fusion.framework.build.api.event.OnEvent;
@@ -21,6 +22,7 @@ import io.yupiik.fusion.framework.processor.Bean.FieldInjection;
 import io.yupiik.fusion.framework.processor.generator.BaseGenerator;
 import io.yupiik.fusion.framework.processor.generator.BeanConfigurationGenerator;
 import io.yupiik.fusion.framework.processor.generator.BeanGenerator;
+import io.yupiik.fusion.framework.processor.generator.CliCommandGenerator;
 import io.yupiik.fusion.framework.processor.generator.ConfigurationFactoryGenerator;
 import io.yupiik.fusion.framework.processor.generator.HttpEndpointGenerator;
 import io.yupiik.fusion.framework.processor.generator.JsonCodecBeanGenerator;
@@ -95,6 +97,7 @@ import static javax.tools.StandardLocation.SOURCE_PATH;
         "fusion.skipNotes", // if false, note messages will be emitted, else they are skipped (default)
         "fusion.generateModule", // toggle to enable/disable the automatic module generation (see moduleFqn)
         "fusion.moduleFqn", // fully qualified name of the generated module if generateModule=true
+        "fusion.generateBeanForCliCommands", // if not false all CLI command (@Command) will get a bean
         "fusion.generateBeanForHttpEndpoints", // if not false all endpoints (@HttpMatcher) will get a bean
         "fusion.generateBeanForJsonRpcEndpoints", // if not false all JSON-RPC methods (@JsonRpc) will get a bean
         "fusion.generatePartialOpenRPC", // if not false {schemas:[...],methods:[]} is generated in the location set there or META-INF/fusion/jsonrpc/openrpc.json
@@ -104,6 +107,8 @@ import static javax.tools.StandardLocation.SOURCE_PATH;
         "fusion.generateBeanForRootConfiguration" // if false @RootConfiguration will not get an automatic bean
 })
 @SupportedAnnotationTypes({
+        // CLI
+        "io.yupiik.fusion.framework.build.api.cli.Command",
         // JSON
         "io.yupiik.fusion.framework.build.api.json.JsonModel",
         "io.yupiik.fusion.framework.build.api.json.JsonOthers",
@@ -134,6 +139,7 @@ public class FusionProcessor extends AbstractProcessor {
     private boolean generateBeansForConfiguration;
     private boolean beanForJsonCodecs;
     private boolean beanForHttpEndpoints;
+    private boolean beanForCliCommands;
     private boolean beanForJsonRpcEndpoints;
     private String docsMetadataLocation;
     private String jsonSchemaLocation;
@@ -166,6 +172,7 @@ public class FusionProcessor extends AbstractProcessor {
 
         emitNotes = !Boolean.parseBoolean(processingEnv.getOptions().getOrDefault("fusion.skipNotes", "true"));
         beanForHttpEndpoints = Boolean.parseBoolean(processingEnv.getOptions().getOrDefault("fusion.generateBeanForHttpEndpoints", "true"));
+        beanForCliCommands = Boolean.parseBoolean(processingEnv.getOptions().getOrDefault("fusion.generateBeanForCliCommands", "true"));
         beanForJsonRpcEndpoints = Boolean.parseBoolean(processingEnv.getOptions().getOrDefault("fusion.generateBeanForJsonRpcEndpoints", "true"));
         beanForJsonCodecs = Boolean.parseBoolean(processingEnv.getOptions().getOrDefault("fusion.generateBeanForJsonCodec", "true"));
         generateBeansForConfiguration = Boolean.parseBoolean(processingEnv.getOptions().getOrDefault("fusion.generateBeanForRootConfiguration", "true"));
@@ -210,6 +217,12 @@ public class FusionProcessor extends AbstractProcessor {
     }
 
     private void doProcess(final RoundEnvironment roundEnv) {
+        // find CLI commands
+        final var cliCommands = roundEnv.getElementsAnnotatedWith(Command.class).stream()
+                .filter(it -> (it.getKind() == CLASS || it.getKind() == RECORD) && it instanceof TypeElement)
+                .map(TypeElement.class::cast)
+                .toList();
+
         // find http endpoints
         final var httpEndpoints = roundEnv.getElementsAnnotatedWith(HttpMatcher.class).stream()
                 .filter(it -> it.getKind() == METHOD && it instanceof ExecutableElement)
@@ -259,6 +272,7 @@ public class FusionProcessor extends AbstractProcessor {
         beans.forEach((bean, injections) -> handleSuperClassesInjections(beans, bean, injections));
 
         // generate beans, listeners, ...
+        cliCommands.forEach(this::generateCliCommand);
         httpEndpoints.forEach(this::generateHttpEndpoint);
         configurations.forEach(this::generateConfigurationFactory);
         jsonModels.forEach(this::generateJsonCodec);
@@ -573,6 +587,33 @@ public class FusionProcessor extends AbstractProcessor {
             if (bean != null) {
                 writeGeneratedClass(method, bean);
                 allBeans.put(bean.name(), pathOf((TypeElement) method.getEnclosingElement()).toString());
+            }
+        } catch (final IOException | RuntimeException e) {
+            processingEnv.getMessager().printMessage(ERROR, e.getMessage());
+        }
+    }
+
+    private void generateCliCommand(final TypeElement runnable) {
+        if (!processingEnv.getTypeUtils().isAssignable(
+                runnable.asType(),
+                processingEnv.getElementUtils().getTypeElement(Runnable.class.getName()).asType())) {
+            processingEnv.getMessager().printMessage(ERROR, "'" + runnable + "' is not a Runnable");
+            return;
+        }
+
+        final var names = ParsedName.of(runnable.getEnclosingElement());
+        try {
+            final var generation = new CliCommandGenerator(
+                    processingEnv, elements, beanForCliCommands,
+                    names.packageName(), names.className() + "$" + runnable.getSimpleName(),
+                    runnable.getAnnotation(Command.class), runnable)
+                    .get();
+            writeGeneratedClass(runnable, generation.command());
+
+            final var bean = generation.bean();
+            if (bean != null) {
+                writeGeneratedClass(runnable, bean);
+                allBeans.put(bean.name(), pathOf(runnable).toString());
             }
         } catch (final IOException | RuntimeException e) {
             processingEnv.getMessager().printMessage(ERROR, e.getMessage());

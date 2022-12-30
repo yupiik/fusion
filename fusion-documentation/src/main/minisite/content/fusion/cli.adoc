@@ -1,0 +1,47 @@
+= Fusion CLI
+:minisite-index: 400
+:minisite-index-title: CLI
+:minisite-index-description: Write CLI applications.
+:minisite-index-icon: terminal
+
+[abstract]
+CLI modules enables you to write simple `@Command` beans reusing `@RootConfiguration` for their parameters.
+
+== Sample
+
+[source,java]
+----
+@Command(name = "my-commands", description = "A super command.") <1>
+public class MyCommand implements Runnable { <2>
+    private final Conf conf;
+
+    public MyCommand(final Conf conf) { <3>
+        this.conf = conf;
+    }
+
+    @Override
+    public void run() { <4>
+        // impl what you want
+    }
+
+    @RootConfiguration("my-commands") <5>
+    public record Conf(String name) {}
+}
+----
+<.> Mark a bean with `@Command` to make it a command. You can customize the command name (first command line value to call the command) and its description (usage/help on error),
+<.> Ensure to make the command a `Runnable`,
+<.> Ensure to have a constructor with the first parameter (required) being the configuration class (as in xref:examples.adoc#configuration_model[configuration]),
+<.> Implement your command in `run` callback,
+<.> The configuration of the command is a standard one, you can customize the prefix thanks `@RootConfiguration` annotation (so here all options will use `--my-command-xxxx` instead of default `--Conf-xxx`).
+
+TIP: if you don't want to set any prefix for the configuration, set the prefix in `@RootConfiguration` to `-`.
+
+== Injections
+
+You can inject any *simple type* (classes, not lists) beans in your command through the constructor (> first parameter).
+
+TIP: if you need to inject a list, you can always create a bean which holds the list and inject this wrapper in your command.
+
+== Launching
+
+`fusion-cli` provides an integration with `Launcher` main, if you don't use it, you will have to call yourself `CLIAwaiter` and register an instance of `Args`.

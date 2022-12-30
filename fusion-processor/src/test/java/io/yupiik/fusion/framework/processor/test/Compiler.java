@@ -1,8 +1,11 @@
 package io.yupiik.fusion.framework.processor.test;
 
+import io.yupiik.fusion.cli.internal.CliCommand;
 import io.yupiik.fusion.framework.api.ConfiguringContainer;
 import io.yupiik.fusion.framework.api.Instance;
 import io.yupiik.fusion.framework.api.RuntimeContainer;
+import io.yupiik.fusion.framework.api.container.FusionBean;
+import io.yupiik.fusion.framework.api.container.FusionModule;
 import io.yupiik.fusion.framework.api.container.Generation;
 import io.yupiik.fusion.framework.build.api.scanning.Injection;
 import io.yupiik.fusion.framework.processor.Bean;
@@ -99,10 +102,11 @@ public class Compiler {
         });
     }
 
-    public void compileAndAsserts(final BiConsumer<Function<String, Class<?>>, RuntimeContainer> test) throws IOException {
+    public void compileAndAsserts(final BiConsumer<Function<String, Class<?>>, RuntimeContainer> test,
+                                  final FusionBean<?>... beans) throws IOException {
         final var classes = assertCompiles(setupSrc());
         try (final var loader = new CompilationClassLoader(classes);
-             final var container = ConfiguringContainer.of().start()) {
+             final var container = ConfiguringContainer.of().register(beans).start()) {
             test.accept(s -> {
                 try {
                     return loader.loadClass(s);
@@ -139,7 +143,8 @@ public class Compiler {
                 Generation.class.getProtectionDomain().getCodeSource().getLocation().getFile(),
                 JsonMapper.class.getProtectionDomain().getCodeSource().getLocation().getFile(),
                 Request.class.getProtectionDomain().getCodeSource().getLocation().getFile(),
-                JsonRpcHandler.class.getProtectionDomain().getCodeSource().getLocation().getFile());
+                JsonRpcHandler.class.getProtectionDomain().getCodeSource().getLocation().getFile(),
+                CliCommand.class.getProtectionDomain().getCodeSource().getLocation().getFile());
         final var cmd = Stream.concat(
                         Stream.of(
                                 "--release", version,

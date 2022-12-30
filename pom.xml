@@ -30,6 +30,7 @@
     <module>fusion-testing</module>
     <module>fusion-documentation</module>
     <module>fusion-jsonrpc</module>
+    <module>fusion-cli</module>
   </modules>
 
   <dependencies>
