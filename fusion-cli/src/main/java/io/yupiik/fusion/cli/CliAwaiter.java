@@ -42,9 +42,10 @@ public class CliAwaiter implements Awaiter {
             // assume args are in this form:
             // $ --<conf name> <value>
             // we support "-" for the root configuration key which enables to drop the prefix
+            final var prefix = key.startsWith("-.") ? "" /* transformation will already match -- */ : "--";
             return Stream.of(
-                            "--" + key,
-                            "--" + key.replace('.', '-').replace("--", "-"))
+                            prefix + key, // raw, likely logged
+                            prefix + key.replace('.', '-'))
                     .mapToInt(it -> args.args().indexOf(it))
                     .filter(i -> i >= 0 && args.args().size() > i)
                     .mapToObj(i -> ofNullable(args.args().get(i + 1)))
