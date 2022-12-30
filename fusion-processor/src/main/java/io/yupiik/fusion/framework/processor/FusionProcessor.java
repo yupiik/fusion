@@ -601,11 +601,11 @@ public class FusionProcessor extends AbstractProcessor {
             return;
         }
 
-        final var names = ParsedName.of(runnable.getEnclosingElement());
+        final var names = ParsedName.of(runnable);
         try {
             final var generation = new CliCommandGenerator(
                     processingEnv, elements, beanForCliCommands,
-                    names.packageName(), names.className() + "$" + runnable.getSimpleName(),
+                    names.packageName(), names.className(),
                     runnable.getAnnotation(Command.class), runnable)
                     .get();
             writeGeneratedClass(runnable, generation.command());

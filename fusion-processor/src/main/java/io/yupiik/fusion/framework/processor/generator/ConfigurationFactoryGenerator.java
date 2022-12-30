@@ -235,7 +235,9 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
         this.docStack.getLast().items().add(new Docs.DocItem(docName, desc, required, null));
         return "configuration.get(" + name + ")" +
                 mapper +
-                (required ? ".orElseThrow(() -> new IllegalArgumentException(\"No value for '" + name.substring(1, name.length() - 1) + "'\"))" : ".orElse(" + defaultValue + ")");
+                (required ?
+                        ".orElseThrow(() -> new IllegalArgumentException(\"No value for '\" + " + name + " + \"'\"))" :
+                        ".orElse(" + defaultValue + ")");
     }
 
     private String listOf(final String valueMapper) {

@@ -7,7 +7,7 @@ import io.yupiik.fusion.framework.build.api.configuration.RootConfiguration;
 
 public interface Commands {
     @Command(name = "c1", description = "A super command.")
-    public class C1 implements Runnable {
+    public static class C1 implements Runnable {
         private final Conf conf;
         private final Emitter aBean;
 

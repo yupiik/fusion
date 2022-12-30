@@ -106,7 +106,7 @@ public class CliCommandGenerator extends BaseGenerator implements Supplier<CliCo
                                 "  @Override\n" +
                                 "  public " + commandClassName + " create(final " + RuntimeContainer.class.getName() + " container, final " +
                                 List.class.getName() + "<" + Instance.class.getName() + "<?>> dependents) {\n" +
-                                "    return new " + commandClassName + "(container);\n" +
+                                "    return new " + commandClassName + "(" + (hasInjections ? "container" : "") + ");\n" +
                                 "  }\n" +
                                 "}\n" +
                                 "\n") :
