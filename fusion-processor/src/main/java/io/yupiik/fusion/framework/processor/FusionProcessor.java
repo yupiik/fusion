@@ -272,10 +272,11 @@ public class FusionProcessor extends AbstractProcessor {
         beans.forEach((bean, injections) -> handleSuperClassesInjections(beans, bean, injections));
 
         // generate beans, listeners, ...
-        cliCommands.forEach(this::generateCliCommand);
-        httpEndpoints.forEach(this::generateHttpEndpoint);
         configurations.forEach(this::generateConfigurationFactory);
         jsonModels.forEach(this::generateJsonCodec);
+        generateBeansForJsonCodecs();
+        cliCommands.forEach(this::generateCliCommand);
+        httpEndpoints.forEach(this::generateHttpEndpoint);
         jsonRpcEndpoints.forEach(this::generateJsonRpcEndpoint); // after json models to get schemas
         beans.forEach(this::generateBean);
         explicitBeans.stream()
@@ -290,7 +291,6 @@ public class FusionProcessor extends AbstractProcessor {
         listeners.stream()
                 .map(it -> (ExecutableElement) it.getEnclosingElement())
                 .forEach(this::generateListener);
-        generateBeansForJsonCodecs();
     }
 
     private void generateBeansForJsonCodecs() {
@@ -606,7 +606,8 @@ public class FusionProcessor extends AbstractProcessor {
             final var generation = new CliCommandGenerator(
                     processingEnv, elements, beanForCliCommands,
                     names.packageName(), names.className(),
-                    runnable.getAnnotation(Command.class), runnable)
+                    runnable.getAnnotation(Command.class), runnable,
+                    allConfigurationsDocs)
                     .get();
             writeGeneratedClass(runnable, generation.command());
 

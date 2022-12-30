@@ -56,6 +56,7 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
@@ -348,7 +349,7 @@ class FusionProcessorTest {
                                             "bigNumber=10.2, " +
                                             "nested=NestedConf[nestedValue=down, second=Nest2[value=5]], " +
                                             "nesteds=[NestedConf[nestedValue=down1, second=Nest2[value=0]], NestedConf[nestedValue=down2, second=Nest2[value=0]]], " +
-                                            "list=[ab,cde,fgh]" +
+                                            "list=[ab, cde, fgh]" +
                                             "]",
                                     instance.instance().toString());
 
@@ -1480,13 +1481,43 @@ class FusionProcessorTest {
 
             System.clearProperty("test.p.Commands$C1");
             withInstance(container, loader, "io.yupiik.fusion.cli.CliAwaiter", CliAwaiter.class, CliAwaiter::await);
+            assertEquals("conf=Conf[name=set from test, nested=Nested[lower=45], nesteds=[Nested[lower=123]], list=[first, second]], bean = true", System.clearProperty("test.p.Commands$C1"));
         }, new BaseBean<Args>(Args.class, DefaultScoped.class, 1000, Map.of()) {
             @Override
             public Args create(final RuntimeContainer container, final List<Instance<?>> dependents) {
-                return new Args(List.of("c1", "--c1-name", "set from test"));
+                return new Args(List.of(
+                        "c1",
+                        "--c1-name", "set from test",
+                        "--c1-nested-lower", "45",
+                        "--c1-nesteds-length", "1",
+                        "--c1-nesteds-0-lower", "123",
+                        "--c1-list", "first,second"));
             }
         });
-        assertEquals("set from test, bean = true", System.clearProperty("test.p.Commands$C1"));
+    }
+
+    @Test
+    void commandUsage(@TempDir final Path work) throws IOException {
+        new Compiler(work, "Commands").compileAndAsserts((loader, container) -> assertEquals(
+                        """
+                                Missing command 'unknown':
+                                * c1:
+                                  A super command.
+                                  Parameters:
+                                    --c1-list: -
+                                    --c1-name: The main name.
+                                    --c1-nested-lower: -
+                                    --c1-nesteds-$index-lower: -
+                                """,
+                        assertThrows(IllegalArgumentException.class, () ->
+                                withInstance(container, loader, "io.yupiik.fusion.cli.CliAwaiter", CliAwaiter.class, CliAwaiter::await))
+                                .getMessage()),
+                new BaseBean<Args>(Args.class, DefaultScoped.class, 1000, Map.of()) {
+                    @Override
+                    public Args create(final RuntimeContainer container, final List<Instance<?>> dependents) {
+                        return new Args(List.of("unknown"));
+                    }
+                });
     }
 
     private <A> void withInstance(final RuntimeContainer container, final Function<String, Class<?>> loader, final String name,

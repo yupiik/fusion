@@ -205,7 +205,7 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
                 return "null";
             }
 
-            // nested list of objects, here we need to use prefixed annotation
+            // nested list of objects, here we need to use prefixed notation
             if (!nestedClasses.containsKey(itemString)) {
                 nestedClasses.put(itemString, generateNestedClass(
                         (TypeElement) processingEnv.getTypeUtils().asElement(itemType), itemString, null, nestedClasses));
@@ -241,7 +241,8 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
     }
 
     private String listOf(final String valueMapper) {
-        return ".map(value -> " + Stream.class.getName() + ".of(value.split(\"\\\\.\"))" +
+        // if value starts with sep=x,... then we split on "x" instead of ","
+        return ".map(value -> " + Stream.class.getName() + ".of(value.startsWith(\"sep=\") ? value.substring(6).split(value.substring(4, 5)) : value.split(\",\"))" +
                 ".map(String::strip)" +
                 ".filter(" + Predicate.class.getName() + ".not(String::isBlank))" +
                 valueMapper +

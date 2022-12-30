@@ -1,20 +1,24 @@
 package io.yupiik.fusion.framework.processor.generator;
 
 import io.yupiik.fusion.cli.internal.BaseCliCommand;
+import io.yupiik.fusion.cli.internal.CliCommand;
 import io.yupiik.fusion.framework.api.Instance;
 import io.yupiik.fusion.framework.api.RuntimeContainer;
 import io.yupiik.fusion.framework.api.container.FusionBean;
 import io.yupiik.fusion.framework.api.container.bean.BaseBean;
 import io.yupiik.fusion.framework.build.api.cli.Command;
 import io.yupiik.fusion.framework.processor.Elements;
+import io.yupiik.fusion.framework.processor.meta.Docs;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 import static java.util.Comparator.comparing;
 import static java.util.stream.Collectors.joining;
@@ -31,16 +35,19 @@ public class CliCommandGenerator extends BaseGenerator implements Supplier<CliCo
     private final String packageName;
     private final String className;
     private final TypeElement type;
+    private final Map<String, Collection<Docs.ClassDoc>> docs;
 
     public CliCommandGenerator(final ProcessingEnvironment processingEnv, final Elements elements,
                                final boolean beanForCliCommands, final String packageName,
-                               final String className, final Command command, final TypeElement type) {
+                               final String className, final Command command, final TypeElement type,
+                               final Map<String, Collection<Docs.ClassDoc>> docs) {
         super(processingEnv, elements);
         this.command = command;
         this.beanForCliCommands = beanForCliCommands;
         this.packageName = packageName;
         this.className = className;
         this.type = type;
+        this.docs = docs;
     }
 
     @Override
@@ -87,7 +94,8 @@ public class CliCommandGenerator extends BaseGenerator implements Supplier<CliCo
                         (hasInjections ? constructorParameters.stream()
                                 .skip(1) // configuration by convention
                                 .map(param -> "lookup(container, " + toFqnName(processingEnv.getTypeUtils().asElement(param.asType())) + ".class, deps)")
-                                .collect(joining(", ", ", ", "")) : "") + "));\n" +
+                                .collect(joining(", ", ", ", "")) : "") + ")," +
+                        "      " + List.class.getName() + ".of(" + parameters(configurationType, null) + "));\n" +
                         "  }\n" +
                         "}\n" +
                         "\n"),
@@ -111,6 +119,42 @@ public class CliCommandGenerator extends BaseGenerator implements Supplier<CliCo
                                 "}\n" +
                                 "\n") :
                         null);
+    }
+
+    // assume args are in this form:
+    // $ --<conf name> <value>
+    // Note: we support "-" for the root configuration key which enables to drop the prefix
+    private String parameters(final String configurationType, final String parentPrefix) {
+        return doFindParameters(configurationType, parentPrefix).collect(joining(", "));
+    }
+
+    private Stream<String> doFindParameters(final String configurationType, final String parentPrefix) {
+        return findConf(configurationType)
+                .mapMulti((it, out) -> {
+                    if (it.ref() != null) {
+                        final var prefix = (parentPrefix == null ? "" : (parentPrefix + '.')) + it.name() + '.';
+                        doFindParameters(it.ref(), prefix).forEach(out);
+                    } else {
+                        out.accept(parameter(parentPrefix, it));
+                    }
+                });
+    }
+
+    private static String parameter(final String parentPrefix, final Docs.DocItem item) {
+        final var javaName = (parentPrefix == null ? "" : parentPrefix) + item.name();
+        final var cliName = (javaName.startsWith("-.") ? "" : "--") + javaName.replace('.', '-');
+        return "new " + CliCommand.Parameter.class.getName().replace('$', '.') + "(" +
+                "\"" + javaName.replace("\"", "\\\"").replace("\n", "\\n") + "\", " +
+                "\"" + cliName.replace("\"", "\\\"").replace("\n", "\\n") + "\", " +
+                "\"" + item.doc().replace("\"", "\\\"").replace("\n", "\\n") + "\")";
+    }
+
+    private Stream<Docs.DocItem> findConf(final String configurationType) {
+        return docs.values().stream()
+                .flatMap(Collection::stream)
+                .filter(it -> configurationType.equals(it.name()))
+                .flatMap(it -> it.items().stream())
+                .sorted(comparing(Docs.DocItem::name));
     }
 
     // todo: share in Types?

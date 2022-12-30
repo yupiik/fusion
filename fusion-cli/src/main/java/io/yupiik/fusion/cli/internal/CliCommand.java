@@ -10,5 +10,9 @@ public interface CliCommand<C extends Runnable> {
 
     String description();
 
+    List<Parameter> parameters();
+
     Instance<C> create(Configuration configuration, List<Instance<?>> dependents);
+
+    record Parameter(String configName, String cliName, String description) {}
 }

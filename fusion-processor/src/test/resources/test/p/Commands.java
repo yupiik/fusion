@@ -3,7 +3,10 @@ package test.p;
 
 import io.yupiik.fusion.framework.api.event.Emitter;
 import io.yupiik.fusion.framework.build.api.cli.Command;
+import io.yupiik.fusion.framework.build.api.configuration.Property;
 import io.yupiik.fusion.framework.build.api.configuration.RootConfiguration;
+
+import java.util.List;
 
 public interface Commands {
     @Command(name = "c1", description = "A super command.")
@@ -18,10 +21,14 @@ public interface Commands {
 
         @Override
         public void run() {
-            System.setProperty(C1.class.getName(), conf.name() + ", bean = " + (aBean != null));
+            System.setProperty(C1.class.getName(), "conf=" + conf + ", bean = " + (aBean != null));
         }
 
         @RootConfiguration("c1")
-        public record Conf(String name) {}
+        public record Conf(@Property(documentation = "The main name.") String name, Nested nested,
+                           List<Nested> nesteds,
+                           List<String> list) {}
+
+        public record Nested(String lower) {}
     }
 }
