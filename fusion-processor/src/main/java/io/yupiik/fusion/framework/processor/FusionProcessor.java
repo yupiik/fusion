@@ -3,6 +3,7 @@ package io.yupiik.fusion.framework.processor;
 import io.yupiik.fusion.framework.api.container.FusionBean;
 import io.yupiik.fusion.framework.api.container.FusionListener;
 import io.yupiik.fusion.framework.api.container.FusionModule;
+import io.yupiik.fusion.framework.api.container.context.subclass.DelegatingContext;
 import io.yupiik.fusion.framework.api.scope.ApplicationScoped;
 import io.yupiik.fusion.framework.api.scope.DefaultScoped;
 import io.yupiik.fusion.framework.build.api.cli.Command;
@@ -68,6 +69,7 @@ import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static java.util.Comparator.comparing;
@@ -699,7 +701,8 @@ public class FusionProcessor extends AbstractProcessor {
                 writeGeneratedClass(src.enclosing(), subclass);
                 data = "" +
                         "\"fusion.framework.subclasses.delegate\",\n" +
-                        "(java.util.function.Function<io.yupiik.fusion.framework.api.container.context.subclass.DelegatingContext<" + names.className() + ">, " + names.className() + ">)\n" +
+                        "(" + Function.class.getName() + "<" + DelegatingContext.class.getName() + "<" +
+                        names.className().replace('$', '.') + ">, " + names.className().replace('$', '.') + ">)\n" +
                         "  context -> new " + subclass.name() + "(context)\n";
             } else {
                 data = "";

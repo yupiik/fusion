@@ -60,10 +60,10 @@ public class BeanGenerator extends BaseGenerator implements Supplier<BaseGenerat
         out.append("public class ")
                 .append(className).append('$').append(FusionBean.class.getSimpleName())
                 .append(" extends ").append(BaseBean.class.getName())
-                .append('<').append(className).append("> {\n");
+                .append('<').append(className.replace('$', '.')).append("> {\n");
         out.append("  public ").append(className).append('$').append(FusionBean.class.getSimpleName()).append("() {\n");
         out.append("    super(")
-                .append(className).append(".class, ")
+                .append(className.replace('$', '.')).append(".class, ")
                 .append(scope).append(".class, ")
                 .append(priority).append(", ")
                 .append(Map.class.getName()).append(".of(").append(data).append("));\n");
@@ -75,10 +75,10 @@ public class BeanGenerator extends BaseGenerator implements Supplier<BaseGenerat
                         constructorInjections.contains("(" + Optional.class.getName() + "<"))) {
             out.append("  @SuppressWarnings(\"unchecked\")\n");
         }
-        out.append("  public ").append(className).append(" create(final ").append(RuntimeContainer.class.getName())
+        out.append("  public ").append(className.replace('$', '.')).append(" create(final ").append(RuntimeContainer.class.getName())
                 .append(" container, final ")
                 .append(List.class.getName()).append("<").append(Instance.class.getName()).append("<?>> dependents) {\n");
-        out.append("    final var instance = new ").append(className).append("(")
+        out.append("    final var instance = new ").append(className.replace('$', '.')).append("(")
                 .append(constructorInjections == null ? "" : constructorInjections).append(");\n");
         out.append("    inject(container, dependents, instance);\n");
         out.append(postConstruct);
@@ -94,7 +94,7 @@ public class BeanGenerator extends BaseGenerator implements Supplier<BaseGenerat
             out.append("  public void inject(final ").append(RuntimeContainer.class.getName()).append(" container, final ")
                     .append(List.class.getName()).append("<")
                     .append(Instance.class.getName()).append("<?>> dependents, final ")
-                    .append(className).append(" instance) {\n");
+                    .append(className.replace('$', '.')).append(" instance) {\n");
             out.append(injections.stream()
                     .map(this::setField)
                     .collect(joining("\n")));
@@ -105,7 +105,7 @@ public class BeanGenerator extends BaseGenerator implements Supplier<BaseGenerat
             out.append("\n");
             out.append("  @Override\n");
             out.append("  public void destroy(final ").append(RuntimeContainer.class.getName())
-                    .append(" container, final ").append(className).append(" instance) {\n");
+                    .append(" container, final ").append(className.replace('$', '.')).append(" instance) {\n");
             out.append(preDestroy);
             out.append("  }\n");
         }

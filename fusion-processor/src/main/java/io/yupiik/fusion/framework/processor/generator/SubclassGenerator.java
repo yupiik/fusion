@@ -44,17 +44,12 @@ public class SubclassGenerator extends BaseGenerator implements Supplier<BaseGen
             out.append("package ").append(packageName).append(";\n\n");
         }
 
-        if (!packageName.isBlank() && !packageName.equals("java.lang.")) {
-            out.append("import ").append(packageName).append(".").append(className).append(";\n");
-        }
-        out.append("\n");
-
         appendGenerationVersion(out);
-        out.append("class ").append(className).append(DELEGATING_CLASS_SUFFIX).append(" extends ").append(className).append(" {\n");
-        out.append("  private final ").append(DelegatingContext.class.getName()).append("<").append(className).append("> fusionContext;\n");
+        out.append("class ").append(className).append(DELEGATING_CLASS_SUFFIX).append(" extends ").append(className.replace('$', '.')).append(" {\n");
+        out.append("  private final ").append(DelegatingContext.class.getName()).append("<").append(className.replace('$', '.')).append("> fusionContext;\n");
         out.append("\n");
         out.append("  ").append(className).append(DELEGATING_CLASS_SUFFIX)
-                .append("(final ").append(DelegatingContext.class.getName()).append("<").append(className).append("> context) {\n");
+                .append("(final ").append(DelegatingContext.class.getName()).append("<").append(className.replace('$', '.')).append("> context) {\n");
         out.append("    this.fusionContext = context;\n");
         out.append("  }\n");
         out.append(elements.findMethods(typeElement)
@@ -93,7 +88,7 @@ public class SubclassGenerator extends BaseGenerator implements Supplier<BaseGen
                 .collect(joining("\n", "\n", "")));
         out.append("}\n\n");
 
-        return new GeneratedClass(typeElement.getQualifiedName().toString() + DELEGATING_CLASS_SUFFIX, out.toString());
+        return new GeneratedClass((packageName.isBlank() ? "" : (packageName + '.')) + className + DELEGATING_CLASS_SUFFIX, out.toString());
     }
 
     private void ensureDefaultNoArgConstructor() {

@@ -35,6 +35,7 @@ import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -95,8 +96,6 @@ class FusionProcessorTest {
                         """, Files.readString(compiler.getGeneratedSources().resolve("test/p/Bean1$FusionBean.java")));
                 assertEquals("""
                         package test.p;
-                                        
-                        import test.p.Bean1;
                                         
                         @io.yupiik.fusion.framework.api.container.Generation(version = 1)
                         class Bean1$FusionSubclass extends Bean1 {
@@ -172,6 +171,27 @@ class FusionProcessorTest {
         });
         // here the bean is destroyed by the container
         assertEquals("init=1, destroyed=1", ref.get().instance().toString());
+    }
+
+
+    @Test
+    void nestedBeans(@TempDir final Path work) throws IOException {
+        // just checks it compiles and there is a proper nested beans handling ($ vs .)
+        new Compiler(work, "NestedBeans", "LifecycledDep", "Bean2").compileAndAsserts((loader, container) -> {
+            assertEquals(
+                    List.of(
+                            "test.p.Bean2",
+                            "test.p.LifecycledDep",
+                            "test.p.NestedBeans$Lifecycled",
+                            "test.p.NestedBeans$MethodProducer",
+                            "test.p.NestedBeans$MethodProducer$Produceable"),
+                    container.getBeans().getBeans().values().stream()
+                            .flatMap(Collection::stream)
+                            .map(it -> it.type().getTypeName())
+                            .filter(it -> it.startsWith("test.p."))
+                            .sorted()
+                            .toList());
+        });
     }
 
     @Test
