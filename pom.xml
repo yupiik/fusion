@@ -1,4 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+    Copyright (c) 2022-2023 - Yupiik SAS - https://www.yupiik.com
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
@@ -134,6 +151,57 @@
         <artifactId>maven-site-plugin</artifactId>
         <version>3.8.2</version>
       </plugin>
+      <plugin>
+        <groupId>com.mycila</groupId>
+        <artifactId>license-maven-plugin</artifactId>
+        <version>4.2.rc3</version>
+        <executions>
+          <execution>
+            <id>check-license</id>
+            <phase>validate</phase>
+            <goals>
+              <goal>check</goal>
+            </goals>
+          </execution>
+        </executions>
+        <inherited>false</inherited>
+        <configuration>
+          <aggregate>true</aggregate>
+          <inlineHeader><![CDATA[Copyright (c) ${project.inceptionYear} - ${project.organization.name} - ${project.organization.url}
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+ http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+]]></inlineHeader>
+          <mapping>
+            <adoc>DOUBLESLASH_STYLE</adoc>
+          </mapping>
+          <includes>
+            <include>**/*.properties</include>
+            <include>**/*.java</include>
+            <include>**/*.xml</include>
+            <include>**/*.yaml</include>
+          </includes>
+          <excludes>
+            <exclude>LICENSE</exclude>
+            <exclude>**/*.adoc</exclude>
+            <exclude>**/*.idea</exclude>
+            <exclude>**/target/**</exclude>
+            <exclude>**/generated/**</exclude>
+            <exclude>**/minisite/**</exclude>
+            <exclude>**/file</exclude>
+            <exclude>**/.m2/**</exclude>
+          </excludes>
+        </configuration>
+      </plugin>
     </plugins>
   </build>
 
@@ -221,7 +289,7 @@
     <url>https://www.yupiik.com</url>
   </organization>
 
-  <inceptionYear>2022</inceptionYear>
+  <inceptionYear>2022-2023</inceptionYear>
 
   <distributionManagement>
     <snapshotRepository>
