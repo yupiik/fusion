@@ -173,7 +173,6 @@ class FusionProcessorTest {
         assertEquals("init=1, destroyed=1", ref.get().instance().toString());
     }
 
-
     @Test
     void nestedBeans(@TempDir final Path work) throws IOException {
         // just checks it compiles and there is a proper nested beans handling ($ vs .)
@@ -185,6 +184,25 @@ class FusionProcessorTest {
                             "test.p.NestedBeans$Lifecycled",
                             "test.p.NestedBeans$MethodProducer",
                             "test.p.NestedBeans$MethodProducer$Produceable"),
+                    container.getBeans().getBeans().values().stream()
+                            .flatMap(Collection::stream)
+                            .map(it -> it.type().getTypeName())
+                            .filter(it -> it.startsWith("test.p."))
+                            .sorted()
+                            .toList());
+        });
+    }
+
+    @Test
+    void nestedJsonRpc(@TempDir final Path work) throws IOException {
+        // just checks it compiles and there is a proper nested beans handling ($ vs .)
+        new Compiler(work, "NestedJsonRpc").compileAndAsserts((loader, container) -> {
+            assertEquals(
+                    List.of(
+                            "test.p.NestedJsonRpc$MyInput$FusionJsonCodec",
+                            "test.p.NestedJsonRpc$MyResult$FusionJsonCodec",
+                            "test.p.NestedJsonRpc$Rpc",
+                            "test.p.NestedJsonRpc$Rpc$asynResult$FusionJsonRpcMethod"),
                     container.getBeans().getBeans().values().stream()
                             .flatMap(Collection::stream)
                             .map(it -> it.type().getTypeName())

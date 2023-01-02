@@ -158,9 +158,9 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
 
     // get it from jsonschemas - ideally we should extract the logic from JsonCodecGenerator but for now just use it
     // and assume openrpc spec generation is only enabled if json one is
-    private JsonSchema generateFullJsonSchema(final ParsedType type) {
-        return requireNonNull(allJsonSchemas.get(type.className()),
-                "Missing JSON schema for '" + type.className() + "', check you enabled its generation.");
+    private JsonSchema generateFullJsonSchema(final String name) {
+        return requireNonNull(allJsonSchemas.get(name),
+                "Missing JSON schema for '" + name + "', check you enabled its generation.");
     }
 
     private JsonSchema getSchema(final EnrichedParsedType enrichedParsedType) {
@@ -179,7 +179,7 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
                     default -> {
                         final var schema = openRPC.schemas().computeIfAbsent(
                                 type.className().replace('$', '.'),
-                                k -> generateFullJsonSchema(type));
+                                k -> generateFullJsonSchema(type.className()));
                         yield new JsonSchema(
                                 "#/schemas/" + requireNonNull(schema.id(), "missing id: " + schema),
                                 null, null, null, null, null, null, null, null);
@@ -208,7 +208,7 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
                                     default -> {
                                         final var schema = openRPC.schemas().computeIfAbsent(
                                                 type.args().get(0).replace('$', '.'),
-                                                k -> generateFullJsonSchema(type));
+                                                k -> generateFullJsonSchema(type.args().get(0)));
                                         yield new JsonSchema(
                                                 "#/schemas/" + requireNonNull(schema.id(), "missing id: " + schema),
                                                 null, null, null, null, null, null, null, null);
@@ -234,7 +234,7 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
                                     default -> {
                                         final var schema = openRPC.schemas().computeIfAbsent(
                                                 type.args().get(1).replace('$', '.'),
-                                                k -> generateFullJsonSchema(type));
+                                                k -> generateFullJsonSchema(type.args().get(1)));
                                         yield new JsonSchema(
                                                 "#/schemas/" + requireNonNull(schema.id(), "missing id: " + schema),
                                                 null, null, null, null, null, null, null, null);
@@ -261,7 +261,7 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
                                     default -> {
                                         final var schema = openRPC.schemas().computeIfAbsent(
                                                 type.args().get(0).replace('$', '.'),
-                                                k -> generateFullJsonSchema(type));
+                                                k -> generateFullJsonSchema(type.args().get(0)));
                                         yield new JsonSchema(
                                                 "#/schemas/" + requireNonNull(schema.id(), "missing id: " + schema),
                                                 null, null, null, null, null, null, null, null);
