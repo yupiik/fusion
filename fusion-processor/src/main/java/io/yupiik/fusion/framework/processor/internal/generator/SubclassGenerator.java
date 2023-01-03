@@ -13,10 +13,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package io.yupiik.fusion.framework.processor.generator;
+package io.yupiik.fusion.framework.processor.internal.generator;
 
 import io.yupiik.fusion.framework.api.container.context.subclass.DelegatingContext;
-import io.yupiik.fusion.framework.processor.Elements;
+import io.yupiik.fusion.framework.processor.internal.Elements;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Name;

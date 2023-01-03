@@ -45,14 +45,12 @@
       <artifactId>fusion-api</artifactId>
       <version>${project.version}</version>
     </dependency>
+
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>fusion-json</artifactId>
       <version>${project.version}</version>
-      <!--
-      theorically provided but we use JsonStrings internally so compile is what we want
-      <scope>provided</scope>
-      -->
+      <scope>provided</scope> <!-- for reactor ordering -->
       <exclusions>
         <exclusion>
           <groupId>*</groupId>
@@ -107,6 +105,36 @@
 
   <build>
     <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <version>3.3.0</version>
+        <configuration>
+          <excludes>
+            <exclude>**/build/**</exclude>
+          </excludes>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>prepare-package</id>
+            <phase>process-classes</phase>
+            <goals>
+              <goal>java</goal>
+            </goals>
+            <configuration>
+              <includeProjectDependencies>true</includeProjectDependencies>
+              <mainClass>io.yupiik.fusion.framework.processor.build.PreparePackaging</mainClass>
+              <arguments>
+                <argument>${project.build.outputDirectory}</argument>
+              </arguments>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>

@@ -13,7 +13,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package io.yupiik.fusion.framework.processor.meta;
+package io.yupiik.fusion.framework.processor.internal.meta;
 
 import java.util.Collection;
 import java.util.LinkedHashMap;

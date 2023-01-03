@@ -13,13 +13,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package io.yupiik.fusion.framework.processor.generator;
+package io.yupiik.fusion.framework.processor.internal.generator;
 
 import io.yupiik.fusion.framework.api.configuration.Configuration;
 import io.yupiik.fusion.framework.build.api.configuration.Property;
 import io.yupiik.fusion.framework.build.api.configuration.RootConfiguration;
-import io.yupiik.fusion.framework.processor.Elements;
-import io.yupiik.fusion.framework.processor.meta.Docs;
+import io.yupiik.fusion.framework.processor.internal.Elements;
+import io.yupiik.fusion.framework.processor.internal.meta.Docs;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;

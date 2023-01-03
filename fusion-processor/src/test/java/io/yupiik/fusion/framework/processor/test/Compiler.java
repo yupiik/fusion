@@ -20,10 +20,8 @@ import io.yupiik.fusion.framework.api.ConfiguringContainer;
 import io.yupiik.fusion.framework.api.Instance;
 import io.yupiik.fusion.framework.api.RuntimeContainer;
 import io.yupiik.fusion.framework.api.container.FusionBean;
-import io.yupiik.fusion.framework.api.container.FusionModule;
 import io.yupiik.fusion.framework.api.container.Generation;
 import io.yupiik.fusion.framework.build.api.scanning.Injection;
-import io.yupiik.fusion.framework.processor.Bean;
 import io.yupiik.fusion.framework.processor.FusionProcessor;
 import io.yupiik.fusion.http.server.api.Request;
 import io.yupiik.fusion.json.JsonMapper;
@@ -153,7 +151,7 @@ public class Compiler {
         final var version = Runtime.version().version().get(0).toString();
         final var cp = String.join(
                 File.pathSeparator,
-                Bean.class.getProtectionDomain().getCodeSource().getLocation().getFile(),
+                FusionProcessor.class.getProtectionDomain().getCodeSource().getLocation().getFile(),
                 Injection.class.getProtectionDomain().getCodeSource().getLocation().getFile(),
                 Generation.class.getProtectionDomain().getCodeSource().getLocation().getFile(),
                 JsonMapper.class.getProtectionDomain().getCodeSource().getLocation().getFile(),

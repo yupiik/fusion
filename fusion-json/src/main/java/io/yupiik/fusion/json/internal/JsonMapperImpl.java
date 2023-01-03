@@ -82,7 +82,7 @@ public class JsonMapperImpl implements JsonMapper {
     }
 
     protected Stream<JsonCodec<?>> builtInCodecs() {
-        return Stream.of( // do not forget to update io.yupiik.fusion.framework.processor.generator.JsonCodecGenerator if changing this
+        return Stream.of( // do not forget to update io.yupiik.fusion.framework.processor.internal.generator.JsonCodecGenerator if changing this
                 new StringJsonCodec(),
                 new IntegerJsonCodec(),
                 new LongJsonCodec(),

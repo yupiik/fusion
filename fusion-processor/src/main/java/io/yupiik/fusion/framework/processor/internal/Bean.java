@@ -14,7 +14,7 @@
  * under the License.
  */
 
-package io.yupiik.fusion.framework.processor;
+package io.yupiik.fusion.framework.processor.internal;
 
 import javax.lang.model.element.Element;
 import javax.lang.model.element.Modifier;

@@ -40,6 +40,12 @@
       <version>${project.version}</version>
       <scope>provided</scope>
     </dependency>
+    <dependency> <!-- zipkin flusher -->
+      <groupId>${project.groupId}</groupId>
+      <artifactId>fusion-json</artifactId>
+      <version>${project.version}</version>
+      <scope>provided</scope>
+    </dependency>
 
     <dependency>
       <groupId>${project.groupId}</groupId>

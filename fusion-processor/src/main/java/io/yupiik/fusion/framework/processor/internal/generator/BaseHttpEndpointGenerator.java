@@ -13,10 +13,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package io.yupiik.fusion.framework.processor.generator;
+package io.yupiik.fusion.framework.processor.internal.generator;
 
-import io.yupiik.fusion.framework.processor.Elements;
-import io.yupiik.fusion.framework.processor.ParsedType;
+import io.yupiik.fusion.framework.processor.internal.Elements;
+import io.yupiik.fusion.framework.processor.internal.ParsedType;
 import io.yupiik.fusion.http.server.api.Request;
 import io.yupiik.fusion.http.server.impl.io.RequestBodyAggregator;
 import io.yupiik.fusion.json.JsonMapper;

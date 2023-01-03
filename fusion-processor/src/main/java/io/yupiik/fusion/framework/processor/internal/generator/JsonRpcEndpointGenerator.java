@@ -13,7 +13,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package io.yupiik.fusion.framework.processor.generator;
+package io.yupiik.fusion.framework.processor.internal.generator;
 
 import io.yupiik.fusion.framework.api.Instance;
 import io.yupiik.fusion.framework.api.RuntimeContainer;
@@ -21,10 +21,10 @@ import io.yupiik.fusion.framework.api.container.FusionBean;
 import io.yupiik.fusion.framework.api.container.bean.BaseBean;
 import io.yupiik.fusion.framework.build.api.jsonrpc.JsonRpc;
 import io.yupiik.fusion.framework.build.api.jsonrpc.JsonRpcParam;
-import io.yupiik.fusion.framework.processor.Elements;
-import io.yupiik.fusion.framework.processor.ParsedType;
-import io.yupiik.fusion.framework.processor.meta.JsonSchema;
-import io.yupiik.fusion.framework.processor.meta.PartialOpenRPC;
+import io.yupiik.fusion.framework.processor.internal.Elements;
+import io.yupiik.fusion.framework.processor.internal.ParsedType;
+import io.yupiik.fusion.framework.processor.internal.meta.JsonSchema;
+import io.yupiik.fusion.framework.processor.internal.meta.PartialOpenRPC;
 import io.yupiik.fusion.json.JsonMapper;
 import io.yupiik.fusion.jsonrpc.impl.DefaultJsonRpcMethod;
 

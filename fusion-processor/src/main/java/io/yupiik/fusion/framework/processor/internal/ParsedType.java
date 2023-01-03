@@ -13,7 +13,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package io.yupiik.fusion.framework.processor;
+package io.yupiik.fusion.framework.processor.internal;
 
 import io.yupiik.fusion.framework.api.container.Types;
 

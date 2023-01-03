@@ -13,10 +13,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package io.yupiik.fusion.framework.processor.meta.renderer.doc;
+package io.yupiik.fusion.framework.processor.internal.meta.renderer.doc;
 
-import io.yupiik.fusion.framework.processor.meta.Docs;
-import io.yupiik.fusion.json.internal.JsonStrings;
+import io.yupiik.fusion.framework.processor.internal.json.JsonStrings;
+import io.yupiik.fusion.framework.processor.internal.meta.Docs;
 
 import java.util.Collection;
 import java.util.Map;

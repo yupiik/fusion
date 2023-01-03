@@ -13,13 +13,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package io.yupiik.fusion.framework.processor.generator;
+package io.yupiik.fusion.framework.processor.internal.generator;
 
 import io.yupiik.fusion.framework.build.api.json.JsonModel;
 import io.yupiik.fusion.framework.build.api.json.JsonOthers;
 import io.yupiik.fusion.framework.build.api.json.JsonProperty;
-import io.yupiik.fusion.framework.processor.Elements;
-import io.yupiik.fusion.framework.processor.meta.JsonSchema;
+import io.yupiik.fusion.framework.processor.internal.Elements;
+import io.yupiik.fusion.framework.processor.internal.meta.JsonSchema;
 import io.yupiik.fusion.json.internal.JsonStrings;
 import io.yupiik.fusion.json.internal.codec.BaseJsonCodec;
 import io.yupiik.fusion.json.internal.codec.CollectionJsonCodec;
