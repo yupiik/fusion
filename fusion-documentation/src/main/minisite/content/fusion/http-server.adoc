@@ -95,3 +95,27 @@ public CompletionStage<Response> myGreetingEndpoint() {
 
 TIP: if your endpoint is fully synchronous you can drop the `CompletionStage` wrapper: `public CompletionStage<Response> myGreetingEndpoint();`.
 You can also pass as first parameter a `Request` parameter.
+
+== (Open) Tracing
+
+`fusion-tracing` module provides a Tomcat valve you can set up on your web container to add tracing capabilities to your Tomcat:
+
+[source,java]
+----
+serverConfiguration
+    .unwrap(TomcatWebServerConfiguration.class)
+    .setContextCustomizers(List.of(c -> c.getPipeline() <1>
+        .addValve(new TracingValve( <1>
+            new ServerTracingConfiguration(), <2>
+            new AccumulatingSpanCollector().setOnFlush(...), <3>
+            new IdGenerator(IdGenerator.Type.HEX), <4>
+            systemUTC())))); <5>
+----
+<.> Add the valve to the context pipeline, it is recommended to add it as early as possible (just after error report and access log valve in general),
+<.> The configuration enables to customize the span tags and headers to read for span propagation,
+<.> The accumulator is what will send/log/... the spans once aggregated, ensure to configure it as needed,
+<.> The `IdGenerator` provides the span/trace identifiers, it must be compatible with your collector (`hex` for zipkin for example),
+<.> Finally the clock enables to timestamp the span and compute its duration.
+
+IMPORTANT: if you reuse `AccumulatingSpanCollector`, it is automatically closed with the valve "stop" phase.
+You can combine the accumulator with `ZipkinFlusher` `onFlush` implementation to flush to a zipkin collector v2.

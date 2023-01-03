@@ -229,3 +229,4 @@ See xref:setup.adoc[setup] page to see how to get your project started.
 
 * xref:json.adoc[JSON]
 * xref:http-server.adoc[HTTP Server]
+* xref:http-client.adoc[HTTP Client]

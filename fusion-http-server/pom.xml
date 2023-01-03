@@ -27,7 +27,7 @@
   </parent>
 
   <artifactId>fusion-http-server</artifactId>
-  <name>Fusion :: Framework :: Http Server</name>
+  <name>Fusion :: Http Server</name>
 
   <dependencies>
     <dependency>

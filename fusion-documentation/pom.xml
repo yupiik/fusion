@@ -27,12 +27,30 @@
   </parent>
 
   <artifactId>fusion-documentation</artifactId>
-  <name>Fusion :: Framework :: Documentation</name>
+  <name>Fusion :: Documentation</name>
 
   <dependencies>
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>fusion-processor</artifactId>
+      <version>${project.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>fusion-tracing</artifactId>
+      <version>${project.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>fusion-httpclient</artifactId>
+      <version>${project.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>fusion-kubernetes-client</artifactId>
       <version>${project.version}</version>
       <scope>provided</scope>
     </dependency>

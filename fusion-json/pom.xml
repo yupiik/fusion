@@ -27,7 +27,7 @@
   </parent>
 
   <artifactId>fusion-json</artifactId>
-  <name>Fusion :: Framework :: JSON</name>
+  <name>Fusion :: JSON</name>
 
   <dependencies>
     <dependency>

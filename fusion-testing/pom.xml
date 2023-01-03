@@ -27,7 +27,7 @@
   </parent>
 
   <artifactId>fusion-testing</artifactId>
-  <name>Fusion :: Framework :: Testing</name>
+  <name>Fusion :: Testing</name>
 
   <dependencies>
     <dependency>

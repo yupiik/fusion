@@ -212,21 +212,25 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
             out.append("        case VALUE_STRING:\n");
             out.append("          switch (key) {\n");
             out.append(strings.stream()
-                    .map(it -> "" +
-                            "            case \"" + it.stringEscapedJsonName() + "\":\n" +
-                            "              param__" + it.javaName() + " = " +
-                            switch (it.types().paramTypeDef()) {
-                                case STRING -> "parser.getString()";
-                                case BIG_DECIMAL -> "new " + BigDecimal.class.getName() + "(parser.getString())";
-                                default ->
-                                        throw new IllegalStateException("Unsupported parameter: " + it + " from " + element);
-                            } + ";\n" +
-                            "              break;\n")
+                    .map(it -> {
+                        final var assignment = "              param__" + it.javaName() + " = ";
+                        return "" +
+                                "            case \"" + it.stringEscapedJsonName() + "\":\n" +
+                                switch (it.types().paramTypeDef()) {
+                                    case STRING -> assignment + "parser.getString();\n";
+                                    case BIG_DECIMAL -> "              parser.rewind(event);\n" +
+                                            assignment + "context.codec(" + BigDecimal.class.getName() + ".class).read(context);\n";
+                                    default ->
+                                            throw new IllegalStateException("Unsupported parameter: " + it + " from " + element);
+                                } +
+                                "              break;\n";
+                    })
                     .collect(joining()));
             out.append(dates.stream()
                     .map(it -> "" +
                             "            case \"" + it.stringEscapedJsonName() + "\":\n" +
-                            "              param__" + it.javaName() + " = " +
+                            "              parser.rewind(event);\n" +
+                            "              param__" + it.javaName() + " = context.codec(" +
                             switch (it.types().paramTypeDef()) {
                                 case LOCAL_DATE -> LocalDate.class.getName();
                                 case LOCAL_DATE_TIME -> LocalDateTime.class.getName();
@@ -234,7 +238,7 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
                                 case ZONED_DATE_TIME -> ZonedDateTime.class.getName();
                                 default ->
                                         throw new IllegalStateException("Unsupported parameter: " + it + " from " + element);
-                            } + ".parse(parser.getString());\n" +
+                            } + ".class).read(context);\n" +
                             "              break;\n")
                     .collect(joining()));
             if (fallbacks.isEmpty()) {
@@ -459,12 +463,11 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
                                     "      writer.write(\"\\\"" + param.stringEscapedJsonName() + "\\\":\");\n" +
                                     "      writer.write(" + JsonStrings.class.getName() + ".escape(instance." + param.javaName() + "()));\n" +
                                     "    }\n";
-                            // todo: reuse codec lookup method to enable to reuse it: context.codec(Type).write...
                             case LOCAL_DATE, LOCAL_DATE_TIME, OFFSET_DATE_TIME, ZONED_DATE_TIME, BIG_DECIMAL -> "" +
                                     "    if (instance." + param.javaName() + "() != null) {\n" +
                                     (paramPosition > 0 ? commaAppender : firstCommaHandler) +
                                     "      writer.write(\"\\\"" + param.stringEscapedJsonName() + "\\\":\");\n" +
-                                    "      writer.write(" + JsonStrings.class.getName() + ".escape(instance." + param.javaName() + "().toString()));\n" +
+                                    "      context.codec(" + param.type().toString() + ".class).write(instance." + param.javaName() + "(), context);\n" +
                                     "    }\n";
                             case GENERIC_OBJECT -> "" +
                                     "    if (instance." + param.javaName() + "() != null) {\n" +
@@ -492,7 +495,7 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
                             structure.append("      writer.write(\"\\\"").append(param.stringEscapedJsonName()).append("\\\":\");\n");
                             structure.append("      writer.write('[');\n");
                             structure.append("      final var it = instance.").append(param.javaName()).append("().iterator();\n");
-                            if (paramTypeDef == ParamTypeDef.MODEL) {
+                            if (needsCodec(paramTypeDef)) {
                                 structure.append("      final var codec = context.codec(").append(param.types().argTypeIfNotValue()).append(".class);\n");
                             } else if (paramTypeDef == ParamTypeDef.GENERIC_OBJECT) {
                                 structure.append("      final var codec = context.codec(").append(Object.class.getName()).append(".class);\n");
@@ -503,9 +506,7 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
                                 case INTEGER, LONG, DOUBLE, BOOLEAN -> "writer.write(String.valueOf(next));\n";
                                 case STRING ->
                                         "writer.write(next == null ? \"null\" : " + JsonStrings.class.getName() + ".escape(next));\n";
-                                case LOCAL_DATE, LOCAL_DATE_TIME, OFFSET_DATE_TIME, ZONED_DATE_TIME, BIG_DECIMAL ->
-                                        "writer.write(next == null ? \"null\" : " + JsonStrings.class.getName() + ".escape(next.toString()));\n";
-                                case MODEL, GENERIC_OBJECT -> """
+                                default -> """
                                         if (next == null) {
                                           writer.write("null");
                                         } else {
@@ -532,7 +533,7 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
                             structure.append("      writer.write(\"\\\"").append(param.stringEscapedJsonName()).append("\\\":\");\n");
                             structure.append("      writer.write('{');\n");
                             structure.append("      final var it = instance.").append(param.javaName()).append("().entrySet().iterator();\n");
-                            if (paramTypeDef == ParamTypeDef.MODEL) {
+                            if (needsCodec(paramTypeDef)) {
                                 structure.append("      final var codec = context.codec(").append(param.types().argTypeIfNotValue()).append(".class);\n");
                             } else if (paramTypeDef == ParamTypeDef.GENERIC_OBJECT) {
                                 structure.append("      final var codec = context.codec(").append(Object.class.getName()).append(".class);\n");
@@ -547,9 +548,7 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
                                                 "writer.write(String.valueOf(next.getValue()));\n";
                                         case STRING ->
                                                 "writer.write(next.getValue() == null ? \"null\" : " + JsonStrings.class.getName() + ".escape(next.getValue()));\n";
-                                        case LOCAL_DATE, LOCAL_DATE_TIME, OFFSET_DATE_TIME, ZONED_DATE_TIME, BIG_DECIMAL ->
-                                                "writer.write(next.getValue() == null ? \"null\" : " + JsonStrings.class.getName() + ".escape(next.getValue().toString()));\n";
-                                        case MODEL, GENERIC_OBJECT -> """
+                                        default -> """
                                                 if (next.getValue() == null) {
                                                   writer.write("null");
                                                 } else {
@@ -572,6 +571,15 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
         out.append("  }\n");
         out.append("}\n\n");
         return out;
+    }
+
+    private boolean needsCodec(final ParamTypeDef paramTypeDef) {
+        return paramTypeDef == ParamTypeDef.MODEL ||
+                paramTypeDef == ParamTypeDef.LOCAL_DATE ||
+                paramTypeDef == ParamTypeDef.LOCAL_DATE_TIME ||
+                paramTypeDef == ParamTypeDef.OFFSET_DATE_TIME ||
+                paramTypeDef == ParamTypeDef.ZONED_DATE_TIME ||
+                paramTypeDef == ParamTypeDef.BIG_DECIMAL;
     }
 
     private ParamTypes typeOf(final String typeString, final TypeMirror raw) { // todo: enhance error cases

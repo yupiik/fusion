@@ -27,7 +27,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <artifactId>fusion-build-api</artifactId>
-  <name>Fusion :: Framework :: Build API</name>
+  <name>Fusion :: Build API</name>
   <description>API which is used by the annotation processor but not the runtime.</description>
 
   <dependencies>

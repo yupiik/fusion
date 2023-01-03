@@ -25,7 +25,7 @@
   <artifactId>fusion</artifactId>
   <version>1.0.0-SNAPSHOT</version>
   <packaging>pom</packaging>
-  <name>Fusion :: Framework</name>
+  <name>Fusion</name>
   <description>Reflectionless and selfcontained framework (no jakarta/spring/guice dependency).</description>
   <url>https://yupiik.github.io/fusion/</url>
 
@@ -45,9 +45,11 @@
     <module>fusion-json</module>
     <module>fusion-http-server</module>
     <module>fusion-testing</module>
-    <module>fusion-documentation</module>
     <module>fusion-jsonrpc</module>
     <module>fusion-cli</module>
+    <module>fusion-httpclient-parent</module>
+    <module>fusion-tracing</module>
+    <module>fusion-documentation</module>
   </modules>
 
   <dependencies>
@@ -167,7 +169,12 @@
         <inherited>false</inherited>
         <configuration>
           <aggregate>true</aggregate>
-          <inlineHeader><![CDATA[Copyright (c) ${project.inceptionYear} - ${project.organization.name} - ${project.organization.url}
+          <mapping>
+            <adoc>DOUBLESLASH_STYLE</adoc>
+          </mapping>
+          <licenseSets>
+            <licenseSet>
+              <inlineHeader><![CDATA[Copyright (c) ${project.inceptionYear} - ${project.organization.name} - ${project.organization.url}
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance
 with the License.  You may obtain a copy of the License at
@@ -181,25 +188,25 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 ]]></inlineHeader>
-          <mapping>
-            <adoc>DOUBLESLASH_STYLE</adoc>
-          </mapping>
-          <includes>
-            <include>**/*.properties</include>
-            <include>**/*.java</include>
-            <include>**/*.xml</include>
-            <include>**/*.yaml</include>
-          </includes>
-          <excludes>
-            <exclude>LICENSE</exclude>
-            <exclude>**/*.adoc</exclude>
-            <exclude>**/*.idea</exclude>
-            <exclude>**/target/**</exclude>
-            <exclude>**/generated/**</exclude>
-            <exclude>**/minisite/**</exclude>
-            <exclude>**/file</exclude>
-            <exclude>**/.m2/**</exclude>
-          </excludes>
+              <useDefaultExcludes>true</useDefaultExcludes>
+              <includes>
+                <include>**/*.properties</include>
+                <include>**/*.java</include>
+                <include>**/*.xml</include>
+                <include>**/*.yaml</include>
+              </includes>
+              <excludes>
+                <exclude>LICENSE</exclude>
+                <exclude>**/*.adoc</exclude>
+                <exclude>**/*.idea</exclude>
+                <exclude>**/target/**</exclude>
+                <exclude>**/generated/**</exclude>
+                <exclude>**/minisite/**</exclude>
+                <exclude>**/file</exclude>
+                <exclude>**/.m2/**</exclude>
+              </excludes>
+            </licenseSet>
+          </licenseSets>
         </configuration>
       </plugin>
     </plugins>

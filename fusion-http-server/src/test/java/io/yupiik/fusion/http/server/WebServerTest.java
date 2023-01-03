@@ -43,7 +43,7 @@ class WebServerTest {
             final var servlet = servletContext.addServlet("test", new HttpServlet() {
                 @Override
                 public void init() {
-                    throw new IllegalArgumentException();
+                    throw new IllegalArgumentException("intended error for tests");
                 }
             });
             servlet.setLoadOnStartup(1);

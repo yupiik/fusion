@@ -27,7 +27,7 @@
   </parent>
 
   <artifactId>fusion-cli</artifactId>
-  <name>Fusion :: Framework :: CLI</name>
+  <name>Fusion :: CLI</name>
 
   <dependencies>
     <dependency>
