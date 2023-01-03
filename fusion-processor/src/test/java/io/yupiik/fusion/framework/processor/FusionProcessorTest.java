@@ -1623,6 +1623,16 @@ class FusionProcessorTest {
         }
 
         @Override
+        public String header(final String name) {
+            return null;
+        }
+
+        @Override
+        public Map<String, List<String>> headers() {
+            return Map.of();
+        }
+
+        @Override
         public <T> T attribute(final String key, final Class<T> type) {
             return type.cast(attributes.get(key));
         }

@@ -23,8 +23,13 @@ import io.yupiik.fusion.http.server.impl.flow.ServletInputStreamSubscription;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Flow;
 import java.util.stream.Stream;
+
+import static java.util.Collections.list;
+import static java.util.function.Function.identity;
+import static java.util.stream.Collectors.toMap;
 
 public class ServletRequest implements Request {
     private final HttpServletRequest delegate;
@@ -87,6 +92,17 @@ public class ServletRequest implements Request {
                     .toList();
         }
         return cookies.stream();
+    }
+
+    @Override
+    public String header(final String name) {
+        return delegate.getHeader(name);
+    }
+
+    @Override
+    public Map<String, List<String>> headers() {
+        return list(delegate.getHeaderNames()).stream()
+                .collect(toMap(identity(), k -> list(delegate.getHeaders(k))));
     }
 
     @Override

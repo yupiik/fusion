@@ -16,6 +16,8 @@
 package io.yupiik.fusion.http.server.api;
 
 import java.nio.ByteBuffer;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Flow;
 import java.util.stream.Stream;
 
@@ -31,6 +33,10 @@ public interface Request extends Unwrappable {
     Flow.Publisher<ByteBuffer> body();
 
     Stream<Cookie> cookies();
+
+    String header(String name);
+
+    Map<String, List<String>> headers();
 
     <T> T attribute(String key, Class<T> type);
 
