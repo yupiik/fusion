@@ -95,6 +95,16 @@ public class ServletRequest implements Request {
     }
 
     @Override
+    public String parameter(final String name) {
+        return delegate.getParameter(name);
+    }
+
+    @Override
+    public Map<String, String[]> parameters() {
+        return delegate.getParameterMap();
+    }
+
+    @Override
     public String header(final String name) {
         return delegate.getHeader(name);
     }

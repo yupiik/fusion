@@ -1623,6 +1623,16 @@ class FusionProcessorTest {
         }
 
         @Override
+        public String parameter(final String name) {
+            return null;
+        }
+
+        @Override
+        public Map<String, String[]> parameters() {
+            return Map.of();
+        }
+
+        @Override
         public String header(final String name) {
             return null;
         }

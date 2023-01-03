@@ -34,6 +34,10 @@ public interface Request extends Unwrappable {
 
     Stream<Cookie> cookies();
 
+    String parameter(String name);
+
+    Map<String, String[]> parameters();
+
     String header(String name);
 
     Map<String, List<String>> headers();
