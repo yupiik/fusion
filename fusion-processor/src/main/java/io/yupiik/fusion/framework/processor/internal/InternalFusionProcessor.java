@@ -541,7 +541,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
             }
 
             if (generateBeansForConfiguration) {
-                final var bean = new BeanConfigurationGenerator(processingEnv, elements, names.packageName(), names.className()).get();
+                final var bean = new BeanConfigurationGenerator(processingEnv, elements, names.packageName(), names.className(), element).get();
                 writeGeneratedClass(confElt, bean);
                 allBeans.put(bean.name(), pathOf(element).toString());
             }

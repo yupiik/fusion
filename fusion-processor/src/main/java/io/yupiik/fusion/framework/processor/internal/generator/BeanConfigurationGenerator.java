@@ -20,10 +20,10 @@ import io.yupiik.fusion.framework.api.RuntimeContainer;
 import io.yupiik.fusion.framework.api.configuration.Configuration;
 import io.yupiik.fusion.framework.api.container.FusionBean;
 import io.yupiik.fusion.framework.api.container.bean.BaseBean;
-import io.yupiik.fusion.framework.api.scope.DefaultScoped;
 import io.yupiik.fusion.framework.processor.internal.Elements;
 
 import javax.annotation.processing.ProcessingEnvironment;
+import javax.lang.model.element.Element;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -31,12 +31,14 @@ import java.util.function.Supplier;
 public class BeanConfigurationGenerator extends BaseGenerator implements Supplier<BaseGenerator.GeneratedClass> {
     private final String packageName;
     private final String className;
+    private final Element element;
 
     public BeanConfigurationGenerator(final ProcessingEnvironment processingEnv, final Elements elements,
-                                      final String packageName, final String className) {
+                                      final String packageName, final String className, final Element element) {
         super(processingEnv, elements);
         this.packageName = packageName;
         this.className = className;
+        this.element = element;
     }
 
     @Override
@@ -54,8 +56,8 @@ public class BeanConfigurationGenerator extends BaseGenerator implements Supplie
         out.append("  public ").append(simpleName).append("() {\n");
         out.append("    super(")
                 .append(pckPrefix).append(className.replace('$', '.')).append(".class, ")
-                .append(DefaultScoped.class.getName()).append(".class, ")
-                .append("1000, ")
+                .append(findScope(element)).append(".class, ")
+                .append(findPriority(element)).append(", ")
                 .append(Map.class.getName()).append(".of());\n");
         out.append("  }\n");
         out.append("\n");
