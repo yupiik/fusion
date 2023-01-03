@@ -67,7 +67,7 @@ if you are a purist, and depending your needs and Arthur version you can need to
 
 [TIP]
 --
-if you want a JUL implementation which is GraalVM friendly you can use link:https://www.yupiik.io/yupiik-logging/[upiik Logging] (`yupiik-logging-jul` dependency concretely) and configure it in Arthur Maven Plugin (or GraalVM `native-image`) using:
+if you want a JUL implementation which is GraalVM friendly you can use link:https://www.yupiik.io/yupiik-logging/[yupiik Logging] (`yupiik-logging-jul` dependency concretely which works smoothly with GraalVM and enables a runtime system property logging control) and configure it in Arthur Maven Plugin (or GraalVM `native-image`) using:
 
 [source]
 ----
