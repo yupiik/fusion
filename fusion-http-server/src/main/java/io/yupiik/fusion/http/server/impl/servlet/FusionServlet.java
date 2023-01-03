@@ -64,8 +64,12 @@ public class FusionServlet extends HttpServlet {
         }
 
         final var asyncContext = req.startAsync();
-        // todo: custom thread pool instead of container one
-        asyncContext.start(() -> execute(resp, request, matched.orElseThrow(), asyncContext));
+        final Runnable task = () -> execute(resp, request, matched.orElseThrow(), asyncContext);
+        doExecute(asyncContext, task);
+    }
+
+    protected void doExecute(final AsyncContext asyncContext, final Runnable task) {
+        asyncContext.start(task);
     }
 
     private void execute(final HttpServletResponse resp, final Request request,
