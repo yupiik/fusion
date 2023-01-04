@@ -162,19 +162,19 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
         if (String.class.getName().equals(typeStr) || CharSequence.class.getName().equals(typeStr)) {
             return lookup(name, required, "", "null", docName, desc);
         }
-        if (boolean.class.getName().equals(typeStr)) {
+        if (boolean.class.getName().equals(typeStr) || Boolean.class.getName().equals(typeStr)) {
             return lookup(name, required, ".map(Boolean::parseBoolean)", "false", docName, desc);
         }
-        if (int.class.getName().equals(typeStr)) {
+        if (int.class.getName().equals(typeStr) || Integer.class.getName().equals(typeStr)) {
             return lookup(name, required, ".map(Integer::parseInt)", "0", docName, desc);
         }
-        if (long.class.getName().equals(typeStr)) {
+        if (long.class.getName().equals(typeStr) || Long.class.getName().equals(typeStr)) {
             return lookup(name, required, ".map(Long::parseLong)", "0L", docName, desc);
         }
-        if (float.class.getName().equals(typeStr)) {
+        if (float.class.getName().equals(typeStr) || Float.class.getName().equals(typeStr)) {
             return lookup(name, required, ".map(Float::parseFloat)", "0.f", docName, desc);
         }
-        if (double.class.getName().equals(typeStr)) {
+        if (double.class.getName().equals(typeStr) || Double.class.getName().equals(typeStr)) {
             return lookup(name, required, ".map(Double::parseDouble)", "0.", docName, desc);
         }
         if (BigInteger.class.getName().equals(typeStr)) {
