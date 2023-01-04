@@ -436,7 +436,8 @@ public class InternalFusionProcessor extends AbstractProcessor {
                         methodHolders.stream().map(ExecutableElement::getEnclosingElement),
                         roundEnv.getElementsAnnotatedWith(Order.class).stream(),
                         Stream.of(ApplicationScoped.class, DefaultScoped.class)
-                                .flatMap(it -> roundEnv.getElementsAnnotatedWith(it).stream()),
+                                .flatMap(it -> roundEnv.getElementsAnnotatedWith(it).stream())
+                                .filter(it -> it.getAnnotation(RootConfiguration.class) == null),
                         listeners.stream()
                                 .map(Element::getEnclosingElement)
                                 .peek(it -> {
@@ -711,7 +712,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
         final var names = ParsedName.of(src.enclosing());
         try {
             final String data;
-            if (isLazy(src.enclosing()) && src.enclosing() instanceof TypeElement te) {
+            if (isLazy(src.enclosing()) && src.enclosing() instanceof TypeElement te && src.enclosing().getKind() != RECORD) {
                 final var subclass = new SubclassGenerator(processingEnv, elements, names.packageName(), names.className(), te).get();
                 writeGeneratedClass(src.enclosing(), subclass);
                 data = "" +

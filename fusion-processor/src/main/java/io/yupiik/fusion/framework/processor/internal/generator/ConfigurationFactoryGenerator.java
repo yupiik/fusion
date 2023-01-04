@@ -39,6 +39,7 @@ import java.util.stream.Stream;
 
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.joining;
+import static javax.lang.model.element.ElementKind.ENUM;
 import static javax.lang.model.element.ElementKind.RECORD;
 import static javax.tools.Diagnostic.Kind.ERROR;
 
@@ -183,6 +184,10 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
         if (BigDecimal.class.getName().equals(typeStr)) {
             return lookup(name, required, ".map(" + BigDecimal.class.getName() + "::new)", "null", docName, desc);
         }
+        final var asElement = processingEnv.getTypeUtils().asElement(type);
+        if (asElement != null && asElement.getKind() == ENUM) {
+            return lookup(name, required, ".map(" + typeStr + "::valueOf)", "null", docName, desc);
+        }
 
         //
         // list
@@ -214,6 +219,10 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
             }
             if (BigDecimal.class.getName().equals(itemString)) {
                 return lookup(name, required, listOf(".map(" + BigDecimal.class.getName() + "::new)"), "null", docName, desc);
+            }
+            final var dtElt = processingEnv.getTypeUtils().asElement(itemType);
+            if (dtElt != null && dtElt.getKind() == ENUM) {
+                return lookup(name, required, listOf(".map(" + itemString + "::valueOf)"), "null", docName, desc);
             }
             if (itemString.startsWith("java.")) { // unsupported
                 processingEnv.getMessager().printMessage(ERROR, "Type not supported: '" + typeStr + "' (" + element + "." + param.getSimpleName() + ")");
