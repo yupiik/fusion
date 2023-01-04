@@ -371,6 +371,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
 
         final var allDocs = allConfigurationsDocs.values().stream()
                 .flatMap(Collection::stream)
+                .distinct() // used in multiple files a conf can be duplicated since key is the source path
                 .sorted(comparing(Docs.ClassDoc::name))
                 .toList();
 
