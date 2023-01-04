@@ -29,7 +29,6 @@ import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
 import javax.tools.Diagnostic;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -105,7 +104,7 @@ public class SubclassGenerator extends BaseGenerator implements Supplier<BaseGen
                             templateTypes(m) +
                             m.getReturnType() + " " + methodName + "(" +
                             m.getParameters().stream().map(p -> p.asType() + " " + p.getSimpleName()).collect(joining(", ")) +
-                            ") {\n" +
+                            ")" + exceptions(m) + " {\n" +
                             (m.getReturnType().getKind() == TypeKind.VOID ?
                                     "  this.fusionContext.instance()." + methodName + "(" + args + ");\n" :
                                     "  return this.fusionContext.instance()." + methodName + "(" + args + ");\n") +
@@ -116,6 +115,18 @@ public class SubclassGenerator extends BaseGenerator implements Supplier<BaseGen
         out.append("}\n\n");
 
         return new GeneratedClass((packageName.isBlank() ? "" : (packageName + '.')) + className + DELEGATING_CLASS_SUFFIX, out.toString());
+    }
+
+    private String exceptions(final ExecutableElement m) {
+        final var types = m.getThrownTypes();
+        if (types.isEmpty()) {
+            return "";
+        }
+        return types.stream()
+                .map(ParsedType::of)
+                .filter(it -> it.type() == ParsedType.Type.CLASS)
+                .map(ParsedType::className)
+                .collect(joining(", ", "throws ", ""));
     }
 
     private String templateTypes(final ExecutableElement m) { // todo: enhance and make it even more recursive?
