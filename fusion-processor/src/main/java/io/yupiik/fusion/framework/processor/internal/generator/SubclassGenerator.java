@@ -17,13 +17,22 @@ package io.yupiik.fusion.framework.processor.internal.generator;
 
 import io.yupiik.fusion.framework.api.container.context.subclass.DelegatingContext;
 import io.yupiik.fusion.framework.processor.internal.Elements;
+import io.yupiik.fusion.framework.processor.internal.ParsedType;
 
 import javax.annotation.processing.ProcessingEnvironment;
+import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Name;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
+import javax.lang.model.type.TypeMirror;
+import javax.lang.model.type.TypeVariable;
 import javax.tools.Diagnostic;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.function.Supplier;
 
 import static java.util.stream.Collectors.joining;
@@ -33,6 +42,7 @@ import static javax.lang.model.element.Modifier.FINAL;
 import static javax.lang.model.element.Modifier.PROTECTED;
 import static javax.lang.model.element.Modifier.PUBLIC;
 import static javax.lang.model.element.Modifier.STATIC;
+import static javax.lang.model.type.TypeKind.TYPEVAR;
 
 public class SubclassGenerator extends BaseGenerator implements Supplier<BaseGenerator.GeneratedClass> {
     private static final String DELEGATING_CLASS_SUFFIX = "$FusionSubclass";
@@ -91,7 +101,9 @@ public class SubclassGenerator extends BaseGenerator implements Supplier<BaseGen
                                     .map(Name::toString)
                                     .collect(joining(", "));
                     return "@Override\n" +
-                            visibilityFrom(m.getModifiers()) + m.getReturnType() + " " + methodName + "(" +
+                            visibilityFrom(m.getModifiers()) +
+                            templateTypes(m) +
+                            m.getReturnType() + " " + methodName + "(" +
                             m.getParameters().stream().map(p -> p.asType() + " " + p.getSimpleName()).collect(joining(", ")) +
                             ") {\n" +
                             (m.getReturnType().getKind() == TypeKind.VOID ?
@@ -104,6 +116,70 @@ public class SubclassGenerator extends BaseGenerator implements Supplier<BaseGen
         out.append("}\n\n");
 
         return new GeneratedClass((packageName.isBlank() ? "" : (packageName + '.')) + className + DELEGATING_CLASS_SUFFIX, out.toString());
+    }
+
+    private String templateTypes(final ExecutableElement m) { // todo: enhance and make it even more recursive?
+        final var templates = new LinkedHashSet<String>();
+
+        final var alreadyHandled = new HashSet<TypeMirror>();
+        final var result = m.getReturnType();
+        if (isTemplate(result, alreadyHandled)) {
+            alreadyHandled.add(result);
+            templates.add(result + " " + templateBound((TypeVariable) result));
+        } else if (result instanceof DeclaredType dt) {
+            templates.addAll(dt.getTypeArguments().stream()
+                    .filter(it -> isTemplate(it, alreadyHandled))
+                    .map(it -> it + " " + templateBound((TypeVariable) it))
+                    .toList());
+        }
+
+        templates.addAll(m.getParameters().stream()
+                .map(VariableElement::asType)
+                .filter(it -> isTemplate(it, alreadyHandled))
+                .map(it -> it + " " + templateBound((TypeVariable) it))
+                .toList());
+        templates.addAll(m.getParameters().stream()
+                .map(VariableElement::asType)
+                .filter(it -> it instanceof DeclaredType)
+                .map(it -> (DeclaredType) it)
+                .flatMap(dt -> dt.getTypeArguments().stream())
+                .filter(it -> isTemplate(it, alreadyHandled))
+                .map(it -> it + " " + templateBound((TypeVariable) it))
+                .toList());
+
+        if (templates.isEmpty()) {
+            return "";
+        }
+        return '<' + String.join(", ", templates) + "> ";
+    }
+
+    // todo: refine this
+    private String templateBound(final TypeVariable type) {
+        String out = "";
+
+        final var lowerBound = type.getUpperBound() == null ? null : ParsedType.of(type.getLowerBound());
+        if (lowerBound != null &&
+                lowerBound.type() == ParsedType.Type.CLASS &&
+                !"<nulltype>".equals(lowerBound.className()) &&
+                !Object.class.getName().endsWith(lowerBound.className())) {
+            out += " super " + lowerBound.className();
+        }
+
+        final var upperBound = type.getUpperBound() == null ? null : ParsedType.of(type.getUpperBound());
+        if (upperBound != null &&
+                upperBound.type() == ParsedType.Type.CLASS &&
+                !"<nulltype>".equals(upperBound.className()) &&
+                !Object.class.getName().endsWith(upperBound.className())) {
+            out += " extends " + upperBound.className();
+        }
+
+        return out;
+    }
+
+    private boolean isTemplate(final TypeMirror type, final Set<TypeMirror> alreadyHandled) {
+        return type.getKind() == TYPEVAR && type instanceof TypeVariable &&
+                !"?".equals(type.toString()) && !"<none>".endsWith(type.toString()) &&
+                alreadyHandled.add(type);
     }
 
     private void ensureDefaultNoArgConstructor() {
