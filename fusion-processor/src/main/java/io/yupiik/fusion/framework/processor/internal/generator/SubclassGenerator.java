@@ -171,6 +171,7 @@ public class SubclassGenerator extends BaseGenerator implements Supplier<BaseGen
         final var lowerBound = type.getUpperBound() == null ? null : ParsedType.of(type.getLowerBound());
         if (lowerBound != null &&
                 lowerBound.type() == ParsedType.Type.CLASS &&
+                !"null".equals(lowerBound.className()) && // ECJ
                 !"<nulltype>".equals(lowerBound.className()) &&
                 !Object.class.getName().endsWith(lowerBound.className())) {
             out += " super " + lowerBound.className();
@@ -179,6 +180,7 @@ public class SubclassGenerator extends BaseGenerator implements Supplier<BaseGen
         final var upperBound = type.getUpperBound() == null ? null : ParsedType.of(type.getUpperBound());
         if (upperBound != null &&
                 upperBound.type() == ParsedType.Type.CLASS &&
+                !"null".equals(upperBound.className()) && // ECJ
                 !"<nulltype>".equals(upperBound.className()) &&
                 !Object.class.getName().endsWith(upperBound.className())) {
             out += " extends " + upperBound.className();
