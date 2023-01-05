@@ -402,33 +402,25 @@ class FusionProcessorTest {
                                             "bigNumber=10.2, " +
                                             "nested=NestedConf[nestedValue=down, second=Nest2[value=5]], " +
                                             "nesteds=[NestedConf[nestedValue=down1, second=Nest2[value=0]], NestedConf[nestedValue=down2, second=Nest2[value=0]]], " +
-                                            "list=[ab, cde, fgh]" +
-                                            "]",
+                                            "list=[ab, cde, fgh], " +
+                                            "intWithDefault=100]",
                                     instance.instance().toString());
 
                             // doc
                             try (final var in = requireNonNull(instance.instance().getClass().getClassLoader()
                                     .getResourceAsStream("META-INF/fusion/configuration/documentation.json"))) {
-                                assertEquals("{" +
-                                        "\"version\":1," +
-                                        "\"classes\":{" +
-                                        "\"test.p.NestedConf\":[" +
-                                        "{\"name\":\"nestedValue\",\"documentation\":\"The nested main value.\",\"required\":false}," +
-                                        "{\"ref\":\"test.p.NestedConf.Nest2\",\"name\":\"second\",\"documentation\":\"\",\"required\":false}" +
-                                        "]," +
+                                assertEquals("" +
+                                        "{\"version\":1,\"classes\":{" +
+                                        "\"test.p.NestedConf\":[{\"name\":\"nestedValue\",\"documentation\":\"The nested main value.\",\"defaultValue\":null,\"required\":false},{\"ref\":\"test.p.NestedConf.Nest2\",\"name\":\"second\",\"documentation\":\"\",\"required\":false}]," +
                                         "\"test.p.NestedConf.Nest2\":[" +
-                                        "{\"name\":\"value\",\"documentation\":\"Some int.\",\"required\":false}]," +
-                                        "\"test.p.RecordConfiguration\":[{\"name\":\"app.age\",\"documentation\":\"\",\"required\":false}," +
-                                        "{\"name\":\"app.bigInt\",\"documentation\":\"\",\"required\":false},{\"name\":\"app.bigNumber\",\"documentation\":\"\",\"required\":false}," +
-                                        "{\"name\":\"app.list\",\"documentation\":\"\",\"required\":false}," +
-                                        "{\"name\":\"app.name\",\"documentation\":\"The app name\",\"required\":false}," +
-                                        "{\"ref\":\"test.p.NestedConf\",\"name\":\"app.nested\",\"documentation\":\"\",\"required\":false}," +
+                                        "{\"name\":\"value\",\"documentation\":\"Some int.\",\"defaultValue\":0,\"required\":false}],\"test.p.RecordConfiguration\":[{\"name\":\"app.age\",\"documentation\":\"\",\"defaultValue\":0,\"required\":false}," +
+                                        "{\"name\":\"app.bigInt\",\"documentation\":\"\",\"defaultValue\":0L,\"required\":false},{\"name\":\"app.bigNumber\",\"documentation\":\"\",\"defaultValue\":null,\"required\":false}," +
+                                        "{\"name\":\"app.intWithDefault\",\"documentation\":\"\",\"defaultValue\":100,\"required\":false},{\"name\":\"app.list\",\"documentation\":\"\",\"defaultValue\":null,\"required\":false}," +
+                                        "{\"name\":\"app.name\",\"documentation\":\"The app name\",\"defaultValue\":null,\"required\":false},{\"ref\":\"test.p.NestedConf\",\"name\":\"app.nested\",\"documentation\":\"\",\"required\":false}," +
                                         "{\"ref\":\"test.p.NestedConf\",\"name\":\"app.nesteds.$index\",\"documentation\":\"\",\"required\":false}," +
-                                        "{\"name\":\"app.number\",\"documentation\":\"\",\"required\":false}," +
-                                        "{\"name\":\"app.toggle\",\"documentation\":\"\",\"required\":false}" +
-                                        "]" +
-                                        "}" +
-                                        "}", new String(in.readAllBytes(), UTF_8));
+                                        "{\"name\":\"app.number\",\"documentation\":\"\",\"defaultValue\":0.,\"required\":false}," +
+                                        "{\"name\":\"app.toggle\",\"documentation\":\"\",\"defaultValue\":false,\"required\":false}]}}",
+                                        new String(in.readAllBytes(), UTF_8));
                             } catch (final IOException e) {
                                 fail(e);
                             }

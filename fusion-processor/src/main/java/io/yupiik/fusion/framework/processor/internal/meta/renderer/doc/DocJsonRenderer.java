@@ -51,6 +51,7 @@ public class DocJsonRenderer implements Supplier<String> {
                                                         it.ref() != null ? "\"ref\":" + JsonStrings.escape(it.ref()) : null,
                                                         "\"name\":" + JsonStrings.escape(it.name()),
                                                         it.doc() != null ? "\"documentation\":" + JsonStrings.escape(it.doc()) : null,
+                                                        it.defaultValue() != null ? "\"defaultValue\":" + it.defaultValue() : null,
                                                         "\"required\":" + it.required())
                                                 .filter(Objects::nonNull)
                                                 .collect(joining(",", "{", "}")))

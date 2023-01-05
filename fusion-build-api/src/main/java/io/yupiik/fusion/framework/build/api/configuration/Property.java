@@ -27,10 +27,19 @@ import static java.lang.annotation.RetentionPolicy.SOURCE;
 @Target(PARAMETER)
 @Retention(SOURCE)
 public @interface Property {
+    String NO_VALUE = "io.yupiik.fusion.framework.build.api.configuration.Property.NO_VALUE";
+
     /**
      * @return name of the property - else the field/member name is used.
      */
     String value() default "";
+
+    /**
+     * IMPORTANT: the default value is directly injected as value if none is configured, ensure it is valid java.
+     *
+     * @return default value to use.
+     */
+    String defaultValue() default NO_VALUE;
 
     /**
      * @return {@code true} if it should fail at runtime if the value if missing.

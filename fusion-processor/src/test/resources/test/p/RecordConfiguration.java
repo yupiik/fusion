@@ -31,5 +31,6 @@ public record RecordConfiguration(
         BigDecimal bigNumber,
         NestedConf nested,
         List<NestedConf> nesteds,
-        List<String> list) {
+        List<String> list,
+        @Property(defaultValue = "100") Integer intWithDefault) {
 }
