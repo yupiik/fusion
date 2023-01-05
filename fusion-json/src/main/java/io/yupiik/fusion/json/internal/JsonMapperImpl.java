@@ -209,6 +209,12 @@ public class JsonMapperImpl implements JsonMapper {
                     }
 
                     final var itemClass = entry.getValue().getClass();
+                    // if at least one element does not match the type of the first item don't optimise it and go through object codec
+                    if (map.values().stream().filter(Objects::nonNull).anyMatch(it -> !itemClass.isInstance(it))) {
+                        final JsonCodec jsonCodec = codecs.get(Object.class);
+                        jsonCodec.write(map, new JsonCodec.SerializationContext(writer, this::codecLookup));
+                        return;
+                    }
 
                     final var key = new Types.ParameterizedTypeImpl(Map.class, String.class, itemClass);
                     final JsonCodec existing = codecs.get(key);
