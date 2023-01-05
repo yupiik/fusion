@@ -23,6 +23,7 @@ import io.yupiik.fusion.framework.processor.internal.meta.Docs;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
+import javax.lang.model.element.QualifiedNameable;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.DeclaredType;
 import java.math.BigDecimal;
@@ -52,13 +53,16 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
 
     private final Collection<Docs.ClassDoc> docs = new ArrayList<>();
     private final LinkedList<Docs.ClassDoc> docStack = new LinkedList<>();
+    private final Map<String, String> enumValueOfCache;
 
     public ConfigurationFactoryGenerator(final ProcessingEnvironment processingEnv, final Elements elements,
-                                         final String packageName, final String className, final TypeElement element) {
+                                         final String packageName, final String className, final TypeElement element,
+                                         final Map<String, String> enumValueOfCache) {
         super(processingEnv, elements);
         this.packageName = packageName;
         this.className = className;
         this.element = element;
+        this.enumValueOfCache = enumValueOfCache;
 
         final var doc = new Docs.ClassDoc((packageName.isBlank() ? "" : (packageName + '.')) + className, new ArrayList<>());
         this.docs.add(doc);
@@ -191,7 +195,7 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
         }
         final var asElement = processingEnv.getTypeUtils().asElement(type);
         if (asElement != null && asElement.getKind() == ENUM) {
-            return lookup(name, required, ".map(" + typeStr + "::valueOf)", defaultValue != null ? defaultValue : "null", docName, desc);
+            return lookup(name, required, ".map(" + typeStr + "::" + enumValueOf(asElement) + ")", defaultValue != null ? defaultValue : "null", docName, desc);
         }
 
         //
@@ -227,7 +231,7 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
             }
             final var dtElt = processingEnv.getTypeUtils().asElement(itemType);
             if (dtElt != null && dtElt.getKind() == ENUM) {
-                return lookup(name, required, listOf(".map(" + itemString + "::valueOf)"), defaultValue != null ? defaultValue : "null", docName, desc);
+                return lookup(name, required, listOf(".map(" + itemString + "::" + enumValueOf(dtElt) + ")"), defaultValue != null ? defaultValue : "null", docName, desc);
             }
             if (itemString.startsWith("java.")) { // unsupported
                 processingEnv.getMessager().printMessage(ERROR, "Type not supported: '" + typeStr + "' (" + element + "." + param.getSimpleName() + ")");
@@ -257,6 +261,21 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
 
         this.docStack.getLast().items().add(new Docs.DocItem(docName, desc, required, typeStr, defaultValue));
         return "new " + nestedFactory(typeStr) + "(configuration, " + name + ").get()";
+    }
+
+    private String enumValueOf(final Element asElement) {
+        return enumValueOfCache.computeIfAbsent(
+                asElement instanceof QualifiedNameable n ? n.getQualifiedName().toString() : asElement.toString(), t -> {
+                    // default to valueOf() if there is to fromConfigurationString static method taking a single String parameter
+                    if (asElement instanceof TypeElement te && elements.findMethods(te)
+                            .anyMatch(it -> it.getSimpleName().contentEquals("fromConfigurationString") &&
+                                    it.getParameters().size() == 1 &&
+                                    String.class.getName().equals(it.getParameters().get(0).asType().toString()))) {
+                        return "fromConfigurationString";
+                    }
+
+                    return "valueOf";
+                });
     }
 
     private String lookup(final String name, final boolean required, final String mapper, final String defaultValue,

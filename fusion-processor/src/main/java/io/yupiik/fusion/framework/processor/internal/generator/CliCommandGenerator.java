@@ -50,12 +50,12 @@ public class CliCommandGenerator extends BaseGenerator implements Supplier<CliCo
     private final String packageName;
     private final String className;
     private final TypeElement type;
-    private final Map<String, Collection<Docs.ClassDoc>> docs;
+    private final Collection<Docs.ClassDoc> docs;
 
     public CliCommandGenerator(final ProcessingEnvironment processingEnv, final Elements elements,
                                final boolean beanForCliCommands, final String packageName,
                                final String className, final Command command, final TypeElement type,
-                               final Map<String, Collection<Docs.ClassDoc>> docs) {
+                               final Collection<Docs.ClassDoc> docs) {
         super(processingEnv, elements);
         this.command = command;
         this.beanForCliCommands = beanForCliCommands;
@@ -165,8 +165,7 @@ public class CliCommandGenerator extends BaseGenerator implements Supplier<CliCo
     }
 
     private Stream<Docs.DocItem> findConf(final String configurationType) {
-        return docs.values().stream()
-                .flatMap(Collection::stream)
+        return docs.stream()
                 .filter(it -> configurationType.equals(it.name()))
                 .flatMap(it -> it.items().stream())
                 .sorted(comparing(Docs.DocItem::name));

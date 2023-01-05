@@ -67,8 +67,6 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
-import javax.tools.JavaFileManager;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -97,7 +95,6 @@ import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 import static java.util.stream.Collectors.toSet;
 import static javax.lang.model.element.ElementKind.CLASS;
-import static javax.lang.model.element.ElementKind.INTERFACE;
 import static javax.lang.model.element.ElementKind.METHOD;
 import static javax.lang.model.element.ElementKind.PACKAGE;
 import static javax.lang.model.element.ElementKind.RECORD;
@@ -105,7 +102,6 @@ import static javax.lang.model.element.Modifier.PRIVATE;
 import static javax.tools.Diagnostic.Kind.ERROR;
 import static javax.tools.Diagnostic.Kind.NOTE;
 import static javax.tools.StandardLocation.CLASS_OUTPUT;
-import static javax.tools.StandardLocation.SOURCE_PATH;
 
 // NOTE: we can support private/package fields for injections/proxying but it requires to modify the
 //       CLASS_OUTPUT with asm to add accessors/open visibility (protected pby).
@@ -168,11 +164,14 @@ public class InternalFusionProcessor extends AbstractProcessor {
 
     // todo: simplify state management for incremental compilation
     // all* naming is used for state related tracked instances
-    private final Map<String, String> allBeans = new HashMap<>();
-    private final Map<String, String> allListeners = new HashMap<>();
-    private final Map<String, Collection<Docs.ClassDoc>> allConfigurationsDocs = new HashMap<>();
+    private final Collection<String> allBeans = new HashSet<>();
+    private final Collection<String> allListeners = new HashSet<>();
+    private final Collection<Docs.ClassDoc> allConfigurationsDocs = new HashSet<>();
     private Map<String, GeneratedJsonSchema> allJsonSchemas; // if null don't store them
     private PartialOpenRPC partialOpenRPC; // if null don't store them
+
+    // just for perf
+    private final Map<String, String> configurationEnumValueOfCache = new HashMap<>();
 
     @Override
     public SourceVersion getSupportedSourceVersion() {
@@ -369,8 +368,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
             return;
         }
 
-        final var allDocs = allConfigurationsDocs.values().stream()
-                .flatMap(Collection::stream)
+        final var allDocs = allConfigurationsDocs.stream()
                 .distinct() // used in multiple files a conf can be duplicated since key is the source path
                 .sorted(comparing(Docs.ClassDoc::name))
                 .toList();
@@ -504,9 +502,8 @@ public class InternalFusionProcessor extends AbstractProcessor {
             final var generator = new JsonCodecGenerator(processingEnv, elements, names.packageName(), names.className(), element, knownJsonModels, schemas);
             final var generation = generator.get();
             if (schemas != null && !schemas.isEmpty()) {
-                final var source = pathOf(element).toString();
                 allJsonSchemas.putAll(schemas.entrySet().stream()
-                        .collect(toMap(Map.Entry::getKey, e -> new GeneratedJsonSchema(source, e.getValue()))));
+                        .collect(toMap(Map.Entry::getKey, e -> new GeneratedJsonSchema(e.getValue()))));
             }
             writeGeneratedClass(model, generation);
             jsonModels.put(generation.name(), element);
@@ -520,9 +517,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
         try {
             final var generation = new JsonCodecBeanGenerator(processingEnv, elements, names.packageName(), names.className()).get();
             writeGeneratedClass(element, generation);
-            if (element instanceof TypeElement te) {
-                allBeans.put(generation.name(), pathOf(te).toString());
-            }
+            allBeans.add(generation.name());
         } catch (final IOException | RuntimeException e) {
             processingEnv.getMessager().printMessage(ERROR, e.getMessage());
         }
@@ -536,16 +531,18 @@ public class InternalFusionProcessor extends AbstractProcessor {
 
         final var names = ParsedName.of(element);
         try {
-            final var generation = new ConfigurationFactoryGenerator(processingEnv, elements, names.packageName(), names.className(), element).get();
+            final var generation = new ConfigurationFactoryGenerator(
+                    processingEnv, elements, names.packageName(), names.className(), element,
+                    configurationEnumValueOfCache).get();
             writeGeneratedClass(confElt, generation.generatedClass());
             if (generation.docs() != null && docsMetadataLocation != null) {
-                allConfigurationsDocs.put(pathOf(element).toString(), generation.docs());
+                allConfigurationsDocs.addAll(generation.docs());
             }
 
             if (generateBeansForConfiguration) {
                 final var bean = new BeanConfigurationGenerator(processingEnv, elements, names.packageName(), names.className(), element).get();
                 writeGeneratedClass(confElt, bean);
-                allBeans.put(bean.name(), pathOf(element).toString());
+                allBeans.add(bean.name());
             }
         } catch (final IOException | RuntimeException e) {
             processingEnv.getMessager().printMessage(ERROR, e.getMessage());
@@ -577,7 +574,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
             final var bean = generation.bean();
             if (bean != null) {
                 writeGeneratedClass(method, bean);
-                allBeans.put(bean.name(), pathOf((TypeElement) method.getEnclosingElement()).toString());
+                allBeans.add(bean.name());
             }
         } catch (final IOException | RuntimeException e) {
             processingEnv.getMessager().printMessage(ERROR, e.getMessage());
@@ -605,7 +602,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
             final var bean = generation.bean();
             if (bean != null) {
                 writeGeneratedClass(method, bean);
-                allBeans.put(bean.name(), pathOf((TypeElement) method.getEnclosingElement()).toString());
+                allBeans.add(bean.name());
             }
         } catch (final IOException | RuntimeException e) {
             processingEnv.getMessager().printMessage(ERROR, e.getMessage());
@@ -633,7 +630,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
             final var bean = generation.bean();
             if (bean != null) {
                 writeGeneratedClass(runnable, bean);
-                allBeans.put(bean.name(), pathOf(runnable).toString());
+                allBeans.add(bean.name());
             }
         } catch (final IOException | RuntimeException e) {
             processingEnv.getMessager().printMessage(ERROR, e.getMessage());
@@ -650,7 +647,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
                     listener.getEnclosingElement())
                     .get();
             writeGeneratedClass(listener, generation);
-            allListeners.put(generation.name(), pathOf((TypeElement) listener.getEnclosingElement()).toString());
+            allListeners.add(generation.name());
         } catch (final IOException | RuntimeException e) {
             processingEnv.getMessager().printMessage(ERROR, e.getMessage());
         }
@@ -675,11 +672,11 @@ public class InternalFusionProcessor extends AbstractProcessor {
 
             final var names = ParsedName.of(moduleName);
             final var module = new ModuleGenerator(processingEnv, elements, names.packageName(), names.className(),
-                    allBeans.keySet().stream()
+                    allBeans.stream()
                             .distinct()
                             .sorted()
                             .toList(),
-                    allListeners.keySet().stream()
+                    allListeners.stream()
                             .distinct()
                             .sorted()
                             .toList())
@@ -703,7 +700,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
         try {
             final var bean = new MethodBeanGenerator(processingEnv, elements, enclosingName, names.packageName(), names.className() + suffix, method).get();
             writeGeneratedClass(method, bean);
-            allBeans.put(bean.name(), pathOf(enclosingElement).toString());
+            allBeans.add(bean.name());
         } catch (final IOException | RuntimeException e) {
             processingEnv.getMessager().printMessage(ERROR, e.getMessage());
         }
@@ -727,9 +724,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
 
             final var bean = new BeanGenerator(processingEnv, elements, injections, names.packageName(), names.className(), src.enclosing(), data, init, destroy).get();
             writeGeneratedClass(src.enclosing(), bean);
-            if (src.enclosing() instanceof TypeElement te) {
-                allBeans.put(bean.name(), pathOf(te).toString() /* dependency */);
-            }
+            allBeans.add(bean.name());
         } catch (final IOException | RuntimeException e) {
             processingEnv.getMessager().printMessage(ERROR, e.getMessage());
         }
@@ -757,64 +752,10 @@ public class InternalFusionProcessor extends AbstractProcessor {
         }
     }
 
-    private Path pathOf(final TypeElement te) throws IOException {
-        final var relative = toJavaRelativePath(te);
-        try {
-            return pathOf(CLASS_OUTPUT, relative, te);
-        } catch (final FileNotFoundException fne) {
-            try {
-                // mainly a fallback for ECJ if sourcepath is set:
-                // <compilerArguments>
-                //  <sourcepath>${project.basedir}/src/main/java</sourcepath>
-                // </compilerArguments>
-                final var java = relative.substring(0, relative.length() - "class".length()) + "java";
-                return pathOf(SOURCE_PATH, java, te);
-            } catch (final FileNotFoundException ignored) {
-                processingEnv.getMessager().printMessage(ERROR, "Can't locate source for '" + te + "': " + fne.getMessage());
-                throw fne;
-            }
-        }
-    }
-
-    private Path pathOf(final JavaFileManager.Location location, final String relative, final TypeElement te) throws IOException {
-        try {
-            final var resource = processingEnv.getFiler()
-                    .getResource(location /* ensure nested classes are handled since it is a key! */, "", relative);
-            return Path.of(resource.toUri().getPath()).toAbsolutePath().normalize();
-        } catch (final FileNotFoundException fne) {
-            final var parent = te.getEnclosingElement();
-            if (parent != null && (parent.getKind() == INTERFACE || parent.getKind() == RECORD || parent.getKind() == CLASS) && parent instanceof TypeElement pte) {
-                try {
-                    return pathOf(location, relative, pte);
-                } catch (final FileNotFoundException ne) {
-                    // use original exception
-                }
-            }
-            throw fne;
-        }
-    }
-
-    private String toJavaRelativePath(final TypeElement te) {
-        final var path = new StringBuilder();
-        Element current = te;
-        while (current != null) {
-            if (current.getKind() == PACKAGE) {
-                return (current instanceof PackageElement pe ? pe.getQualifiedName().toString() : current.toString())
-                        .replace('.', '/') + '/' + path;
-            }
-
-            final var name = current.getSimpleName().toString();
-            path.insert(0, name + (path.isEmpty() ? ".class" :
-                    (current.getKind() == RECORD || current.getKind() == CLASS || current.getKind() == INTERFACE ? "$" : "/")));
-            current = current.getEnclosingElement();
-        }
-        return path.toString();
-    }
-
     private String findModuleName() {
         String current = null;
         // use the shorter package name from all the beans
-        for (final var bean : allBeans.keySet()) {
+        for (final var bean : allBeans) {
             var beanPackage = bean;
             int sep = beanPackage.lastIndexOf('.');
             beanPackage = sep > 0 ? beanPackage.substring(0, sep) : "";
@@ -878,6 +819,6 @@ public class InternalFusionProcessor extends AbstractProcessor {
         }
     }
 
-    private record GeneratedJsonSchema(String source, JsonSchema content) {
+    private record GeneratedJsonSchema(JsonSchema content) {
     }
 }
