@@ -629,14 +629,20 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
         public String defaultValue() {
             return switch (types.paramType()) {
                 case VALUE -> switch (types.paramTypeDef()) {
-                    case LONG -> "0L";
-                    case DOUBLE -> "0.";
-                    case INTEGER -> "0";
-                    case BOOLEAN -> "false";
+                    case LONG -> isWrapper() ? "null" : "0L";
+                    case DOUBLE -> isWrapper() ? "null" : "0.";
+                    case INTEGER -> isWrapper() ? "null" : "0";
+                    case BOOLEAN -> isWrapper() ? "null" : "false";
                     default -> "null";
                 };
                 case MAP, LIST, SET -> "null";
             };
+        }
+
+        private boolean isWrapper() {
+            return type instanceof DeclaredType dt &&
+                    dt.asElement() instanceof TypeElement te &&
+                    te.getQualifiedName().toString().startsWith("java.lang.");
         }
 
         public String stringEscapedJsonName() {
