@@ -31,6 +31,7 @@ import io.yupiik.fusion.json.serialization.JsonCodec;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
@@ -67,16 +68,21 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
     private final TypeElement element;
     private final Collection<String> models;
     private final Map<String, JsonSchema> jsonSchemas;
+    private final Map<String, String> enumValueOfCache;
+    private final Map<String, String> enumNameCache;
 
     public JsonCodecGenerator(final ProcessingEnvironment processingEnv, final Elements elements,
                               final String packageName, final String className, final TypeElement element,
-                              final Collection<String> models, final Map<String, JsonSchema> jsonSchemasCollector) {
+                              final Collection<String> models, final Map<String, JsonSchema> jsonSchemasCollector,
+                              final Map<String, String> enumValueOfCache, final Map<String, String> enumNameCache) {
         super(processingEnv, elements);
         this.packageName = packageName;
         this.className = className;
         this.element = element;
         this.models = models;
         this.jsonSchemas = jsonSchemasCollector;
+        this.enumValueOfCache = enumValueOfCache;
+        this.enumNameCache = enumNameCache;
     }
 
     @Override
@@ -220,8 +226,11 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
                                 "            case \"" + it.stringEscapedJsonName() + "\":\n" +
                                 switch (it.types().paramTypeDef()) {
                                     case STRING -> assignment + "parser.getString();\n";
-                                    case ENUM ->
-                                            assignment + ParsedType.of(it.type()).className() + ".valueOf(parser.getString());\n";
+                                    case ENUM -> {
+                                        final var parsedType = ParsedType.of(it.type());
+                                        yield assignment + parsedType.className() + "." +
+                                                enumValueOf(parsedType, it.type()) + "(parser.getString());\n";
+                                    }
                                     case BIG_DECIMAL -> "              parser.rewind(event);\n" +
                                             assignment + "context.codec(" + BigDecimal.class.getName() + ".class).read(context);\n";
                                     default ->
@@ -471,7 +480,8 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
                                     "    if (instance." + param.javaName() + "() != null) {\n" +
                                     (paramPosition > 0 ? commaAppender : firstCommaHandler) +
                                     "      writer.write(\"\\\"" + param.stringEscapedJsonName() + "\\\":\");\n" +
-                                    "      writer.write(" + JsonStrings.class.getName() + ".escape(instance." + param.javaName() + "().name()));\n" +
+                                    "      writer.write(" + JsonStrings.class.getName() + ".escape(instance." + param.javaName() + "()." +
+                                    enumName(param.type()) + "()));\n" +
                                     "    }\n";
                             case LOCAL_DATE, LOCAL_DATE_TIME, OFFSET_DATE_TIME, ZONED_DATE_TIME, BIG_DECIMAL -> "" +
                                     "    if (instance." + param.javaName() + "() != null) {\n" +
@@ -581,6 +591,35 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
         out.append("  }\n");
         out.append("}\n\n");
         return out;
+    }
+
+    private String enumValueOf(final ParsedType parsedType, final TypeMirror type) {
+        return enumValueOfCache.computeIfAbsent(
+                parsedType.className(), t -> {
+                    // default to valueOf() if there is to fromJsonString static method taking a single String parameter
+                    if (type instanceof DeclaredType dt && dt.asElement() instanceof TypeElement te && elements.findMethods(te)
+                            .anyMatch(it -> it.getSimpleName().contentEquals("fromJsonString") &&
+                                    it.getModifiers().contains(Modifier.STATIC) &&
+                                    it.getParameters().size() == 1 &&
+                                    String.class.getName().equals(it.getParameters().get(0).asType().toString()))) {
+                        return "fromJsonString";
+                    }
+
+                    return "valueOf";
+                });
+    }
+
+    private String enumName(final TypeMirror type) {
+        return enumNameCache.computeIfAbsent(
+                type.toString(), t -> {
+                    // default to name() if there is to toJsonString() method taking no parameter
+                    if (type instanceof DeclaredType dt && dt.asElement() instanceof TypeElement te && elements.findMethods(te)
+                            .anyMatch(it -> it.getSimpleName().contentEquals("toJsonString") && it.getParameters().isEmpty())) {
+                        return "toJsonString";
+                    }
+
+                    return "name";
+                });
     }
 
     private boolean needsCodec(final ParamTypeDef paramTypeDef) {

@@ -23,29 +23,37 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.util.ElementFilter;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
 
 public class Elements {
     private final ProcessingEnvironment processingEnvironment;
+    private final Map<TypeElement, Collection<ExecutableElement>> methodPerElement = new HashMap<>();
+    private final Map<Element, Optional<? extends AnnotationMirror>> scopePerElement = new HashMap<>();
 
     public Elements(final ProcessingEnvironment processingEnvironment) {
         this.processingEnvironment = processingEnvironment;
     }
 
     public Optional<? extends AnnotationMirror> findScopeAnnotation(final Element element) {
-        return element.getAnnotationMirrors().stream()
+        return scopePerElement.computeIfAbsent(element, e -> e.getAnnotationMirrors().stream()
                 .filter(ann -> ann.getAnnotationType().asElement().getAnnotation(DetectableContext.class) != null)
-                .findFirst();
+                .findFirst());
     }
 
     public Stream<ExecutableElement> findMethods(final TypeElement element) {
-        return ElementFilter.methodsIn(processingEnvironment.getElementUtils().getAllMembers(element)).stream()
-                .filter(it -> {
-                    if (it.getEnclosingElement() instanceof TypeElement te) {
-                        return !Object.class.getName().equals(te.getQualifiedName().toString());
-                    }
-                    return true;
-                });
+        return methodPerElement.computeIfAbsent(element, e -> ElementFilter.methodsIn(
+                                processingEnvironment.getElementUtils().getAllMembers(e)).stream()
+                        .filter(it -> {
+                            if (it.getEnclosingElement() instanceof TypeElement te) {
+                                return !Object.class.getName().equals(te.getQualifiedName().toString());
+                            }
+                            return true;
+                        })
+                        .toList())
+                .stream();
     }
 }

@@ -172,6 +172,8 @@ public class InternalFusionProcessor extends AbstractProcessor {
 
     // just for perf
     private final Map<String, String> configurationEnumValueOfCache = new HashMap<>();
+    private final Map<String, String> enumJsonValueOfCache = new HashMap<>();
+    private final Map<String, String> enumJsonNameCache = new HashMap<>();
 
     @Override
     public SourceVersion getSupportedSourceVersion() {
@@ -499,7 +501,9 @@ public class InternalFusionProcessor extends AbstractProcessor {
         final var names = ParsedName.of(element);
         try {
             final var schemas = allJsonSchemas == null ? null : new HashMap<String, JsonSchema>();
-            final var generator = new JsonCodecGenerator(processingEnv, elements, names.packageName(), names.className(), element, knownJsonModels, schemas);
+            final var generator = new JsonCodecGenerator(
+                    processingEnv, elements, names.packageName(), names.className(), element, knownJsonModels, schemas,
+                    enumJsonValueOfCache, enumJsonNameCache);
             final var generation = generator.get();
             if (schemas != null && !schemas.isEmpty()) {
                 allJsonSchemas.putAll(schemas.entrySet().stream()

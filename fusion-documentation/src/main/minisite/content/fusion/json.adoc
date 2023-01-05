@@ -88,3 +88,28 @@ public class MyService extends HttpServlet {
     }
 }
 ----
+
+== Enums
+
+Enumerations (de)serialization behavior can be customized by using some specific methods:
+
+[source,java]
+----
+public enum MyEnum {
+    A, B;
+
+    public String toJsonString() { <1>
+        return this == A ? "first" : "second";
+    }
+
+    public static MyEnum fromJsonString(final String v) { <2>
+        return switch (v) {
+            case "first" -> MyEnum.A;
+            case "second" -> MyEnum.B;
+            default -> throw new IllegalArgumentException("Unsupported '" + v + "'");
+        };
+    }
+}
+----
+<.> `toJsonString` is an instance method with no parameter used to replace `.name()` call during serialization,
+<.> `fromJsonString` is a static method with a `String` parameter used to replace `.valueOf(String)` call during deserialization.
