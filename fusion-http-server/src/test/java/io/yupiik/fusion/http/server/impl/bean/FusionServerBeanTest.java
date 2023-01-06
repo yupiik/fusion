@@ -51,17 +51,6 @@ class FusionServerBeanTest {
     void run() throws IOException, InterruptedException {
         try (final var container = ConfiguringContainer.of()
                 .register(new GETEndpointBean(), new POSTEndpointBean())
-                .register(new FusionListener<WebServer.Configuration>() { // random port
-                    @Override
-                    public Class<WebServer.Configuration> eventType() {
-                        return WebServer.Configuration.class;
-                    }
-
-                    @Override
-                    public void onEvent(final RuntimeContainer container, final WebServer.Configuration event) {
-                        event.port(0);
-                    }
-                })
                 .start();
              final var server = container.lookup(WebServer.class)) {
             final var http = HttpClient.newHttpClient();

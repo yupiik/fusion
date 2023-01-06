@@ -49,6 +49,7 @@
     <module>fusion-cli</module>
     <module>fusion-httpclient-parent</module>
     <module>fusion-tracing</module>
+    <module>fusion-observability</module>
     <module>fusion-documentation</module>
   </modules>
 

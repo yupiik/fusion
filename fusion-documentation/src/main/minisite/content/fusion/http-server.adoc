@@ -96,6 +96,7 @@ public CompletionStage<Response> myGreetingEndpoint() {
 TIP: if your endpoint is fully synchronous you can drop the `CompletionStage` wrapper: `public CompletionStage<Response> myGreetingEndpoint();`.
 You can also pass as first parameter a `Request` parameter.
 
+[[server-tracing]]
 == (Open) Tracing
 
 `fusion-tracing` module provides a Tomcat valve you can set up on your web container to add tracing capabilities to your Tomcat:

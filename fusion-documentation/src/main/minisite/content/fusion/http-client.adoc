@@ -71,7 +71,7 @@ conf.setListeners(List.of(
             false)));
 ----
 
-
+[[client-tracing]]
 === (Open) Tracing
 
 IMPORTANT: this is not in the same module, you must add `fusion-tracing` module to get this feature.

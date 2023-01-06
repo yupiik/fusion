@@ -154,17 +154,7 @@ public class TomcatWebServer implements WebServer {
     }
 
     protected StandardContext createContext() {
-        final var ctx = newContext();
-        ctx.setLoader(new LaunchingClassLoaderLoader());
-        ctx.setPath("");
-        ctx.setName("");
-        ctx.setFailCtxIfServletStartFails(true);
-        // ctx.setJarScanner(newSkipScanner()); // we don't use scanning at all with this setup so just ignore useless optims for now
-
-        if (!configuration.isSkipUtf8Setup()) {
-            ctx.setRequestCharacterEncoding("UTF-8");
-            ctx.setResponseCharacterEncoding("UTF-8");
-        }
+        final var ctx = createBaseContext(newContext(), configuration);
 
         if (!configuration.getEndpoints().isEmpty() &&
                 configuration.getFusionServletMapping() != null &&
@@ -182,6 +172,34 @@ public class TomcatWebServer implements WebServer {
                         .map(HandlesTypes::value)
                         .map(this::scanFor)
                         .orElseGet(Set::of)));
+
+        if (configuration.isFastSessionId()) {
+            final var mgr = new StandardManager();
+            mgr.setSessionIdGenerator(new FastSessionIdGenerator());
+            ctx.setManager(mgr);
+        }
+
+        if (configuration.getContextCustomizers() != null) {
+            configuration.getContextCustomizers().forEach(c -> c.accept(ctx));
+        }
+
+        onContext(ctx);
+
+        return ctx;
+    }
+
+    public static StandardContext createBaseContext(final StandardContext ctx,
+                                                    final TomcatWebServerConfiguration configuration) {
+        ctx.setLoader(new LaunchingClassLoaderLoader());
+        ctx.setPath("");
+        ctx.setName("");
+        ctx.setFailCtxIfServletStartFails(true);
+        // ctx.setJarScanner(newSkipScanner()); // we don't use scanning at all with this setup so just ignore useless optims for now
+
+        if (!configuration.isSkipUtf8Setup()) {
+            ctx.setRequestCharacterEncoding("UTF-8");
+            ctx.setResponseCharacterEncoding("UTF-8");
+        }
 
         ctx.addLifecycleListener(new Tomcat.FixContextListener());
 
@@ -209,16 +227,6 @@ public class TomcatWebServer implements WebServer {
         ctx.setClearReferencesStopTimerThreads(false);
         ctx.setSkipMemoryLeakChecksOnJvmShutdown(true);
 
-        if (configuration.isFastSessionId()) {
-            final var mgr = new StandardManager();
-            mgr.setSessionIdGenerator(new FastSessionIdGenerator());
-            ctx.setManager(mgr);
-        }
-
-        if (configuration.getContextCustomizers() != null) {
-            configuration.getContextCustomizers().forEach(c -> c.accept(ctx));
-        }
-        onContext(ctx);
         return ctx;
     }
 
@@ -243,7 +251,7 @@ public class TomcatWebServer implements WebServer {
         return Set.of();
     }
 
-    private static class JULAccessLogValve extends AbstractAccessLogValve {
+    public static class JULAccessLogValve extends AbstractAccessLogValve {
         private final Logger logger = Logger.getLogger("fusion.webserver.tomcat.access.log");
 
         @Override
@@ -252,21 +260,21 @@ public class TomcatWebServer implements WebServer {
         }
     }
 
-    private static class NoBaseDirTomcat extends Tomcat {
+    public static class NoBaseDirTomcat extends Tomcat {
         @Override
         protected void initBaseDir() {
             // no-op
         }
     }
 
-    private static class NoWorkDirContext extends StandardContext {
+    public static class NoWorkDirContext extends StandardContext {
         @Override
         protected void postWorkDirectory() {
             // no-op
         }
     }
 
-    private static class FastSessionIdGenerator extends StandardSessionIdGenerator {
+    public static class FastSessionIdGenerator extends StandardSessionIdGenerator {
         @Override
         protected void getRandomBytes(final byte[] bytes) {
             ThreadLocalRandom.current().nextBytes(bytes);
