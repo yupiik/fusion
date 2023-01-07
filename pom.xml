@@ -50,6 +50,7 @@
     <module>fusion-httpclient-parent</module>
     <module>fusion-tracing</module>
     <module>fusion-observability</module>
+    <module>fusion-persistence</module>
     <module>fusion-documentation</module>
     <module>fusion-handlebars</module>
   </modules>
