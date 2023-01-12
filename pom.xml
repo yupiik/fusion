@@ -26,7 +26,7 @@
   <version>1.0.0-SNAPSHOT</version>
   <packaging>pom</packaging>
   <name>Fusion</name>
-  <description>Reflectionless and selfcontained framework (no jakarta/spring/guice dependency).</description>
+  <description>Reflectionless and selfcontained framework (no business code dependency on jakarta/spring/guice).</description>
   <url>https://yupiik.github.io/fusion/</url>
 
   <properties>
@@ -34,7 +34,7 @@
 
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-    <tomcat.version>11.0.0-M1</tomcat.version>
+    <tomcat.version>10.1.4</tomcat.version>
     <junit-jupiter.version>5.9.1</junit-jupiter.version>
   </properties>
 
