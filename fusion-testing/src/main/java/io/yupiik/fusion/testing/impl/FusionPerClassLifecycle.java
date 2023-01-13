@@ -17,16 +17,41 @@ package io.yupiik.fusion.testing.impl;
 
 import io.yupiik.fusion.framework.api.ConfiguringContainer;
 import io.yupiik.fusion.framework.api.RuntimeContainer;
+import io.yupiik.fusion.framework.api.container.FusionModule;
+import io.yupiik.fusion.testing.FusionSupport;
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
+import org.junit.platform.commons.util.AnnotationUtils;
+
+import java.lang.reflect.InvocationTargetException;
+import java.util.stream.Stream;
 
 import static java.util.Optional.ofNullable;
 
 public class FusionPerClassLifecycle extends FusionParameterResolver implements BeforeAllCallback, AfterAllCallback {
     @Override
     public void beforeAll(final ExtensionContext context) {
-        context.getStore(NAMESPACE).getOrComputeIfAbsent(RuntimeContainer.class, k -> ConfiguringContainer.of().start());
+        context.getStore(NAMESPACE).getOrComputeIfAbsent(RuntimeContainer.class, k -> {
+            final var container = ConfiguringContainer.of();
+            AnnotationUtils.findAnnotation(context.getTestClass(), FusionSupport.class)
+                    .ifPresent(conf -> {
+                        container.disableAutoDiscovery(conf.disableDiscovery());
+                        container.register(Stream.of(conf.modules())
+                                .map(it -> {
+                                    try {
+                                        return it.asSubclass(FusionModule.class).getConstructor().newInstance();
+                                    } catch (final InstantiationException | IllegalAccessException |
+                                                   NoSuchMethodException e) {
+                                        throw new IllegalStateException(e);
+                                    } catch (final InvocationTargetException e) {
+                                        throw new IllegalStateException(e.getTargetException());
+                                    }
+                                })
+                                .toArray(FusionModule[]::new));
+                    });
+            return container.start();
+        });
     }
 
     @Override

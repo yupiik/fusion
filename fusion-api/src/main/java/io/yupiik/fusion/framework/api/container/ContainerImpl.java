@@ -63,12 +63,13 @@ public class ContainerImpl implements ConfiguringContainer, RuntimeContainer {
     private final Map<Type, List<FusionBean<?>>> listMatchings = new ConcurrentHashMap<>();
 
     // startup config
+    private final Collection<FusionModule> modules = new ArrayList<>();
     private boolean disableAutoDiscovery = false;
     private ClassLoader loader = Thread.currentThread().getContextClassLoader();
 
     @Override
     public RuntimeContainer start() {
-        if (disableAutoDiscovery) {
+        if (disableAutoDiscovery && modules.isEmpty()) {
             contexts.doRegister(new ApplicationFusionContext(), new DefaultFusionContext());
             beans.doRegister(defaultBeans().toArray(FusionBean<?>[]::new));
             if (listeners.hasDirectListener(Start.class)) {
@@ -77,9 +78,11 @@ public class ContainerImpl implements ConfiguringContainer, RuntimeContainer {
             return this;
         }
 
-        final var modules = loadModules()
-                .sorted(comparing(FusionModule::priority))
-                .toList();
+        final var modules = disableAutoDiscovery ?
+                this.modules :
+                loadModules()
+                        .sorted(comparing(FusionModule::priority))
+                        .toList();
 
         // beans
         beans.doRegister(filter(
@@ -123,6 +126,12 @@ public class ContainerImpl implements ConfiguringContainer, RuntimeContainer {
     @Override
     public ConfiguringContainer loader(final ClassLoader loader) {
         this.loader = loader;
+        return this;
+    }
+
+    @Override
+    public ConfiguringContainer register(final FusionModule... modules) {
+        this.modules.addAll(List.of(modules));
         return this;
     }
 

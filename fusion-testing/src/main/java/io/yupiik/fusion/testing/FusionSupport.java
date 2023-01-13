@@ -28,4 +28,6 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 @Retention(RUNTIME)
 @ExtendWith(FusionPerClassLifecycle.class)
 public @interface FusionSupport {
+    boolean disableDiscovery() default false;
+    Class<?>[] modules() default {};
 }
