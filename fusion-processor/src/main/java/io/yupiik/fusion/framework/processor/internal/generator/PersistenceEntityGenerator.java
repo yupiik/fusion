@@ -25,6 +25,10 @@ import io.yupiik.fusion.framework.build.api.cli.Command;
 import io.yupiik.fusion.framework.build.api.persistence.Table;
 import io.yupiik.fusion.framework.processor.internal.Elements;
 import io.yupiik.fusion.framework.processor.internal.meta.Docs;
+import io.yupiik.fusion.http.server.impl.DefaultEndpoint;
+import io.yupiik.fusion.persistence.impl.BaseEntity;
+import io.yupiik.fusion.persistence.impl.DatabaseImpl;
+import io.yupiik.fusion.persistence.spi.DatabaseTranslation;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
@@ -87,8 +91,6 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
                 }))
                 .orElseThrow(() -> new IllegalArgumentException("@Table classes must have at least one argument constructor with a @RootConfiguration parameter: " + packagePrefix + className))
                 .getParameters();
-        final var configurationElt = constructorParameters.get(0);
-        final var configurationType = toFqnName(processingEnv.getTypeUtils().asElement(configurationElt.asType()));
 
         if (constructorParameters.size() > 1 && !beanForPersistenceEntities) {
             throw new IllegalArgumentException("@Table classes can only get injections if using a bean so ensure to set -Afusion.generateBeanForPersistenceEntities in your compiler: " + packagePrefix + className);
@@ -96,24 +98,15 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
 
         final var hasInjections = beanForPersistenceEntities && constructorParameters.size() != 1;
 
-        return new Output(
-                new GeneratedClass(packagePrefix + tableClassName, packageLine +
-                        generationVersion() +
-                        "public class " + tableClassName +
-                        "<" + className.replace('$', '.') + "> {\n" +
-                        "  public " + tableClassName + "(" + (hasInjections ? "final " + RuntimeContainer.class.getName() + " container" : "") + ") {\n" +
-                        "    super(\n" +
-                        "      \"" + table.value() + "\",\n" +
-                        "      c -> new " + configurationType + ConfigurationFactoryGenerator.SUFFIX + "(c).get(),\n" +
-                        "      (c, deps) -> new " + className.replace('$', '.') + "(c" +
-                        (hasInjections ? constructorParameters.stream()
-                                .skip(1) // configuration by convention
-                                .map(param -> "lookup(container, " + toFqnName(processingEnv.getTypeUtils().asElement(param.asType())) + ".class, deps)")
-                                .collect(joining(", ", ", ", "")) : "") + ")," +
-                        "      " + List.class.getName() + ".of());\n" +
-                        "  }\n" +
-                        "}\n" +
-                        "\n"),
+        return new Output(new GeneratedClass(packagePrefix + tableClassName, packageLine +
+                                generationVersion() +
+                                "public class " + tableClassName + " extends " + BaseEntity.class.getName() +
+                                "<" + className + "> {\n" +
+                                "  public " + tableClassName + "(" + DatabaseImpl.class.getName() + " database, Class<" + className + "> type, " + DatabaseTranslation.class.getName() + " translation) {\n" +
+                                "        super(database, type , translation);\n" +
+                                "    }" +
+                                "}\n" +
+                                "\n"),
                 beanForPersistenceEntities ?
                         new GeneratedClass(packagePrefix + tableClassName + '$' + FusionBean.class.getSimpleName(), packageLine +
                                 generationVersion() +
@@ -129,30 +122,13 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
                                 "  @Override\n" +
                                 "  public " + tableClassName + " create(final " + RuntimeContainer.class.getName() + " container, final " +
                                 List.class.getName() + "<" + Instance.class.getName() + "<?>> dependents) {\n" +
-                                "    return new " + tableClassName + "(" + (hasInjections ? "container" : "") + ");\n" +
+                                "    return new " + tableClassName + "(null, " + className + ".class, null);\n" +
                                 "  }\n" +
                                 "}\n" +
                                 "\n") :
                         null);
     }
 
-    // todo: share in Types?
-    private String toFqnName(final Element mirror) {
-        final var builder = new StringBuilder();
-        var current = mirror;
-        while (current != null) {
-            if (current.getKind() == PACKAGE) {
-                final var pck = current instanceof PackageElement pe ? pe.getQualifiedName().toString() : current.toString();
-                return pck + (pck.isBlank() ? "" : ".") + builder;
-            }
-
-            final var name = current.getSimpleName().toString();
-            builder.insert(0, name + (builder.isEmpty() ? "" : "$"));
-            current = current.getEnclosingElement();
-        }
-        return builder.toString();
-    }
-
-    public record Output(GeneratedClass command, GeneratedClass bean) {
+    public record Output(BaseGenerator.GeneratedClass entity, BaseGenerator.GeneratedClass bean) {
     }
 }

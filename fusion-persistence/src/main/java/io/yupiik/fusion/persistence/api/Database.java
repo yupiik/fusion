@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022 - Yupiik SAS - https://www.yupiik.com
+ * Copyright (c) 2022-2023 - Yupiik SAS - https://www.yupiik.com
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
@@ -15,7 +15,7 @@
  */
 package io.yupiik.fusion.persistence.api;
 
-import io.yupiik.fusion.framework.api.configuration.Configuration;
+import io.yupiik.fusion.persistence.impl.DatabaseConfiguration;
 import io.yupiik.fusion.persistence.impl.DatabaseImpl;
 
 import java.sql.ResultSet;
@@ -85,7 +85,9 @@ public interface Database {
 
     <T> Entity<T> getOrCreateEntity(Class<T> type);
 
-    static Database of(final Configuration configuration) {
+    static Database of(final DatabaseConfiguration configuration) {
         return new DatabaseImpl(configuration);
     }
+
+
 }

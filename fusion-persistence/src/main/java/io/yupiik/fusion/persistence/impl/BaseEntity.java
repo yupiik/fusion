@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022 - Yupiik SAS - https://www.yupiik.com
+ * Copyright (c) 2022-2023 - Yupiik SAS - https://www.yupiik.com
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
@@ -63,7 +63,7 @@ import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 
 // todo: some operation don't need the resultset.metadata usage (in particular queries we build ourselve internally).
-public class EntityImpl<E> implements Entity<E> {
+public class BaseEntity<E> implements Entity<E> {
     private final DatabaseImpl database;
     private final Class<E> rootType;
     private final Map<String, ColumnModel> fields;
@@ -86,7 +86,7 @@ public class EntityImpl<E> implements Entity<E> {
     private final List<ColumnMetadata> columns;
     private final boolean autoIncremented;
 
-    public EntityImpl(final DatabaseImpl database, final Class<E> type, final DatabaseTranslation translation) {
+    public BaseEntity(final DatabaseImpl database, final Class<E> type, final DatabaseTranslation translation) {
         this.database = database;
         this.translation = translation;
         this.rootType = type;
@@ -146,8 +146,7 @@ public class EntityImpl<E> implements Entity<E> {
             insertFields = fields.values();
         }
 
-        this.fieldsIndexedByJavaName = autoIncremented ?
-                this.fields.values().stream().collect(toMap(c -> c.field.getName(), c -> c.field));
+        this.fieldsIndexedByJavaName = this.fields.values().stream().collect(toMap(c -> c.field.getName(), c -> c.field));
 
         this.table = translation.wrapTableName(ofNullable(type.getAnnotation(Table.class))
                 .map(Table::value)

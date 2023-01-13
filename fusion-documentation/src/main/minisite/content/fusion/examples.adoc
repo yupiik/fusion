@@ -27,7 +27,7 @@ This simple definition enables you to inject this bean in other beans.
 
 == Defining a Bean with injection(s)
 
-The common use case of an framework is to get injected some bean without exactly knowing how it was created or initialized.
+The common use case of a framework is to get injected some bean without exactly knowing how it was created or initialized.
 Here is how to get an injection with Fusion framework:
 
 [source,java]
@@ -175,7 +175,7 @@ If you want to customize the name of the property you can use `@Property`.
 
 Finally, you can register you own source of values creating a bean of type `ConfigurationSource`.
 
-IMPORTANT: `List<OtherConfig>` are supported but you must set in the configuration `<prefix for this list>.length` to the length value of the list then the nested instances are configured using `<prefix>.<index>` starting at index 0. Ex: `myconf.mylist.0.name=foo`.
+IMPORTANT: `List<OtherConfig>` are supported, but you must set in the configuration `<prefix for this list>.length` to the length value of the list then the nested instances are configured using `<prefix>.<index>` starting at index 0. Ex: `myconf.mylist.0.name=foo`.
 
 == Create a JSON model [[json_model]]
 

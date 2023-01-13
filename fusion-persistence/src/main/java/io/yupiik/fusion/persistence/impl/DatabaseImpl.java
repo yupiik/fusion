@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022 - Yupiik SAS - https://www.yupiik.com
+ * Copyright (c) 2022-2023 - Yupiik SAS - https://www.yupiik.com
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
@@ -15,7 +15,6 @@
  */
 package io.yupiik.fusion.persistence.impl;
 
-import io.yupiik.fusion.framework.api.configuration.Configuration;
 import io.yupiik.fusion.persistence.api.Database;
 import io.yupiik.fusion.persistence.api.Entity;
 import io.yupiik.fusion.persistence.api.PersistenceException;
@@ -66,11 +65,11 @@ import static java.util.stream.Collectors.toMap;
 public class DatabaseImpl implements Database {
     private final DataSource datasource;
     private final DatabaseTranslation translation;
-    private final Map<Class<?>, EntityImpl<?>> entities = new ConcurrentHashMap<>();
+    private final Map<Class<?>, BaseEntity<?>> entities = new ConcurrentHashMap<>();
     private final QueryCompiler queryCompiler = new QueryCompiler(this);
     private final Function<Class<?>, Object> instanceLookup;
 
-    public DatabaseImpl(final Configuration configuration) {
+    public DatabaseImpl(final DatabaseConfiguration configuration) {
         this.datasource = configuration.getDataSource();
         this.instanceLookup = configuration.getInstanceLookup();
         this.translation = configuration.getTranslation() == null ? guessTranslation() : configuration.getTranslation();
@@ -89,7 +88,7 @@ public class DatabaseImpl implements Database {
     }
 
     // mainly enables some cleanup if needed, not exposed as such in the API
-    public Map<Class<?>, EntityImpl<?>> getEntities() {
+    public Map<Class<?>, BaseEntity<?>> getEntities() {
         return entities;
     }
 
@@ -258,7 +257,7 @@ public class DatabaseImpl implements Database {
     @Override
     public <T> T insert(final T instance) {
         requireNonNull(instance, "can't persist a null instance");
-        final var model = (EntityImpl<T>) getEntityImpl(instance.getClass());
+        final var model = (BaseEntity<T>) getEntityImpl(instance.getClass());
         final var insertQuery = model.getInsertQuery();
         try (final var connection = datasource.getConnection();
              final var stmt = !model.isAutoIncremented() ?
@@ -495,8 +494,8 @@ public class DatabaseImpl implements Database {
         }).collect(toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
-    private <T> EntityImpl<T> getEntityImpl(final Class<T> type) {
-        return (EntityImpl<T>) entities.computeIfAbsent(type, t -> new EntityImpl<>(this, t, translation));
+    private <T> BaseEntity<T> getEntityImpl(final Class<T> type) {
+        return (BaseEntity<T>) entities.computeIfAbsent(type, t -> new BaseEntity<>(this, t, translation));
     }
 
     private DatabaseTranslation guessTranslation() {

@@ -282,7 +282,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
 
         // find persistence entities
         final var persistenceEntities = roundEnv.getElementsAnnotatedWith(Table.class).stream()
-                .filter(it -> (it.getKind() == CLASS || it.getKind() == RECORD) && it instanceof TypeElement)
+                .filter(it -> (it.getKind() == RECORD) && it instanceof TypeElement)
                 .map(TypeElement.class::cast)
                 .toList();
 
@@ -668,12 +668,12 @@ public class InternalFusionProcessor extends AbstractProcessor {
         final var names = ParsedName.of(entity);
         try {
             final var generation = new PersistenceEntityGenerator(
-                    processingEnv, elements, beanForCliCommands,
+                    processingEnv, elements, beanForPersistenceEntities,
                     names.packageName(), names.className(),
                     entity.getAnnotation(Table.class), entity,
                     allConfigurationsDocs)
                     .get();
-            writeGeneratedClass(entity, generation.command());
+            writeGeneratedClass(entity, generation.entity());
 
             final var bean = generation.bean();
             if (bean != null) {
