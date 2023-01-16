@@ -13,24 +13,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package io.yupiik.fusion.framework.handlebars.compiler;
+package io.yupiik.fusion.framework.handlebars.compiler.part;
 
-import java.util.Collection;
-import java.util.Map;
+import io.yupiik.fusion.framework.handlebars.helper.BlockHelperContext;
+import io.yupiik.fusion.framework.handlebars.spi.Accessor;
 
-public record UnlessVariablePart(String name, Part next) implements Part {
+import java.util.function.Function;
+
+public record BlockHelperPart(Function<Object, String> helper, String name, Part subPart,
+                              Accessor accessor) implements Part {
     @Override
     public String apply(final RenderContext context, final Object currentData) {
-        if (!(currentData instanceof Map<?,?> map)) {
-            throw new IllegalArgumentException("Unsupported type '" + currentData + "'");
-        }
-        final var value = map.get(name);
-        if (!(value == null ||
-                (value instanceof String s && s.isBlank()) ||
-                (value instanceof Number n && n.doubleValue() == 0) ||
-                (value instanceof Collection<?> c && c.isEmpty()))) {
+        final var value = ".".equals(name) || "this".equals(name) ? currentData : accessor.find(currentData, name);
+        if (value == null) {
             return "";
         }
-        return next.apply(context, currentData);
+        return helper.apply(new BlockHelperContext(value, it -> subPart.apply(context, it)));
     }
 }

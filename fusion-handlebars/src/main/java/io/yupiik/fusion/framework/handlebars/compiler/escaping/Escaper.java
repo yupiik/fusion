@@ -13,7 +13,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package io.yupiik.fusion.framework.handlebars.compiler;
+package io.yupiik.fusion.framework.handlebars.compiler.escaping;
 
 public interface Escaper {
     default String escape(final String value) {

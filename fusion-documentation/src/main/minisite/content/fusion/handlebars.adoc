@@ -24,16 +24,27 @@ Data can be map of primitives (or data which have a `toString()`) or lists for n
 ----
 // once per app
 final var compiler = new HandlebarsCompiler();
-final var tpl = compiler.compile(new CompilationContext(
-        "{{firstname}} {{uppercase lastname}}",
-        Map.of( // some helpers - can be Map.of() if you don't use them
-                "uppercase", o -> o.toString().toUpperCase(ROOT)),
-        Map.of( // some partials templates - can be Map.of() if you don't use them
-                "person", "{{person.name}} is {{person.age}} years old.")));
+final var tpl = compiler.compile(new HandlebarsCompiler.CompilationContext(
+        new HandlebarsCompiler.Settings()
+                .helpers(Map.of( // some helpers - can be Map.of() if you don't use them
+                    "uppercase", o -> o.toString().toUpperCase(ROOT))
+                .partials(Map.of(
+                        "person", "{{person.name}} is {{person.age}} years old.")),
+        "{{firstname}} {{uppercase lastname}}"));
 
 // at runtime
-final var rendering = tpl.render(Map.of()));
+final var rendering = tpl.render(Map.of(...)));
 ----
+
+== Each built-in helper data-variables
+
+`{{each xxx}` supports the following data-variables:
+
+* `@first` (boolean): is the current element the first one,
+* `@last` (boolean): is the current element the last one,
+* `@index` (integer): 0-based index of current element.
+
+If the `xxx` variable is not a `Collection` but a `Map`, the additional `@key` and `@value` data-variables are available.
 
 == Future
 
@@ -45,4 +56,7 @@ Technically it is possible to go further but it has to be proven useful, here ar
 This option requires to override most of `*Part` implementations but is very feasible,
 . Support more `this` cases, right now a few cases don't support `this` keyword,
 . Support `lookup`, this is built-in in handlebars but has the drawback to rely on lookup at runtimes, maybe something to not add,
-. Support streaming? If the output can be huge - assuming we support later `Iterable` or `Stream` for example - then we can replace the output `String` by a `InputStream` or a `Publisher<ByteBuffer>` for ex.
+. Support streaming? If the output can be huge - assuming we support later `Iterable` or `Stream` for example - then we can replace the output `String` by a `InputStream` or a `Publisher<ByteBuffer>` for ex,
+. Correct whitespace control (https://handlebarsjs.com/guide/expressions.html#subexpressions),
+. Else support (in if blocks),
+. ...

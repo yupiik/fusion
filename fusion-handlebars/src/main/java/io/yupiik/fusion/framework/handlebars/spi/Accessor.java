@@ -13,13 +13,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package io.yupiik.fusion.framework.handlebars.compiler;
+package io.yupiik.fusion.framework.handlebars.spi;
 
-import java.util.function.Function;
-
-public record ThisHelper(Function<Object, String> helper) implements Part {
-    @Override
-    public String apply(final RenderContext context, final Object currentData) {
-        return helper.apply(currentData);
-    }
+public interface Accessor {
+    Object find(Object data, String name);
 }

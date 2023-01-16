@@ -15,12 +15,16 @@
  */
 package io.yupiik.fusion.framework.handlebars;
 
+import io.yupiik.fusion.framework.handlebars.compiler.accessor.MapAccessor;
 import io.yupiik.fusion.framework.handlebars.helper.BlockHelperContext;
+import io.yupiik.fusion.framework.handlebars.spi.Accessor;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
+import java.util.function.Function;
 
 import static java.util.Locale.ROOT;
 import static java.util.stream.Collectors.joining;
@@ -94,22 +98,63 @@ class HandlebarsTest {
                 "Yehuda Katz");
     }
 
-
     @Test
     void each() {
         assertRender(
                 """
                         <ul class="people_list">
-                            <li>Yehuda Katz</li>
-                            <li>Alan Johnson</li>
-                            <li>Charles Jolley</li>
+                          {{#each people}}
+                            <li>{{this}}</li>
+                          {{/each}}
                         </ul>""",
-                Map.of("person", List.of("Yehuda Katz", "Alan Johnson", "Charles Jolley")),
+                Map.of("people", List.of("Yehuda Katz", "Alan Johnson", "Charles Jolley")),
                 """
                         <ul class="people_list">
                             <li>Yehuda Katz</li>
                             <li>Alan Johnson</li>
                             <li>Charles Jolley</li>
+                        </ul>""");
+    }
+
+    @Test
+    void listDataVariables() {
+        assertRender(
+                """
+                        <ul class="people_list">
+                          {{#each people}}
+                            <li>{{this}}:{{#if @first}} first,{{/if}}{{#if @last}} last,{{/if}} index={{@index}}</li>
+                          {{/each}}
+                        </ul>""",
+                Map.of("people", List.of("Yehuda Katz", "Alan Johnson", "Charles Jolley")),
+                """
+                        <ul class="people_list">
+                            <li>Yehuda Katz: first, index=0</li>
+                            <li>Alan Johnson: index=1</li>
+                            <li>Charles Jolley: last, index=2</li>
+                        </ul>""");
+    }
+
+    @Test
+    void listMapEntryDataVariables() {
+        final var people = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        people.putAll(Map.of(
+                "Alan", "Johnson",
+                "Charles", "Jolley",
+                "Yehuda", "Katz"));
+
+        assertRender(
+                """
+                        <ul class="people_list">
+                          {{#each people}}
+                            <li>firstname={{@key}} lastname={{@value}}:{{#if @first}} first,{{/if}}{{#if @last}} last,{{/if}} index={{@index}}</li>
+                          {{/each}}
+                        </ul>""",
+                Map.of("people", people),
+                """
+                        <ul class="people_list">
+                            <li>firstname=Alan lastname=Johnson: first, index=0</li>
+                            <li>firstname=Charles lastname=Jolley: index=1</li>
+                            <li>firstname=Yehuda lastname=Katz: last, index=2</li>
                         </ul>""");
     }
 
@@ -164,6 +209,24 @@ class HandlebarsTest {
                 "{{firstname}} {{loud lastname}}",
                 Map.of("firstname", "Yehuda", "lastname", "Katz"),
                 "Yehuda KATZ");
+    }
+
+    @Test
+    void specificAccessor() {
+        assertRender(
+                "{{firstname}} {{loud lastname}}",
+                new Person("Yehuda", "Katz"),
+                "Yehuda KATZ",
+                (data, name) -> { // custom record specific accessor - specific for this template
+                    if (!(data instanceof Person p)) {
+                        throw new IllegalArgumentException("Unsupported data: " + data);
+                    }
+                    return switch (name) {
+                        case "firstname" -> p.firstname();
+                        case "lastname" -> p.lastname();
+                        default -> "missing accessor";
+                    };
+                });
     }
 
     @Test
@@ -223,19 +286,37 @@ class HandlebarsTest {
     }
 
     private void assertRender(final String resource, final Object data, final String expected) {
-        final var compiler = new HandlebarsCompiler();
-        final var tpl = compiler.compile(new HandlebarsCompiler.CompilationContext(
-                resource,
-                Map.of(
-                        "loud", o -> o.toString().toUpperCase(ROOT),
-                        "print_person", o -> o instanceof Map<?, ?> map ? map.get("firstname") + " " + map.get("lastname") : "failed, not a map",
-                        "list", o -> o instanceof BlockHelperContext ctx && ctx.data() instanceof Collection<?> list ?
-                                list.stream()
-                                        .map(ctx.blockRenderer())
-                                        .map(it -> "<li>" + it + "</li>")
-                                        .collect(joining("\n", "<ul>\n", "\n</ul>")) : "failed, not a list"),
-                Map.of(
-                        "person", "{{person.name}} is {{person.age}} years old.")));
-        assertEquals(expected, tpl.render(data));
+        assertRender(resource, data, expected, new MapAccessor());
+    }
+
+    private void assertRender(final String resource, final Object data, final String expected, final Accessor accessor) {
+        assertEquals(
+                expected,
+                new HandlebarsCompiler(accessor)
+                        .compile(new HandlebarsCompiler.CompilationContext(
+                                new HandlebarsCompiler.Settings()
+                                        .helpers(helpers())
+                                        .partials(partialsTemplates()),
+                                resource))
+                        .render(data));
+    }
+
+    private Map<String, String> partialsTemplates() {
+        return Map.of(
+                "person", "{{person.name}} is {{person.age}} years old.");
+    }
+
+    private Map<String, Function<Object, String>> helpers() {
+        return Map.of(
+                "loud", o -> o.toString().toUpperCase(ROOT),
+                "print_person", o -> o instanceof Map<?, ?> map ? map.get("firstname") + " " + map.get("lastname") : "failed, not a map",
+                "list", o -> o instanceof BlockHelperContext ctx && ctx.data() instanceof Collection<?> list ?
+                        list.stream()
+                                .map(ctx.blockRenderer())
+                                .map(it -> "<li>" + it + "</li>")
+                                .collect(joining("\n", "<ul>\n", "\n</ul>")) : "failed, not a list");
+    }
+
+    private record Person(String firstname, String lastname) {
     }
 }

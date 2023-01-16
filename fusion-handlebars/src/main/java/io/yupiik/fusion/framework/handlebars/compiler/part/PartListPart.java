@@ -13,11 +13,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package io.yupiik.fusion.framework.handlebars.compiler;
+package io.yupiik.fusion.framework.handlebars.compiler.part;
 
-public record EscapedPart(Part delegate) implements Part, Escaper {
+import java.util.List;
+
+import static java.util.stream.Collectors.joining;
+
+public record PartListPart(List<Part> delegates) implements Part {
     @Override
-    public String apply(final RenderContext context, final Object currentData) {
-        return escape(delegate.apply(context, currentData));
+    public String apply(final RenderContext context, final Object data) {
+        return delegates.stream().map(p -> p.apply(context, data)).collect(joining());
     }
 }

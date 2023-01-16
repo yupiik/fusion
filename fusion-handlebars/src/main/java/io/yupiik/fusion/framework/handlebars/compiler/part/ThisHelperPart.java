@@ -13,24 +13,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package io.yupiik.fusion.framework.handlebars.compiler;
+package io.yupiik.fusion.framework.handlebars.compiler.part;
 
-import java.util.Collection;
-import java.util.Map;
+import java.util.function.Function;
 
-public record IfVariablePart(String name, Part next) implements Part {
+public record ThisHelperPart(Function<Object, String> helper) implements Part {
     @Override
     public String apply(final RenderContext context, final Object currentData) {
-        if (!(currentData instanceof Map<?,?> map)) {
-            throw new IllegalArgumentException("Unsupported type '" + currentData + "'");
-        }
-        final var value = map.get(name);
-        if (value == null ||
-                (value instanceof String s && s.isBlank()) ||
-                (value instanceof Number n && n.doubleValue() == 0) ||
-                (value instanceof Collection<?> c && c.isEmpty())) {
-            return "";
-        }
-        return next.apply(context, currentData);
+        return helper.apply(currentData);
     }
 }

@@ -13,14 +13,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package io.yupiik.fusion.framework.handlebars.compiler;
+package io.yupiik.fusion.framework.handlebars.compiler.part;
 
-import java.util.Map;
+import io.yupiik.fusion.framework.handlebars.spi.Accessor;
+
 import java.util.function.Function;
 
-public record RemappedDataPart(Function<Map<?, ?>, Map<?, ?>> mapping, Part delegate) implements Part {
+public record InlineHelperPart(Function<Object, String> helper, String name, Accessor accessor) implements Part {
     @Override
-    public String apply(final RenderContext renderContext, final Object o) {
-        return delegate.apply(renderContext, o instanceof Map<?, ?> map ? mapping.apply(map) : o);
+    public String apply(final RenderContext context, final Object currentData) {
+        final var value = ".".equals(name) || "this".equals(name) ? currentData : accessor.find(currentData, name);
+        if (value == null) {
+            return "";
+        }
+        return helper.apply(value);
     }
 }

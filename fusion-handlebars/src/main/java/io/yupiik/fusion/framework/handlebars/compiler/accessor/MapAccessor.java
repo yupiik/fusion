@@ -13,14 +13,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package io.yupiik.fusion.framework.handlebars.compiler;
+package io.yupiik.fusion.framework.handlebars.compiler.accessor;
 
-import java.util.function.BiFunction;
+import io.yupiik.fusion.framework.handlebars.spi.Accessor;
 
-@FunctionalInterface
-public interface Part extends BiFunction<Part.RenderContext, Object, String> {
-    interface RenderContext {
-        RenderContext DEFAULT = new RenderContext() {
-        };
+import java.util.Map;
+
+public class MapAccessor implements Accessor {
+    public Object find(final Object data, final String name) {
+        if (!(data instanceof Map<?, ?> map)) {
+            throw new IllegalArgumentException("Unsupported type '" + data + "'");
+        }
+        return map.get(name);
     }
 }

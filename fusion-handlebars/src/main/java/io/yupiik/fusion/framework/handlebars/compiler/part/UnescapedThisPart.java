@@ -13,17 +13,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package io.yupiik.fusion.framework.handlebars.compiler;
+package io.yupiik.fusion.framework.handlebars.compiler.part;
 
-import java.util.Map;
-
-public record UnescapedVariablePart(String name) implements Part {
+public record UnescapedThisPart() implements Part {
     @Override
     public String apply(final RenderContext context, final Object currentData) {
-        if (!(currentData instanceof Map<?,?> map)) {
-            return String.valueOf(currentData);
-        }
-        final var value = map.get(name);
-        return value == null ? "" : String.valueOf(value);
+        return String.valueOf(currentData);
     }
 }

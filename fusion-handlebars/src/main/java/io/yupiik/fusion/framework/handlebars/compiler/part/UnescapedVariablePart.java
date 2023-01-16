@@ -13,14 +13,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package io.yupiik.fusion.framework.handlebars.spi;
+package io.yupiik.fusion.framework.handlebars.compiler.part;
 
-import io.yupiik.fusion.framework.handlebars.compiler.part.Part;
+import io.yupiik.fusion.framework.handlebars.spi.Accessor;
 
-public interface Template {
-    Part part();
-
-    default String render(Object data) {
-        return part().apply(Part.RenderContext.DEFAULT, data);
+public record UnescapedVariablePart(String name, Accessor accessor) implements Part {
+    @Override
+    public String apply(final RenderContext context, final Object currentData) {
+        final var value = accessor.find(currentData, name);
+        return value == null ? "" : String.valueOf(value);
     }
 }

@@ -13,17 +13,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package io.yupiik.fusion.framework.handlebars.compiler;
+package io.yupiik.fusion.framework.handlebars.compiler.part;
 
-import java.util.Map;
+import io.yupiik.fusion.framework.handlebars.spi.Accessor;
 
-public record NestedVariablePart(String name, Part next) implements Part {
+public record NestedVariablePart(String name, Part next, Accessor accessor) implements Part {
     @Override
     public String apply(final RenderContext context, final Object currentData) {
-        if (!(currentData instanceof Map<?,?> map)) {
-            throw new IllegalArgumentException("Unsupported type '" + currentData + "'");
-        }
-        final var value = map.get(name);
+        final var value = ".".equals(name) || "this".equals(name) ? currentData : accessor.find(currentData, name);
         if (value == null) {
             return "";
         }

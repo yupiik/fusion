@@ -15,58 +15,77 @@
  */
 package io.yupiik.fusion.framework.handlebars;
 
-import io.yupiik.fusion.framework.handlebars.compiler.BlockHelperPart;
-import io.yupiik.fusion.framework.handlebars.compiler.ConstantPart;
-import io.yupiik.fusion.framework.handlebars.compiler.EachVariablePart;
-import io.yupiik.fusion.framework.handlebars.compiler.EscapedPart;
-import io.yupiik.fusion.framework.handlebars.compiler.IfVariablePart;
-import io.yupiik.fusion.framework.handlebars.compiler.InlineHelperPart;
-import io.yupiik.fusion.framework.handlebars.compiler.NestedVariablePart;
-import io.yupiik.fusion.framework.handlebars.compiler.Part;
-import io.yupiik.fusion.framework.handlebars.compiler.RemappedDataPart;
-import io.yupiik.fusion.framework.handlebars.compiler.ThisHelper;
-import io.yupiik.fusion.framework.handlebars.compiler.UnescapedThisPart;
-import io.yupiik.fusion.framework.handlebars.compiler.UnescapedVariablePart;
-import io.yupiik.fusion.framework.handlebars.compiler.UnlessVariablePart;
+import io.yupiik.fusion.framework.handlebars.compiler.accessor.MapAccessor;
+import io.yupiik.fusion.framework.handlebars.compiler.part.BlockHelperPart;
+import io.yupiik.fusion.framework.handlebars.compiler.part.ConstantPart;
+import io.yupiik.fusion.framework.handlebars.compiler.part.EachVariablePart;
+import io.yupiik.fusion.framework.handlebars.compiler.part.EmptyPart;
+import io.yupiik.fusion.framework.handlebars.compiler.part.EscapedPart;
+import io.yupiik.fusion.framework.handlebars.compiler.part.IfVariablePart;
+import io.yupiik.fusion.framework.handlebars.compiler.part.InlineHelperPart;
+import io.yupiik.fusion.framework.handlebars.compiler.part.NestedVariablePart;
+import io.yupiik.fusion.framework.handlebars.compiler.part.Part;
+import io.yupiik.fusion.framework.handlebars.compiler.part.PartListPart;
+import io.yupiik.fusion.framework.handlebars.compiler.part.ThisHelperPart;
+import io.yupiik.fusion.framework.handlebars.compiler.part.UnescapedThisPart;
+import io.yupiik.fusion.framework.handlebars.compiler.part.UnescapedVariablePart;
+import io.yupiik.fusion.framework.handlebars.compiler.part.UnlessVariablePart;
+import io.yupiik.fusion.framework.handlebars.spi.Accessor;
 import io.yupiik.fusion.framework.handlebars.spi.Template;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.BiFunction;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static java.util.Objects.requireNonNull;
+import static java.util.Optional.of;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toMap;
 
 // todo: better cache for partials? enables to pre-register them on the compiler?
 public class HandlebarsCompiler {
+    private final Accessor defaultAccessor;
+    private final Map<String, Part> partialsGlobalCache = new ConcurrentHashMap<>();
+
+    public HandlebarsCompiler() {
+        this(new MapAccessor());
+    }
+
+    public HandlebarsCompiler(final Accessor accessor) {
+        this.defaultAccessor = accessor;
+    }
+
     public Template compile(final CompilationContext context) {
-        final var partialsCache = new HashMap<String, Part>();
+        final var partialsCache = context.settings.cachePartials ? partialsGlobalCache : new HashMap<String, Part>();
         final var part = doCompile(
                 context.content(),
-                context.helpers(),
+                context.settings.helpers,
                 name -> partialsCache.computeIfAbsent(
                         name,
-                        k -> ofNullable(context.partials().get(name))
-                                .map(tpl -> compile(new CompilationContext(
-                                        tpl, context.helpers(), context.partials())))
-                                .orElseThrow(() -> new IllegalArgumentException("No partials '" + name + "'"))));
+                        k -> ofNullable(context.settings.partials.get(name))
+                                .map(tpl -> compile(new CompilationContext(context.settings, tpl)))
+                                .orElseThrow(() -> new IllegalArgumentException("No partials '" + name + "'"))
+                                .part()));
         return new TemplateImpl(part);
     }
 
     private Part doCompile(final String content,
                            final Map<String, Function<Object, String>> helpers,
                            final Function<String, Part> partials) {
-        final var optimized = optimize(parse(content, helpers, partials));
+        return optimizePart(optimize(parse(content, helpers, partials)));
+    }
+
+    private Part optimizePart(final List<Part> optimized) {
         return switch (optimized.size()) {
-            case 0 -> (ctx, data) -> "";
+            case 0 -> EmptyPart.INSTANCE;
             case 1 -> optimized.get(0);
-            default -> (ctx, data) -> optimized.stream().map(p -> p.apply(ctx, data)).collect(joining());
+            default -> new PartListPart(optimized);
         };
     }
 
@@ -131,11 +150,12 @@ public class HandlebarsCompiler {
             final var helperName = content.substring(i + "{{".length(), space);
             out.add(new InlineHelperPart(
                     requireNonNull(helpers.get(helperName), () -> "No helper '" + helperName + "'"),
-                    content.substring(space + 1, end).strip()));
+                    content.substring(space + 1, end).strip(),
+                    defaultAccessor));
         } else {
             final var name = content.substring(i + "{{".length(), end);
             out.add(ofNullable(helpers.get(name))
-                    .<Part>map(ThisHelper::new)
+                    .<Part>map(ThisHelperPart::new)
                     .orElseGet(() -> new EscapedPart(toVariable(name))));
         }
         return end + "}}".length();
@@ -179,7 +199,7 @@ public class HandlebarsCompiler {
         }
 
         final var value = string.substring(space).strip();
-        final Map<Object, Object> mapping = Stream.of(value.split(" "))
+        final var mapping = Stream.of(value.split(" "))
                 .map(it -> {
                     final int equal = it.indexOf('=');
                     return new String[]{
@@ -191,27 +211,129 @@ public class HandlebarsCompiler {
         final var thisName = mapping.entrySet().stream()
                 .filter(e -> ".".equals(e.getValue()))
                 .findFirst()
-                .map(Map.Entry::getKey);
-        final Function<Map<?, ?>, Map<?, ?>> remapping = thisName
-                .map(thisNameValue -> {
-                    final var remapped = new HashMap<>(mapping);
-                    remapped.remove(thisNameValue);
-                    if (remapped.isEmpty()) {
-                        return (Function<Map<?, ?>, Map<?, ?>>) map -> Map.of(thisNameValue, map);
-                    }
-                    return (Function<Map<?, ?>, Map<?, ?>>) map -> {
-                        final Map<Object, Object> outMap = map.entrySet().stream()
-                                .collect(toMap(e -> remapped.getOrDefault(e.getKey(), e.getKey()), Map.Entry::getValue));
-                        outMap.put(thisNameValue, map);
-                        return outMap;
-                    };
-                })
-                .orElseGet(() -> map -> map.entrySet().stream()
-                        .collect(toMap(e -> mapping.getOrDefault(e.getKey(), e.getKey()), Map.Entry::getValue)));
+                .map(Map.Entry::getKey)
+                .orElse(null);
+        if (thisName != null) {
+            mapping.remove(thisName);
+        }
 
-        out.add(new RemappedDataPart(remapping, partial));
+        out.add(remapParts(partial, mapping, thisName));
 
         return end + "}}".length();
+    }
+
+    // this works because Part is a sealed interface
+    private Part remapParts(final Part partial,
+                            final Map<String, String> remapped,
+                            final String thisName) {
+        // for now we just remap "next" level and ignore nested ones using another level (each will use N+1 for ex)
+        if (partial instanceof EmptyPart ||
+                partial instanceof ConstantPart ||
+                partial instanceof ThisHelperPart ||
+                partial instanceof UnescapedThisPart ||
+                partial instanceof EachVariablePart) {
+            return partial;
+        }
+
+        if (partial instanceof PartListPart p) {
+            return optimizePart(optimize(p.delegates().stream().map(it -> remapParts(it, remapped, thisName)).toList()));
+        }
+        if (partial instanceof EscapedPart p) {
+            return new EscapedPart(remapParts(p.delegate(), remapped, thisName));
+        }
+        if (partial instanceof BlockHelperPart p) {
+            return findRemappedName(p.name(), remapped, thisName)
+                    .<Part>map(name -> new BlockHelperPart(p.helper(), name, p.subPart(), p.accessor()))
+                    .orElse(EmptyPart.INSTANCE);
+        }
+        if (partial instanceof IfVariablePart p) {
+            return findRemappedName(p.name(), remapped, thisName)
+                    .<Part>map(name -> new IfVariablePart(name, p.next(), p.accessor()))
+                    .orElse(EmptyPart.INSTANCE);
+        }
+        if (partial instanceof InlineHelperPart p) {
+            return findRemappedName(p.name(), remapped, thisName)
+                    .<Part>map(name -> new InlineHelperPart(p.helper(), name, p.accessor()))
+                    .orElse(EmptyPart.INSTANCE);
+        }
+        if (partial instanceof NestedVariablePart p) {
+            return findRemappedName(p.name(), remapped, thisName)
+                    .<Part>map(name -> new NestedVariablePart(name, p.next(), p.accessor()))
+                    .orElse(EmptyPart.INSTANCE);
+
+        }
+        if (partial instanceof UnescapedVariablePart p) {
+            return findRemappedName(p.name(), remapped, thisName)
+                    .<Part>map(name -> new UnescapedVariablePart(name, p.accessor()))
+                    .orElse(EmptyPart.INSTANCE);
+        }
+        if (partial instanceof UnlessVariablePart p) {
+            return findRemappedName(p.name(), remapped, thisName)
+                    .<Part>map(name -> new UnlessVariablePart(name, p.next(), p.accessor()))
+                    .orElse(EmptyPart.INSTANCE);
+        }
+        throw new IllegalArgumentException("Unknown part type, update code please: " + partial);
+    }
+
+    // todo: optimize since there are several cases we know which are just constant (most of them)
+    private Function<Accessor, Part> toPartFactory(final Part part) {
+        // for now we just remap "next" level and ignore nested ones using another level (each will use N+1 for ex)
+        if (part instanceof EmptyPart ||
+                part instanceof ConstantPart ||
+                part instanceof ThisHelperPart ||
+                part instanceof UnescapedThisPart) {
+            return a -> part;
+        }
+
+        if (part instanceof EachVariablePart p) {
+            return acc -> new EachVariablePart(p.name(), p.itemPartFactory(), acc);
+        }
+        if (part instanceof PartListPart p) {
+            if (p.delegates().stream().allMatch(it -> it instanceof EmptyPart ||
+                    it instanceof ConstantPart ||
+                    it instanceof ThisHelperPart ||
+                    it instanceof UnescapedThisPart)) {
+                return acc -> p; // no need of any recomputation
+            }
+            final var delegates = p.delegates().stream().map(this::toPartFactory).toList();
+            return acc -> new PartListPart(delegates.stream().map(it -> it.apply(acc)).toList());
+        }
+        if (part instanceof EscapedPart p) {
+            if (p.delegate() instanceof EmptyPart ||
+                    p.delegate() instanceof ConstantPart ||
+                    p.delegate() instanceof ThisHelperPart ||
+                    p.delegate() instanceof UnescapedThisPart) {
+                return acc -> p;
+            }
+            final var delegate = toPartFactory(p.delegate());
+            return acc -> new EscapedPart(delegate.apply(acc));
+        }
+        if (part instanceof BlockHelperPart p) {
+            return acc -> new BlockHelperPart(p.helper(), p.name(), p.subPart(), acc);
+        }
+        if (part instanceof IfVariablePart p) {
+            return acc -> new IfVariablePart(p.name(), p.next(), acc);
+        }
+        if (part instanceof InlineHelperPart p) {
+            return acc -> new InlineHelperPart(p.helper(), p.name(), acc);
+        }
+        if (part instanceof NestedVariablePart p) {
+            return acc -> new NestedVariablePart(p.name(), p.next(), acc);
+        }
+        if (part instanceof UnescapedVariablePart p) {
+            return acc -> new UnescapedVariablePart(p.name(), acc);
+        }
+        if (part instanceof UnlessVariablePart p) {
+            return acc -> new UnlessVariablePart(p.name(), p.next(), acc);
+        }
+        throw new IllegalArgumentException("Unknown part type, update code please: " + part);
+    }
+
+    private Optional<String> findRemappedName(final String name, final Map<String, String> remapped, final String thisName) {
+        if (thisName != null && thisName.equals(name)) {
+            return of(".");
+        }
+        return ofNullable(remapped.get(name));
     }
 
     private int onComment(final String content, final int i) {
@@ -238,6 +360,9 @@ public class HandlebarsCompiler {
             throw new IllegalArgumentException("Unclosed expression at index " + i);
         }
 
+        while (!buffer.isEmpty() && ' ' == buffer.charAt(buffer.length() - 1)) {
+            buffer.setLength(buffer.length() - 1);
+        }
         flushBuffer(out, buffer);
 
         final var string = content.substring(i + "{{#".length(), end);
@@ -255,7 +380,7 @@ public class HandlebarsCompiler {
                     throw new IllegalArgumentException("Missing {{/with}} at index " + nextIndex + "'");
                 }
                 final var substring = stripSurroundingEol(content.substring(nextIndex, endBlock));
-                out.add(new NestedVariablePart(value, doCompile(substring, helpers, partials)));
+                out.add(new NestedVariablePart(value, doCompile(substring, helpers, partials), defaultAccessor));
                 yield endBlock + "{{/with}}".length();
             }
             case "each" -> {
@@ -263,8 +388,9 @@ public class HandlebarsCompiler {
                 if (endBlock < 0) {
                     throw new IllegalArgumentException("Missing {{/each}} at index " + nextIndex + "'");
                 }
-                final var itemPart = doCompile(stripSurroundingEol(content.substring(nextIndex, endBlock)), helpers, partials);
-                out.add(new EachVariablePart(value, itemPart));
+                final var eachContent = stripSurroundingEol(content.substring(nextIndex, endBlock)).stripTrailing();
+                final var itemPart = doCompile(eachContent, helpers, partials);
+                out.add(new EachVariablePart(value, toPartFactory(itemPart), defaultAccessor));
                 yield endBlock + "{{/each}}".length();
             }
             case "if" -> {
@@ -273,7 +399,7 @@ public class HandlebarsCompiler {
                     throw new IllegalArgumentException("Missing {{/if}} at index " + nextIndex + "'");
                 }
                 final var itemPart = doCompile(stripSurroundingEol(content.substring(nextIndex, endBlock)), helpers, partials);
-                out.add(new IfVariablePart(value, itemPart));
+                out.add(new IfVariablePart(value, itemPart, defaultAccessor));
                 yield endBlock + "{{/if}}".length();
             }
             case "unless" -> {
@@ -282,7 +408,7 @@ public class HandlebarsCompiler {
                     throw new IllegalArgumentException("Missing {{/unless}} at index " + nextIndex + "'");
                 }
                 final var itemPart = doCompile(stripSurroundingEol(content.substring(nextIndex, endBlock)), helpers, partials);
-                out.add(new UnlessVariablePart(value, itemPart));
+                out.add(new UnlessVariablePart(value, itemPart, defaultAccessor));
                 yield endBlock + "{{/unless}}".length();
             }
             default -> ofNullable(helpers.get(keyword))
@@ -292,7 +418,7 @@ public class HandlebarsCompiler {
                             throw new IllegalArgumentException("Missing {{/each}} at index " + nextIndex + "'");
                         }
                         final var itemPart = doCompile(stripSurroundingEol(content.substring(nextIndex, endBlock)), helpers, partials);
-                        out.add(new BlockHelperPart(helper, value, itemPart));
+                        out.add(new BlockHelperPart(helper, value, itemPart, defaultAccessor));
                         return endBlock + "{{/}}".length() + keyword.length();
                     })
                     .orElseThrow(() -> new IllegalArgumentException("Unknown keyword '" + keyword + "'"));
@@ -331,9 +457,9 @@ public class HandlebarsCompiler {
             default -> {
                 final int split = name.indexOf('.');
                 if (split < 0) {
-                    yield new UnescapedVariablePart(name);
+                    yield new UnescapedVariablePart(name, defaultAccessor);
                 }
-                yield new NestedVariablePart(name.substring(0, split), toVariable(name.substring(split + 1)));
+                yield new NestedVariablePart(name.substring(0, split), toVariable(name.substring(split + 1)), defaultAccessor);
             }
         };
     }
@@ -342,6 +468,9 @@ public class HandlebarsCompiler {
         final var constants = new ArrayList<ConstantPart>();
         final var out = new ArrayList<Part>(parts.size());
         for (final var current : parts) {
+            if (current instanceof EmptyPart) {
+                continue;
+            }
             if (current instanceof ConstantPart cp) {
                 constants.add(cp);
                 continue;
@@ -365,15 +494,35 @@ public class HandlebarsCompiler {
         }
     }
 
-    private record TemplateImpl(BiFunction<RenderContext, Object, String> renderer) implements Template {
-        @Override
-        public String apply(final RenderContext context, final Object data) {
-            return renderer.apply(context, data);
+    private record TemplateImpl(Part part) implements Template {
+    }
+
+    public static class Settings {
+        private static final Settings DEFAULTS = new Settings();
+
+        private boolean cachePartials = false;
+        private Map<String, Function<Object, String>> helpers = Map.of();
+        private Map<String, String> partials = Map.of();
+
+        public Settings cachePartials(final boolean cachePartials) {
+            this.cachePartials = cachePartials;
+            return this;
+        }
+
+        public Settings helpers(final Map<String, Function<Object, String>> helpers) {
+            this.helpers = helpers;
+            return this;
+        }
+
+        public Settings partials(final Map<String, String> partials) {
+            this.partials = partials;
+            return this;
         }
     }
 
-    public record CompilationContext(String content,
-                                     Map<String, Function<Object, String>> helpers,
-                                     Map<String, String> partials) {
+    public record CompilationContext(Settings settings, String content) {
+        public CompilationContext(final String content) {
+            this(Settings.DEFAULTS, content);
+        }
     }
 }
