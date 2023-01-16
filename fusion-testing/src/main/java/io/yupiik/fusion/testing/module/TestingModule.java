@@ -25,7 +25,7 @@ import java.util.stream.Stream;
 public class TestingModule extends ListingPredicateModule {
     public TestingModule() {
         super(
-                name -> name.endsWith("$FusionBean.class"),
+                name -> name.endsWith("$FusionBean.class") || name.contains("$FusionBean$"),
                 name -> name.contains("$FusionListener$"),
                 findDirs());
     }

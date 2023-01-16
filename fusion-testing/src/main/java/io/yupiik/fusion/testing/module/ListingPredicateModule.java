@@ -107,13 +107,13 @@ public class ListingPredicateModule implements FusionModule {
                             try {
                                 if (beanPredicate.test(filename)) {
                                     final var clazz = load(loader, toClassName(relative));
-                                    if (clazz != null) {
+                                    if (clazz != null && FusionBean.class.isAssignableFrom(clazz)) {
                                         beans.add(clazz.asSubclass(FusionBean.class).getConstructor().newInstance());
                                     }
                                 }
                                 if (listenerPredicate.test(filename)) {
                                     final var clazz = load(loader, toClassName(relative));
-                                    if (clazz != null) {
+                                    if (clazz != null && FusionListener.class.isAssignableFrom(clazz)) {
                                         listeners.add(clazz.asSubclass(FusionListener.class).getConstructor().newInstance());
                                     }
                                 }
