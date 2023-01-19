@@ -390,7 +390,7 @@ class FusionProcessorTest {
 
     @Test
     void configuration(@TempDir final Path work) throws IOException {
-        new Compiler(work, "RecordConfiguration", "NestedConf", "TestConf")
+        new Compiler(work, "RecordConfiguration", "NestedConf", "TestConf", "EnumType")
                 .compileAndAsserts(
                         instance -> {
                             assertEquals(
@@ -404,6 +404,7 @@ class FusionProcessorTest {
                                             "nested=NestedConf[nestedValue=down, second=Nest2[value=5]], " +
                                             "nesteds=[NestedConf[nestedValue=down1, second=Nest2[value=0]], NestedConf[nestedValue=down2, second=Nest2[value=0]]], " +
                                             "list=[ab, cde, fgh], " +
+                                            "type=ENUM_1, " +
                                             "intWithDefault=100, " +
                                             "strWithDefault=bump, " +
                                             "listStrWithDefault=[bump, bump2]" +
@@ -413,7 +414,7 @@ class FusionProcessorTest {
                             // doc
                             try (final var in = requireNonNull(instance.instance().getClass().getClassLoader()
                                     .getResourceAsStream("META-INF/fusion/configuration/documentation.json"))) {
-                                assertEquals("{\"version\":1,\"classes\":{\"test.p.NestedConf\":[{\"name\":\"nestedValue\",\"documentation\":\"The nested main value.\",\"defaultValue\":\"null\",\"required\":false},{\"ref\":\"test.p.NestedConf.Nest2\",\"name\":\"second\",\"documentation\":\"\",\"required\":false}],\"test.p.NestedConf.Nest2\":[{\"name\":\"value\",\"documentation\":\"Some int.\",\"defaultValue\":0,\"required\":false}],\"test.p.RecordConfiguration\":[{\"name\":\"app.age\",\"documentation\":\"\",\"defaultValue\":0,\"required\":false},{\"name\":\"app.bigInt\",\"documentation\":\"\",\"defaultValue\":0L,\"required\":false},{\"name\":\"app.bigNumber\",\"documentation\":\"\",\"defaultValue\":\"null\",\"required\":false},{\"name\":\"app.intWithDefault\",\"documentation\":\"\",\"defaultValue\":100,\"required\":false},{\"name\":\"app.list\",\"documentation\":\"\",\"defaultValue\":\"null\",\"required\":false},{\"name\":\"app.listStrWithDefault\",\"documentation\":\"\",\"defaultValue\":\"java.util.List.of(\\\"bump\\\",\\\"bump2\\\")\",\"required\":false},{\"name\":\"app.name\",\"documentation\":\"The app name\",\"defaultValue\":\"null\",\"required\":false},{\"ref\":\"test.p.NestedConf\",\"name\":\"app.nested\",\"documentation\":\"\",\"required\":false},{\"ref\":\"test.p.NestedConf\",\"name\":\"app.nesteds.$index\",\"documentation\":\"\",\"required\":false},{\"name\":\"app.number\",\"documentation\":\"\",\"defaultValue\":0.,\"required\":false},{\"name\":\"app.strWithDefault\",\"documentation\":\"\",\"defaultValue\":\"\\\"bump\\\"\",\"required\":false},{\"name\":\"app.toggle\",\"documentation\":\"\",\"defaultValue\":\"false\",\"required\":false}]}}",
+                                assertEquals("{\"version\":1,\"classes\":{\"test.p.NestedConf\":[{\"name\":\"nestedValue\",\"documentation\":\"The nested main value.\",\"defaultValue\":\"null\",\"required\":false},{\"ref\":\"test.p.NestedConf.Nest2\",\"name\":\"second\",\"documentation\":\"\",\"required\":false}],\"test.p.NestedConf.Nest2\":[{\"name\":\"value\",\"documentation\":\"Some int.\",\"defaultValue\":0,\"required\":false}],\"test.p.RecordConfiguration\":[{\"name\":\"app.age\",\"documentation\":\"\",\"defaultValue\":0,\"required\":false},{\"name\":\"app.bigInt\",\"documentation\":\"\",\"defaultValue\":0L,\"required\":false},{\"name\":\"app.bigNumber\",\"documentation\":\"\",\"defaultValue\":\"null\",\"required\":false},{\"name\":\"app.intWithDefault\",\"documentation\":\"\",\"defaultValue\":100,\"required\":false},{\"name\":\"app.list\",\"documentation\":\"\",\"defaultValue\":\"null\",\"required\":false},{\"name\":\"app.listStrWithDefault\",\"documentation\":\"\",\"defaultValue\":\"java.util.List.of(\\\"bump\\\",\\\"bump2\\\")\",\"required\":false},{\"name\":\"app.name\",\"documentation\":\"The app name\",\"defaultValue\":\"null\",\"required\":false},{\"ref\":\"test.p.NestedConf\",\"name\":\"app.nested\",\"documentation\":\"\",\"required\":false},{\"ref\":\"test.p.NestedConf\",\"name\":\"app.nesteds.$index\",\"documentation\":\"\",\"required\":false},{\"name\":\"app.number\",\"documentation\":\"\",\"defaultValue\":0.,\"required\":false},{\"name\":\"app.strWithDefault\",\"documentation\":\"\",\"defaultValue\":\"\\\"bump\\\"\",\"required\":false},{\"name\":\"app.toggle\",\"documentation\":\"\",\"defaultValue\":\"false\",\"required\":false},{\"name\":\"app.type\",\"documentation\":\"\",\"defaultValue\":\"null\",\"required\":false}]}}",
 
                                         //new SimplePrettyFormatter(new JsonMapperImpl(java.util.List.of(), key -> Optional.empty())).apply( new String(in.readAllBytes(), UTF_8)));
                                         new String(in.readAllBytes(), UTF_8));

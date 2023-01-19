@@ -32,6 +32,7 @@ public class TestConf implements ConfigurationSource {
             entry("app.number", "7.89"),
             entry("app.bigNumber", "10.2"),
             entry("app.list", "ab,cde,fgh"),
+            entry("app.type", "ENUM_1"),
             entry("app.nested.nestedValue", "down"),
             entry("app.nested.second.value", "5"),
             entry("app.nesteds.length", "2"),

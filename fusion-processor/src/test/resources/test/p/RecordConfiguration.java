@@ -32,6 +32,7 @@ public record RecordConfiguration(
         NestedConf nested,
         List<NestedConf> nesteds,
         List<String> list,
+        EnumType type,
         @Property(defaultValue = "100") Integer intWithDefault,
         @Property(defaultValue = "\"bump\"") String strWithDefault,
         @Property(defaultValue = "java.util.List.of(\"bump\",\"bump2\")") List<String> listStrWithDefault) {
