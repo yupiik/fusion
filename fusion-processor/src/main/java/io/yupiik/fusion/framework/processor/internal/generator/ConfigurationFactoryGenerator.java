@@ -206,7 +206,7 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
             final var itemType = dt.getTypeArguments().get(0);
             final var itemString = itemType.toString();
             if (String.class.getName().equals(itemString) || CharSequence.class.getName().equals(itemString)) {
-                return lookup(name, required, listOf(""), "null", docName, desc);
+                return lookup(name, required, listOf(""), defaultValue != null ? defaultValue : "null", docName, desc);
             }
             if (boolean.class.getName().equals(itemString) || Boolean.class.getName().equals(itemString)) {
                 return lookup(name, required, listOf(".map(Boolean::parseBoolean)"), defaultValue != null ? defaultValue : "null", docName, desc);
