@@ -42,6 +42,7 @@ import io.yupiik.fusion.framework.processor.internal.generator.CliCommandGenerat
 import io.yupiik.fusion.framework.processor.internal.generator.ConfigurationFactoryGenerator;
 import io.yupiik.fusion.framework.processor.internal.generator.HttpEndpointGenerator;
 import io.yupiik.fusion.framework.processor.internal.generator.JsonCodecBeanGenerator;
+import io.yupiik.fusion.framework.processor.internal.generator.JsonCodecEnumBeanGenerator;
 import io.yupiik.fusion.framework.processor.internal.generator.JsonCodecGenerator;
 import io.yupiik.fusion.framework.processor.internal.generator.JsonRpcEndpointGenerator;
 import io.yupiik.fusion.framework.processor.internal.generator.ListenerGenerator;
@@ -95,6 +96,7 @@ import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 import static java.util.stream.Collectors.toSet;
 import static javax.lang.model.element.ElementKind.CLASS;
+import static javax.lang.model.element.ElementKind.ENUM;
 import static javax.lang.model.element.ElementKind.METHOD;
 import static javax.lang.model.element.ElementKind.PACKAGE;
 import static javax.lang.model.element.ElementKind.RECORD;
@@ -172,8 +174,6 @@ public class InternalFusionProcessor extends AbstractProcessor {
 
     // just for perf
     private final Map<String, String> configurationEnumValueOfCache = new HashMap<>();
-    private final Map<String, String> enumJsonValueOfCache = new HashMap<>();
-    private final Map<String, String> enumJsonNameCache = new HashMap<>();
 
     @Override
     public SourceVersion getSupportedSourceVersion() {
@@ -292,7 +292,6 @@ public class InternalFusionProcessor extends AbstractProcessor {
         // generate beans, listeners, ...
         configurations.forEach(this::generateConfigurationFactory);
         jsonModels.forEach(this::generateJsonCodec);
-        generateBeansForJsonCodecs();
         cliCommands.forEach(this::generateCliCommand);
         httpEndpoints.forEach(this::generateHttpEndpoint);
         jsonRpcEndpoints.forEach(this::generateJsonRpcEndpoint); // after json models to get schemas
@@ -309,13 +308,6 @@ public class InternalFusionProcessor extends AbstractProcessor {
         listeners.stream()
                 .map(it -> (ExecutableElement) it.getEnclosingElement())
                 .forEach(this::generateListener);
-    }
-
-    private void generateBeansForJsonCodecs() {
-        if (beanForJsonCodecs && !jsonModels.isEmpty()) {
-            jsonModels.forEach(this::generateJsonCodecBean);
-            jsonModels.clear();
-        }
     }
 
     private void generateMetadata() {
@@ -493,17 +485,26 @@ public class InternalFusionProcessor extends AbstractProcessor {
     }
 
     private void generateJsonCodec(final Element model) {
-        if (!(model instanceof TypeElement element) || element.getKind() != RECORD) {
+        if (!(model instanceof TypeElement element) || (element.getKind() != RECORD && element.getKind() != ENUM)) {
             processingEnv.getMessager().printMessage(ERROR, "'" + model + "' not a record.");
             return;
         }
 
         final var names = ParsedName.of(element);
         try {
+            if (element.getKind() == ENUM) {
+                if (!beanForJsonCodecs) {
+                    return;
+                }
+                final var generation = new JsonCodecEnumBeanGenerator(
+                        processingEnv, elements, names.packageName(), names.className(), element.asType()).get();
+                writeGeneratedClass(element, generation);
+                allBeans.add(generation.name());
+                return;
+            }
             final var schemas = allJsonSchemas == null ? null : new HashMap<String, JsonSchema>();
             final var generator = new JsonCodecGenerator(
-                    processingEnv, elements, names.packageName(), names.className(), element, knownJsonModels, schemas,
-                    enumJsonValueOfCache, enumJsonNameCache);
+                    processingEnv, elements, names.packageName(), names.className(), element, knownJsonModels, schemas);
             final var generation = generator.get();
             if (schemas != null && !schemas.isEmpty()) {
                 allJsonSchemas.putAll(schemas.entrySet().stream()
@@ -511,19 +512,18 @@ public class InternalFusionProcessor extends AbstractProcessor {
             }
             writeGeneratedClass(model, generation);
             jsonModels.put(generation.name(), element);
+            if (beanForJsonCodecs) {
+                final var beanName = ParsedName.of(generation.name());
+                try {
+                    final var beanGen = new JsonCodecBeanGenerator(processingEnv, elements, beanName.packageName(), beanName.className()).get();
+                    writeGeneratedClass(element, beanGen);
+                    allBeans.add(beanGen.name());
+                } catch (final IOException | RuntimeException e) {
+                    processingEnv.getMessager().printMessage(ERROR, e.getMessage());
+                }
+            }
         } catch (final IOException | RuntimeException e) {
             processingEnv.getMessager().printMessage(ERROR, '(' + e.getClass().getSimpleName() + ") " + e.getMessage());
-        }
-    }
-
-    private void generateJsonCodecBean(final String baseName, final Element element) {
-        final var names = ParsedName.of(baseName);
-        try {
-            final var generation = new JsonCodecBeanGenerator(processingEnv, elements, names.packageName(), names.className()).get();
-            writeGeneratedClass(element, generation);
-            allBeans.add(generation.name());
-        } catch (final IOException | RuntimeException e) {
-            processingEnv.getMessager().printMessage(ERROR, e.getMessage());
         }
     }
 

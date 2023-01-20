@@ -18,24 +18,19 @@ package test.p;
 
 import io.yupiik.fusion.framework.build.api.json.JsonModel;
 
+import java.util.List;
+
 public interface JsonEnumCustomMapping {
+    @JsonModel
     public enum MyEnum {
         A, B;
 
         public String toJsonString() {
             return this == A ? "first" : "second";
         }
-
-        public static MyEnum fromJsonString(final String v) {
-            return switch (v) {
-                case "first" -> MyEnum.A;
-                case "second" -> MyEnum.B;
-                default -> throw new IllegalArgumentException("Unsupported '" + v + "'");
-            };
-        }
     }
 
     @JsonModel
-    public record Model(MyEnum enumValue) {
+    public record Model(MyEnum enumValue, List<MyEnum> enumValues) {
     }
 }
