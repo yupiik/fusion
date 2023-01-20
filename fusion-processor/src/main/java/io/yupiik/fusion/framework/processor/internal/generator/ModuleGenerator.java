@@ -57,25 +57,29 @@ public class ModuleGenerator extends BaseGenerator implements Supplier<BaseGener
         out.append("import ").append(FusionModule.class.getName()).append(";\n");
         out.append("\n");
         out.append("public class ").append(className).append(" implements ").append(FusionModule.class.getSimpleName()).append(" {\n");
-        out.append("    @Override\n");
-        out.append("    public Stream<FusionBean<?>> beans() {\n");
-        out.append("        return Stream.of(\n");
-        out.append(allBeans.stream()
-                .sorted()
-                .map(it -> "            new " + it + "()")
-                .collect(joining(",\n", "", "\n")));
-        out.append("        );\n");
-        out.append("    }\n");
+        if (!allBeans.isEmpty()) {
+            out.append("    @Override\n");
+            out.append("    public Stream<FusionBean<?>> beans() {\n");
+            out.append("        return Stream.of(\n");
+            out.append(allBeans.stream()
+                    .sorted()
+                    .map(it -> "            new " + it + "()")
+                    .collect(joining(",\n", "", "\n")));
+            out.append("        );\n");
+            out.append("    }\n");
+        }
         out.append("\n");
-        out.append("    @Override\n");
-        out.append("    public Stream<FusionListener<?>> listeners() {\n");
-        out.append("        return Stream.of(\n");
-        out.append(allListeners.stream()
-                .sorted()
-                .map(it -> "            new " + it + "()")
-                .collect(joining(",\n", "", "\n")));
-        out.append("        );\n");
-        out.append("    }\n");
+        if (!allListeners.isEmpty()) {
+            out.append("    @Override\n");
+            out.append("    public Stream<FusionListener<?>> listeners() {\n");
+            out.append("        return Stream.of(\n");
+            out.append(allListeners.stream()
+                    .sorted()
+                    .map(it -> "            new " + it + "()")
+                    .collect(joining(",\n", "", "\n")));
+            out.append("        );\n");
+            out.append("    }\n");
+        }
         out.append("}\n\n");
 
         return new GeneratedClass((!packageName.isBlank() ? packageName + '.' : "") + className, out.toString());

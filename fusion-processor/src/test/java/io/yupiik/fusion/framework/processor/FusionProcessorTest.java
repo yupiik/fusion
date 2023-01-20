@@ -144,13 +144,7 @@ class FusionProcessorTest {
                                     new test.p.Bean2$FusionBean()
                                 );
                             }
-                                        
-                            @Override
-                            public Stream<FusionListener<?>> listeners() {
-                                return Stream.of(
-                                        
-                                );
-                            }
+                            
                         }
                                         
                         """, Files.readString(compiler.getGeneratedSources().resolve("test/p/FusionGeneratedModule.java")));
@@ -910,8 +904,8 @@ class FusionProcessorTest {
         new Compiler(work, "JsonEnumCustomMapping")
                 .jsonRoundTripAsserts(
                         "test.p.JsonEnumCustomMapping$Model",
-                        "{\"enumValue\":\"second\"}",
-                        "Model[enumValue=B]");
+                        "{\"enumValue\":\"second\",\"enumValues\":[\"first\",\"second\"]}",
+                        "Model[enumValue=B, enumValues=[A, B]]");
     }
 
     @Test
