@@ -379,12 +379,13 @@ public class HandlebarsCompiler {
         final int nextIndex = end + "}}".length();
         return switch (keyword) {
             case "" -> {
-                final int endBlock = content.indexOf("{{/" + value + "}}", nextIndex);
+                final var endBlockMarker = "{{/" + value + "}}";
+                final int endBlock = content.indexOf(endBlockMarker, nextIndex);
                 if (endBlock < 0) {
-                    throw new IllegalArgumentException("Missing {{/" + value + "}} at index " + nextIndex + "'");
+                    throw new IllegalArgumentException("Missing " + endBlockMarker + " at index " + nextIndex + "'");
                 }
-                final var substring = stripSurroundingEol(content.substring(nextIndex, endBlock));
-                out.add(new NestedVariablePart(value, doCompile(substring, helpers, partials), defaultAccessor));
+                final var itemPart = doCompile(stripSurroundingEol(content.substring(nextIndex, endBlock)), helpers, partials);
+                out.add(new IfVariablePart(value, itemPart, defaultAccessor));
                 yield endBlock + "{{/}}".length() + value.length();
             }
             case "with" -> {
