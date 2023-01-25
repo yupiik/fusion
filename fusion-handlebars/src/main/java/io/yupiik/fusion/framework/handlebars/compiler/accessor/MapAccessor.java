@@ -18,12 +18,17 @@ package io.yupiik.fusion.framework.handlebars.compiler.accessor;
 import io.yupiik.fusion.framework.handlebars.spi.Accessor;
 
 import java.util.Map;
+import java.util.function.Supplier;
 
 public class MapAccessor implements Accessor {
     public Object find(final Object data, final String name) {
         if (!(data instanceof Map<?, ?> map)) {
             throw new IllegalArgumentException("Unsupported type '" + data + "'");
         }
-        return map.get(name);
+        final Object value = map.get(name);
+        if (value instanceof Supplier<?> s) {
+            return s.get();
+        }
+        return value;
     }
 }

@@ -19,6 +19,7 @@ Fusion handlebars provides a light link:https://handlebarsjs.com/[handlebars] te
 It starts from `HandlebarsCompiler` (available as a fusion bean) which compiles a template + its helpers and partials as a `Template` which supports to render the template.
 
 Data can be map of primitives (or data which have a `toString()`) or lists for now.
+It tolerates that you pass a `Supplier` too as map value for a lazy evaluation.
 
 [source,java]
 ----

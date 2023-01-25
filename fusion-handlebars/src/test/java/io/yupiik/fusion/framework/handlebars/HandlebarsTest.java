@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import static java.util.Locale.ROOT;
 import static java.util.stream.Collectors.joining;
@@ -73,6 +74,14 @@ class HandlebarsTest {
         assertRender(
                 "<p>{{firstname}} {{lastname}}</p>\n",
                 Map.of("firstname", "Yehuda", "lastname", "Katz"),
+                "<p>Yehuda Katz</p>\n");
+    }
+
+    @Test
+    void lazyExpressions() {
+        assertRender(
+                "<p>{{firstname}} {{lastname}}</p>\n",
+                Map.of("firstname", (Supplier<String>) () -> "Yehuda", "lastname", (Supplier<String>) () -> "Katz"),
                 "<p>Yehuda Katz</p>\n");
     }
 
