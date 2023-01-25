@@ -367,13 +367,26 @@ public class HandlebarsCompiler {
 
         final var string = content.substring(i + "{{#".length(), end);
         final int space = string.indexOf(' ');
+        final String keyword;
+        final String value;
         if (space < 0) {
-            throw new IllegalArgumentException("Missing space in brackets at index " + i);
+            keyword = "";
+            value = string;
+        } else {
+            keyword = string.substring(0, space);
+            value = string.substring(space).strip();
         }
-        final var keyword = string.substring(0, space);
-        final var value = string.substring(space).strip();
         final int nextIndex = end + "}}".length();
         return switch (keyword) {
+            case "" -> {
+                final int endBlock = content.indexOf("{{/" + value + "}}", nextIndex);
+                if (endBlock < 0) {
+                    throw new IllegalArgumentException("Missing {{/" + value + "}} at index " + nextIndex + "'");
+                }
+                final var substring = stripSurroundingEol(content.substring(nextIndex, endBlock));
+                out.add(new NestedVariablePart(value, doCompile(substring, helpers, partials), defaultAccessor));
+                yield endBlock + "{{/}}".length() + value.length();
+            }
             case "with" -> {
                 final int endBlock = content.indexOf("{{/with}}", nextIndex);
                 if (endBlock < 0) {
