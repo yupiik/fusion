@@ -408,10 +408,114 @@ class FusionProcessorTest {
                             // doc
                             try (final var in = requireNonNull(instance.instance().getClass().getClassLoader()
                                     .getResourceAsStream("META-INF/fusion/configuration/documentation.json"))) {
-                                assertEquals("{\"version\":1,\"classes\":{\"test.p.NestedConf\":[{\"name\":\"nestedValue\",\"documentation\":\"The nested main value.\",\"defaultValue\":\"null\",\"required\":false},{\"ref\":\"test.p.NestedConf.Nest2\",\"name\":\"second\",\"documentation\":\"\",\"required\":false}],\"test.p.NestedConf.Nest2\":[{\"name\":\"value\",\"documentation\":\"Some int.\",\"defaultValue\":0,\"required\":false}],\"test.p.RecordConfiguration\":[{\"name\":\"app.age\",\"documentation\":\"\",\"defaultValue\":0,\"required\":false},{\"name\":\"app.bigInt\",\"documentation\":\"\",\"defaultValue\":0L,\"required\":false},{\"name\":\"app.bigNumber\",\"documentation\":\"\",\"defaultValue\":\"null\",\"required\":false},{\"name\":\"app.intWithDefault\",\"documentation\":\"\",\"defaultValue\":100,\"required\":false},{\"name\":\"app.list\",\"documentation\":\"\",\"defaultValue\":\"null\",\"required\":false},{\"name\":\"app.listStrWithDefault\",\"documentation\":\"\",\"defaultValue\":\"java.util.List.of(\\\"bump\\\",\\\"bump2\\\")\",\"required\":false},{\"name\":\"app.name\",\"documentation\":\"The app name\",\"defaultValue\":\"null\",\"required\":false},{\"ref\":\"test.p.NestedConf\",\"name\":\"app.nested\",\"documentation\":\"\",\"required\":false},{\"ref\":\"test.p.NestedConf\",\"name\":\"app.nesteds.$index\",\"documentation\":\"\",\"required\":false},{\"name\":\"app.number\",\"documentation\":\"\",\"defaultValue\":0.,\"required\":false},{\"name\":\"app.strWithDefault\",\"documentation\":\"\",\"defaultValue\":\"\\\"bump\\\"\",\"required\":false},{\"name\":\"app.toggle\",\"documentation\":\"\",\"defaultValue\":\"false\",\"required\":false},{\"name\":\"app.type\",\"documentation\":\"\",\"defaultValue\":\"null\",\"required\":false}]}}",
-
-                                        //new SimplePrettyFormatter(new JsonMapperImpl(java.util.List.of(), key -> Optional.empty())).apply( new String(in.readAllBytes(), UTF_8)));
-                                        new String(in.readAllBytes(), UTF_8));
+                                assertEquals("{\n" +
+                                                "  \"version\": 1,\n" +
+                                                "  \"classes\": {\n" +
+                                                "    \"test.p.NestedConf\": [\n" +
+                                                "      {\n" +
+                                                "        \"name\": \"nestedValue\",\n" +
+                                                "        \"documentation\": \"The nested main value.\",\n" +
+                                                "        \"defaultValue\": null,\n" +
+                                                "        \"required\": false\n" +
+                                                "      },\n" +
+                                                "      {\n" +
+                                                "        \"ref\": \"test.p.NestedConf.Nest2\",\n" +
+                                                "        \"name\": \"second\",\n" +
+                                                "        \"documentation\": \"\",\n" +
+                                                "        \"required\": false\n" +
+                                                "      }\n" +
+                                                "    ],\n" +
+                                                "    \"test.p.NestedConf.Nest2\": [\n" +
+                                                "      {\n" +
+                                                "        \"name\": \"value\",\n" +
+                                                "        \"documentation\": \"Some int.\",\n" +
+                                                "        \"defaultValue\": 0.0,\n" +
+                                                "        \"required\": false\n" +
+                                                "      }\n" +
+                                                "    ],\n" +
+                                                "    \"test.p.RecordConfiguration\": [\n" +
+                                                "      {\n" +
+                                                "        \"name\": \"app.age\",\n" +
+                                                "        \"documentation\": \"\",\n" +
+                                                "        \"defaultValue\": 0.0,\n" +
+                                                "        \"required\": false\n" +
+                                                "      },\n" +
+                                                "      {\n" +
+                                                "        \"name\": \"app.bigInt\",\n" +
+                                                "        \"documentation\": \"\",\n" +
+                                                "        \"defaultValue\": 0,\n" +
+                                                "        \"required\": false\n" +
+                                                "      },\n" +
+                                                "      {\n" +
+                                                "        \"name\": \"app.bigNumber\",\n" +
+                                                "        \"documentation\": \"\",\n" +
+                                                "        \"defaultValue\": null,\n" +
+                                                "        \"required\": false\n" +
+                                                "      },\n" +
+                                                "      {\n" +
+                                                "        \"name\": \"app.intWithDefault\",\n" +
+                                                "        \"documentation\": \"\",\n" +
+                                                "        \"defaultValue\": 100.0,\n" +
+                                                "        \"required\": false\n" +
+                                                "      },\n" +
+                                                "      {\n" +
+                                                "        \"name\": \"app.list\",\n" +
+                                                "        \"documentation\": \"\",\n" +
+                                                "        \"defaultValue\": null,\n" +
+                                                "        \"required\": false\n" +
+                                                "      },\n" +
+                                                "      {\n" +
+                                                "        \"name\": \"app.listStrWithDefault\",\n" +
+                                                "        \"documentation\": \"\",\n" +
+                                                "        \"defaultValue\": \"java.util.List.of(\\\"bump\\\",\\\"bump2\\\")\",\n" +
+                                                "        \"required\": false\n" +
+                                                "      },\n" +
+                                                "      {\n" +
+                                                "        \"name\": \"app.name\",\n" +
+                                                "        \"documentation\": \"The app name\",\n" +
+                                                "        \"defaultValue\": null,\n" +
+                                                "        \"required\": false\n" +
+                                                "      },\n" +
+                                                "      {\n" +
+                                                "        \"ref\": \"test.p.NestedConf\",\n" +
+                                                "        \"name\": \"app.nested\",\n" +
+                                                "        \"documentation\": \"\",\n" +
+                                                "        \"required\": false\n" +
+                                                "      },\n" +
+                                                "      {\n" +
+                                                "        \"ref\": \"test.p.NestedConf\",\n" +
+                                                "        \"name\": \"app.nesteds.$index\",\n" +
+                                                "        \"documentation\": \"\",\n" +
+                                                "        \"required\": false\n" +
+                                                "      },\n" +
+                                                "      {\n" +
+                                                "        \"name\": \"app.number\",\n" +
+                                                "        \"documentation\": \"\",\n" +
+                                                "        \"defaultValue\": 0.0,\n" +
+                                                "        \"required\": false\n" +
+                                                "      },\n" +
+                                                "      {\n" +
+                                                "        \"name\": \"app.strWithDefault\",\n" +
+                                                "        \"documentation\": \"\",\n" +
+                                                "        \"defaultValue\": \"\\\"bump\\\"\",\n" +
+                                                "        \"required\": false\n" +
+                                                "      },\n" +
+                                                "      {\n" +
+                                                "        \"name\": \"app.toggle\",\n" +
+                                                "        \"documentation\": \"\",\n" +
+                                                "        \"defaultValue\": false,\n" +
+                                                "        \"required\": false\n" +
+                                                "      },\n" +
+                                                "      {\n" +
+                                                "        \"name\": \"app.type\",\n" +
+                                                "        \"documentation\": \"\",\n" +
+                                                "        \"defaultValue\": null,\n" +
+                                                "        \"required\": false\n" +
+                                                "      }\n" +
+                                                "    ]\n" +
+                                                "  }\n" +
+                                                "}",
+                                        new SimplePrettyFormatter(new JsonMapperImpl(java.util.List.of(), key -> Optional.empty())).apply(new String(in.readAllBytes(), UTF_8)));
                             } catch (final IOException e) {
                                 fail(e);
                             }

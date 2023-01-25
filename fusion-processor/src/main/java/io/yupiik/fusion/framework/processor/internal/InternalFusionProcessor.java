@@ -68,7 +68,10 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -80,12 +83,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
+import static java.util.Collections.list;
 import static java.util.Comparator.comparing;
 import static java.util.Optional.ofNullable;
 import static java.util.function.Function.identity;
@@ -206,8 +209,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
                 .filter(it -> !"false".equals(it))
                 .map(it -> "true".equals(it) ? "META-INF/fusion/jsonrpc/openrpc.json" : it)
                 .orElse(null);
-        knownJsonModels = ServiceLoader.load(FusionModule.class).stream()
-                .map(ServiceLoader.Provider::get)
+        knownJsonModels = findAvailableModules()
                 .flatMap(FusionModule::beans)
                 // we just use the naming convention to match
                 .map(it -> it.type().getTypeName())
@@ -308,6 +310,46 @@ public class InternalFusionProcessor extends AbstractProcessor {
         listeners.stream()
                 .map(it -> (ExecutableElement) it.getEnclosingElement())
                 .forEach(this::generateListener);
+    }
+
+    private Stream<? extends FusionModule> findAvailableModules() {
+        // we want ServiceLoader.load(FusionModule.class).stream() but this one would reload the generated one with incr compile
+        // so we do it programmatically - old style
+        try {
+            final var loader = Thread.currentThread().getContextClassLoader();
+            final var res = loader.getResources("META-INF/services/" + FusionModule.class.getName());
+            return list(res).stream()
+                    .flatMap(it -> {
+                        try (final var in = new BufferedReader(new InputStreamReader(it.openStream()))) {
+                            return in.lines()
+                                    .map(String::strip)
+                                    .filter(l -> !l.isBlank() && !l.startsWith("#"))
+                                    .map(l -> {
+                                        try {
+                                            final var constructor = loader.loadClass(l)
+                                                    .asSubclass(FusionModule.class)
+                                                    .getConstructor();
+                                            constructor.setAccessible(true);
+                                            return constructor.newInstance();
+                                        } catch (final NoClassDefFoundError | ClassNotFoundException |
+                                                       NoSuchMethodException | InstantiationException |
+                                                       IllegalAccessException | InvocationTargetException e) {
+                                            return null;
+                                        }
+                                    })
+                                    .filter(Objects::nonNull)
+                                    .toList() // materialize before the close
+                                    .stream();
+                        } catch (final IOException e) {
+                            throw new IllegalStateException(e);
+                        }
+                    })
+                    .collect(toSet())
+                    .stream();
+        } catch (final IOException e) {
+            processingEnv.getMessager().printMessage(ERROR, e.getMessage());
+            return Stream.empty();
+        }
     }
 
     private void generateMetadata() {

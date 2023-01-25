@@ -51,7 +51,7 @@ public class DocJsonRenderer implements Supplier<String> {
                                                         it.ref() != null ? "\"ref\":" + JsonStrings.escape(it.ref()) : null,
                                                         "\"name\":" + JsonStrings.escape(it.name()),
                                                         it.doc() != null ? "\"documentation\":" + JsonStrings.escape(it.doc()) : null,
-                                                        it.defaultValue() != null ? "\"defaultValue\":" + (isUnescaped(it.defaultValue()) ? it.defaultValue() : JsonStrings.escape(it.defaultValue())) : null,
+                                                        it.defaultValue() != null ? "\"defaultValue\":" + jsonDefaultValue(it.defaultValue()) : null,
                                                         "\"required\":" + it.required())
                                                 .filter(Objects::nonNull)
                                                 .collect(joining(",", "{", "}")))
@@ -61,21 +61,28 @@ public class DocJsonRenderer implements Supplier<String> {
                 "}}";
     }
 
-    private boolean isUnescaped(String value) {
-        boolean isUnescaped = true;
-        try {
-            Double.parseDouble(value);
-        } catch (final NumberFormatException ne) {
-            isUnescaped =  false;
-            if (value.endsWith("L") || value.endsWith("l")) {
-                try {
-                    Long.parseLong(value.substring(0, value.length() - 1));
-                    isUnescaped =  true;
-                } catch (final NumberFormatException e) {
-                    //no-op
-                }
+    private String jsonDefaultValue(final String value) {
+        // is it a number
+        if (value.endsWith("L") || value.endsWith("l")) {
+            try {
+                Long.parseLong(value.substring(0, value.length() - 1));
+                return value.substring(0, value.length() - 1);
+            } catch (final NumberFormatException e) {
+                //no-op
             }
         }
-        return isUnescaped;
+        try {
+            return String.valueOf(Double.parseDouble(value));
+        } catch (final NumberFormatException e) {
+            //no-op
+        }
+
+        // another primitive
+        if ("true".equals(value) || "false".equals(value) || "null".equals(value)) {
+            return value;
+        }
+
+        // else escape
+        return JsonStrings.escape(value);
     }
 }
