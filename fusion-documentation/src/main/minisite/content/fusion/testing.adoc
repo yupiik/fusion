@@ -1,7 +1,7 @@
 = Fusion Testing
 
 [abstract]
-Fusion Testing provides a way to start/stop a container for your tests and get injections in your test classes through method parameters.
+Fusion Testing provides a way to start/stop a container for your tests and get injections in your test classes through method parameters or fields (still marked with `@Fusion`).
 
 == Example
 

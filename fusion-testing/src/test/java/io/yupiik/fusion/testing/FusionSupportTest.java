@@ -22,8 +22,12 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 @FusionSupport
 class FusionSupportTest {
+    @Fusion
+    private Emitter field;
+
     @Test
     void run(@Fusion final Emitter emitter) {
         assertNotNull(emitter);
+        assertNotNull(field);
     }
 }
