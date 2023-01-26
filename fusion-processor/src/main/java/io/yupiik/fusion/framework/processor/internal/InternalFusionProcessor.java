@@ -122,7 +122,8 @@ import static javax.tools.StandardLocation.CLASS_OUTPUT;
         "fusion.generateJsonSchemas", // if not false {schemas:[...]} is generated in the location set there or META-INF/fusion/json/schemas.json
         "fusion.generateBeanForJsonCodec", // if not false a bean will be generated for the JSON codecs and make them available to JsonMapper
         "fusion.generateConfigurationDocMetadata", // if not false it will generate a JSON metadata for configuration, by default in META-INF/fusion/configuration/documentation.json else in the value set to the option
-        "fusion.generateBeanForRootConfiguration" // if false @RootConfiguration will not get an automatic bean
+        "fusion.generateBeanForRootConfiguration", // if false @RootConfiguration will not get an automatic bean
+        "fusion.skipLoadingModules" // if false, modules will not be loaded to find available json codecs
 })
 @SupportedAnnotationTypes({
         // CLI
@@ -209,13 +210,22 @@ public class InternalFusionProcessor extends AbstractProcessor {
                 .filter(it -> !"false".equals(it))
                 .map(it -> "true".equals(it) ? "META-INF/fusion/jsonrpc/openrpc.json" : it)
                 .orElse(null);
-        knownJsonModels = findAvailableModules()
-                .flatMap(FusionModule::beans)
-                // we just use the naming convention to match
-                .map(it -> it.type().getTypeName())
-                .filter(it -> it.endsWith(JsonCodecGenerator.SUFFIX))
-                .map(name -> name.substring(0, name.length() - JsonCodecGenerator.SUFFIX.length()))
-                .collect(toSet());
+        knownJsonModels = Boolean.parseBoolean(processingEnv.getOptions().getOrDefault("fusion.skipLoadingModules", "false")) ?
+                Set.of() :
+                findAvailableModules()
+                        .flatMap(it -> {
+                            try {
+                                return it.beans();
+                            } catch (final Error | RuntimeException error) {
+                                // likely the module we are building - incremental compile which breaks the compile
+                                return Stream.empty();
+                            }
+                        })
+                        // we just use the naming convention to match
+                        .map(it -> it.type().getTypeName())
+                        .filter(it -> it.endsWith(JsonCodecGenerator.SUFFIX))
+                        .map(name -> name.substring(0, name.length() - JsonCodecGenerator.SUFFIX.length()))
+                        .collect(toSet());
 
         if (jsonSchemaLocation != null) {
             allJsonSchemas = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
