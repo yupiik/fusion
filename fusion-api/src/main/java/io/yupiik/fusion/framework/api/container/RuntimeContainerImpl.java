@@ -15,24 +15,14 @@
  */
 package io.yupiik.fusion.framework.api.container;
 
-import io.yupiik.fusion.framework.api.ConfiguringContainer;
 import io.yupiik.fusion.framework.api.Instance;
 import io.yupiik.fusion.framework.api.RuntimeContainer;
-import io.yupiik.fusion.framework.api.container.bean.ConfigurationBean;
 import io.yupiik.fusion.framework.api.container.bean.NullBean;
-import io.yupiik.fusion.framework.api.container.bean.ProvidedInstanceBean;
-import io.yupiik.fusion.framework.api.container.context.ApplicationFusionContext;
-import io.yupiik.fusion.framework.api.container.context.DefaultFusionContext;
 import io.yupiik.fusion.framework.api.container.instance.OptionalInstance;
-import io.yupiik.fusion.framework.api.event.Emitter;
 import io.yupiik.fusion.framework.api.exception.AmbiguousBeanException;
 import io.yupiik.fusion.framework.api.exception.MissingContextException;
 import io.yupiik.fusion.framework.api.exception.NoMatchingBeanException;
-import io.yupiik.fusion.framework.api.lifecycle.Start;
 import io.yupiik.fusion.framework.api.lifecycle.Stop;
-import io.yupiik.fusion.framework.api.scope.ApplicationScoped;
-import io.yupiik.fusion.framework.api.scope.DefaultScoped;
-import io.yupiik.fusion.framework.api.spi.FusionContext;
 
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
@@ -40,117 +30,25 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
-import java.util.ServiceLoader;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.BiPredicate;
 import java.util.function.Function;
-import java.util.stream.Stream;
 
-import static java.util.Comparator.comparing;
 import static java.util.Optional.empty;
 import static java.util.stream.Collectors.joining;
 
-public class ContainerImpl implements ConfiguringContainer, RuntimeContainer {
-    // runtime state
-    private final Beans beans = new Beans();
-    private final Contexts contexts = new Contexts();
-    private final Listeners listeners = new Listeners();
-
+public class RuntimeContainerImpl implements RuntimeContainer {
+    private final Beans beans;
+    private final Contexts contexts;
+    private final Listeners listeners;
     private final Types types = new Types();
     private final Map<Type, Type> slowLookupMatchings = new ConcurrentHashMap<>();
     private final Map<Type, List<FusionBean<?>>> listMatchings = new ConcurrentHashMap<>();
 
-    // startup config
-    private final Collection<FusionModule> modules = new ArrayList<>();
-    private boolean disableAutoDiscovery = false;
-    private ClassLoader loader = Thread.currentThread().getContextClassLoader();
-
-    @Override
-    public RuntimeContainer start() {
-        if (disableAutoDiscovery && modules.isEmpty()) {
-            contexts.doRegister(new ApplicationFusionContext(), new DefaultFusionContext());
-            beans.doRegister(defaultBeans().toArray(FusionBean<?>[]::new));
-            if (listeners.hasDirectListener(Start.class)) {
-                listeners.fire(this, new Start());
-            }
-            return this;
-        }
-
-        final var modules = disableAutoDiscovery ?
-                this.modules :
-                loadModules()
-                        .sorted(comparing(FusionModule::priority))
-                        .toList();
-
-        // beans
-        beans.doRegister(filter(
-                Stream.concat(
-                        modules.stream()
-                                .flatMap(FusionModule::beans),
-                        defaultBeans()),
-                modules.stream().map(FusionModule::beanFilter))
-                .toArray(FusionBean<?>[]::new));
-
-        // contexts
-        contexts.doRegister(filter(
-                Stream.concat(
-                        // default scopes
-                        Stream.of(new ApplicationFusionContext(), new DefaultFusionContext()),
-                        // discovered ones (through module)
-                        modules.stream().flatMap(FusionModule::contexts)),
-                modules.stream().map(FusionModule::contextFilter))
-                .toArray(FusionContext[]::new));
-
-        // listeners
-        listeners.doRegister(filter(
-                modules.stream().flatMap(FusionModule::listeners),
-                modules.stream().map(FusionModule::listenerFilter))
-                .toArray(FusionListener[]::new));
-
-        // startup event
-        if (listeners.hasDirectListener(Start.class)) {
-            listeners.fire(this, new Start());
-        }
-
-        return this;
-    }
-
-    @Override
-    public ConfiguringContainer disableAutoDiscovery(final boolean disableAutoDiscovery) {
-        this.disableAutoDiscovery = disableAutoDiscovery;
-        return this;
-    }
-
-    @Override
-    public ConfiguringContainer loader(final ClassLoader loader) {
-        this.loader = loader;
-        return this;
-    }
-
-    @Override
-    public ConfiguringContainer register(final FusionModule... modules) {
-        this.modules.addAll(List.of(modules));
-        return this;
-    }
-
-    @Override
-    public ConfiguringContainer register(final FusionBean<?>... beans) {
-        this.beans.doRegister(beans);
-        return this;
-    }
-
-    @Override
-    public ConfiguringContainer register(final FusionListener<?>... listeners) {
-        this.listeners.doRegister(listeners);
-        return this;
-    }
-
-    @Override
-    public ConfiguringContainer register(final FusionContext... contexts) {
-        this.contexts.doRegister(contexts);
-        return this;
+    public RuntimeContainerImpl(final Beans beans, final Contexts contexts, final Listeners listeners) {
+        this.beans = beans;
+        this.contexts = contexts;
+        this.listeners = listeners;
     }
 
     @Override
@@ -277,29 +175,16 @@ public class ContainerImpl implements ConfiguringContainer, RuntimeContainer {
         listeners.fire(this, event);
     }
 
+    public void clearCache() {
+        slowLookupMatchings.clear();
+        listMatchings.clear();
+    }
+
     private <T> Instance<T> doGetInstance(final boolean optional, final FusionBean<T> bean) {
         final var instance = contexts.findContext(bean.scope())
                 .orElseThrow(() -> new MissingContextException(bean.scope().getName()))
                 .getOrCreate(this, bean);
         return wrapIfNeeded(optional, instance);
-    }
-
-    protected Stream<FusionModule> loadModules() {
-        return ServiceLoader
-                .load(FusionModule.class, loader).stream()
-                .map(ServiceLoader.Provider::get);
-    }
-
-    protected Stream<FusionBean<?>> defaultBeans() {
-        return Stream.of(
-                new ProvidedInstanceBean<>(ApplicationScoped.class, Emitter.class, () -> this),
-                new ProvidedInstanceBean<>(DefaultScoped.class, RuntimeContainer.class, () -> this),
-                new ConfigurationBean());
-    }
-
-    private <A> Stream<A> filter(final Stream<A> input, final Stream<BiPredicate<RuntimeContainer, A>> predicates) {
-        final var predicate = predicates.filter(Objects::nonNull).reduce(null, (a, b) -> a == null ? b : a.and(b));
-        return predicate == null ? input : input.filter(it -> predicate.test(this, it));
     }
 
     @SuppressWarnings("unchecked")
