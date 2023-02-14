@@ -15,6 +15,7 @@
  */
 package io.yupiik.fusion.persistence.api;
 
+import io.yupiik.fusion.framework.api.RuntimeContainer;
 import io.yupiik.fusion.persistence.impl.DatabaseConfiguration;
 import io.yupiik.fusion.persistence.impl.DatabaseImpl;
 
@@ -55,6 +56,8 @@ public interface Database {
      */
     <T> T findById(Class<T> type, Object id);
 
+    <T> List<T> findAll(Class<T> type);
+
     <T> List<T> query(Class<T> type, String sql, Consumer<StatementBinder> binder);
 
     <T> Optional<T> querySingle(Class<T> type, String sql, Consumer<StatementBinder> binder);
@@ -85,8 +88,8 @@ public interface Database {
 
     <T> Entity<T> getOrCreateEntity(Class<T> type);
 
-    static Database of(final DatabaseConfiguration configuration) {
-        return new DatabaseImpl(configuration);
+    static Database of(final DatabaseConfiguration configuration, final RuntimeContainer container) {
+        return new DatabaseImpl(configuration, container);
     }
 
 

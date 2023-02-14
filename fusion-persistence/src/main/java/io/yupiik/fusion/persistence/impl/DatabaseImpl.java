@@ -15,6 +15,7 @@
  */
 package io.yupiik.fusion.persistence.impl;
 
+import io.yupiik.fusion.framework.api.RuntimeContainer;
 import io.yupiik.fusion.persistence.api.Database;
 import io.yupiik.fusion.persistence.api.Entity;
 import io.yupiik.fusion.persistence.api.PersistenceException;
@@ -63,13 +64,15 @@ import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 
 public class DatabaseImpl implements Database {
+    private final RuntimeContainer container;
     private final DataSource datasource;
     private final DatabaseTranslation translation;
-    private final Map<Class<?>, BaseEntity<?>> entities = new ConcurrentHashMap<>();
+    private final Map<Class<?>, Entity<?>> entities = new ConcurrentHashMap<>();
     private final QueryCompiler queryCompiler = new QueryCompiler(this);
     private final Function<Class<?>, Object> instanceLookup;
 
-    public DatabaseImpl(final DatabaseConfiguration configuration) {
+    public DatabaseImpl(final DatabaseConfiguration configuration, final RuntimeContainer container) {
+        this.container = container;
         this.datasource = configuration.getDataSource();
         this.instanceLookup = configuration.getInstanceLookup();
         this.translation = configuration.getTranslation() == null ? guessTranslation() : configuration.getTranslation();
@@ -88,7 +91,7 @@ public class DatabaseImpl implements Database {
     }
 
     // mainly enables some cleanup if needed, not exposed as such in the API
-    public Map<Class<?>, BaseEntity<?>> getEntities() {
+    public Map<Class<?>, Entity<?>> getEntities() {
         return entities;
     }
 
@@ -257,7 +260,7 @@ public class DatabaseImpl implements Database {
     @Override
     public <T> T insert(final T instance) {
         requireNonNull(instance, "can't persist a null instance");
-        final var model = (BaseEntity<T>) getEntityImpl(instance.getClass());
+        final var model = (Entity<T>) getEntityImpl(instance.getClass());
         final var insertQuery = model.getInsertQuery();
         try (final var connection = datasource.getConnection();
              final var stmt = !model.isAutoIncremented() ?
@@ -321,6 +324,25 @@ public class DatabaseImpl implements Database {
                     throw new PersistenceException("Ambiguous entity fetched!");
                 }
                 return res;
+            }
+        } catch (final SQLException ex) {
+            throw new PersistenceException(ex);
+        }
+    }
+
+    @Override
+    public <T> List<T> findAll(Class<T> type) {
+        requireNonNull(type, "can't find an instance without a type");
+        final var model = getEntityImpl(type);
+        final var compiledQuery = queryCompiler.getOrCreate(new QueryKey<>(type, model.getFindByAllQuery()));
+        try (final var connection = datasource.getConnection();
+             final var query = compiledQuery.apply(connection)) {
+            try (final var rset = query.getPreparedStatement().executeQuery()) {
+                final var columns = getAndCacheColumns(compiledQuery, rset);
+                final Function<ResultSet, T> provider = type == Map.class ?
+                        line -> (T) mapAsMap(List.of(columns), line) :
+                        getEntityImpl(type).nextProvider(columns, rset);
+                return new ResultSetWrapperImpl(rset).mapAll(provider::apply);
             }
         } catch (final SQLException ex) {
             throw new PersistenceException(ex);
@@ -494,8 +516,8 @@ public class DatabaseImpl implements Database {
         }).collect(toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
-    private <T> BaseEntity<T> getEntityImpl(final Class<T> type) {
-        return (BaseEntity<T>) entities.computeIfAbsent(type, t -> new BaseEntity<>(this, t, translation));
+    private <T> Entity<T> getEntityImpl(final Class<T> type) {
+        return (Entity<T>) entities.computeIfAbsent(type, t -> (Entity<?>) container.lookup(type));
     }
 
     private DatabaseTranslation guessTranslation() {

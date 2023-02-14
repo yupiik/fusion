@@ -15,12 +15,19 @@
  */
 package io.yupiik.fusion.persistence.api;
 
+import io.yupiik.fusion.framework.build.api.persistence.Column;
+import io.yupiik.fusion.persistence.impl.mapper.EnumMapper;
+
 import java.lang.annotation.Annotation;
+import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.stream.Stream;
 
 public interface Entity<E> {
     String[] ddl();
@@ -31,6 +38,8 @@ public interface Entity<E> {
 
     String getFindByIdQuery();
 
+    String getFindByAllQuery();
+
     String getUpdateQuery();
 
     String getDeleteQuery();
@@ -40,6 +49,18 @@ public interface Entity<E> {
     String getFindAllQuery();
 
     List<ColumnMetadata> getOrderedColumns();
+
+    boolean isAutoIncremented();
+
+    void onInsert(final Object instance, final PreparedStatement statement);
+
+    void onDelete(final Object instance, final PreparedStatement statement);
+
+    void onUpdate(final Object instance, final PreparedStatement statement);
+
+    void onFindById(final PreparedStatement stmt, final Object id);
+
+    E onAfterInsert(final Object instance, final PreparedStatement statement);
 
     /**
      * Creates a string usable when building a SQL query.
@@ -70,6 +91,10 @@ public interface Entity<E> {
      * @return the entity mapped (note that with a left join you can get an instance with only null fields).
      */
     Function<ResultSet, E> mapFromPrefix(String prefix, String... columnNames);
+
+    Function<ResultSet,E> nextProvider(String[] columns, ResultSet rset);
+
+    Function<ResultSet, E> nextProvider(final ResultSet resultSet);
 
     interface ColumnMetadata {
         Annotation[] getAnnotations();
@@ -130,6 +155,67 @@ public interface Entity<E> {
         public ColumnsConcatenationRequest setIgnored(final Set<String> ignored) {
             this.ignored = ignored;
             return this;
+        }
+    }
+
+    class IdColumnModel extends Entity.ColumnModel {
+        private final boolean autoIncremented;
+
+        public boolean isAutoIncremented() {
+            return this.autoIncremented;
+        }
+
+        public IdColumnModel(final String field, final Class<?> type,
+                              final Column.ValueMapper<?, ?> valueMapper,
+                              final int hash, final boolean autoIncremented) {
+            super(field, type, valueMapper, hash);
+            this.autoIncremented = autoIncremented;
+        }
+    }
+
+    class ColumnModel {
+        public final String field;
+        public final Class<?> type;
+        final Column.ValueMapper<?, ?> valueMapper;
+
+        private final int hash;
+
+        public ColumnModel(final String field, final Class<?> type,
+                            final Column.ValueMapper<?, ?> valueMapper,
+                            final int hash) {
+            this.field = field;
+            this.type = type;
+            this.hash = hash;
+            this.valueMapper = valueMapper;
+        }
+
+        public ColumnModel(final String field, final Class<?> type, boolean isEnum, final Column.ValueMapper<?, ?> valueMapper) {
+            this.field = field;
+            this.hash = Objects.hash(field);
+            this.valueMapper = valueMapper == null && isEnum ? new EnumMapper<>(Class.class.cast(type)) : valueMapper;
+            this.type = valueMapper == null ?
+                    type :
+                    Stream.of(valueMapper.getClass().getGenericInterfaces())
+                            .filter(ParameterizedType.class::isInstance)
+                            .map(ParameterizedType.class::cast)
+                            .filter(p -> p.getRawType() == Column.ValueMapper.class)
+                            .map(p -> p.getActualTypeArguments()[0])
+                            .findFirst()
+                            .map(Class.class::cast)
+                            .orElseThrow(() -> new IllegalArgumentException("add implements ValueMapper<..., ...> to " + valueMapper));
+        }
+
+        @Override
+        public boolean equals(final Object o) {
+            if (this == o) {
+                return true;
+            }
+            return Entity.ColumnModel.class.isInstance(o) && field.equals(Entity.ColumnModel.class.cast(o).field);
+        }
+
+        @Override
+        public int hashCode() {
+            return hash;
         }
     }
 }
