@@ -17,37 +17,22 @@ package io.yupiik.fusion.persistence.impl;
 
 import io.yupiik.fusion.persistence.api.Entity;
 
-import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
-import java.util.Arrays;
 import java.util.Objects;
-import java.util.stream.Stream;
 
 public class ColumnMetadataImpl implements Entity.ColumnMetadata {
-    private final Annotation[] annotations;
     private final String javaName;
     private final Type type;
     private final String columnName;
 
     private final int hash;
 
-    public ColumnMetadataImpl(final Annotation[] annotations, final String javaName, final Type type, final String columnName) {
-        this.annotations = annotations;
+    public ColumnMetadataImpl(final String javaName, final Type type, final String columnName) {
         this.javaName = javaName;
         this.type = type;
         this.columnName = columnName;
 
-        this.hash = Objects.hash(annotations, javaName, type, columnName);
-    }
-
-    @Override
-    public Annotation[] getAnnotations() {
-        return annotations;
-    }
-
-    @Override
-    public <T extends Annotation> T getAnnotation(final Class<T> type) {
-        return Stream.of(annotations).filter(it -> it.annotationType() == type).map(type::cast).findFirst().orElse(null);
+        this.hash = Objects.hash(javaName, type, columnName);
     }
 
     @Override
@@ -77,11 +62,8 @@ public class ColumnMetadataImpl implements Entity.ColumnMetadata {
         if (this == o) {
             return true;
         }
-        if (o == null || getClass() != o.getClass()) {
-            return false;
-        }
-        final ColumnMetadataImpl that = ColumnMetadataImpl.class.cast(o);
-        return Arrays.equals(annotations, that.annotations) && javaName.equals(that.javaName) && type.equals(that.type) && columnName.equals(that.columnName);
+        return o instanceof ColumnMetadataImpl that &&
+                javaName.equals(that.javaName) && type.equals(that.type) && columnName.equals(that.columnName);
     }
 
     @Override

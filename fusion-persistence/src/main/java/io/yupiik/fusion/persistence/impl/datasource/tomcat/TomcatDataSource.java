@@ -136,6 +136,7 @@ public class TomcatDataSource extends DataSource {
         }
     }
 
+    // todo: drop and replace with a real delegation to not use proxy/reflect API
     private record ConnectionHandler(Connection connection) implements InvocationHandler {
 
         @Override

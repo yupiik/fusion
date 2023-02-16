@@ -18,18 +18,18 @@ package io.yupiik.fusion.persistence.api;
 import io.yupiik.fusion.framework.build.api.persistence.Column;
 import io.yupiik.fusion.persistence.impl.mapper.EnumMapper;
 
-import java.lang.annotation.Annotation;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-public interface Entity<E> {
+public interface Entity<E, ID> {
     String[] ddl();
 
     Class<?> getRootType();
@@ -37,8 +37,6 @@ public interface Entity<E> {
     String getTable();
 
     String getFindByIdQuery();
-
-    String getFindByAllQuery();
 
     String getUpdateQuery();
 
@@ -52,15 +50,15 @@ public interface Entity<E> {
 
     boolean isAutoIncremented();
 
-    void onInsert(final Object instance, final PreparedStatement statement);
+    void onInsert(final E instance, final PreparedStatement statement) throws SQLException;
 
-    void onDelete(final Object instance, final PreparedStatement statement);
+    void onDelete(final E instance, final PreparedStatement statement) throws SQLException;
 
-    void onUpdate(final Object instance, final PreparedStatement statement);
+    void onUpdate(final E instance, final PreparedStatement statement) throws SQLException;
 
-    void onFindById(final PreparedStatement stmt, final Object id);
+    void onFindById(final ID instance, final PreparedStatement stmt) throws SQLException;
 
-    E onAfterInsert(final Object instance, final PreparedStatement statement);
+    E onAfterInsert(final E instance, final PreparedStatement statement) throws SQLException;
 
     /**
      * Creates a string usable when building a SQL query.
@@ -92,15 +90,11 @@ public interface Entity<E> {
      */
     Function<ResultSet, E> mapFromPrefix(String prefix, String... columnNames);
 
-    Function<ResultSet,E> nextProvider(String[] columns, ResultSet rset);
+    Function<ResultSet, E> nextProvider(String[] columns, ResultSet rset);
 
     Function<ResultSet, E> nextProvider(final ResultSet resultSet);
 
     interface ColumnMetadata {
-        Annotation[] getAnnotations();
-
-        <T extends Annotation> T getAnnotation(Class<T> type);
-
         String javaName();
 
         String columnName();
@@ -166,8 +160,8 @@ public interface Entity<E> {
         }
 
         public IdColumnModel(final String field, final Class<?> type,
-                              final Column.ValueMapper<?, ?> valueMapper,
-                              final int hash, final boolean autoIncremented) {
+                             final Column.ValueMapper<?, ?> valueMapper,
+                             final int hash, final boolean autoIncremented) {
             super(field, type, valueMapper, hash);
             this.autoIncremented = autoIncremented;
         }
@@ -181,8 +175,8 @@ public interface Entity<E> {
         private final int hash;
 
         public ColumnModel(final String field, final Class<?> type,
-                            final Column.ValueMapper<?, ?> valueMapper,
-                            final int hash) {
+                           final Column.ValueMapper<?, ?> valueMapper,
+                           final int hash) {
             this.field = field;
             this.type = type;
             this.hash = hash;

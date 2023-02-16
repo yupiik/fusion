@@ -24,6 +24,7 @@ import java.util.stream.Stream;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toMap;
 
+// todo: generate at build time
 public class EnumMapper<E extends Enum<?>> implements Column.ValueMapper<String, E> {
     private final Map<String, E> index;
     private final Map<E, String> reversedIndex;

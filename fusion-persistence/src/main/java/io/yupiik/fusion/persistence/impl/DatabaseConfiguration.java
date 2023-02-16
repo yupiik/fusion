@@ -15,6 +15,7 @@
  */
 package io.yupiik.fusion.persistence.impl;
 
+import io.yupiik.fusion.persistence.impl.translation.DefaultTranslation;
 import io.yupiik.fusion.persistence.spi.DatabaseTranslation;
 
 import javax.sql.DataSource;
@@ -25,7 +26,7 @@ import static java.util.Objects.requireNonNull;
 public class DatabaseConfiguration {
     private Function<Class<?>, Object> instanceLookup;
     private DataSource dataSource;
-    private DatabaseTranslation translation;
+    private DatabaseTranslation translation = new DefaultTranslation();
 
     public Function<Class<?>, Object> getInstanceLookup() {
         return instanceLookup;
@@ -54,11 +55,16 @@ public class DatabaseConfiguration {
         return this;
     }
 
-    public void validate() {
+    /**
+     * @return {@code this} instance, mainly used to ensure it can be passed to a
+     * {@link io.yupiik.fusion.persistence.api.Database} instance.
+     */
+    public DatabaseConfiguration validate() {
         requireNonNull(dataSource, "No datasource set");
+        return this;
     }
 
-    static DatabaseConfiguration of() {
+    public static DatabaseConfiguration of() {
         return new DatabaseConfiguration();
     }
 }

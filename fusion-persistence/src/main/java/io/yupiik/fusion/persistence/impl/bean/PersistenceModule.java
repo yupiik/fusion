@@ -13,7 +13,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package io.yupiik.fusion.persistence;
+package io.yupiik.fusion.persistence.impl.bean;
 
 import io.yupiik.fusion.framework.api.container.FusionBean;
 import io.yupiik.fusion.framework.api.container.FusionModule;
@@ -23,6 +23,8 @@ import java.util.stream.Stream;
 public class PersistenceModule implements FusionModule {
     @Override
     public Stream<FusionBean<?>> beans() {
-        return Stream.of();
+        return Stream.of(
+                new FusionDatabaseConfigurationBean(),
+                new FusionDatabaseBean());
     }
 }

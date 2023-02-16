@@ -15,7 +15,6 @@
  */
 package io.yupiik.fusion.persistence.impl;
 
-import io.yupiik.fusion.framework.api.RuntimeContainer;
 import io.yupiik.fusion.framework.build.api.persistence.Column;
 import io.yupiik.fusion.framework.build.api.persistence.Id;
 import io.yupiik.fusion.framework.build.api.persistence.OnInsert;
@@ -23,10 +22,10 @@ import io.yupiik.fusion.framework.build.api.persistence.OnLoad;
 import io.yupiik.fusion.framework.build.api.persistence.Operation;
 import io.yupiik.fusion.framework.build.api.persistence.Statement;
 import io.yupiik.fusion.framework.build.api.persistence.Table;
+import io.yupiik.fusion.persistence.api.Database;
 import io.yupiik.fusion.persistence.api.StatementBinder;
 import io.yupiik.fusion.persistence.impl.translation.H2Translation;
 import io.yupiik.fusion.persistence.test.EnableH2;
-import io.yupiik.fusion.persistence.api.Database;
 import org.junit.jupiter.api.Test;
 
 import javax.sql.DataSource;
@@ -46,8 +45,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class DatabaseImplTest {
     @Test
     @EnableH2
-    void operations(final DataSource dataSource, final RuntimeContainer container) throws SQLException {
-        final var database = init(dataSource, container);
+    void operations(final DataSource dataSource) throws SQLException {
+        final var database = init(dataSource);
 
         for (int i = 0; i < 3; i++) { // seed data
             final var instance = new MyFlatEntity();
@@ -75,8 +74,8 @@ class DatabaseImplTest {
 
     @Test
     @EnableH2
-    void autoincrement(final DataSource dataSource, final RuntimeContainer container) throws SQLException {
-        final var database = Database.of(new DatabaseConfiguration().setDataSource(dataSource), container);
+    void autoincrement(final DataSource dataSource) throws SQLException {
+        final var database = Database.of(new DatabaseConfiguration().setDataSource(dataSource));
         final var table = database.getOrCreateEntity(AutoIncrementEntity.class).getTable();
         try (final var connection = dataSource.getConnection();
              final var stmt = connection.createStatement()) {
@@ -99,8 +98,8 @@ class DatabaseImplTest {
 
     @Test
     @EnableH2
-    void execute(final DataSource dataSource, final RuntimeContainer container) throws SQLException {
-        final var database = init(dataSource, container);
+    void execute(final DataSource dataSource) throws SQLException {
+        final var database = init(dataSource);
 
         for (int i = 0; i < 3; i++) { // seed data
             final var instance = new MyFlatEntity();
@@ -117,8 +116,8 @@ class DatabaseImplTest {
 
     @Test
     @EnableH2
-    void findAll(final DataSource dataSource, final RuntimeContainer container) throws SQLException {
-        final var database = init(dataSource, container);
+    void findAll(final DataSource dataSource) throws SQLException {
+        final var database = init(dataSource);
 
         final var entities = new ArrayList<MyFlatEntity>();
         for (int i = 0; i < 3; i++) { // seed data
@@ -139,8 +138,8 @@ class DatabaseImplTest {
 
     @Test
     @EnableH2
-    void findAllUsingAliases(final DataSource dataSource, final RuntimeContainer container) throws SQLException {
-        final var database = init(dataSource, container);
+    void findAllUsingAliases(final DataSource dataSource) throws SQLException {
+        final var database = init(dataSource);
 
         final var entities = new ArrayList<MyFlatEntity>();
         for (int i = 0; i < 3; i++) { // seed data
@@ -168,8 +167,8 @@ class DatabaseImplTest {
 
     @Test
     @EnableH2
-    void findWithBinding(final DataSource dataSource, final RuntimeContainer container) throws SQLException {
-        final var database = init(dataSource, container);
+    void findWithBinding(final DataSource dataSource) throws SQLException {
+        final var database = init(dataSource);
 
         final var entities = new ArrayList<MyFlatEntity>();
         for (int i = 0; i < 3; i++) { // seed data
@@ -190,8 +189,8 @@ class DatabaseImplTest {
 
     @Test
     @EnableH2
-    void batch(final DataSource dataSource, final RuntimeContainer container) throws SQLException {
-        final var database = init(dataSource, container);
+    void batch(final DataSource dataSource) throws SQLException {
+        final var database = init(dataSource);
 
         final var entities = new ArrayList<MyFlatEntity>();
         for (int i = 0; i < 3; i++) { // seed data
@@ -221,8 +220,8 @@ class DatabaseImplTest {
 
     @Test
     @EnableH2
-    void querySingle(final DataSource dataSource, final RuntimeContainer container) throws SQLException {
-        final var database = init(dataSource, container);
+    void querySingle(final DataSource dataSource) throws SQLException {
+        final var database = init(dataSource);
 
         final var entities = new ArrayList<MyFlatEntity>();
         for (int i = 0; i < 3; i++) { // seed data
@@ -243,17 +242,17 @@ class DatabaseImplTest {
 
     @Test
     @EnableH2
-    void guessTranslation(final DataSource dataSource, final RuntimeContainer container) {
+    void guessTranslation(final DataSource dataSource) {
         final var configuration = new DatabaseConfiguration().setDataSource(dataSource);
-        final var database = new DatabaseImpl(configuration, container);
+        final var database = new DatabaseImpl(configuration);
         assertEquals(H2Translation.class, database.getTranslation().getClass());
 
     }
 
     @Test
     @EnableH2
-    void ddl(final DataSource dataSource, RuntimeContainer container) throws SQLException {
-        final var database = Database.of(new DatabaseConfiguration().setDataSource(dataSource), container);
+    void ddl(final DataSource dataSource) throws SQLException {
+        final var database = Database.of(new DatabaseConfiguration().setDataSource(dataSource));
         assertEquals(List.of(), listTables(dataSource));
 
         final var entity = database.getOrCreateEntity(MyFlatEntity.class);
@@ -272,8 +271,8 @@ class DatabaseImplTest {
 
     @Test
     @EnableH2
-    void crud(final DataSource dataSource, final RuntimeContainer container) throws SQLException {
-        final var database = init(dataSource, container);
+    void crud(final DataSource dataSource) throws SQLException {
+        final var database = init(dataSource);
 
         // insert
         final var instance = new MyFlatEntity();
@@ -307,8 +306,8 @@ class DatabaseImplTest {
 
     @Test
     @EnableH2
-    void onLoad(final DataSource dataSource, final RuntimeContainer container) throws SQLException {
-        final var database = init(dataSource, container);
+    void onLoad(final DataSource dataSource) throws SQLException {
+        final var database = init(dataSource);
 
         final var instance = new MyFlatEntity();
         instance.name = "loaded";
@@ -322,8 +321,9 @@ class DatabaseImplTest {
         database.delete(instance);
     }
 
-    private Database init(final DataSource dataSource, final RuntimeContainer container) throws SQLException {
-        final var database = Database.of(new DatabaseConfiguration().setDataSource(dataSource), container);
+    private Database init(final DataSource dataSource) throws SQLException {
+        final var database = Database.of(new DatabaseConfiguration()
+                .setDataSource(dataSource));
         final var entity = database.getOrCreateEntity(MyFlatEntity.class);
 
         // ddl

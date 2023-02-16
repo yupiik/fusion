@@ -57,12 +57,13 @@ public class Operations implements InvocationHandler {
     private final Database database;
     private final Map<Method, Execution> operations;
 
+    // todo: drop reflection by generating
     public <M> Operations(final Database database, final Class<M> api, final ClassLoader loader) {
         this.database = database;
 
-        final Map<String, Entity<?>> aliases = ofNullable(api.getAnnotation(Operation.class))
+        final Map<String, Entity<?, ?>> aliases = ofNullable(api.getAnnotation(Operation.class))
                 .map(Operation::aliases)
-                .map(a -> new HashMap<String, Entity<?>>(Stream.of(a)
+                .map(a -> new HashMap<String, Entity<?, ?>>(Stream.of(a)
                         .collect(toMap(Operation.Alias::alias, it -> database.getOrCreateEntity(it.type())))))
                 .orElseGet(HashMap::new); // we can enrich it for fqn so ensure it is writable
         this.operations = Stream.of(api.getMethods())
@@ -70,7 +71,7 @@ public class Operations implements InvocationHandler {
                 .collect(toMap(identity(), m -> prepare(aliases, loader, m)));
     }
 
-    private Execution prepare(final Map<String, Entity<?>> aliases, final ClassLoader loader, final Method method) {
+    private Execution prepare(final Map<String, Entity<?, ?>> aliases, final ClassLoader loader, final Method method) {
         final var rawStmt = method.getAnnotation(Statement.class).value();
 
         final var placeholderParameters = rawStmt.contains("${parameters#");

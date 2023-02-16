@@ -15,7 +15,6 @@
  */
 package io.yupiik.fusion.persistence.impl;
 
-import io.yupiik.fusion.framework.api.RuntimeContainer;
 import io.yupiik.fusion.persistence.api.Database;
 import io.yupiik.fusion.persistence.api.Entity;
 import io.yupiik.fusion.persistence.api.PersistenceException;
@@ -64,15 +63,13 @@ import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 
 public class DatabaseImpl implements Database {
-    private final RuntimeContainer container;
     private final DataSource datasource;
     private final DatabaseTranslation translation;
-    private final Map<Class<?>, Entity<?>> entities = new ConcurrentHashMap<>();
+    private final Map<Class<?>, Entity<?, ?>> entities = new ConcurrentHashMap<>();
     private final QueryCompiler queryCompiler = new QueryCompiler(this);
     private final Function<Class<?>, Object> instanceLookup;
 
-    public DatabaseImpl(final DatabaseConfiguration configuration, final RuntimeContainer container) {
-        this.container = container;
+    public DatabaseImpl(final DatabaseConfiguration configuration) {
         this.datasource = configuration.getDataSource();
         this.instanceLookup = configuration.getInstanceLookup();
         this.translation = configuration.getTranslation() == null ? guessTranslation() : configuration.getTranslation();
@@ -91,7 +88,7 @@ public class DatabaseImpl implements Database {
     }
 
     // mainly enables some cleanup if needed, not exposed as such in the API
-    public Map<Class<?>, Entity<?>> getEntities() {
+    public Map<Class<?>, Entity<?, ?>> getEntities() {
         return entities;
     }
 
@@ -260,7 +257,7 @@ public class DatabaseImpl implements Database {
     @Override
     public <T> T insert(final T instance) {
         requireNonNull(instance, "can't persist a null instance");
-        final var model = (Entity<T>) getEntityImpl(instance.getClass());
+        final var model = (Entity<T, ?>) getEntityImpl(instance.getClass());
         final var insertQuery = model.getInsertQuery();
         try (final var connection = datasource.getConnection();
              final var stmt = !model.isAutoIncremented() ?
@@ -279,7 +276,8 @@ public class DatabaseImpl implements Database {
     @Override
     public <T> T update(final T instance) {
         requireNonNull(instance, "can't update a null instance");
-        final var model = getEntityImpl(instance.getClass());
+        final Class<T> aClass = (Class<T>) instance.getClass();
+        final var model = getEntityImpl(aClass);
         try (final var connection = datasource.getConnection();
              final var stmt = connection.prepareStatement(model.getUpdateQuery())) {
             model.onUpdate(instance, stmt);
@@ -295,7 +293,8 @@ public class DatabaseImpl implements Database {
     @Override
     public <T> T delete(final T instance) {
         requireNonNull(instance, "can't delete a null instance");
-        final var model = getEntityImpl(instance.getClass());
+        final Class<T> aClass = (Class<T>) instance.getClass();
+        final var model = getEntityImpl(aClass);
         try (final var connection = datasource.getConnection();
              final var stmt = connection.prepareStatement(model.getDeleteQuery())) {
             model.onDelete(instance, stmt);
@@ -309,12 +308,12 @@ public class DatabaseImpl implements Database {
     }
 
     @Override
-    public <T> T findById(final Class<T> type, final Object id) {
+    public <T, ID> T findById(final Class<T> type, final ID id) {
         requireNonNull(type, "can't find an instance without a type");
         final var model = getEntityImpl(type);
         try (final var connection = datasource.getConnection();
              final var stmt = connection.prepareStatement(model.getFindByIdQuery())) {
-            model.onFindById(stmt, id);
+            model.onFindById(id, stmt);
             try (final var rset = stmt.executeQuery()) {
                 if (!rset.next()) {
                     return null;
@@ -334,7 +333,7 @@ public class DatabaseImpl implements Database {
     public <T> List<T> findAll(Class<T> type) {
         requireNonNull(type, "can't find an instance without a type");
         final var model = getEntityImpl(type);
-        final var compiledQuery = queryCompiler.getOrCreate(new QueryKey<>(type, model.getFindByAllQuery()));
+        final var compiledQuery = queryCompiler.getOrCreate(new QueryKey<>(type, model.getFindAllQuery()));
         try (final var connection = datasource.getConnection();
              final var query = compiledQuery.apply(connection)) {
             try (final var rset = query.getPreparedStatement().executeQuery()) {
@@ -376,7 +375,7 @@ public class DatabaseImpl implements Database {
     }
 
     @Override
-    public <T> Entity<T> getOrCreateEntity(final Class<T> type) {
+    public <T, ID> Entity<T, ID> getOrCreateEntity(final Class<T> type) {
         return getEntityImpl(type);
     }
 
@@ -516,8 +515,11 @@ public class DatabaseImpl implements Database {
         }).collect(toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
-    private <T> Entity<T> getEntityImpl(final Class<T> type) {
-        return (Entity<T>) entities.computeIfAbsent(type, t -> (Entity<?>) container.lookup(type));
+    @SuppressWarnings("unchecked")
+    private <T, ID> Entity<T, ID> getEntityImpl(final Class<T> type) {
+        return (Entity<T, ID>) requireNonNull(
+                entities.computeIfAbsent(type, t -> (Entity<?, ?>) getInstanceLookup().apply(type)),
+                () -> "Missing entity '" + type.getName() + "', did you check you generated the related Entity model as a bean?");
     }
 
     private DatabaseTranslation guessTranslation() {
