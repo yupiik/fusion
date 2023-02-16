@@ -17,6 +17,7 @@ package io.yupiik.fusion.persistence.impl;
 
 import io.yupiik.fusion.persistence.api.Entity;
 import io.yupiik.fusion.persistence.api.PersistenceException;
+import io.yupiik.fusion.persistence.api.SQLFunction;
 
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -46,6 +47,7 @@ public abstract class BaseEntity<A, B> implements Entity<A, B> {
     private final SQLBiConsumer<A, PreparedStatement> onDelete;
     private final SQLBiConsumer<B, PreparedStatement> onFindById;
     private final SQLBiFunction<A, PreparedStatement, A> onAfterInsert;
+    private final SQLFunction<List<String>, Function<ResultSet, A>> factory;
 
     public BaseEntity(final DatabaseConfiguration configuration, final String[] ddl,
                       final Class<?> rootType, final String table,
@@ -56,7 +58,8 @@ public abstract class BaseEntity<A, B> implements Entity<A, B> {
                       final SQLBiConsumer<A, PreparedStatement> onUpdate,
                       final SQLBiConsumer<A, PreparedStatement> onDelete,
                       final SQLBiConsumer<B, PreparedStatement> onFindById,
-                      final SQLBiFunction<A, PreparedStatement, A> onAfterInsert) {
+                      final SQLBiFunction<A, PreparedStatement, A> onAfterInsert,
+                      final SQLFunction<List<String>, Function<ResultSet, A>> factory) {
         this.configuration = configuration;
         this.ddl = ddl;
         this.rootType = rootType;
@@ -73,6 +76,7 @@ public abstract class BaseEntity<A, B> implements Entity<A, B> {
         this.onDelete = onDelete;
         this.onFindById = onFindById;
         this.onAfterInsert = onAfterInsert;
+        this.factory = factory;
     }
 
     @Override
@@ -199,17 +203,19 @@ public abstract class BaseEntity<A, B> implements Entity<A, B> {
 
     @Override
     public Function<ResultSet, A> mapFromPrefix(final String prefix, final String... columns) {
-        if (prefix == null || prefix.isBlank()) {
-            return toProvider(List.of(columns));
+        try {
+            if (prefix == null || prefix.isBlank()) {
+                return factory.apply(List.of(columns));
+            }
+
+            final var lcPrefix = prefix.toLowerCase(ROOT);
+            return factory.apply(Stream.of(columns)
+                    .map(it -> it.toLowerCase(ROOT).startsWith(lcPrefix) ? it.substring(prefix.length()) : null /* ignored but don't loose the index */)
+                    .toList());
+        } catch (final SQLException se) {
+            throw new PersistenceException(se);
         }
-
-        final var lcPrefix = prefix.toLowerCase(ROOT);
-        return toProvider(Stream.of(columns)
-                .map(it -> it.toLowerCase(ROOT).startsWith(lcPrefix) ? it.substring(prefix.length()) : null /* ignored but don't loose the index */)
-                .toList());
     }
-
-    protected abstract Function<ResultSet, A> toProvider(final List<String> columns);
 
     public Stream<String> toNames(final ResultSet resultSet) throws SQLException {
         final var metaData = resultSet.getMetaData();
@@ -223,14 +229,14 @@ public abstract class BaseEntity<A, B> implements Entity<A, B> {
         });
     }
 
-    protected SQLFunction<ResultSet, String> stringOf(final int index) {
+    protected static SQLFunction<ResultSet, String> stringOf(final int index) {
         if (index < 0) {
             return r -> null;
         }
         return r -> r.getString(index);
     }
 
-    protected SQLFunction<ResultSet, Integer> intOf(final int index, final boolean nullable) {
+    protected static SQLFunction<ResultSet, Integer> intOf(final int index, final boolean nullable) {
         if (index < 0) {
             if (nullable) { // Integer
                 return r -> null;
@@ -239,10 +245,6 @@ public abstract class BaseEntity<A, B> implements Entity<A, B> {
             return r -> 0;
         }
         return r -> r.getInt(index);
-    }
-
-    protected interface SQLFunction<X, Y> {
-        Y apply(X param) throws SQLException;
     }
 
     protected interface SQLBiFunction<P, E, R> {

@@ -129,21 +129,19 @@ class EntityImplTest {
                     },
                     (instance, statement) -> statement.setString(1, instance.id),
                     (id, statement) -> statement.setString(1, id),
-                    (SQLBiFunction<SimpleFlatEntity, PreparedStatement, SimpleFlatEntity>) SQLBiFunction.IDENTITY);
-        }
-
-        @Override
-        protected Function<ResultSet, SimpleFlatEntity> toProvider(final List<String> columns) {
-            final var id = stringOf(columns.indexOf("id"));
-            final var name = stringOf(columns.indexOf("name"));
-            final var age = intOf(columns.indexOf("name"), false);
-            return rset -> {
-                try {
-                    return new SimpleFlatEntity(id.apply(rset), name.apply(rset), age.apply(rset));
-                } catch (final SQLException e) {
-                    throw new PersistenceException(e);
-                }
-            };
+                    (SQLBiFunction<SimpleFlatEntity, PreparedStatement, SimpleFlatEntity>) SQLBiFunction.IDENTITY,
+                    columns -> {
+                        final var id = stringOf(columns.indexOf("id"));
+                        final var name = stringOf(columns.indexOf("name"));
+                        final var age = intOf(columns.indexOf("name"), false);
+                        return rset -> {
+                            try {
+                                return new SimpleFlatEntity(id.apply(rset), name.apply(rset), age.apply(rset));
+                            } catch (final SQLException e) {
+                                throw new PersistenceException(e);
+                            }
+                        };
+                    });
         }
     }
 
