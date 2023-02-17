@@ -24,15 +24,34 @@ public class ColumnMetadataImpl implements Entity.ColumnMetadata {
     private final String javaName;
     private final Type type;
     private final String columnName;
+    private final boolean autoIncremented;
+    private final int idIndex;
 
     private final int hash;
 
     public ColumnMetadataImpl(final String javaName, final Type type, final String columnName) {
+        this(javaName, type, columnName, -1, false);
+    }
+
+    public ColumnMetadataImpl(final String javaName, final Type type, final String columnName,
+                              final int idIndex, final boolean autoIncremented) {
         this.javaName = javaName;
         this.type = type;
         this.columnName = columnName;
+        this.idIndex = idIndex;
+        this.autoIncremented = autoIncremented;
 
         this.hash = Objects.hash(javaName, type, columnName);
+    }
+
+    @Override
+    public int idIndex() {
+        return idIndex;
+    }
+
+    @Override
+    public boolean autoIncremented() {
+        return autoIncremented;
     }
 
     @Override

@@ -245,6 +245,17 @@ public abstract class BaseEntity<A, B> implements Entity<A, B> {
         return r -> r.getString(idx);
     }
 
+    protected static SQLFunction<ResultSet, Long> longOf(final int index, final boolean nullable) {
+        if (index < 0) {
+            if (nullable) { // Long
+                return r -> null;
+            }
+            return r -> 0L;
+        }
+        final var idx = index + 1;// translate list index to jdbc index
+        return r -> r.getLong(idx);
+    }
+
     protected static SQLFunction<ResultSet, Integer> intOf(final int index, final boolean nullable) {
         if (index < 0) {
             if (nullable) { // Integer

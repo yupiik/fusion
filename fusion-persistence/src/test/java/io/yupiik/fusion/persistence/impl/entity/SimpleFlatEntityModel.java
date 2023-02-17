@@ -24,7 +24,7 @@ public class SimpleFlatEntityModel extends BaseEntity<SimpleFlatEntity, String> 
                 "select id, name, SIMPLE_AGE from SIMPLE_FLAT_ENTITY",
                 "select count(*) from SIMPLE_FLAT_ENTITY",
                 List.of(
-                        new ColumnMetadataImpl("id", String.class, "id"),
+                        new ColumnMetadataImpl("id", String.class, "id", 0, false),
                         new ColumnMetadataImpl("age", int.class, "SIMPLE_AGE"),
                         new ColumnMetadataImpl("name", String.class, "name")),
                 false,

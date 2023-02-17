@@ -34,15 +34,6 @@ import static io.yupiik.fusion.persistence.api.StatementBinder.NONE;
  * or is set up to run in a transactional context (autoCommit setup in particular).
  */
 public interface Database {
-    /**
-     * creates a querying API instance.
-     *
-     * @param api the operation API (@Operation}.
-     * @param <M> the type of operation API.
-     * @return an API instance.
-     */
-    <M> M operation(Class<M> api);
-
     <T> T insert(T instance);
 
     <T> T update(T instance);

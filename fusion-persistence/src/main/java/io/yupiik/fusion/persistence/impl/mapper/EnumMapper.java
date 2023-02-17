@@ -19,18 +19,17 @@ import io.yupiik.fusion.framework.build.api.persistence.Column;
 
 import java.util.Map;
 import java.util.function.BooleanSupplier;
-import java.util.stream.Stream;
 
-import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toMap;
 
-// todo: generate at build time
+// todo: extract valuemapper from column since column is build time and mapper run time
+// (we dont want to force build time jar to be there at run time)
 public class EnumMapper<E extends Enum<?>> implements Column.ValueMapper<String, E> {
     private final Map<String, E> index;
     private final Map<E, String> reversedIndex;
 
-    public EnumMapper(final Class<E> enumType) {
-        this.index = Stream.of(enumType.getEnumConstants()).collect(toMap(it -> it.name(), identity()));
+    public EnumMapper(final Map<String, E> mapping) {
+        this.index = mapping;
         this.reversedIndex = this.index.entrySet().stream().collect(toMap(Map.Entry::getValue, Map.Entry::getKey));
     }
 

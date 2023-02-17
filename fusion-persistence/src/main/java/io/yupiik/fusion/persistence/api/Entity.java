@@ -15,19 +15,13 @@
  */
 package io.yupiik.fusion.persistence.api;
 
-import io.yupiik.fusion.framework.build.api.persistence.Column;
-import io.yupiik.fusion.persistence.impl.mapper.EnumMapper;
-
-import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
-import java.util.stream.Stream;
 
 public interface Entity<E, ID> {
     String[] ddl();
@@ -97,6 +91,16 @@ public interface Entity<E, ID> {
     Function<ResultSet, E> mapper(final ResultSet resultSet);
 
     interface ColumnMetadata {
+        /**
+         * @return {@code -1} if the column is not part of the identifier, else its natural index (integer starting at 0).
+         */
+        int idIndex();
+
+        /**
+         * @return {@code true} if the column is an identifer which is auto incremented.
+         */
+        boolean autoIncremented();
+
         String javaName();
 
         String columnName();
@@ -151,67 +155,6 @@ public interface Entity<E, ID> {
         public ColumnsConcatenationRequest setIgnored(final Set<String> ignored) {
             this.ignored = ignored;
             return this;
-        }
-    }
-
-    class IdColumnModel extends Entity.ColumnModel {
-        private final boolean autoIncremented;
-
-        public boolean isAutoIncremented() {
-            return this.autoIncremented;
-        }
-
-        public IdColumnModel(final String field, final Class<?> type,
-                             final Column.ValueMapper<?, ?> valueMapper,
-                             final int hash, final boolean autoIncremented) {
-            super(field, type, valueMapper, hash);
-            this.autoIncremented = autoIncremented;
-        }
-    }
-
-    class ColumnModel {
-        public final String field;
-        public final Class<?> type;
-        final Column.ValueMapper<?, ?> valueMapper;
-
-        private final int hash;
-
-        public ColumnModel(final String field, final Class<?> type,
-                           final Column.ValueMapper<?, ?> valueMapper,
-                           final int hash) {
-            this.field = field;
-            this.type = type;
-            this.hash = hash;
-            this.valueMapper = valueMapper;
-        }
-
-        public ColumnModel(final String field, final Class<?> type, boolean isEnum, final Column.ValueMapper<?, ?> valueMapper) {
-            this.field = field;
-            this.hash = Objects.hash(field);
-            this.valueMapper = valueMapper == null && isEnum ? new EnumMapper<>(Class.class.cast(type)) : valueMapper;
-            this.type = valueMapper == null ?
-                    type :
-                    Stream.of(valueMapper.getClass().getGenericInterfaces())
-                            .filter(ParameterizedType.class::isInstance)
-                            .map(ParameterizedType.class::cast)
-                            .filter(p -> p.getRawType() == Column.ValueMapper.class)
-                            .map(p -> p.getActualTypeArguments()[0])
-                            .findFirst()
-                            .map(Class.class::cast)
-                            .orElseThrow(() -> new IllegalArgumentException("add implements ValueMapper<..., ...> to " + valueMapper));
-        }
-
-        @Override
-        public boolean equals(final Object o) {
-            if (this == o) {
-                return true;
-            }
-            return Entity.ColumnModel.class.isInstance(o) && field.equals(Entity.ColumnModel.class.cast(o).field);
-        }
-
-        @Override
-        public int hashCode() {
-            return hash;
         }
     }
 }
