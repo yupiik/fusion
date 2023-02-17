@@ -44,17 +44,19 @@ public interface Entity<E, ID> {
 
     String getInsertQuery();
 
+    String getCountAllQuery();
+
     String getFindAllQuery();
 
     List<ColumnMetadata> getOrderedColumns();
 
     boolean isAutoIncremented();
 
-    void onInsert(final E instance, final PreparedStatement statement) throws SQLException;
+    E onInsert(final E instance, final PreparedStatement statement) throws SQLException;
 
     void onDelete(final E instance, final PreparedStatement statement) throws SQLException;
 
-    void onUpdate(final E instance, final PreparedStatement statement) throws SQLException;
+    E onUpdate(final E instance, final PreparedStatement statement) throws SQLException;
 
     void onFindById(final ID instance, final PreparedStatement stmt) throws SQLException;
 
@@ -88,11 +90,11 @@ public interface Entity<E, ID> {
      * @param columnNames result set column names (ordered).
      * @return the entity mapped (note that with a left join you can get an instance with only null fields).
      */
-    Function<ResultSet, E> mapFromPrefix(String prefix, String... columnNames);
+    Function<ResultSet, E> mapFromPrefix(String prefix, List<String> columnNames);
 
-    Function<ResultSet, E> nextProvider(String[] columns, ResultSet rset);
+    Function<ResultSet, E> mapper(List<String> columns);
 
-    Function<ResultSet, E> nextProvider(final ResultSet resultSet);
+    Function<ResultSet, E> mapper(final ResultSet resultSet);
 
     interface ColumnMetadata {
         String javaName();

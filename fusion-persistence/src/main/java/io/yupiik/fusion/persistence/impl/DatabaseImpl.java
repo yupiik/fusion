@@ -25,11 +25,6 @@ import io.yupiik.fusion.persistence.impl.query.CompiledQuery;
 import io.yupiik.fusion.persistence.impl.query.QueryCompiler;
 import io.yupiik.fusion.persistence.impl.query.QueryKey;
 import io.yupiik.fusion.persistence.impl.query.StatementBinderImpl;
-import io.yupiik.fusion.persistence.impl.translation.DefaultTranslation;
-import io.yupiik.fusion.persistence.impl.translation.H2Translation;
-import io.yupiik.fusion.persistence.impl.translation.MySQLTranslation;
-import io.yupiik.fusion.persistence.impl.translation.OracleTranslation;
-import io.yupiik.fusion.persistence.impl.translation.PostgresTranslation;
 import io.yupiik.fusion.persistence.spi.DatabaseTranslation;
 
 import javax.sql.DataSource;
@@ -72,7 +67,7 @@ public class DatabaseImpl implements Database {
     public DatabaseImpl(final DatabaseConfiguration configuration) {
         this.datasource = configuration.getDataSource();
         this.instanceLookup = configuration.getInstanceLookup();
-        this.translation = configuration.getTranslation() == null ? guessTranslation() : configuration.getTranslation();
+        this.translation = requireNonNull(configuration.getTranslation(), "no translation found");
     }
 
     public Function<Class<?>, Object> getInstanceLookup() {
@@ -103,8 +98,8 @@ public class DatabaseImpl implements Database {
             try (final var rset = query.getPreparedStatement().executeQuery()) {
                 final var columns = getAndCacheColumns(compiledQuery, rset);
                 final Function<ResultSet, T> provider = type == Map.class ?
-                        line -> (T) mapAsMap(List.of(columns), line) :
-                        getEntityImpl(type).nextProvider(columns, rset);
+                        line -> (T) mapAsMap(columns, line) :
+                        getEntityImpl(type).mapper(columns);
                 return new ResultSetWrapperImpl(rset).mapAll(provider::apply);
             }
         } catch (final SQLException ex) {
@@ -127,8 +122,8 @@ public class DatabaseImpl implements Database {
 
                 final var columns = getAndCacheColumns(compiledQuery, rset);
                 final var value = type == Map.class ?
-                        (T) mapAsMap(List.of(columns), rset) :
-                        getEntityImpl(type).nextProvider(columns, rset).apply(rset);
+                        (T) mapAsMap(columns, rset) :
+                        getEntityImpl(type).mapper(columns).apply(rset);
                 if (rset.next()) {
                     return empty();
                 }
@@ -263,11 +258,11 @@ public class DatabaseImpl implements Database {
              final var stmt = !model.isAutoIncremented() ?
                      connection.prepareStatement(insertQuery) :
                      connection.prepareStatement(insertQuery, PreparedStatement.RETURN_GENERATED_KEYS)) {
-            model.onInsert(instance, stmt);
+            final var inst = model.onInsert(instance, stmt);
             if (stmt.executeUpdate() == 0) {
                 throw new PersistenceException("Can't save " + instance);
             }
-            return model.onAfterInsert(instance, stmt);
+            return model.onAfterInsert(inst, stmt);
         } catch (final SQLException ex) {
             throw new PersistenceException(ex);
         }
@@ -280,11 +275,11 @@ public class DatabaseImpl implements Database {
         final var model = getEntityImpl(aClass);
         try (final var connection = datasource.getConnection();
              final var stmt = connection.prepareStatement(model.getUpdateQuery())) {
-            model.onUpdate(instance, stmt);
+            final var inst = model.onUpdate(instance, stmt);
             if (stmt.executeUpdate() == 0) {
                 throw new PersistenceException("Can't update " + instance);
             }
-            return instance;
+            return inst;
         } catch (final SQLException ex) {
             throw new PersistenceException(ex);
         }
@@ -330,17 +325,40 @@ public class DatabaseImpl implements Database {
     }
 
     @Override
-    public <T> List<T> findAll(Class<T> type) {
+    public <T> long countAll(final Class<T> type, final String whereClause, final Consumer<StatementBinder> binder) {
         requireNonNull(type, "can't find an instance without a type");
         final var model = getEntityImpl(type);
-        final var compiledQuery = queryCompiler.getOrCreate(new QueryKey<>(type, model.getFindAllQuery()));
+        final var compiledQuery = queryCompiler.getOrCreate(
+                new QueryKey<>(type, model.getCountAllQuery() + ' ' + whereClause));
         try (final var connection = datasource.getConnection();
              final var query = compiledQuery.apply(connection)) {
+            binder.accept(query);
+            try (final var rset = query.getPreparedStatement().executeQuery()) {
+                final var columns = getAndCacheColumns(compiledQuery, rset);
+                if (!rset.next()) {
+                    return 0L;
+                }
+                return rset.getLong(1);
+            }
+        } catch (final SQLException ex) {
+            throw new PersistenceException(ex);
+        }
+    }
+
+    @Override
+    public <T> List<T> findAll(final Class<T> type, final String whereClause, final Consumer<StatementBinder> binder) {
+        requireNonNull(type, "can't find an instance without a type");
+        final var model = getEntityImpl(type);
+        final var compiledQuery = queryCompiler.getOrCreate(
+                new QueryKey<>(type, model.getFindAllQuery() + ' ' + whereClause));
+        try (final var connection = datasource.getConnection();
+             final var query = compiledQuery.apply(connection)) {
+            binder.accept(query);
             try (final var rset = query.getPreparedStatement().executeQuery()) {
                 final var columns = getAndCacheColumns(compiledQuery, rset);
                 final Function<ResultSet, T> provider = type == Map.class ?
-                        line -> (T) mapAsMap(List.of(columns), line) :
-                        getEntityImpl(type).nextProvider(columns, rset);
+                        line -> (T) mapAsMap(columns, line) :
+                        getEntityImpl(type).mapper(columns);
                 return new ResultSetWrapperImpl(rset).mapAll(provider::apply);
             }
         } catch (final SQLException ex) {
@@ -352,7 +370,7 @@ public class DatabaseImpl implements Database {
     public <T> T mapOne(final Class<T> type, final ResultSet resultSet) {
         return type == Map.class ?
                 (T) mapAsMap(toNames(resultSet), resultSet) :
-                getEntityImpl(type).nextProvider(resultSet).apply(resultSet);
+                getEntityImpl(type).mapper(resultSet).apply(resultSet);
     }
 
     @Override
@@ -370,7 +388,7 @@ public class DatabaseImpl implements Database {
                         return (T) mapAsMap(names, line);
                     }
                 } :
-                getEntityImpl(type).nextProvider(resultSet);
+                getEntityImpl(type).mapper(resultSet);
         return new ResultSetWrapperImpl(resultSet).mapAll(provider::apply);
     }
 
@@ -379,14 +397,13 @@ public class DatabaseImpl implements Database {
         return getEntityImpl(type);
     }
 
-    private <T> String[] getAndCacheColumns(final CompiledQuery<T> compiledQuery, final ResultSet rset) {
-        final String[] columns;
+    private <T> List<String> getAndCacheColumns(final CompiledQuery<T> compiledQuery, final ResultSet rset) {
         if (compiledQuery.getColumnNames() != null) {
-            columns = compiledQuery.getColumnNames();
-        } else {
-            columns = toNames(rset).toArray(String[]::new);
-            compiledQuery.setColumnNames(columns);
+            return compiledQuery.getColumnNames();
         }
+
+        final var columns = toNames(rset);
+        compiledQuery.setColumnNames(columns);
         return columns;
     }
 
@@ -490,14 +507,18 @@ public class DatabaseImpl implements Database {
         final List<String> names;
         try {
             final var metaData = resultSet.getMetaData();
-            names = IntStream.rangeClosed(1, metaData.getColumnCount()).mapToObj(i -> {
-                try {
-                    final var columnLabel = metaData.getColumnLabel(i);
-                    return columnLabel == null || columnLabel.isBlank() ? metaData.getColumnName(i) : columnLabel;
-                } catch (final SQLException e) {
-                    throw new IllegalStateException(e);
-                }
-            }).collect(toList());
+            names = IntStream.rangeClosed(1, metaData.getColumnCount())
+                    .mapToObj(i -> {
+                        try {
+                            final var columnLabel = metaData.getColumnLabel(i);
+                            return columnLabel == null || columnLabel.isBlank() ? metaData.getColumnName(i) : columnLabel;
+                        } catch (final SQLException e) {
+                            throw new IllegalStateException(e);
+                        }
+                    })
+                    // most of databases are case insensitive and all can be made friendly so make the matching easier
+                    .map(it -> it.toLowerCase(ROOT))
+                    .collect(toList());
         } catch (final SQLException s) {
             throw new PersistenceException(s);
         }
@@ -520,97 +541,5 @@ public class DatabaseImpl implements Database {
         return (Entity<T, ID>) requireNonNull(
                 entities.computeIfAbsent(type, t -> (Entity<?, ?>) getInstanceLookup().apply(type)),
                 () -> "Missing entity '" + type.getName() + "', did you check you generated the related Entity model as a bean?");
-    }
-
-    private DatabaseTranslation guessTranslation() {
-        try (final var connection = datasource.getConnection()) {
-            final var url = connection.getMetaData().getURL().toLowerCase(ROOT);
-            if (url.contains("oracle")) {
-                return new OracleTranslation();
-            }
-            if (url.contains("mariadb") || url.contains("mysql")) {
-                return new MySQLTranslation();
-            }
-            if (url.contains("postgres")) {
-                return new PostgresTranslation();
-            }
-            if (url.contains("jdbc:h2:") || url.contains("h2 database")) {
-                return new H2Translation();
-            }
-            if (url.contains("cloudscape") || url.contains("idb") || url.contains("daffodil")) {
-                return new DefaultTranslation();
-            }
-            /*
-            if (url.contains("sqlserver")) {
-                return dbdictionaryPlugin.unalias("sqlserver");
-            }
-            if (url.contains("jsqlconnect")) {
-                return dbdictionaryPlugin.unalias("sqlserver");
-            }
-            if (url.contains("sybase")) {
-                return dbdictionaryPlugin.unalias("sybase");
-            }
-            if (url.contains("adaptive server")) {
-                return dbdictionaryPlugin.unalias("sybase");
-            }
-            if (url.contains("informix") || url.contains("ids")) {
-                return dbdictionaryPlugin.unalias("informix");
-            }
-            if (url.contains("ingres")) {
-                return dbdictionaryPlugin.unalias("ingres");
-            }
-            if (url.contains("hsql")) {
-                return dbdictionaryPlugin.unalias("hsql");
-            }
-            if (url.contains("foxpro")) {
-                return dbdictionaryPlugin.unalias("foxpro");
-            }
-            if (url.contains("interbase")) {
-                return InterbaseDictionary.class.getName();
-            }
-            if (url.contains("jdatastore")) {
-                return JDataStoreDictionary.class.getName();
-            }
-            if (url.contains("borland")) {
-                return JDataStoreDictionary.class.getName();
-            }
-            if (url.contains("access")) {
-                return dbdictionaryPlugin.unalias("access");
-            }
-            if (url.contains("pointbase")) {
-                return dbdictionaryPlugin.unalias("pointbase");
-            }
-            if (url.contains("empress")) {
-                return dbdictionaryPlugin.unalias("empress");
-            }
-            if (url.contains("firebird")) {
-                return FirebirdDictionary.class.getName();
-            }
-            if (url.contains("cache")) {
-                return CacheDictionary.class.getName();
-            }
-            if (url.contains("derby")) {
-                return dbdictionaryPlugin.unalias("derby");
-            }
-            if (url.contains("sapdb")) {
-                return dbdictionaryPlugin.unalias("maxdb");
-            }
-            if (url.contains("herddb")) {
-                return dbdictionaryPlugin.unalias("herddb");
-            }
-            if (url.contains("db2") || url.contains("as400")) {
-                return dbdictionaryPlugin.unalias("db2");
-            }
-            if (url.contains("soliddb")) {
-                return dbdictionaryPlugin.unalias("soliddb");
-            }
-            */
-            throw new IllegalArgumentException("" +
-                    "Unknown database: '" + url + "'. " +
-                    "Can't find a database translation to use, set it in the configuration. " +
-                    "If you are not sure, you can start by setting `io.yupiik.fusion.persistence.impl.translation.DefaultTranslation`");
-        } catch (final SQLException ex) {
-            throw new IllegalArgumentException("Cant find database translation, probably set it in the configuration", ex);
-        }
     }
 }

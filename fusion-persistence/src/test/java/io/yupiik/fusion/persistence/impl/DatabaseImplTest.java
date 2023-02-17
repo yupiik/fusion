@@ -17,13 +17,13 @@ package io.yupiik.fusion.persistence.impl;
 
 import io.yupiik.fusion.framework.build.api.persistence.Column;
 import io.yupiik.fusion.framework.build.api.persistence.Id;
-import io.yupiik.fusion.framework.build.api.persistence.OnInsert;
-import io.yupiik.fusion.framework.build.api.persistence.OnLoad;
 import io.yupiik.fusion.framework.build.api.persistence.Operation;
 import io.yupiik.fusion.framework.build.api.persistence.Statement;
 import io.yupiik.fusion.framework.build.api.persistence.Table;
 import io.yupiik.fusion.persistence.api.Database;
 import io.yupiik.fusion.persistence.api.StatementBinder;
+import io.yupiik.fusion.persistence.impl.entity.SimpleFlatEntity;
+import io.yupiik.fusion.persistence.impl.entity.SimpleFlatEntityModel;
 import io.yupiik.fusion.persistence.impl.translation.H2Translation;
 import io.yupiik.fusion.persistence.test.EnableH2;
 import org.junit.jupiter.api.Test;
@@ -38,6 +38,7 @@ import java.util.function.Consumer;
 import java.util.function.IntSupplier;
 
 import static io.yupiik.fusion.persistence.api.StatementBinder.NONE;
+import static java.util.Objects.requireNonNull;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -49,20 +50,19 @@ class DatabaseImplTest {
         final var database = init(dataSource);
 
         for (int i = 0; i < 3; i++) { // seed data
-            final var instance = new MyFlatEntity();
-            instance.name = "test_" + i;
+            final var instance = new SimpleFlatEntity(null, "test_" + i, 0);
             database.insert(instance);
         }
 
         final var ops = database.operation(MyOps.class);
         final var all = ops.findAll();
         assertEquals(3, all.size());
-        assertEquals("test_0", all.get(0).name);
+        assertEquals("test_0", all.get(0).name());
         assertEquals(all.get(0), ops.findOne("test_0"));
         assertEquals(all.get(0), ops.findOneWithPlaceholders("test_0"));
         assertEquals(all.subList(0, 2), ops.findByName(List.of("test_0", "test_1")));
 
-        final IntSupplier counter = () -> database.query(MyFlatEntity.class, "select name, id, age from FLAT_ENTITY order by name", StatementBinder.NONE).size();
+        final IntSupplier counter = () -> database.query(SimpleFlatEntity.class, "select name, id, age from SIMPLE_FLAT_ENTITY order by name", StatementBinder.NONE).size();
         assertEquals(1, ops.delete("test_1"), () -> ops.findAll().toString());
         assertEquals(2, ops.countAll(), () -> ops.findAll().toString());
         assertEquals(counter.getAsInt(), ops.countAll(), () -> ops.findAll().toString());
@@ -102,16 +102,15 @@ class DatabaseImplTest {
         final var database = init(dataSource);
 
         for (int i = 0; i < 3; i++) { // seed data
-            final var instance = new MyFlatEntity();
-            instance.name = "test_" + i;
+            final var instance = new SimpleFlatEntity(null, "test_" + i, 0);
             database.insert(instance);
         }
 
-        final var all = database.query(MyFlatEntity.class, "select name, id, age from FLAT_ENTITY order by name", StatementBinder.NONE);
+        final var all = database.query(SimpleFlatEntity.class, "select name, id, SIMPLE_AGE from SIMPLE_FLAT_ENTITY order by name", StatementBinder.NONE);
         assertEquals(3, all.size());
 
-        assertEquals(3, database.execute("delete from FLAT_ENTITY where name like ?", b -> b.bind("test%")));
-        assertEquals(0, database.query(MyFlatEntity.class, "select name, id, age from FLAT_ENTITY order by name", StatementBinder.NONE).size());
+        assertEquals(3, database.execute("delete from SIMPLE_FLAT_ENTITY where name like ?", b -> b.bind("test%")));
+        assertEquals(0, database.query(SimpleFlatEntity.class, "select name, id, SIMPLE_AGE from SIMPLE_FLAT_ENTITY order by name", StatementBinder.NONE).size());
     }
 
     @Test
@@ -119,15 +118,12 @@ class DatabaseImplTest {
     void findAll(final DataSource dataSource) throws SQLException {
         final var database = init(dataSource);
 
-        final var entities = new ArrayList<MyFlatEntity>();
+        final var entities = new ArrayList<SimpleFlatEntity>();
         for (int i = 0; i < 3; i++) { // seed data
-            final var instance = new MyFlatEntity();
-            instance.name = "test_" + i;
-            database.insert(instance);
-            entities.add(instance);
+            entities.add(database.insert(new SimpleFlatEntity(null, "test_" + i, 0)));
         }
         // query
-        final var all = database.query(MyFlatEntity.class, "select name, id, age from FLAT_ENTITY order by name", StatementBinder.NONE);
+        final var all = database.query(SimpleFlatEntity.class, "select name, id, SIMPLE_AGE from SIMPLE_FLAT_ENTITY order by name", StatementBinder.NONE);
 
         // cleanup
         entities.forEach(database::delete);
@@ -141,17 +137,14 @@ class DatabaseImplTest {
     void findAllUsingAliases(final DataSource dataSource) throws SQLException {
         final var database = init(dataSource);
 
-        final var entities = new ArrayList<MyFlatEntity>();
+        final var entities = new ArrayList<SimpleFlatEntity>();
         for (int i = 0; i < 3; i++) { // seed data
-            final var instance = new MyFlatEntity();
-            instance.name = "test_" + i;
-            database.insert(instance);
-            entities.add(instance);
+            entities.add(database.insert(new SimpleFlatEntity(null, "test_" + i, 0)));
         }
         // query
-        final var entity = database.getOrCreateEntity(MyFlatEntity.class);
+        final var entity = database.getOrCreateEntity(SimpleFlatEntity.class);
         final var all = database.query(
-                "select name as pName, id as pId, age as pAge from FLAT_ENTITY order by pName", StatementBinder.NONE,
+                "select name as pName, id as pId, SIMPLE_AGE as pSIMPLE_AGE from SIMPLE_FLAT_ENTITY order by pName", StatementBinder.NONE,
                 r -> {
                     final var binder = entity
                             .mapFromPrefix("p", r.get()); // this can be cached in the context of this query (caller code) if query is stable
@@ -170,15 +163,12 @@ class DatabaseImplTest {
     void findWithBinding(final DataSource dataSource) throws SQLException {
         final var database = init(dataSource);
 
-        final var entities = new ArrayList<MyFlatEntity>();
+        final var entities = new ArrayList<SimpleFlatEntity>();
         for (int i = 0; i < 3; i++) { // seed data
-            final var instance = new MyFlatEntity();
-            instance.name = "test_" + i;
-            database.insert(instance);
-            entities.add(instance);
+            entities.add(database.insert(new SimpleFlatEntity(null, "test_" + i, 0)));
         }
         // query
-        final var all = database.query(MyFlatEntity.class, "select name, id, age from FLAT_ENTITY where name = ?", b -> b.bind("test_1"));
+        final var all = database.query(SimpleFlatEntity.class, "select name, id, SIMPLE_AGE from SIMPLE_FLAT_ENTITY where name = ?", b -> b.bind("test_1"));
 
         // cleanup
         entities.forEach(database::delete);
@@ -192,28 +182,25 @@ class DatabaseImplTest {
     void batch(final DataSource dataSource) throws SQLException {
         final var database = init(dataSource);
 
-        final var entities = new ArrayList<MyFlatEntity>();
+        final var entities = new ArrayList<SimpleFlatEntity>();
         for (int i = 0; i < 3; i++) { // seed data
-            final var instance = new MyFlatEntity();
-            instance.id = "test_" + i;
-            instance.name = instance.id;
-            entities.add(instance);
+            entities.add(new SimpleFlatEntity("test_" + i, "test_" + i, 0));
         }
 
         assertArrayEquals(
                 new int[]{1, 1, 1},
                 database.batch(
-                        "insert into FLAT_ENTITY(id, age, name) values(?, ?, ?)",
+                        "insert into SIMPLE_FLAT_ENTITY(id, SIMPLE_AGE, name) values(?, ?, ?)",
                         entities.stream()
                                 .map(it -> (Consumer<StatementBinder>) binder -> {
-                                    binder.bind(String.class, it.id);
-                                    binder.bind(int.class, it.age);
-                                    binder.bind(String.class, it.name);
+                                    binder.bind(String.class, it.id());
+                                    binder.bind(int.class, it.age());
+                                    binder.bind(String.class, it.name());
                                 })
                                 .iterator()));
 
         // check all was insert by batch
-        final var all = database.query(MyFlatEntity.class, "select name, id, age from FLAT_ENTITY order by name", StatementBinder.NONE);
+        final var all = database.query(SimpleFlatEntity.class, "select name, id, SIMPLE_AGE from SIMPLE_FLAT_ENTITY order by name", StatementBinder.NONE);
         entities.forEach(database::delete);
         assertEquals(entities, all);
     }
@@ -223,18 +210,14 @@ class DatabaseImplTest {
     void querySingle(final DataSource dataSource) throws SQLException {
         final var database = init(dataSource);
 
-        final var entities = new ArrayList<MyFlatEntity>();
+        final var entities = new ArrayList<SimpleFlatEntity>();
         for (int i = 0; i < 3; i++) { // seed data
-            final var instance = new MyFlatEntity();
-            instance.id = "test_" + i;
-            instance.name = instance.id;
-            entities.add(instance);
-            database.insert(instance);
+            entities.add(database.insert(new SimpleFlatEntity("test_" + i, "test_" + i, 0)));
         }
 
         try {
-            assertTrue(database.querySingle(MyFlatEntity.class, "select name, id, age from FLAT_ENTITY where name like ?", b -> b.bind("test_%")).isEmpty());
-            assertEquals(entities.get(0), database.querySingle(MyFlatEntity.class, "select name, id, age from FLAT_ENTITY where name like ?", b -> b.bind("test_0")).orElseThrow());
+            assertTrue(database.querySingle(SimpleFlatEntity.class, "select name, id, SIMPLE_AGE from SIMPLE_FLAT_ENTITY where name like ?", b -> b.bind("test_%")).isEmpty());
+            assertEquals(entities.get(0), database.querySingle(SimpleFlatEntity.class, "select name, id, SIMPLE_AGE from SIMPLE_FLAT_ENTITY where name like ?", b -> b.bind("test_0")).orElseThrow());
         } finally {
             entities.forEach(database::delete);
         }
@@ -246,27 +229,19 @@ class DatabaseImplTest {
         final var configuration = new DatabaseConfiguration().setDataSource(dataSource);
         final var database = new DatabaseImpl(configuration);
         assertEquals(H2Translation.class, database.getTranslation().getClass());
-
     }
 
     @Test
     @EnableH2
     void ddl(final DataSource dataSource) throws SQLException {
-        final var database = Database.of(new DatabaseConfiguration().setDataSource(dataSource));
-        assertEquals(List.of(), listTables(dataSource));
+        final var database = init(dataSource); // runs ddl so validates syntax is correct
+        assertEquals(List.of("SIMPLE_FLAT_ENTITY"), listTables(dataSource));
 
-        final var entity = database.getOrCreateEntity(MyFlatEntity.class);
+        final var entity = database.getOrCreateEntity(SimpleFlatEntity.class);
         final var ddl = entity.ddl();
         assertArrayEquals(new String[]{
-                "CREATE TABLE FLAT_ENTITY (id VARCHAR(255), age INTEGER, name VARCHAR(255), PRIMARY KEY (id))"
+                "create table SIMPLE_FLAT_ENTITY (id VARCHAR(16), name VARCHAR(16), SIMPLE_AGE integer)"
         }, ddl);
-        assertEquals(List.of(), listTables(dataSource));
-
-        try (final var connection = dataSource.getConnection();
-             final var stmt = connection.createStatement()) {
-            stmt.executeUpdate(ddl[0]);
-        }
-        assertEquals(List.of("FLAT_ENTITY"), listTables(dataSource));
     }
 
     @Test
@@ -275,26 +250,21 @@ class DatabaseImplTest {
         final var database = init(dataSource);
 
         // insert
-        final var instance = new MyFlatEntity();
-        instance.name = "test";
-        database.insert(instance);
+        var instance = database.insert(new SimpleFlatEntity(null, "test", 0));
         assertEquals(1, count(dataSource));
-        assertEquals("MyFlatEntity[id='test', name='test', age=0]", instance.toString());
+        assertEquals("SimpleFlatEntity[id=test, name=test, age=1]", instance.toString());
 
         // find
-        final var firstLookup = database.findById(MyFlatEntity.class, "test");
+        final var firstLookup = database.findById(SimpleFlatEntity.class, "test");
         assertEquals(instance.toString(), firstLookup.toString());
 
         // update
-        instance.age = 35;
-        database.update(instance);
+        instance = database.update(new SimpleFlatEntity("test", "test", 35));
         assertEquals(1, count(dataSource));
-        assertEquals(instance.toString(), database.findById(MyFlatEntity.class, "test").toString());
+        assertEquals(instance.toString(), database.findById(SimpleFlatEntity.class, "test").toString());
 
         // insert another one
-        final var instance2 = new MyFlatEntity();
-        instance2.name = "test2";
-        database.insert(instance2);
+        final var instance2 = database.insert(new SimpleFlatEntity(null, "test2", 0));
         assertEquals(2, count(dataSource));
 
         // delete
@@ -309,22 +279,25 @@ class DatabaseImplTest {
     void onLoad(final DataSource dataSource) throws SQLException {
         final var database = init(dataSource);
 
-        final var instance = new MyFlatEntity();
-        instance.name = "loaded";
-        database.insert(instance);
+        final var instance = database.insert(new SimpleFlatEntity(null, "loaded", 0));
         assertEquals(1, count(dataSource));
-        assertEquals("MyFlatEntity[id='loaded', name='loaded', age=0]", instance.toString());
+        assertEquals("SimpleFlatEntity[id=loaded, name=loaded, age=1]", instance.toString());
 
-        final var firstLookup = database.findById(MyFlatEntity.class, "loaded");
-        assertEquals("MyFlatEntity[id='loaded', name='loaded', age=1]", firstLookup.toString());
+        final var firstLookup = database.findById(SimpleFlatEntity.class, "loaded");
+        assertEquals("SimpleFlatEntity[id=loaded, name=loaded, age=1]", firstLookup.toString());
 
         database.delete(instance);
     }
 
     private Database init(final DataSource dataSource) throws SQLException {
-        final var database = Database.of(new DatabaseConfiguration()
-                .setDataSource(dataSource));
-        final var entity = database.getOrCreateEntity(MyFlatEntity.class);
+        final var configuration = new DatabaseConfiguration();
+        configuration
+                .setDataSource(dataSource)
+                .setInstanceLookup(k -> k == SimpleFlatEntity.class ?
+                        new SimpleFlatEntityModel(configuration) :
+                        requireNonNull(null, () -> "No entity '" + k + "'"));
+        final var database = Database.of(configuration);
+        final var entity = database.getOrCreateEntity(SimpleFlatEntity.class);
 
         // ddl
         try (final var connection = dataSource.getConnection();
@@ -362,57 +335,7 @@ class DatabaseImplTest {
     }
 
     private long count(final DataSource dataSource) throws SQLException {
-        return count(dataSource, "FLAT_ENTITY");
-    }
-
-    @Table("FLAT_ENTITY")
-    public static class MyFlatEntity {
-        @Id
-        private String id;
-
-        @Column
-        private String name;
-
-        @Column
-        private int age;
-
-        @OnInsert
-        private void init() {
-            id = name;
-        }
-
-        @OnLoad
-        private void load() {
-            if ("loaded".equals(name)) {
-                age = 1;
-            }
-        }
-
-        @Override
-        public String toString() {
-            return new StringJoiner(", ", MyFlatEntity.class.getSimpleName() + "[", "]")
-                    .add("id='" + id + "'")
-                    .add("name='" + name + "'")
-                    .add("age=" + age)
-                    .toString();
-        }
-
-        @Override // should only be "id" but for the test it is convenient
-        public boolean equals(Object o) {
-            if (this == o) {
-                return true;
-            }
-            if (o == null || getClass() != o.getClass()) {
-                return false;
-            }
-            final MyFlatEntity that = MyFlatEntity.class.cast(o);
-            return age == that.age && Objects.equals(id, that.id) && Objects.equals(name, that.name);
-        }
-
-        @Override // should only be "id" but for the test it is convenient
-        public int hashCode() {
-            return Objects.hash(id, name, age);
-        }
+        return count(dataSource, "SIMPLE_FLAT_ENTITY");
     }
 
     @Table("AUTO_INCREMENT_ENTITY")
@@ -449,22 +372,22 @@ class DatabaseImplTest {
         }
     }
 
-    @Operation(aliases = @Operation.Alias(alias = "e", type = MyFlatEntity.class))
+    @Operation(aliases = @Operation.Alias(alias = "e", type = SimpleFlatEntity.class))
     public interface MyOps {
         @Statement("select count(*) from ${e#table}")
         long countAll();
 
         @Statement("select ${e#fields} from ${e#table} order by name")
-        List<MyFlatEntity> findAll();
+        List<SimpleFlatEntity> findAll();
 
         @Statement("select ${e#fields} from ${e#table} where name = ?")
-        MyFlatEntity findOne(String name);
+        SimpleFlatEntity findOne(String name);
 
         @Statement("select ${e#fields} from ${e#table} where name = ${parameters#name}")
-        MyFlatEntity findOneWithPlaceholders(String name);
+        SimpleFlatEntity findOneWithPlaceholders(String name);
 
         @Statement("select ${e#fields} from ${e#table} where name ${parameters#name#in} order by name")
-        List<MyFlatEntity> findByName(List<String> name);
+        List<SimpleFlatEntity> findByName(List<String> name);
 
         @Statement("delete from ${e#table} where name like ?")
         int delete(String name);

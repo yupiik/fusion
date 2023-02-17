@@ -25,6 +25,8 @@ import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+import static io.yupiik.fusion.persistence.api.StatementBinder.NONE;
+
 /**
  * Database operation repository.
  * <p>
@@ -55,15 +57,33 @@ public interface Database {
      */
     <T, ID> T findById(Class<T> type, ID id);
 
-    <T> List<T> findAll(Class<T> type);
+    <T> long countAll(Class<T> type, String whereClause, Consumer<StatementBinder> binder);
+
+    default <T> long countAll(final Class<T> type) {
+        return countAll(type, "", NONE);
+    }
+
+    <T> List<T> findAll(Class<T> type, String whereClause, Consumer<StatementBinder> binder);
+
+    default <T> List<T> findAll(final Class<T> type) {
+        return findAll(type, "", NONE);
+    }
 
     <T> List<T> query(Class<T> type, String sql, Consumer<StatementBinder> binder);
 
-    <T> Optional<T> querySingle(Class<T> type, String sql, Consumer<StatementBinder> binder);
+    default <T> List<T> query(Class<T> type, String sql) {
+        return query(type, sql, NONE);
+    }
 
     <T> T query(String sql,
                 Consumer<StatementBinder> binder,
                 Function<ResultSetWrapper, T> resultSetMapper);
+
+    default <T> T query(String sql, Function<ResultSetWrapper, T> resultSetMapper) {
+        return query(sql, NONE, resultSetMapper);
+    }
+
+    <T> Optional<T> querySingle(Class<T> type, String sql, Consumer<StatementBinder> binder);
 
     int execute(String sql, Consumer<StatementBinder> binder);
 

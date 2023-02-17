@@ -40,10 +40,11 @@ public abstract class BaseEntity<A, B> implements Entity<A, B> {
     private final String deleteById;
     private final String insert;
     private final String findAll;
+    private final String countAll;
     private final List<ColumnMetadata> columns;
     private final boolean autoIncremented;
-    private final SQLBiConsumer<A, PreparedStatement> onInsert;
-    private final SQLBiConsumer<A, PreparedStatement> onUpdate;
+    private final SQLBiFunction<A, PreparedStatement, A> onInsert;
+    private final SQLBiFunction<A, PreparedStatement, A> onUpdate;
     private final SQLBiConsumer<A, PreparedStatement> onDelete;
     private final SQLBiConsumer<B, PreparedStatement> onFindById;
     private final SQLBiFunction<A, PreparedStatement, A> onAfterInsert;
@@ -52,10 +53,10 @@ public abstract class BaseEntity<A, B> implements Entity<A, B> {
     public BaseEntity(final DatabaseConfiguration configuration, final String[] ddl,
                       final Class<?> rootType, final String table,
                       final String findById, final String updateById, final String deleteById,
-                      final String insert, final String findAll,
+                      final String insert, final String findAll, final String countAll,
                       final List<ColumnMetadata> columns, final boolean autoIncremented,
-                      final SQLBiConsumer<A, PreparedStatement> onInsert,
-                      final SQLBiConsumer<A, PreparedStatement> onUpdate,
+                      final SQLBiFunction<A, PreparedStatement, A> onInsert,
+                      final SQLBiFunction<A, PreparedStatement, A> onUpdate,
                       final SQLBiConsumer<A, PreparedStatement> onDelete,
                       final SQLBiConsumer<B, PreparedStatement> onFindById,
                       final SQLBiFunction<A, PreparedStatement, A> onAfterInsert,
@@ -69,6 +70,7 @@ public abstract class BaseEntity<A, B> implements Entity<A, B> {
         this.deleteById = deleteById;
         this.insert = insert;
         this.findAll = findAll;
+        this.countAll = countAll;
         this.columns = columns;
         this.autoIncremented = autoIncremented;
         this.onInsert = onInsert;
@@ -120,6 +122,11 @@ public abstract class BaseEntity<A, B> implements Entity<A, B> {
     }
 
     @Override
+    public String getCountAllQuery() {
+        return countAll;
+    }
+
+    @Override
     public List<ColumnMetadata> getOrderedColumns() {
         return columns;
     }
@@ -130,8 +137,8 @@ public abstract class BaseEntity<A, B> implements Entity<A, B> {
     }
 
     @Override
-    public void onInsert(final A instance, final PreparedStatement statement) throws SQLException {
-        onInsert.accept(instance, statement);
+    public A onInsert(final A instance, final PreparedStatement statement) throws SQLException {
+        return onInsert.apply(instance, statement);
     }
 
     @Override
@@ -140,8 +147,8 @@ public abstract class BaseEntity<A, B> implements Entity<A, B> {
     }
 
     @Override
-    public void onUpdate(final A instance, final PreparedStatement statement) throws SQLException {
-        onUpdate.accept(instance, statement);
+    public A onUpdate(final A instance, final PreparedStatement statement) throws SQLException {
+        return onUpdate.apply(instance, statement);
     }
 
     @Override
@@ -175,18 +182,18 @@ public abstract class BaseEntity<A, B> implements Entity<A, B> {
     }
 
     @Override
-    public Function<ResultSet, A> nextProvider(final String[] columns, final ResultSet rset) {
+    public Function<ResultSet, A> mapper(final List<String> columns) {
         try {
-            return nextProvider(toNames(rset).toArray(String[]::new), rset);
+            return factory.apply(columns);
         } catch (final SQLException e) {
             throw new PersistenceException(e);
         }
     }
 
     @Override
-    public Function<ResultSet, A> nextProvider(final ResultSet resultSet) {
+    public Function<ResultSet, A> mapper(final ResultSet resultSet) {
         try {
-            return nextProvider(toNames(resultSet).toArray(String[]::new), resultSet);
+            return mapper(toNames(resultSet).toList());
         } catch (final SQLException e) {
             throw new PersistenceException(e);
         }
@@ -195,22 +202,23 @@ public abstract class BaseEntity<A, B> implements Entity<A, B> {
     @Override
     public Function<ResultSet, A> mapFromPrefix(final String prefix, final ResultSet resultSet) {
         try {
-            return mapFromPrefix(prefix, toNames(resultSet).toArray(String[]::new));
+            return mapFromPrefix(prefix, toNames(resultSet).toList());
         } catch (final SQLException e) {
             throw new PersistenceException(e);
         }
     }
 
     @Override
-    public Function<ResultSet, A> mapFromPrefix(final String prefix, final String... columns) {
+    public Function<ResultSet, A> mapFromPrefix(final String prefix, final List<String> columns) {
         try {
             if (prefix == null || prefix.isBlank()) {
-                return factory.apply(List.of(columns));
+                return factory.apply(columns);
             }
 
             final var lcPrefix = prefix.toLowerCase(ROOT);
-            return factory.apply(Stream.of(columns)
-                    .map(it -> it.toLowerCase(ROOT).startsWith(lcPrefix) ? it.substring(prefix.length()) : null /* ignored but don't loose the index */)
+            return factory.apply(columns.stream()
+                    .map(it -> it.toLowerCase(ROOT))
+                    .map(it -> it.startsWith(lcPrefix) ? it.substring(prefix.length()) : null /* ignored but don't loose the index */)
                     .toList());
         } catch (final SQLException se) {
             throw new PersistenceException(se);
@@ -226,14 +234,15 @@ public abstract class BaseEntity<A, B> implements Entity<A, B> {
             } catch (final SQLException e) {
                 throw new IllegalStateException(e);
             }
-        });
+        }).map(it -> it.toLowerCase(ROOT));
     }
 
     protected static SQLFunction<ResultSet, String> stringOf(final int index) {
         if (index < 0) {
             return r -> null;
         }
-        return r -> r.getString(index);
+        final var idx = index + 1;// translate list index to jdbc index
+        return r -> r.getString(idx);
     }
 
     protected static SQLFunction<ResultSet, Integer> intOf(final int index, final boolean nullable) {
@@ -244,7 +253,8 @@ public abstract class BaseEntity<A, B> implements Entity<A, B> {
             // int
             return r -> 0;
         }
-        return r -> r.getInt(index);
+        final var idx = index + 1;// translate list index to jdbc index
+        return r -> r.getInt(idx);
     }
 
     protected interface SQLBiFunction<P, E, R> {
