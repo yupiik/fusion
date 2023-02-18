@@ -1704,6 +1704,73 @@ class FusionProcessorTest {
                 });
     }
 
+    @Test
+    void simplePersistence(@TempDir final Path work) throws IOException {
+        final var entity = "persistence.SimpleFlatEntity";
+        final var compiler = new Compiler(work, entity);
+        compiler.compileAndAsserts((loader, container) -> assertEquals(
+                """
+                        package test.p.persistence;
+                                                
+                                                
+                        @io.yupiik.fusion.framework.api.container.Generation(version = 1)
+                        public class SimpleFlatEntity$FusionPersistenceEntity extends io.yupiik.fusion.persistence.impl.BaseEntity<SimpleFlatEntity, java.lang.String> {
+                            public SimpleFlatEntity$FusionPersistenceEntity(io.yupiik.fusion.persistence.impl.DatabaseConfiguration configuration) {
+                                super(
+                                  configuration,
+                                  SimpleFlatEntity.class,
+                                  "SIMPLE_FLAT_ENTITY",
+                                  java.util.List.of(
+                                    new io.yupiik.fusion.persistence.impl.ColumnMetadataImpl("id", java.lang.String.class, "id", 0, false),
+                                    new io.yupiik.fusion.persistence.impl.ColumnMetadataImpl("name", java.lang.String.class, ""),
+                                    new io.yupiik.fusion.persistence.impl.ColumnMetadataImpl("arr", byte[].class, ""),
+                                    new io.yupiik.fusion.persistence.impl.ColumnMetadataImpl("age", int.class, "SIMPLE_AGE")
+                                  ),
+                                  false,
+                                  (entity, statement) -> {
+                                    final var instance = entity.onInsert();
+                                    if (instance.id() == null) { statement.setNull(1, java.sql.Types.VARCHAR); } else { statement.setString(1, instance.id()); }
+                                    if (instance.name() == null) { statement.setNull(2, java.sql.Types.VARCHAR); } else { statement.setString(2, instance.name()); }
+                                    if (instance.arr() == null) { statement.setNull(3, java.sql.Types.ARRAY); } else { statement.setBytes(3, instance.arr()); }
+                                    statement.setInt(4, instance.age());
+                                    return instance;
+                                  },
+                                  (instance, statement) -> {
+                                    if (instance.name() == null) { statement.setNull(1, java.sql.Types.VARCHAR); } else { statement.setString(1, instance.name()); }
+                                    if (instance.arr() == null) { statement.setNull(2, java.sql.Types.ARRAY); } else { statement.setBytes(2, instance.arr()); }
+                                    statement.setInt(3, instance.age());
+                                    if (instance.id() == null) { statement.setNull(4, java.sql.Types.VARCHAR); } else { statement.setString(4, instance.id()); }
+                                    return instance;
+                                  },
+                                  (instance, statement) -> {
+                                    if (instance.id() == null) { statement.setNull(1, java.sql.Types.VARCHAR); } else { statement.setString(1, instance.id()); }
+                                  },
+                                  (id, statement) -> {
+                                    if (id == null) { statement.setNull(1, java.sql.Types.VARCHAR); } else { statement.setString(1, id); }
+                                  },
+                                  (entity, statement) -> entity,
+                                  columns -> {
+                                    final var id = stringOf(columns.indexOf("id"));
+                                    final var name = stringOf(columns.indexOf("name"));
+                                    final var arr = bytesOf(columns.indexOf("arr"));
+                                    final var age = intOf(columns.indexOf("age"), true);
+                                    return rset -> {
+                                      try {
+                                        final var entity = new test.p.persistence.SimpleFlatEntity(id.apply(rset), name.apply(rset), arr.apply(rset), age.apply(rset));
+                                        entity.onLoad();
+                                        return entity;
+                                      } catch (final java.sql.SQLException e) {
+                                        throw new io.yupiik.fusion.persistence.api.PersistenceException(e);
+                                      }
+                                    };
+                                  });
+                            }
+                        }
+                                                
+                        """,
+                compiler.readGeneratedSource(entity + "$FusionPersistenceEntity")));
+    }
+
     private <A> void withInstance(final RuntimeContainer container, final Function<String, Class<?>> loader, final String name,
                                   final Class<A> type, final Consumer<A> consumer) {
         try (final var instance = container.lookup(loader.apply(name))) {

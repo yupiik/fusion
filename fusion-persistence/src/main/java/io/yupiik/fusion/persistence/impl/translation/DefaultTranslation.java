@@ -17,7 +17,6 @@ package io.yupiik.fusion.persistence.impl.translation;
 
 import io.yupiik.fusion.persistence.spi.DatabaseTranslation;
 
-import java.lang.annotation.Annotation;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -25,13 +24,12 @@ import java.time.OffsetDateTime;
 import java.time.ZonedDateTime;
 import java.util.Date;
 import java.util.List;
-import java.util.Map;
 
 import static java.util.stream.Collectors.joining;
 
 public class DefaultTranslation implements DatabaseTranslation {
     @Override
-    public String toDatabaseType(final Class<?> type, final Annotation... annotations) {
+    public String toDatabaseType(final Class<?> type) {
         if (String.class == type || type.isEnum()) {
             return "VARCHAR(255)"; // todo: @Column(length) in annotations? + lob = true for "TEXT"?
         }
@@ -72,10 +70,9 @@ public class DefaultTranslation implements DatabaseTranslation {
     }
 
     @Override
-    public String toCreateTablePrimaryKeySuffix(final List<Map.Entry<String, Annotation[]>> columns) {
+    public String toCreateTablePrimaryKeySuffix(final List<String> columns) {
         return ", PRIMARY KEY (" +
                 columns.stream()
-                        .map(Map.Entry::getKey)
                         .map(this::wrapFieldName)
                         .collect(joining(", ")) +
                 ")";

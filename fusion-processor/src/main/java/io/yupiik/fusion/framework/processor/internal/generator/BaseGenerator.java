@@ -39,6 +39,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static java.util.Comparator.comparing;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.joining;
 import static javax.lang.model.element.ElementKind.CONSTRUCTOR;
@@ -47,6 +48,19 @@ import static javax.lang.model.element.Modifier.PROTECTED;
 import static javax.lang.model.element.Modifier.PUBLIC;
 
 public abstract class BaseGenerator {
+    protected static final Comparator<ExecutableElement> RECORD_CONSTRUCTOR_COMPARATOR = comparing(e -> {
+        if (e.getModifiers().contains(PUBLIC)) {
+            return 1000;
+        }
+        if (e.getModifiers().contains(PROTECTED)) {
+            return 100;
+        }
+        if (!e.getModifiers().contains(PRIVATE)) { // package scope
+            return 10;
+        }
+        return 0; // private
+    });
+
     protected final ProcessingEnvironment processingEnv;
     protected final Elements elements;
 

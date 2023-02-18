@@ -13,20 +13,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package io.yupiik.fusion.persistence.spi;
+package io.yupiik.fusion.framework.processor.internal.stream;
 
-import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Stream;
 
-public interface DatabaseTranslation {
-    default String wrapFieldName(final String name) {
-        return name;
+public final class Streams {
+    private Streams() {
+        // no-op
     }
 
-    default String wrapTableName(final String table) {
-        return table;
+    public static <A> Stream<ItemWithIndex<A>> withIndex(final Stream<? extends A> delegate) {
+        final var counter = new AtomicInteger();
+        return delegate.map(it -> new ItemWithIndex<>(it, counter.getAndIncrement()));
     }
 
-    String toDatabaseType(Class<?> type);
-
-    String toCreateTablePrimaryKeySuffix(final List<String> columns);
+    public record ItemWithIndex<A>(A item, int index) {
+    }
 }

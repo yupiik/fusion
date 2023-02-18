@@ -33,6 +33,10 @@ import io.yupiik.fusion.framework.build.api.jsonrpc.JsonRpc;
 import io.yupiik.fusion.framework.build.api.lifecycle.Destroy;
 import io.yupiik.fusion.framework.build.api.lifecycle.Init;
 import io.yupiik.fusion.framework.build.api.order.Order;
+import io.yupiik.fusion.framework.build.api.persistence.OnDelete;
+import io.yupiik.fusion.framework.build.api.persistence.OnInsert;
+import io.yupiik.fusion.framework.build.api.persistence.OnLoad;
+import io.yupiik.fusion.framework.build.api.persistence.OnUpdate;
 import io.yupiik.fusion.framework.build.api.persistence.Table;
 import io.yupiik.fusion.framework.build.api.scanning.Injection;
 import io.yupiik.fusion.framework.processor.internal.Bean.FieldInjection;
@@ -165,6 +169,10 @@ import static javax.tools.StandardLocation.CLASS_OUTPUT;
 public class InternalFusionProcessor extends AbstractProcessor {
     private TypeMirror init;
     private TypeMirror destroy;
+    private TypeMirror onInsert;
+    private TypeMirror onLoad;
+    private TypeMirror onUpdate;
+    private TypeMirror onDelete;
     private Set<String> knownJsonModels;
 
     private boolean emitNotes;
@@ -205,6 +213,10 @@ public class InternalFusionProcessor extends AbstractProcessor {
         elements = new Elements(processingEnv);
         init = asTypeElement(Init.class).asType();
         destroy = asTypeElement(Destroy.class).asType();
+        onInsert = asTypeElement(OnInsert.class).asType();
+        onLoad = asTypeElement(OnLoad.class).asType();
+        onUpdate = asTypeElement(OnUpdate.class).asType();
+        onDelete = asTypeElement(OnDelete.class).asType();
 
         emitNotes = !Boolean.parseBoolean(processingEnv.getOptions().getOrDefault("fusion.skipNotes", "true"));
         beanForHttpEndpoints = Boolean.parseBoolean(processingEnv.getOptions().getOrDefault("fusion.generateBeanForHttpEndpoints", "true"));
@@ -671,7 +683,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
                     processingEnv, elements, beanForPersistenceEntities,
                     names.packageName(), names.className(),
                     entity.getAnnotation(Table.class), entity,
-                    allConfigurationsDocs)
+                    onDelete, onInsert, onLoad, onUpdate)
                     .get();
             writeGeneratedClass(entity, generation.entity());
 

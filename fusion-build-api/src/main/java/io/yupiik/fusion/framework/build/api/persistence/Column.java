@@ -31,11 +31,6 @@ public @interface Column {
     String name() default "";
 
     /**
-     * @return column (SQL) type.
-     */
-    String type() default "";
-
-    /**
      * @return a value mapper type to map the java model to the database storage and vice versa.
      */
     Class<? extends ValueMapper> mapper() default ValueMapper.class;

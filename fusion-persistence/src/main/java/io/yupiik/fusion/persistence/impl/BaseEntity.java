@@ -19,6 +19,7 @@ import io.yupiik.fusion.persistence.api.Entity;
 import io.yupiik.fusion.persistence.api.PersistenceException;
 import io.yupiik.fusion.persistence.api.SQLFunction;
 
+import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -49,6 +50,54 @@ public abstract class BaseEntity<A, B> implements Entity<A, B> {
     private final SQLBiConsumer<B, PreparedStatement> onFindById;
     private final SQLBiFunction<A, PreparedStatement, A> onAfterInsert;
     private final SQLFunction<List<String>, Function<ResultSet, A>> factory;
+
+    // used by generation
+    protected BaseEntity(final DatabaseConfiguration configuration,
+                         final Class<?> rootType, final String table,
+                         final List<ColumnMetadata> columns,
+                         final boolean autoIncremented,
+                         final SQLBiFunction<A, PreparedStatement, A> onInsert,
+                         final SQLBiFunction<A, PreparedStatement, A> onUpdate,
+                         final SQLBiConsumer<A, PreparedStatement> onDelete,
+                         final SQLBiConsumer<B, PreparedStatement> onFindById,
+                         final SQLBiFunction<A, PreparedStatement, A> onAfterInsert,
+                         final SQLFunction<List<String>, Function<ResultSet, A>> factory) {
+        this(
+                configuration, null /* lazy computation */, rootType, table,
+                "SELECT " + fieldsCommaSeparated(configuration, columns, false) + " FROM " + table + byIdWhereClause(configuration, columns),
+                "UPDATE " + table + " SET " +
+                        columns.stream()
+                                .filter(it -> it.idIndex() < 0)
+                                .map(f -> configuration.getTranslation().wrapFieldName(f.columnName()) + " = ?")
+                                .collect(joining(", ")) +
+                        byIdWhereClause(configuration, columns),
+                "DELETE FROM " + table + byIdWhereClause(configuration, columns),
+                "INSERT INTO " + table + " (" + fieldsCommaSeparated(configuration, columns, autoIncremented) + ") " +
+                        "VALUES (" + columns.stream()
+                        .filter(it -> it.idIndex() < 0)
+                        .map(f -> "?")
+                        .collect(joining(", ")) + ")",
+                "SELECT " + fieldsCommaSeparated(configuration, columns, false) + " FROM " + table,
+                "SELECT count(*) FROM " + table,
+                columns, autoIncremented,
+                onInsert, onUpdate, onDelete, onFindById, onAfterInsert, factory);
+    }
+
+    private static String byIdWhereClause(final DatabaseConfiguration configuration, final List<ColumnMetadata> columns) {
+        return " WHERE " + columns.stream()
+                .filter(it -> it.idIndex() >= 0)
+                .map(f -> configuration.getTranslation().wrapFieldName(f.columnName()) + " = ?")
+                .collect(joining(" AND "));
+    }
+
+    private static String fieldsCommaSeparated(final DatabaseConfiguration configuration,
+                                               final List<ColumnMetadata> columns,
+                                               final boolean exceptId) {
+        return columns.stream()
+                .filter(it -> !exceptId || it.idIndex() < 0)
+                .map(f -> configuration.getTranslation().wrapFieldName(f.columnName()))
+                .collect(joining(", "));
+    }
 
     public BaseEntity(final DatabaseConfiguration configuration, final String[] ddl,
                       final Class<?> rootType, final String table,
@@ -83,6 +132,22 @@ public abstract class BaseEntity<A, B> implements Entity<A, B> {
 
     @Override
     public String[] ddl() {
+        if (ddl == null) { // todo: enhance, for now it only supports simple Class fields and meta (enhance translations)
+            final var translation = configuration.getTranslation();
+            final var fields = columns.stream()
+                    .map(c -> c.columnName() + " " + translation.toDatabaseType((Class) c.type()))
+                    .collect(joining(", "));
+            final var idFields = columns.stream()
+                    .filter(it -> it.idIndex() >= 0)
+                    .map(ColumnMetadata::columnName)
+                    .toList();
+            return new String[]{
+                    "CREATE TABLE " + table + " (" +
+                            fields +
+                            (idFields.isEmpty() ? "" : translation.toCreateTablePrimaryKeySuffix(idFields)) +
+                            ")"
+            };
+        }
         return ddl;
     }
 
@@ -268,16 +333,59 @@ public abstract class BaseEntity<A, B> implements Entity<A, B> {
         return r -> r.getInt(idx);
     }
 
-    protected interface SQLBiFunction<P, E, R> {
-        SQLBiFunction<?, ?, ?> IDENTITY = (a, b) -> a;
+    protected static SQLFunction<ResultSet, Double> doubleOf(final int index, final boolean nullable) {
+        if (index < 0) {
+            return nullable ? r -> null : r -> 0.;
+        }
+        final var idx = index + 1;
+        return r -> r.getDouble(idx);
+    }
 
+    protected static SQLFunction<ResultSet, Float> floatOf(final int index, final boolean nullable) {
+        if (index < 0) {
+            return nullable ? r -> null : r -> 0.f;
+        }
+        final var idx = index + 1;
+        return r -> r.getFloat(idx);
+    }
+
+    protected static SQLFunction<ResultSet, Boolean> booleanOf(final int index, final boolean nullable) {
+        if (index < 0) {
+            return nullable ? r -> null : r -> false;
+        }
+        final var idx = index + 1;
+        return r -> r.getBoolean(idx);
+    }
+
+    protected static SQLFunction<ResultSet, Byte> byteOf(final int index, final boolean nullable) {
+        if (index < 0) {
+            return nullable ? r -> null : r -> (byte) 0;
+        }
+        final var idx = index + 1;
+        return r -> r.getByte(idx);
+    }
+
+    protected static SQLFunction<ResultSet, Date> dateOf(final int index) {
+        if (index < 0) {
+            return r -> null;
+        }
+        final var idx = index + 1;
+        return r -> r.getDate(idx);
+    }
+
+    protected static SQLFunction<ResultSet, byte[]> bytesOf(final int index) {
+        if (index < 0) {
+            return r -> null;
+        }
+        final var idx = index + 1;
+        return r -> r.getBytes(idx);
+    }
+
+    protected interface SQLBiFunction<P, E, R> {
         R apply(P first, E second) throws SQLException;
     }
 
     protected interface SQLBiConsumer<P, E> {
-        SQLBiConsumer<?, ?> NOOP = (a, b) -> {
-        };
-
         void accept(P first, E second) throws SQLException;
     }
 }
