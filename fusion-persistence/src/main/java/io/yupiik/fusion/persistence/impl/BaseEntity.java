@@ -89,22 +89,6 @@ public abstract class BaseEntity<A, B> implements Entity<A, B> {
                 onInsert, onUpdate, onDelete, onFindById, onAfterInsert, factory);
     }
 
-    private static String byIdWhereClause(final DatabaseConfiguration configuration, final List<ColumnMetadata> columns) {
-        return " WHERE " + columns.stream()
-                .filter(it -> it.idIndex() >= 0)
-                .map(f -> configuration.getTranslation().wrapFieldName(f.columnName()) + " = ?")
-                .collect(joining(" AND "));
-    }
-
-    private static String fieldsCommaSeparated(final DatabaseConfiguration configuration,
-                                               final List<ColumnMetadata> columns,
-                                               final boolean exceptId) {
-        return columns.stream()
-                .filter(it -> !exceptId || it.idIndex() < 0)
-                .map(f -> configuration.getTranslation().wrapFieldName(f.columnName()))
-                .collect(joining(", "));
-    }
-
     public BaseEntity(final DatabaseConfiguration configuration,
                       final Class<?> rootType, final String table,
                       final String findById, final String updateById, final String deleteById,
@@ -294,6 +278,17 @@ public abstract class BaseEntity<A, B> implements Entity<A, B> {
         return r -> r.getString(idx);
     }
 
+    protected static <T extends Enum<T>> SQLFunction<ResultSet, T> enumOf(final int index, final Class<T> enumType) {
+        if (index < 0) {
+            return r -> null;
+        }
+        final var idx = index + 1;// translate list index to jdbc index
+        return r -> {
+            final var value = r.getString(idx);
+            return value == null || value.isBlank() ? null : Enum.valueOf(enumType, value.strip());
+        };
+    }
+
     protected static SQLFunction<ResultSet, Long> longOf(final int index, final boolean nullable) {
         if (index < 0) {
             if (nullable) { // Long
@@ -411,6 +406,22 @@ public abstract class BaseEntity<A, B> implements Entity<A, B> {
         }
         final var idx = index + 1;
         return r -> r.getBytes(idx);
+    }
+
+    private static String byIdWhereClause(final DatabaseConfiguration configuration, final List<ColumnMetadata> columns) {
+        return " WHERE " + columns.stream()
+                .filter(it -> it.idIndex() >= 0)
+                .map(f -> configuration.getTranslation().wrapFieldName(f.columnName()) + " = ?")
+                .collect(joining(" AND "));
+    }
+
+    private static String fieldsCommaSeparated(final DatabaseConfiguration configuration,
+                                               final List<ColumnMetadata> columns,
+                                               final boolean exceptId) {
+        return columns.stream()
+                .filter(it -> !exceptId || it.idIndex() < 0)
+                .map(f -> configuration.getTranslation().wrapFieldName(f.columnName()))
+                .collect(joining(", "));
     }
 
     protected interface SQLBiFunction<P, E, R> {

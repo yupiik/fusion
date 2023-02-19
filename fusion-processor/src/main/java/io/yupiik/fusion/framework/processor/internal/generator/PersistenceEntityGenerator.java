@@ -32,9 +32,12 @@ import io.yupiik.fusion.persistence.impl.DatabaseConfiguration;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 import java.sql.SQLException;
 import java.util.List;
@@ -158,7 +161,7 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
                         (!onInsertCb.isEmpty() ? "            final var instance = entity." + onInsertCb.get(0).getSimpleName().toString() + "();\n" : "") +
                         withIndex(autoIncremented ? standardColumns.stream() : Stream.concat(ids.stream(), standardColumns.stream()))
                                 .map(it -> "            " + jdbcSetter(
-                                        it.item().asType(), it.index() + 1,
+                                        it.item(), it.index() + 1,
                                         "instance." + it.item().getSimpleName() + "()"))
                                 .collect(joining("\n", "", "\n")) +
                         "            return instance;\n" +
@@ -167,12 +170,12 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
                         (!onUpdateCb.isEmpty() ? "            final var instance = entity." + onUpdateCb.get(0).getSimpleName().toString() + "();\n" : "") +
                         withIndex(standardColumns.stream())
                                 .map(it -> "            " + jdbcSetter(
-                                        it.item().asType(), it.index() + 1,
+                                        it.item(), it.index() + 1,
                                         "instance." + it.item().getSimpleName() + "()"))
                                 .collect(joining("\n", "", "\n")) +
                         withIndex(ids.stream())
                                 .map(it -> "            " + jdbcSetter(
-                                        it.item().asType(), standardColumns.size() + it.index() + 1,
+                                        it.item(), standardColumns.size() + it.index() + 1,
                                         "instance." + it.item().getSimpleName() + "()"))
                                 .collect(joining("\n", "", "\n")) +
                         "            return instance;\n" +
@@ -181,18 +184,18 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
                         (!onDeleteCb.isEmpty() ? "            entity." + onDeleteCb.get(0).getSimpleName().toString() + "();\n" : "") +
                         withIndex(ids.stream())
                                 .map(it -> "            " + jdbcSetter(
-                                        it.item().asType(), it.index() + 1,
+                                        it.item(), it.index() + 1,
                                         "instance." + it.item().getSimpleName() + "()"))
                                 .collect(joining("\n", "", "\n")) +
                         "          },\n" +
                         "          (id, statement) -> {\n" +
                         switch (ids.size()) {
-                            case 1 -> "            " + jdbcSetter(ids.get(0).asType(), 1, "id") + "\n";
+                            case 1 -> "            " + jdbcSetter(ids.get(0), 1, "id") + "\n";
                             // multiple ids, we get a list and we bind each item
                             default -> "            final var it = id.iterator();\n" +
                                     withIndex(ids.stream())
                                             .map(it -> "            " + jdbcSetter(
-                                                    it.item().asType(), it.index() + 1,
+                                                    it.item(), it.index() + 1,
                                                     "(" + ParsedType.of(it.item().asType()).className() + ") it.next()"))
                                             .collect(joining("\n", "", "\n"));
                         } +
@@ -206,7 +209,7 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
                         // do a copy of all params except the generated id (can be only one for now)
                         "              return new " + className + "(" + constructorParameters.stream()
                         .map(it -> ids.contains(it) ?
-                                jdbcGetter(it.asType(), 1) :
+                                jdbcGetter(it, 1) :
                                 ("entity." + it.getSimpleName().toString() + "()"))
                         .collect(joining(", ")) + ");\n" +
                         "            }" +
@@ -214,25 +217,15 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
                         "          columns -> {\n" +
                         constructorParameters.stream()
                                 .map(p -> {
+                                    final var leftSide = "            final var " + p.getSimpleName().toString() + " = ";
+                                    final var ofPart = "Of(columns.indexOf(\"" + p.getSimpleName().toString() + "\")";
+                                    final boolean isEnum = isEnum(p);
                                     final var name = ParsedType.of(p.asType()).className();
-                                    return "            final var " + p.getSimpleName().toString() + " = " + switch (name) {
-                                        case "java.util.Date", "java.sql.Date" -> "date";
-                                        case "java.lang.String" -> "string";
-                                        case "java.lang.Integer", "int" -> "int";
-                                        case "java.lang.Double", "double" -> "double";
-                                        case "java.lang.Float", "float" -> "float";
-                                        case "java.lang.Long", "long" -> "long";
-                                        case "java.lang.Boolean", "boolean" -> "boolean";
-                                        case "java.lang.Byte", "byte" -> "byte";
-                                        case "java.lang.Short", "short" -> "short";
-                                        case "java.math.BigDecimal" -> "bigdecimal";
-                                        case "byte[]" -> "bytes";
-                                        case "java.math.BigInteger", "java.time.LocalDate", "java.time.LocalDateTime",
-                                                "java.time.OffsetDateTime", "java.time.ZonedDateTime", "java.time.LocalTime" ->
-                                                name.substring(name.lastIndexOf('.') + 1).toLowerCase(ROOT); // object
-                                        default ->
-                                                throw new IllegalArgumentException("Unsupported type: " + p.asType());
-                                    } + "Of(columns.indexOf(\"" + p.getSimpleName().toString() + "\")" + switch (name) {
+                                    if (isEnum) {
+                                        return leftSide + "enum" + ofPart + ", " + name + ".class);\n";
+                                    }
+
+                                    return leftSide + columnReaderPrefix(p, name) + ofPart + switch (name) {
                                         case "int", "double", "float", "long", "boolean", "byte" -> ", true";
                                         case "java.lang.Integer", "java.lang.Double", "java.lang.Float", "java.lang.Long", "java.lang.Boolean", "java.lang.Byte" ->
                                                 ", false";
@@ -278,15 +271,39 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
                         null);
     }
 
-    private String jdbcGetter(final TypeMirror type, final int jdbcIndex) {
-        final var fqn = ParsedType.of(type).className();
+    private String columnReaderPrefix(final VariableElement p, final String name) {
+        return switch (name) {
+            case "java.util.Date", "java.sql.Date" -> "date";
+            case "java.lang.String" -> "string";
+            case "java.lang.Integer", "int" -> "int";
+            case "java.lang.Double", "double" -> "double";
+            case "java.lang.Float", "float" -> "float";
+            case "java.lang.Long", "long" -> "long";
+            case "java.lang.Boolean", "boolean" -> "boolean";
+            case "java.lang.Byte", "byte" -> "byte";
+            case "java.lang.Short", "short" -> "short";
+            case "java.math.BigDecimal" -> "bigdecimal";
+            case "byte[]" -> "bytes";
+            case "java.math.BigInteger", "java.time.LocalDate", "java.time.LocalDateTime",
+                    "java.time.OffsetDateTime", "java.time.ZonedDateTime", "java.time.LocalTime" ->
+                    name.substring(name.lastIndexOf('.') + 1).toLowerCase(ROOT); // object
+            default -> throw new IllegalArgumentException("Unsupported type: " + p.asType());
+        };
+    }
+
+    private String jdbcGetter(final Element elt, final int jdbcIndex) {
+        final var type = elt.asType();
+        final boolean isEnum = isEnum(elt);
+        final var fqn = isEnum ? "java.lang.String" : ParsedType.of(type).className();
         return "rset.get" + jdbcMarker(type, fqn) + "(" + jdbcIndex + ")";
     }
 
-    private String jdbcSetter(final TypeMirror type,
+    private String jdbcSetter(final Element elt,
                               final int jdbcIndex,
                               final String accessor) {
-        final var fqn = ParsedType.of(type).className();
+        final var type = elt.asType();
+        final boolean isEnum = isEnum(elt);
+        final var fqn = isEnum ? "java.lang.String" : ParsedType.of(type).className();
         final var handleNull = !PRIMITIVES.contains(fqn);
         return (handleNull ?
                 "if (" + accessor + " == null) { " +
@@ -299,8 +316,10 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
                             case "java.lang.Long", "java.math.BigInteger" -> "java.sql.Types.BIGINT";
                             case "java.lang.Boolean" -> "java.sql.Types.BOOLEAN";
                             case "java.lang.Byte", "java.lang.Short" -> "java.sql.Types.SMALLINT";
-                            case "java.util.Date", "java.sql.Date", "java.time.LocalDate", "java.time.LocalDateTime" -> "java.sql.Types.DATE";
-                            case "java.time.OffsetDateTime", "java.time.ZonedDateTime" -> "java.sql.Types.TIMESTAMP_WITH_TIMEZONE";
+                            case "java.util.Date", "java.sql.Date", "java.time.LocalDate", "java.time.LocalDateTime" ->
+                                    "java.sql.Types.DATE";
+                            case "java.time.OffsetDateTime", "java.time.ZonedDateTime" ->
+                                    "java.sql.Types.TIMESTAMP_WITH_TIMEZONE";
                             case "java.time.LocalTime" -> "java.sql.Types.TIME";
                             case "java.math.BigDecimal" -> "java.sql.Types.DECIMAL";
                             case "byte[]" -> "java.sql.Types.VARBINARY";
@@ -308,7 +327,7 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
                         } + "); " +
                         "} else { " :
                 "") +
-                "statement.set" + jdbcMarker(type, fqn) + "(" + jdbcIndex + ", " + accessor + ");" +
+                "statement.set" + jdbcMarker(type, fqn) + "(" + jdbcIndex + ", " + accessor + (isEnum ? ".name()" : "") + ");" +
                 (handleNull ? " }" : "");
     }
 
@@ -329,6 +348,10 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
                     "java.time.OffsetDateTime", "java.time.ZonedDateTime", "java.time.LocalTime" -> "Object";
             default -> throw new IllegalArgumentException("Unsupported type: " + type);
         };
+    }
+
+    private boolean isEnum(final Element elt) {
+        return elt.asType() instanceof DeclaredType dt && dt.asElement().getKind() == ElementKind.ENUM;
     }
 
     private void isNotPrivate(final ExecutableElement executableElement) {

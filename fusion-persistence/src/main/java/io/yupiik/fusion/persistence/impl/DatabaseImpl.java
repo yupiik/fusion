@@ -85,6 +85,7 @@ public class DatabaseImpl implements Database {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public <T> List<T> query(final Class<T> type, final String sql, final Consumer<StatementBinder> binder) {
         requireNonNull(type, "can't query without a projection");
         requireNonNull(sql, "can't query without a query");
@@ -105,6 +106,7 @@ public class DatabaseImpl implements Database {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public <T> Optional<T> querySingle(final Class<T> type, final String sql, final Consumer<StatementBinder> binder) {
         requireNonNull(type, "can't query without a projection");
         requireNonNull(sql, "can't query without a query");
@@ -236,6 +238,7 @@ public class DatabaseImpl implements Database {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public <T> T insert(final T instance) {
         requireNonNull(instance, "can't persist a null instance");
         final var model = (Entity<T, ?>) getEntityImpl(instance.getClass());
@@ -255,6 +258,7 @@ public class DatabaseImpl implements Database {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public <T> T update(final T instance) {
         requireNonNull(instance, "can't update a null instance");
         final Class<T> aClass = (Class<T>) instance.getClass();
@@ -272,6 +276,7 @@ public class DatabaseImpl implements Database {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public <T> T delete(final T instance) {
         requireNonNull(instance, "can't delete a null instance");
         final Class<T> aClass = (Class<T>) instance.getClass();
@@ -320,7 +325,6 @@ public class DatabaseImpl implements Database {
              final var query = compiledQuery.apply(connection)) {
             binder.accept(query);
             try (final var rset = query.getPreparedStatement().executeQuery()) {
-                final var columns = getAndCacheColumns(compiledQuery, rset);
                 if (!rset.next()) {
                     return 0L;
                 }
@@ -332,6 +336,7 @@ public class DatabaseImpl implements Database {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public <T> List<T> findAll(final Class<T> type, final String whereClause, final Consumer<StatementBinder> binder) {
         requireNonNull(type, "can't find an instance without a type");
         final var model = getEntityImpl(type);
@@ -353,6 +358,7 @@ public class DatabaseImpl implements Database {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public <T> T mapOne(final Class<T> type, final ResultSet resultSet) {
         return type == Map.class ?
                 (T) mapAsMap(toNames(resultSet), resultSet) :
@@ -360,6 +366,7 @@ public class DatabaseImpl implements Database {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public <T> List<T> mapAll(final Class<T> type, final ResultSet resultSet) {
         final var provider = type == Map.class ?
                 new Function<ResultSet, T>() {

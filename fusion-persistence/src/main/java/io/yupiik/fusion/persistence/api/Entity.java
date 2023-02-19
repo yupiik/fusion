@@ -95,7 +95,7 @@ public interface Entity<E, ID> {
         int idIndex();
 
         /**
-         * @return {@code true} if the column is an identifer which is auto incremented.
+         * @return {@code true} if the column is an identifier which is auto incremented.
          */
         boolean autoIncremented();
 
@@ -103,6 +103,9 @@ public interface Entity<E, ID> {
 
         String columnName();
 
+        /**
+         * @return java type of the column.
+         */
         Type type();
 
         /**

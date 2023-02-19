@@ -24,20 +24,25 @@ import io.yupiik.fusion.framework.build.api.persistence.Table;
 @Table("SIMPLE_FLAT_ENTITY")
 public record SimpleFlatEntity(
         @Id String id,
-        @Column String name,
-        @Column byte[] arr,
-        @Column(name = "SIMPLE_AGE") int age) {
+        String name,
+        byte[] arr,
+        @Column(name = "SIMPLE_AGE") int age,
+        Kind kind) {
     @OnInsert
     public SimpleFlatEntity onInsert() {
         return id() == null ?
-                new SimpleFlatEntity(name(), name(),null, 1) :
+                new SimpleFlatEntity(name(), name(), null, 1, kind()) :
                 this;
     }
 
     @OnLoad
     public SimpleFlatEntity onLoad() {
         return "loaded".equals(name) ?
-                new SimpleFlatEntity(id() == null ? name() : id(), name(), null,1) :
+                new SimpleFlatEntity(id() == null ? name() : id(), name(), null, 1, kind()) :
                 this;
+    }
+
+    public enum Kind {
+        SIMPLE
     }
 }

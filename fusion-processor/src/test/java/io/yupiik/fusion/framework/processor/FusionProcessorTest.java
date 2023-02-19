@@ -1722,9 +1722,10 @@ class FusionProcessorTest {
                                   "SIMPLE_FLAT_ENTITY",
                                   java.util.List.of(
                                     new io.yupiik.fusion.persistence.impl.ColumnMetadataImpl("id", java.lang.String.class, "id", 0, false),
-                                    new io.yupiik.fusion.persistence.impl.ColumnMetadataImpl("name", java.lang.String.class, ""),
-                                    new io.yupiik.fusion.persistence.impl.ColumnMetadataImpl("arr", byte[].class, ""),
-                                    new io.yupiik.fusion.persistence.impl.ColumnMetadataImpl("age", int.class, "SIMPLE_AGE")
+                                    new io.yupiik.fusion.persistence.impl.ColumnMetadataImpl("name", java.lang.String.class, "name"),
+                                    new io.yupiik.fusion.persistence.impl.ColumnMetadataImpl("arr", byte[].class, "arr"),
+                                    new io.yupiik.fusion.persistence.impl.ColumnMetadataImpl("age", int.class, "SIMPLE_AGE"),
+                                    new io.yupiik.fusion.persistence.impl.ColumnMetadataImpl("kind", test.p.persistence.SimpleFlatEntity.Kind.class, "kind")
                                   ),
                                   false,
                                   (entity, statement) -> {
@@ -1733,13 +1734,15 @@ class FusionProcessorTest {
                                     if (instance.name() == null) { statement.setNull(2, java.sql.Types.VARCHAR); } else { statement.setString(2, instance.name()); }
                                     if (instance.arr() == null) { statement.setNull(3, java.sql.Types.VARBINARY); } else { statement.setBytes(3, instance.arr()); }
                                     statement.setInt(4, instance.age());
+                                    if (instance.kind() == null) { statement.setNull(5, java.sql.Types.VARCHAR); } else { statement.setString(5, instance.kind().name()); }
                                     return instance;
                                   },
                                   (instance, statement) -> {
                                     if (instance.name() == null) { statement.setNull(1, java.sql.Types.VARCHAR); } else { statement.setString(1, instance.name()); }
                                     if (instance.arr() == null) { statement.setNull(2, java.sql.Types.VARBINARY); } else { statement.setBytes(2, instance.arr()); }
                                     statement.setInt(3, instance.age());
-                                    if (instance.id() == null) { statement.setNull(4, java.sql.Types.VARCHAR); } else { statement.setString(4, instance.id()); }
+                                    if (instance.kind() == null) { statement.setNull(4, java.sql.Types.VARCHAR); } else { statement.setString(4, instance.kind().name()); }
+                                    if (instance.id() == null) { statement.setNull(5, java.sql.Types.VARCHAR); } else { statement.setString(5, instance.id()); }
                                     return instance;
                                   },
                                   (instance, statement) -> {
@@ -1754,9 +1757,10 @@ class FusionProcessorTest {
                                     final var name = stringOf(columns.indexOf("name"));
                                     final var arr = bytesOf(columns.indexOf("arr"));
                                     final var age = intOf(columns.indexOf("age"), true);
+                                    final var kind = enumOf(columns.indexOf("kind"), test.p.persistence.SimpleFlatEntity.Kind.class);
                                     return rset -> {
                                       try {
-                                        final var entity = new test.p.persistence.SimpleFlatEntity(id.apply(rset), name.apply(rset), arr.apply(rset), age.apply(rset));
+                                        final var entity = new test.p.persistence.SimpleFlatEntity(id.apply(rset), name.apply(rset), arr.apply(rset), age.apply(rset), kind.apply(rset));
                                         entity.onLoad();
                                         return entity;
                                       } catch (final java.sql.SQLException e) {
