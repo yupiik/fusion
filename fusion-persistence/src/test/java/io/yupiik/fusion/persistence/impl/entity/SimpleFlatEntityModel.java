@@ -27,9 +27,6 @@ import java.util.List;
 public class SimpleFlatEntityModel extends BaseEntity<SimpleFlatEntity, String> {
     public SimpleFlatEntityModel(final DatabaseConfiguration database) {
         super(database,
-                new String[]{"" +
-                        "create table " +
-                        "SIMPLE_FLAT_ENTITY (id VARCHAR(16), name VARCHAR(16), SIMPLE_AGE integer)"},
                 SimpleFlatEntity.class,
                 "SIMPLE_FLAT_ENTITY",
                 "select id, name, SIMPLE_AGE from SIMPLE_FLAT_ENTITY where id = ?",

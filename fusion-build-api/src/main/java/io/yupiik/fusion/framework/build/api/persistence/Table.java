@@ -25,7 +25,7 @@ import static java.lang.annotation.RetentionPolicy.SOURCE;
 @Retention(SOURCE)
 public @interface Table {
     /**
-     * @return enables to force the table name.
+     * @return enables to force the table name, if not set it is the simple class name which is used.
      */
-    String value();
+    String value() default "";
 }

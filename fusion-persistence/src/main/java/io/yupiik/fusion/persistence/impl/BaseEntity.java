@@ -19,10 +19,17 @@ import io.yupiik.fusion.persistence.api.Entity;
 import io.yupiik.fusion.persistence.api.PersistenceException;
 import io.yupiik.fusion.persistence.api.SQLFunction;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.OffsetDateTime;
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.function.Function;
 import java.util.stream.IntStream;
@@ -33,7 +40,6 @@ import static java.util.stream.Collectors.joining;
 
 public abstract class BaseEntity<A, B> implements Entity<A, B> {
     private final DatabaseConfiguration configuration;
-    private final String[] ddl;
     private final Class<?> rootType;
     private final String table;
     private final String findById;
@@ -63,7 +69,7 @@ public abstract class BaseEntity<A, B> implements Entity<A, B> {
                          final SQLBiFunction<A, PreparedStatement, A> onAfterInsert,
                          final SQLFunction<List<String>, Function<ResultSet, A>> factory) {
         this(
-                configuration, null /* lazy computation */, rootType, table,
+                configuration, rootType, table,
                 "SELECT " + fieldsCommaSeparated(configuration, columns, false) + " FROM " + table + byIdWhereClause(configuration, columns),
                 "UPDATE " + table + " SET " +
                         columns.stream()
@@ -99,7 +105,7 @@ public abstract class BaseEntity<A, B> implements Entity<A, B> {
                 .collect(joining(", "));
     }
 
-    public BaseEntity(final DatabaseConfiguration configuration, final String[] ddl,
+    public BaseEntity(final DatabaseConfiguration configuration,
                       final Class<?> rootType, final String table,
                       final String findById, final String updateById, final String deleteById,
                       final String insert, final String findAll, final String countAll,
@@ -111,7 +117,6 @@ public abstract class BaseEntity<A, B> implements Entity<A, B> {
                       final SQLBiFunction<A, PreparedStatement, A> onAfterInsert,
                       final SQLFunction<List<String>, Function<ResultSet, A>> factory) {
         this.configuration = configuration;
-        this.ddl = ddl;
         this.rootType = rootType;
         this.table = table;
         this.findById = findById;
@@ -128,27 +133,6 @@ public abstract class BaseEntity<A, B> implements Entity<A, B> {
         this.onFindById = onFindById;
         this.onAfterInsert = onAfterInsert;
         this.factory = factory;
-    }
-
-    @Override
-    public String[] ddl() {
-        if (ddl == null) { // todo: enhance, for now it only supports simple Class fields and meta (enhance translations)
-            final var translation = configuration.getTranslation();
-            final var fields = columns.stream()
-                    .map(c -> c.columnName() + " " + translation.toDatabaseType((Class) c.type()))
-                    .collect(joining(", "));
-            final var idFields = columns.stream()
-                    .filter(it -> it.idIndex() >= 0)
-                    .map(ColumnMetadata::columnName)
-                    .toList();
-            return new String[]{
-                    "CREATE TABLE " + table + " (" +
-                            fields +
-                            (idFields.isEmpty() ? "" : translation.toCreateTablePrimaryKeySuffix(idFields)) +
-                            ")"
-            };
-        }
-        return ddl;
     }
 
     @Override
@@ -365,12 +349,60 @@ public abstract class BaseEntity<A, B> implements Entity<A, B> {
         return r -> r.getByte(idx);
     }
 
+    protected static SQLFunction<ResultSet, Short> shortOf(final int index, final boolean nullable) {
+        if (index < 0) {
+            return nullable ? r -> null : r -> (short) 0;
+        }
+        final var idx = index + 1;
+        return r -> r.getShort(idx);
+    }
+
     protected static SQLFunction<ResultSet, Date> dateOf(final int index) {
         if (index < 0) {
             return r -> null;
         }
         final var idx = index + 1;
         return r -> r.getDate(idx);
+    }
+
+    protected static SQLFunction<ResultSet, BigInteger> bigintegerOf(final int index) {
+        return objectOf(index, BigInteger.class);
+    }
+
+    protected static SQLFunction<ResultSet, LocalDate> localdateOf(final int index) {
+        return objectOf(index, LocalDate.class);
+    }
+
+    protected static SQLFunction<ResultSet, LocalTime> localtimeOf(final int index) {
+        return objectOf(index, LocalTime.class);
+    }
+
+    protected static SQLFunction<ResultSet, LocalDateTime> localdatetimeOf(final int index) {
+        return objectOf(index, LocalDateTime.class);
+    }
+
+    protected static SQLFunction<ResultSet, OffsetDateTime> offsetdatetimeOf(final int index) {
+        return objectOf(index, OffsetDateTime.class);
+    }
+
+    protected static SQLFunction<ResultSet, ZonedDateTime> zoneddatetimeOf(final int index) {
+        return objectOf(index, ZonedDateTime.class);
+    }
+
+    protected static <T> SQLFunction<ResultSet, T> objectOf(final int index, final Class<T> type) {
+        if (index < 0) {
+            return r -> null;
+        }
+        final var idx = index + 1;
+        return r -> r.getObject(idx, type);
+    }
+
+    protected static SQLFunction<ResultSet, BigDecimal> bigdecimalOf(final int index) {
+        if (index < 0) {
+            return r -> null;
+        }
+        final var idx = index + 1;
+        return r -> r.getBigDecimal(idx);
     }
 
     protected static SQLFunction<ResultSet, byte[]> bytesOf(final int index) {

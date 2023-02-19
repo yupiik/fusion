@@ -24,8 +24,6 @@ import java.util.Set;
 import java.util.function.Function;
 
 public interface Entity<E, ID> {
-    String[] ddl();
-
     Class<?> getRootType();
 
     String getTable();

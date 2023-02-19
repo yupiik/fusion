@@ -1731,13 +1731,13 @@ class FusionProcessorTest {
                                     final var instance = entity.onInsert();
                                     if (instance.id() == null) { statement.setNull(1, java.sql.Types.VARCHAR); } else { statement.setString(1, instance.id()); }
                                     if (instance.name() == null) { statement.setNull(2, java.sql.Types.VARCHAR); } else { statement.setString(2, instance.name()); }
-                                    if (instance.arr() == null) { statement.setNull(3, java.sql.Types.ARRAY); } else { statement.setBytes(3, instance.arr()); }
+                                    if (instance.arr() == null) { statement.setNull(3, java.sql.Types.VARBINARY); } else { statement.setBytes(3, instance.arr()); }
                                     statement.setInt(4, instance.age());
                                     return instance;
                                   },
                                   (instance, statement) -> {
                                     if (instance.name() == null) { statement.setNull(1, java.sql.Types.VARCHAR); } else { statement.setString(1, instance.name()); }
-                                    if (instance.arr() == null) { statement.setNull(2, java.sql.Types.ARRAY); } else { statement.setBytes(2, instance.arr()); }
+                                    if (instance.arr() == null) { statement.setNull(2, java.sql.Types.VARBINARY); } else { statement.setBytes(2, instance.arr()); }
                                     statement.setInt(3, instance.age());
                                     if (instance.id() == null) { statement.setNull(4, java.sql.Types.VARCHAR); } else { statement.setString(4, instance.id()); }
                                     return instance;

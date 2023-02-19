@@ -44,11 +44,12 @@ import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import static io.yupiik.fusion.framework.processor.internal.stream.Streams.withIndex;
+import static java.util.Locale.ROOT;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.joining;
 
 public class PersistenceEntityGenerator extends BaseGenerator implements Supplier<PersistenceEntityGenerator.Output> {
-    private static Set<String> PRIMITIVES = Set.of("int", "boolean", "char", "short", "byte", "long", "double", "float");
+    private static final Set<String> PRIMITIVES = Set.of("int", "boolean", "char", "short", "byte", "long", "double", "float");
 
     private static final String SUFFIX = "$FusionPersistenceEntity";
 
@@ -223,8 +224,12 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
                                         case "java.lang.Long", "long" -> "long";
                                         case "java.lang.Boolean", "boolean" -> "boolean";
                                         case "java.lang.Byte", "byte" -> "byte";
-                                        case "byte[]" ->
-                                                "bytes"; // todo: current logic is not compatible with that - the parsetype.classname breaks that
+                                        case "java.lang.Short", "short" -> "short";
+                                        case "java.math.BigDecimal" -> "bigdecimal";
+                                        case "byte[]" -> "bytes";
+                                        case "java.math.BigInteger", "java.time.LocalDate", "java.time.LocalDateTime",
+                                                "java.time.OffsetDateTime", "java.time.ZonedDateTime", "java.time.LocalTime" ->
+                                                name.substring(name.lastIndexOf('.') + 1).toLowerCase(ROOT); // object
                                         default ->
                                                 throw new IllegalArgumentException("Unsupported type: " + p.asType());
                                     } + "Of(columns.indexOf(\"" + p.getSimpleName().toString() + "\")" + switch (name) {
@@ -291,13 +296,15 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
                             case "java.lang.Integer" -> "java.sql.Types.INTEGER";
                             case "java.lang.Double" -> "java.sql.Types.DOUBLE";
                             case "java.lang.Float" -> "java.sql.Types.FLOAT";
-                            case "java.lang.Long" -> "java.sql.Types.BIGINT";
+                            case "java.lang.Long", "java.math.BigInteger" -> "java.sql.Types.BIGINT";
                             case "java.lang.Boolean" -> "java.sql.Types.BOOLEAN";
-                            case "java.lang.Byte" -> "java.sql.Types.SMALLINT";
-                            case "java.util.Date", "java.sql.Date" -> "java.sql.Types.DATE";
-                            case "byte[]" -> "java.sql.Types.ARRAY"; // todo: current logic is not compatible with that
-                            // todo
-                            default -> throw new IllegalArgumentException("Unsupported type: " + type);
+                            case "java.lang.Byte", "java.lang.Short" -> "java.sql.Types.SMALLINT";
+                            case "java.util.Date", "java.sql.Date", "java.time.LocalDate", "java.time.LocalDateTime" -> "java.sql.Types.DATE";
+                            case "java.time.OffsetDateTime", "java.time.ZonedDateTime" -> "java.sql.Types.TIMESTAMP_WITH_TIMEZONE";
+                            case "java.time.LocalTime" -> "java.sql.Types.TIME";
+                            case "java.math.BigDecimal" -> "java.sql.Types.DECIMAL";
+                            case "byte[]" -> "java.sql.Types.VARBINARY";
+                            default -> "java.sql.Types.OTHERS";
                         } + "); " +
                         "} else { " :
                 "") +
@@ -314,9 +321,12 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
             case "java.lang.Long", "long" -> "Long";
             case "java.lang.Boolean", "boolean" -> "Boolean";
             case "java.lang.Byte", "byte" -> "Byte";
-            case "byte[]" -> "Bytes"; // todo: current logic is not compatible with that
+            case "java.lang.Short", "short" -> "Short";
+            case "byte[]" -> "Bytes";
+            case "java.math.BigDecimal" -> "BigDecimal";
             case "java.util.Date", "java.sql.Date" -> "Date";
-            // todo
+            case "java.math.BigInteger", "java.time.LocalDate", "java.time.LocalDateTime",
+                    "java.time.OffsetDateTime", "java.time.ZonedDateTime", "java.time.LocalTime" -> "Object";
             default -> throw new IllegalArgumentException("Unsupported type: " + type);
         };
     }
