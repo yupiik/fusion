@@ -47,7 +47,8 @@ public class FusionDatabaseConfigurationBean extends BaseBean<DatabaseConfigurat
         return configuration;
     }
 
-    private void fillConfigurationIfNeeded(final RuntimeContainer container, final List<Instance<?>> dependents, final DatabaseConfiguration configuration) {
+    private void fillConfigurationIfNeeded(final RuntimeContainer container, final List<Instance<?>> dependents,
+                                           final DatabaseConfiguration configuration) {
         if (configuration.getDataSource() == null) {
             // ensure it is optional to not fail if the module is not yet used
             // todo: revisit this hypothesis?
@@ -55,7 +56,8 @@ public class FusionDatabaseConfigurationBean extends BaseBean<DatabaseConfigurat
                     container,
                     new Types.ParameterizedTypeImpl(Optional.class, DataSource.class),
                     dependents))
-                    .instance().map(configuration::setDataSource);
+                    .instance()
+                    .ifPresent(configuration::setDataSource);
         }
     }
 }
