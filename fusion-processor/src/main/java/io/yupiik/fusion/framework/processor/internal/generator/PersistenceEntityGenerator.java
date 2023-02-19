@@ -25,6 +25,7 @@ import io.yupiik.fusion.framework.build.api.persistence.Id;
 import io.yupiik.fusion.framework.build.api.persistence.Table;
 import io.yupiik.fusion.framework.processor.internal.Elements;
 import io.yupiik.fusion.framework.processor.internal.ParsedType;
+import io.yupiik.fusion.framework.processor.internal.persistence.SimpleEntity;
 import io.yupiik.fusion.persistence.api.PersistenceException;
 import io.yupiik.fusion.persistence.impl.BaseEntity;
 import io.yupiik.fusion.persistence.impl.ColumnMetadataImpl;
@@ -65,12 +66,14 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
     private final TypeMirror onInsert;
     private final TypeMirror onLoad;
     private final TypeMirror onUpdate;
+    private final Map<String, SimpleEntity> entities;
 
     public PersistenceEntityGenerator(final ProcessingEnvironment processingEnv, final Elements elements,
                                       final boolean beanForPersistenceEntities, final String packageName,
                                       final String className, final Table table, final TypeElement type,
                                       final TypeMirror onDelete, final TypeMirror onInsert,
-                                      final TypeMirror onLoad, final TypeMirror onUpdate) {
+                                      final TypeMirror onLoad, final TypeMirror onUpdate,
+                                      final Map<String, SimpleEntity> entities) {
         super(processingEnv, elements);
         this.table = table;
         this.beanForPersistenceEntities = beanForPersistenceEntities;
@@ -81,6 +84,7 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
         this.onInsert = onInsert;
         this.onLoad = onLoad;
         this.onUpdate = onUpdate;
+        this.entities = entities;
     }
 
     @Override
@@ -131,6 +135,16 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
         };
 
         final var autoIncremented = ids.size() == 1 && ids.get(0).getAnnotation(Id.class).autoIncremented();
+        final var tableName = ofNullable(table.value())
+                .map(this::escapeString)
+                .orElse(className.substring(className.lastIndexOf('.') + 1));
+
+        entities.put(className, new SimpleEntity(tableName, Stream.concat(
+                        ids.stream(),
+                        standardColumns.stream())
+                .map(this::toSimpleColumn)
+                .toList()));
+
         return new Output(new GeneratedClass(packagePrefix + tableClassName,
                 packageLine +
                         "\n" +
@@ -141,9 +155,7 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
                         "          configuration,\n" +
                         "          " + className + ".class,\n" +
                         "          \"" +
-                        ofNullable(table.value())
-                                .map(this::escapeString)
-                                .orElse(className.substring(className.lastIndexOf('.') + 1)) +
+                        tableName +
                         "\",\n" +
                         "          java.util.List.of(\n" +
                         Stream.concat(
@@ -269,6 +281,13 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
                                 "}\n" +
                                 "\n") :
                         null);
+    }
+
+    private SimpleEntity.SimpleColumn toSimpleColumn(final VariableElement id) {
+        return new SimpleEntity.SimpleColumn(id.getSimpleName().toString(), ofNullable(id.getAnnotation(Column.class))
+                .map(Column::name)
+                .map(this::escapeString)
+                .orElseGet(() -> id.getSimpleName().toString()));
     }
 
     private String columnReaderPrefix(final VariableElement p, final String name) {

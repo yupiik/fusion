@@ -60,6 +60,7 @@ import io.yupiik.fusion.framework.processor.internal.meta.Docs;
 import io.yupiik.fusion.framework.processor.internal.meta.JsonSchema;
 import io.yupiik.fusion.framework.processor.internal.meta.PartialOpenRPC;
 import io.yupiik.fusion.framework.processor.internal.meta.renderer.doc.DocJsonRenderer;
+import io.yupiik.fusion.framework.processor.internal.persistence.SimpleEntity;
 
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.ProcessingEnvironment;
@@ -151,7 +152,6 @@ import static javax.tools.StandardLocation.CLASS_OUTPUT;
         "io.yupiik.fusion.framework.build.api.persistence.OnInsert",
         "io.yupiik.fusion.framework.build.api.persistence.OnLoad",
         "io.yupiik.fusion.framework.build.api.persistence.OnUpdate",
-        "io.yupiik.fusion.framework.build.api.persistence.Operation",
         "io.yupiik.fusion.framework.build.api.persistence.Statement",
         "io.yupiik.fusion.framework.build.api.persistence.Table",
         // CONFIGURATION
@@ -189,6 +189,10 @@ public class InternalFusionProcessor extends AbstractProcessor {
     private Elements elements;
 
     private final Map<String, Element> jsonModels = new HashMap<>();
+
+    // for now we don't use it but if we need entities for a downstream impl (proxies) can help
+    // see uship @Operation for ex
+    private final Map<String, SimpleEntity> entities = new HashMap<>();
 
     // todo: simplify state management for incremental compilation
     // all* naming is used for state related tracked instances
@@ -683,7 +687,8 @@ public class InternalFusionProcessor extends AbstractProcessor {
                     processingEnv, elements, beanForPersistenceEntities,
                     names.packageName(), names.className(),
                     entity.getAnnotation(Table.class), entity,
-                    onDelete, onInsert, onLoad, onUpdate)
+                    onDelete, onInsert, onLoad, onUpdate,
+                    entities)
                     .get();
             writeGeneratedClass(entity, generation.entity());
 
