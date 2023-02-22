@@ -287,6 +287,7 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
         return new SimpleEntity.SimpleColumn(id.getSimpleName().toString(), ofNullable(id.getAnnotation(Column.class))
                 .map(Column::name)
                 .map(this::escapeString)
+                .filter(it -> !it.isBlank() && !it.isEmpty())
                 .orElseGet(() -> id.getSimpleName().toString()));
     }
 
@@ -396,6 +397,7 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
                 "\"" + ofNullable(element.getAnnotation(Column.class))
                 .map(Column::name)
                 .map(this::escapeString)
+                .filter(it -> !it.isBlank() && !it.isEmpty())
                 .orElseGet(() -> element.getSimpleName().toString()) + "\"";
     }
 
