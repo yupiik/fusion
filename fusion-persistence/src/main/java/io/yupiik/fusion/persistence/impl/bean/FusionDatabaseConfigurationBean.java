@@ -52,11 +52,10 @@ public class FusionDatabaseConfigurationBean extends BaseBean<DatabaseConfigurat
         if (configuration.getDataSource() == null) {
             // ensure it is optional to not fail if the module is not yet used
             // todo: revisit this hypothesis?
-            ((Instance<Optional<DataSource>>) lookup(
+            ((Optional<DataSource>) lookup(
                     container,
                     new Types.ParameterizedTypeImpl(Optional.class, DataSource.class),
                     dependents))
-                    .instance()
                     .ifPresent(configuration::setDataSource);
         }
     }

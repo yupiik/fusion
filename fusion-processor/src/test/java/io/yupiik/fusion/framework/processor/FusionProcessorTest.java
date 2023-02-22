@@ -38,6 +38,10 @@ import io.yupiik.fusion.json.internal.JsonMapperImpl;
 import io.yupiik.fusion.json.internal.codec.ObjectJsonCodec;
 import io.yupiik.fusion.json.internal.formatter.SimplePrettyFormatter;
 import io.yupiik.fusion.jsonrpc.JsonRpcEndpoint;
+import io.yupiik.fusion.persistence.api.Database;
+import io.yupiik.fusion.persistence.api.Entity;
+import io.yupiik.fusion.persistence.impl.DatabaseConfiguration;
+import io.yupiik.fusion.persistence.impl.translation.DefaultTranslation;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Test;
@@ -1708,71 +1712,90 @@ class FusionProcessorTest {
     void simplePersistence(@TempDir final Path work) throws IOException {
         final var entity = "persistence.SimpleFlatEntity";
         final var compiler = new Compiler(work, entity);
-        compiler.compileAndAsserts((loader, container) -> assertEquals(
-                """
-                        package test.p.persistence;
-                                                
-                                                
-                        @io.yupiik.fusion.framework.api.container.Generation(version = 1)
-                        public class SimpleFlatEntity$FusionPersistenceEntity extends io.yupiik.fusion.persistence.impl.BaseEntity<SimpleFlatEntity, java.lang.String> {
-                            public SimpleFlatEntity$FusionPersistenceEntity(io.yupiik.fusion.persistence.impl.DatabaseConfiguration configuration) {
-                                super(
-                                  configuration,
-                                  SimpleFlatEntity.class,
-                                  "SIMPLE_FLAT_ENTITY",
-                                  java.util.List.of(
-                                    new io.yupiik.fusion.persistence.impl.ColumnMetadataImpl("id", java.lang.String.class, "id", 0, false),
-                                    new io.yupiik.fusion.persistence.impl.ColumnMetadataImpl("name", java.lang.String.class, "name"),
-                                    new io.yupiik.fusion.persistence.impl.ColumnMetadataImpl("arr", byte[].class, "arr"),
-                                    new io.yupiik.fusion.persistence.impl.ColumnMetadataImpl("age", int.class, "SIMPLE_AGE"),
-                                    new io.yupiik.fusion.persistence.impl.ColumnMetadataImpl("kind", test.p.persistence.SimpleFlatEntity.Kind.class, "kind")
-                                  ),
-                                  false,
-                                  (entity, statement) -> {
-                                    final var instance = entity.onInsert();
-                                    if (instance.id() == null) { statement.setNull(1, java.sql.Types.VARCHAR); } else { statement.setString(1, instance.id()); }
-                                    if (instance.name() == null) { statement.setNull(2, java.sql.Types.VARCHAR); } else { statement.setString(2, instance.name()); }
-                                    if (instance.arr() == null) { statement.setNull(3, java.sql.Types.VARBINARY); } else { statement.setBytes(3, instance.arr()); }
-                                    statement.setInt(4, instance.age());
-                                    if (instance.kind() == null) { statement.setNull(5, java.sql.Types.VARCHAR); } else { statement.setString(5, instance.kind().name()); }
-                                    return instance;
-                                  },
-                                  (instance, statement) -> {
-                                    if (instance.name() == null) { statement.setNull(1, java.sql.Types.VARCHAR); } else { statement.setString(1, instance.name()); }
-                                    if (instance.arr() == null) { statement.setNull(2, java.sql.Types.VARBINARY); } else { statement.setBytes(2, instance.arr()); }
-                                    statement.setInt(3, instance.age());
-                                    if (instance.kind() == null) { statement.setNull(4, java.sql.Types.VARCHAR); } else { statement.setString(4, instance.kind().name()); }
-                                    if (instance.id() == null) { statement.setNull(5, java.sql.Types.VARCHAR); } else { statement.setString(5, instance.id()); }
-                                    return instance;
-                                  },
-                                  (instance, statement) -> {
-                                    if (instance.id() == null) { statement.setNull(1, java.sql.Types.VARCHAR); } else { statement.setString(1, instance.id()); }
-                                  },
-                                  (id, statement) -> {
-                                    if (id == null) { statement.setNull(1, java.sql.Types.VARCHAR); } else { statement.setString(1, id); }
-                                  },
-                                  (entity, statement) -> entity,
-                                  columns -> {
-                                    final var id = stringOf(columns.indexOf("id"));
-                                    final var name = stringOf(columns.indexOf("name"));
-                                    final var arr = bytesOf(columns.indexOf("arr"));
-                                    final var age = intOf(columns.indexOf("age"), true);
-                                    final var kind = enumOf(columns.indexOf("kind"), test.p.persistence.SimpleFlatEntity.Kind.class);
-                                    return rset -> {
-                                      try {
-                                        final var entity = new test.p.persistence.SimpleFlatEntity(id.apply(rset), name.apply(rset), arr.apply(rset), age.apply(rset), kind.apply(rset));
-                                        entity.onLoad();
-                                        return entity;
-                                      } catch (final java.sql.SQLException e) {
-                                        throw new io.yupiik.fusion.persistence.api.PersistenceException(e);
-                                      }
-                                    };
-                                  });
+        compiler.compileAndAsserts((loader, container) -> {
+            assertEquals(
+                    """
+                            package test.p.persistence;
+                                                    
+                                                    
+                            @io.yupiik.fusion.framework.api.container.Generation(version = 1)
+                            public class SimpleFlatEntity$FusionPersistenceEntity extends io.yupiik.fusion.persistence.impl.BaseEntity<SimpleFlatEntity, java.lang.String> {
+                                public SimpleFlatEntity$FusionPersistenceEntity(io.yupiik.fusion.persistence.impl.DatabaseConfiguration configuration) {
+                                    super(
+                                      configuration,
+                                      SimpleFlatEntity.class,
+                                      "SIMPLE_FLAT_ENTITY",
+                                      java.util.List.of(
+                                        new io.yupiik.fusion.persistence.impl.ColumnMetadataImpl("id", java.lang.String.class, "id", 0, false),
+                                        new io.yupiik.fusion.persistence.impl.ColumnMetadataImpl("name", java.lang.String.class, "name"),
+                                        new io.yupiik.fusion.persistence.impl.ColumnMetadataImpl("arr", byte[].class, "arr"),
+                                        new io.yupiik.fusion.persistence.impl.ColumnMetadataImpl("age", int.class, "SIMPLE_AGE"),
+                                        new io.yupiik.fusion.persistence.impl.ColumnMetadataImpl("kind", test.p.persistence.SimpleFlatEntity.Kind.class, "kind")
+                                      ),
+                                      false,
+                                      (entity, statement) -> {
+                                        final var instance = entity.onInsert();
+                                        if (instance.id() == null) { statement.setNull(1, java.sql.Types.VARCHAR); } else { statement.setString(1, instance.id()); }
+                                        if (instance.name() == null) { statement.setNull(2, java.sql.Types.VARCHAR); } else { statement.setString(2, instance.name()); }
+                                        if (instance.arr() == null) { statement.setNull(3, java.sql.Types.VARBINARY); } else { statement.setBytes(3, instance.arr()); }
+                                        statement.setInt(4, instance.age());
+                                        if (instance.kind() == null) { statement.setNull(5, java.sql.Types.VARCHAR); } else { statement.setString(5, instance.kind().name()); }
+                                        return instance;
+                                      },
+                                      (instance, statement) -> {
+                                        if (instance.name() == null) { statement.setNull(1, java.sql.Types.VARCHAR); } else { statement.setString(1, instance.name()); }
+                                        if (instance.arr() == null) { statement.setNull(2, java.sql.Types.VARBINARY); } else { statement.setBytes(2, instance.arr()); }
+                                        statement.setInt(3, instance.age());
+                                        if (instance.kind() == null) { statement.setNull(4, java.sql.Types.VARCHAR); } else { statement.setString(4, instance.kind().name()); }
+                                        if (instance.id() == null) { statement.setNull(5, java.sql.Types.VARCHAR); } else { statement.setString(5, instance.id()); }
+                                        return instance;
+                                      },
+                                      (instance, statement) -> {
+                                        if (instance.id() == null) { statement.setNull(1, java.sql.Types.VARCHAR); } else { statement.setString(1, instance.id()); }
+                                      },
+                                      (id, statement) -> {
+                                        if (id == null) { statement.setNull(1, java.sql.Types.VARCHAR); } else { statement.setString(1, id); }
+                                      },
+                                      (entity, statement) -> entity,
+                                      columns -> {
+                                        final var id = stringOf(columns.indexOf("id"));
+                                        final var name = stringOf(columns.indexOf("name"));
+                                        final var arr = bytesOf(columns.indexOf("arr"));
+                                        final var age = intOf(columns.indexOf("age"), true);
+                                        final var kind = enumOf(columns.indexOf("kind"), test.p.persistence.SimpleFlatEntity.Kind.class);
+                                        return rset -> {
+                                          try {
+                                            final var entity = new test.p.persistence.SimpleFlatEntity(id.apply(rset), name.apply(rset), arr.apply(rset), age.apply(rset), kind.apply(rset));
+                                            entity.onLoad();
+                                            return entity;
+                                          } catch (final java.sql.SQLException e) {
+                                            throw new io.yupiik.fusion.persistence.api.PersistenceException(e);
+                                          }
+                                        };
+                                      });
+                                }
                             }
-                        }
-                                                
-                        """,
-                compiler.readGeneratedSource(entity + "$FusionPersistenceEntity")));
+                                                    
+                            """,
+                    compiler.readGeneratedSource(entity + "$FusionPersistenceEntity"));
+
+            final var databaseConfiguration = container.lookup(DatabaseConfiguration.class);
+            assertNotNull(databaseConfiguration.instance());
+
+            // no datasource in this test
+            assertNull(databaseConfiguration.instance().getDataSource());
+
+            // force a translation to avoid to guess it since we don't have any datasource
+            databaseConfiguration.instance().setTranslation(new DefaultTranslation());
+
+            final var database = container.lookup(Database.class);
+            assertNotNull(database.instance());
+
+            // init with database init so tested after (until user sets it explicitly but not our case)
+            final var model = (Entity<?, ?>) databaseConfiguration.instance().getInstanceLookup().apply(loader.apply("test.p." + entity));
+            assertNotNull(model);
+            assertEquals("SIMPLE_FLAT_ENTITY", model.getTable());
+        });
     }
 
     private <A> void withInstance(final RuntimeContainer container, final Function<String, Class<?>> loader, final String name,
