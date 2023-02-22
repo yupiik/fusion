@@ -46,12 +46,14 @@ public class FusionDatabaseBean extends BaseBean<Database> {
 
     @Override
     public Database create(final RuntimeContainer container, final List<Instance<?>> dependents) {
-        final var entitiesInstance = new LazyEntitiesInstance(container, dependents, closed);
-        dependents.add(entitiesInstance);
         final var configuration = lookup(container, DatabaseConfiguration.class, dependents);
+
         if (configuration.getInstanceLookup() == null) {
+            final var entitiesInstance = new LazyEntitiesInstance(container, dependents, closed);
+            dependents.add(entitiesInstance);
             configuration.setInstanceLookup(k -> entitiesInstance.instance().get(k));
         }
+
         return Database.of(configuration);
     }
 

@@ -25,6 +25,7 @@ public class PersistenceModule implements FusionModule {
     public Stream<FusionBean<?>> beans() {
         return Stream.of(
                 new FusionDatabaseConfigurationBean(),
-                new FusionDatabaseBean());
+                new FusionDatabaseBean(),
+                new FusionDatabaseFactoryBean());
     }
 }
