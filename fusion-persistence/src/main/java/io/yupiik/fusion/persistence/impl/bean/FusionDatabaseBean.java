@@ -90,16 +90,24 @@ public class FusionDatabaseBean extends BaseBean<Database> {
                 return Map.of();
             }
             synchronized (this) {
-                if (entities == null) {
-                    entities = container.lookups(
-                            Entity.class,
-                            i -> i.stream().collect(toMap(
-                                    it -> it.instance().getRootType(),
-                                    Instance::instance)));
-                    dependents.add(entities);
+                if (entities != null) {
+                    return entities.instance();
                 }
+                if (closed.get()) {
+                    return Map.of();
+                }
+                synchronized (this) {
+                    if (entities == null) {
+                        entities = container.lookups(
+                                Entity.class,
+                                i -> i.stream().collect(toMap(
+                                        it -> it.instance().getRootType(),
+                                        Instance::instance)));
+                        dependents.add(entities);
+                    }
+                }
+                return entities.instance();
             }
-            return entities.instance();
         }
     }
 }
