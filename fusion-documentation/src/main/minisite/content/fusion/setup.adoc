@@ -26,12 +26,12 @@ The simplest is to just add the API (scope `compile`) and processor (scope `prov
   <dependency>
     <groupId>io.yupiik.fusion</groupId>
     <artifactId>fusion-api</artifactId>
-    <version>${minoho-framework.version}</version>
+    <version>${fusion.version}</version>
   </dependency>
   <dependency>
     <groupId>io.yupiik.fusion</groupId>
     <artifactId>fusion-processor</artifactId>
-    <version>${minoho-framework.version}</version>
+    <version>${fusion.version}</version>
     <scope>provided</scope>
   </dependency>
 </dependencies>
@@ -90,12 +90,12 @@ Here is what it can look like:
     <dependency>
       <groupId>io.yupiik.fusion</groupId>
       <artifactId>fusion-api</artifactId>
-      <version>${minoho-framework.version}</version>
+      <version>${fusion.version}</version>
     </dependency>
     <dependency>
       <groupId>io.yupiik.fusion</groupId>
       <artifactId>fusion-build-api</artifactId>
-      <version>${minoho-framework.version}</version>
+      <version>${fusion.version}</version>
       <scope>provided</scope>
     </dependency>
   </dependencies>
@@ -111,7 +111,7 @@ Here is what it can look like:
             <annotationProcessorPath>
               <groupId>io.yupiik.fusion</groupId>
               <artifactId>fusion-processor</artifactId>
-              <version>${minoho-framework.version}</version>
+              <version>${fusion.version}</version>
             </annotationProcessorPath>
           </annotationProcessorPaths>
         </configuration>
@@ -123,4 +123,3 @@ Here is what it can look like:
 
 IMPORTANT: disabling the incremental compilation there is generally a good idea, in particular on CI but not having the processor in provided scope will make your IDE no more able to generate properly classes in general.
 So a better option can be to stick to previous dependencies only option (by default maven recompiles properly the module - don't set `<useIncrementalCompilation>false</useIncrementalCompilation>` it means do not use incremental compilation).
-

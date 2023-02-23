@@ -1,0 +1,350 @@
+= Persistence
+
+The Fusion Persistence module provides capabilities to deal with common database operations.
+
+== Project definition
+
+First you need to add the *fusion-persistence* module in your `pom.xml` dependencies section:
+
+[source,xml]
+----
+<dependency>
+    <groupId>io.yupiik.fusion</groupId>
+    <artifactId>fusion-persistence</artifactId>
+    <version>${fusion.version}</version>
+</dependency>
+----
+
+IMPORTANT: annotations - design API - is in `fusion-build-api` and is only useful at build time.
+
+== Configuration
+
+The easy way to configure the database access is to set up a `@RootConfiguration` record:
+
+[source,java]
+----
+@RootConfiguration("fusion.datasource.customer")
+public record DatasourceCustomerConfiguration(
+    @Property(value = "driver", documentation = "Driver to use")
+    String driver,
+
+    @Property(value = "url", documentation = "JDBC URL to use", required = true)
+    String url,
+
+    @Property(value = "username", documentation = "Database username.")
+    String username,
+
+    @Property(value = "password", documentation = "Database password.")
+    String password) {}
+----
+
+and use this configuration to create a datasource manager:
+
+[source,java]
+----
+@ApplicationScoped
+public class DatasourceManager {
+
+    @Injection
+    public DatasourceCustomerConfiguration configuration;
+
+    @Bean
+    public DataSource dataSource() {
+        return new SimpleDataSource(configuration.url(), configuration.username(), configuration.password());
+    }
+}
+----
+
+Fusion provide 2 kind of prebuilt datasource:
+
+* `SimpleDataSource`: simple datasource with no connection pool management
+* `TomcatDataSource`: connection pool datasource based on link:https://tomcat.apache.org[Apache Tomcat] datasource, you can find the full available properties
+to configure the pool link:https://tomcat.apache.org/tomcat-10.1-doc/jndi-datasource-examples-howto.html[here]
+
+== Entity
+
+Fusion support java *record* for database entity definition.
+
+[source,java]
+----
+@Table("CUSTOMER") <1>
+public record CustomerEntity(
+        @Id(autoIncremented = true, order = 0) Integer id, <2>
+        @Column String firstname,
+        @Column(name = "LAST_NAME") String lastname, <3>
+        @Column String title,
+        @Column String organization) {
+}
+----
+
+<.> Activate the record as an entity and setting the name enables to force the table name, if not set it is the simple class name which is used.
+<.> Indicate the primary key of the entity.
+*autoIncremented*: It is recommended to use a UUID or equivalent as identifier but when mapping an existing database you can
+need to synchronize and use java.sql.Statement.getGeneratedKeys to map the keys. For these cases, set this toggle to true. If your model is a POJO
+the value is directly set but if it is a record the value will be copied at insert time.
+*order*: When using multiple times this annotation, enables to sort the fields.
+<.> Activate the field as a column table. If the name is not set, the field name is used as column name.
+
+=== Translation
+
+Fusion persistence provide some default database translation for data type:
+
+* Default (common for all databases)
+* H2
+* MySQL
+* Oracle
+* PostgreSQL
+
+TIP: Fusion auto set the translation based on the url and driver class define in the datasource configuration.
+
+=== Operation on entity
+
+Some hooks are available and can be added in the entity record directly:
+
+[source,java]
+----
+    @OnInsert
+    public CustomerEntity onInsert() {
+        return id() == null ?
+                new CustomerEntity(UUID.randomUUID().toString(), firstname(), lastname(), title(), organization()) :
+                this;
+    }
+
+    @OnLoad
+    public CustomerEntity onLoad() {
+        return Objects.isNull(title()) ?
+                new CustomerEntity(id(), firstname(), lastname(), "None", organization()) :
+                this;
+    }
+
+    @OnUpdate
+    private void onUpdate() {
+        // no-op
+    }
+
+    @OnDelete
+    private void onDelete() {
+        // no-op
+    }
+----
+
+== Querying
+
+It's very simple to execute common action, you just need to inject the database and use it with the entity.
+
+=== CRUD
+
+Fusion database provide common in-house CRUD operations.
+
+[source,java]
+----
+@ApplicationScoped
+public class CustomerDAO {
+
+    @Injection
+    public Database database;
+
+    public CustomerEntity findCustomer(String id) {
+        return database.findById(CustomerEntity.class, id);
+    }
+
+    public List<CustomerEntity> findAllCustomer() {
+        return database.findAll(CustomerEntity.class);
+    }
+
+    public void createCustomer(CustomerEntity entity) {
+        database.insert(entity);
+    }
+
+    public void updateCustomer(CustomerEntity entity) {
+        database.update(entity);
+    }
+
+    public void deleteCustomer(CustomerEntity entity) {
+        database.delete(entity);
+    }
+}
+----
+
+=== Advanced queries
+
+For advanced queries you can use a virtual table (it is a plain table but the `@Table` annotation is ignored) which would be used as project based on query aliases:
+
+[source,java]
+----
+final var sql = "SELECT DISTINCT " + String.join(", ",
+        entty1.concatenateColumns(new Entity.ColumnsConcatenationRequest()
+                .setPrefix("e1.").setAliasPrefix("")),
+        entity2.concatenateColumns(new Entity.ColumnsConcatenationRequest()
+                .setPrefix("e2.").setAliasPrefix("e2").setIgnored(Set.of("e1_id")))) + " " +
+        "FROM ENTITY1 e1" +
+        " LEFT JOIN ENTITY2 admin on e2.e1_id = e1.id " +
+        "WHERE e1.id = ?";
+final var lines = final var lines = database.query(
+        JoinModel.class, sql, b -> b.bind("the-id"));
+----
+
+with `JoinModel` being something like:
+
+[source,java]
+----
+@Table(name = "ignored")
+public class JoinModel {
+    // e1
+    @Id
+    private String id;
+    @Column
+    private String name;
+    // e2
+    @Id
+    private String e2Id;
+    @Column
+    private String e2Label;
+}
+----
+
+Or you can also use `Entity` binder capacity:
+
+[source,java]
+----
+final var e2Alias = "e2";
+final var e2Ignored = Set.of("e1Id");
+final var sql = "SELECT DISTINCT " + String.join(", ",
+        entity1.concatenateColumns(new Entity.ColumnsConcatenationRequest()
+                .setPrefix("e1.").setAliasPrefix("")),
+        entity2.concatenateColumns(new Entity.ColumnsConcatenationRequest()
+                .setPrefix(e2Alias + '.').setAliasPrefix(e2Alias).setIgnored(e2Ignored))) + " " +
+        "FROM ENTITY1 e1" +
+        " LEFT JOIN ENTITY2 admin on e2.e1_id = e1.id " +
+        "WHERE e1.id = ?";
+
+// precompile the binders
+var fields = database.getOrCreateEntity(Entity1.class).getOrderedColumns().stream()
+            .map(Entity.ColumnMetadata::javaName)
+            .collect(toList());
+final var e1Binder = database.getOrCreateEntity(Entity1.class)
+        .mapFromPrefix("", fields.toArray(String[]::new));
+
+fields.addAll( // continue to go through the queries fields appending the next entity ones - binder will pick the column indices right this way
+        database.getOrCreateEntity(Entity2.class)
+            .getOrderedColumns().stream()
+            .filter(c -> !e2Ignored.contains(c.javaName()))
+            .map(c -> c.toAliasName(e2Alias))
+            .collect(toList()));
+final var e2Binder = database.getOrCreateEntity(Entity2.class)
+        .mapFromPrefix(e2Alias, fields.toArray(String[]::new));
+
+// at runtime
+final var lines = database.query(
+        sql,
+        b -> b.bind("the-id"),
+        result -> {
+            // bind current resultSet and iterate over each line of the resultSet
+            return result.mapAll(line -> Tuple2.of(e1Binder.apply(line), e2Binder.apply(line)));
+        });
+// lines will get both Entity1 and Entity2 instances, then you can just filter them checking there is an id or not for example
+// and join them as needed to create your output model
+----
+
+=== Query from interfaces
+
+A light interface statement support is done through `@Operation` and `@Statement` annotations.
+The idea is to expose the `Database` capabilities through a statically typed API.
+
+Here is a sample:
+
+[source,java]
+----
+@Operation(aliases = @Operation.Alias(alias = "e", type = CustomerEntity.class))
+public interface CustomerOps {
+    @Statement("select count(*) from ${e#table}")
+    long countAll();
+
+    @Statement("select ${e#fields} from ${e#table} order by lastname")
+    List<CustomerEntity> findAll();
+
+    @Statement("select ${e#fields} from ${e#table} where lastname = ?")
+    CustomerEntity findOne(String lastname);
+
+    @Statement("select ${e#fields} from ${e#table} where lastname = ${parameters#lastname}")
+    CustomerEntity findOneWithPlaceholders(String lastname);
+
+    @Statement("delete from ${e#table} where lastname like ?")
+    int delete(String lastname);
+
+    @Statement("delete from ${e#table} where lastname like ?")
+    void deleteWithoutReturnedValue(String lastname);
+}
+----
+
+The statements can be plain SQL with `?` bindings or can use the available interpolations (but don't mix `${parameters#xxx}` with `?` bindings,
+you must choose one type of binding per statement):
+
+* `${<alias>#table}`: name of the table of the entity aliased by `alias`,
+* `${<alias>#fields}`: all columns of the entity represented by the alias,
+* `${parameters#<name>}`: will be replaced by a `?` binding and the parameter named `name` (using bytecode name, ensure to compile with `-parameter` flag) will be used.
+It enables to not set the parameters in the same order as in the query because otherwise it is just bound blindly in order.
+* `${parameters#<name>#in}`: will be replaced by as much `?` than the size of the parameter `name` and surround the bindings by parenthesis prefixed by
+`in ` keyword (ex: `in (?, ?)` if `name` parameter is a list of 2 items). It is useful for `in` where clauses.
+
+Aliases are defined through `@Operation` annotation on the interface and enables to have a shorter syntax in the statement.
+You can also use the fully qualified name of the entity instead of defining aliases, but it is less readable.
+
+You can find all the database available operations in the `Database` interface:
+
+[source,java]
+----
+public interface Database {
+    <T> T insert(T instance);
+
+    <T> T update(T instance);
+
+    <T> T delete(T instance);
+
+    <T, ID> T findById(Class<T> type, ID id);
+
+    <T> long countAll(Class<T> type, String whereClause, Consumer<StatementBinder> binder);
+
+    default <T> long countAll(final Class<T> type) {
+        return countAll(type, "", NONE);
+    }
+
+    <T> List<T> findAll(Class<T> type, String whereClause, Consumer<StatementBinder> binder);
+
+    default <T> List<T> findAll(final Class<T> type) {
+        return findAll(type, "", NONE);
+    }
+
+    <T> List<T> query(Class<T> type, String sql, Consumer<StatementBinder> binder);
+
+    default <T> List<T> query(Class<T> type, String sql) {
+        return query(type, sql, NONE);
+    }
+
+    <T> T query(String sql,
+                Consumer<StatementBinder> binder,
+                Function<ResultSetWrapper, T> resultSetMapper);
+
+    default <T> T query(String sql, Function<ResultSetWrapper, T> resultSetMapper) {
+        return query(sql, NONE, resultSetMapper);
+    }
+
+    <T> Optional<T> querySingle(Class<T> type, String sql, Consumer<StatementBinder> binder);
+
+    int execute(String sql, Consumer<StatementBinder> binder);
+
+    int[] batch(String sql, Iterator<Consumer<StatementBinder>> binders);
+
+    <T> int[] batchInsert(Class<T> type, Iterator<T> instances);
+
+    <T> int[] batchUpdate(Class<T> type, Iterator<T> instances);
+
+    <T> int[] batchDelete(Class<T> type, Iterator<T> instances);
+
+    <T> T mapOne(Class<T> type, ResultSet resultSet);
+
+    <T> List<T> mapAll(Class<T> type, ResultSet resultSet);
+
+    <T, ID> Entity<T, ID> getOrCreateEntity(Class<T> type);
+}
+----
