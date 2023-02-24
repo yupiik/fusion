@@ -246,50 +246,6 @@ final var lines = database.query(
 // and join them as needed to create your output model
 ----
 
-=== Query from interfaces
-
-A light interface statement support is done through `@Operation` and `@Statement` annotations.
-The idea is to expose the `Database` capabilities through a statically typed API.
-
-Here is a sample:
-
-[source,java]
-----
-@Operation(aliases = @Operation.Alias(alias = "e", type = CustomerEntity.class))
-public interface CustomerOps {
-    @Statement("select count(*) from ${e#table}")
-    long countAll();
-
-    @Statement("select ${e#fields} from ${e#table} order by lastname")
-    List<CustomerEntity> findAll();
-
-    @Statement("select ${e#fields} from ${e#table} where lastname = ?")
-    CustomerEntity findOne(String lastname);
-
-    @Statement("select ${e#fields} from ${e#table} where lastname = ${parameters#lastname}")
-    CustomerEntity findOneWithPlaceholders(String lastname);
-
-    @Statement("delete from ${e#table} where lastname like ?")
-    int delete(String lastname);
-
-    @Statement("delete from ${e#table} where lastname like ?")
-    void deleteWithoutReturnedValue(String lastname);
-}
-----
-
-The statements can be plain SQL with `?` bindings or can use the available interpolations (but don't mix `${parameters#xxx}` with `?` bindings,
-you must choose one type of binding per statement):
-
-* `${<alias>#table}`: name of the table of the entity aliased by `alias`,
-* `${<alias>#fields}`: all columns of the entity represented by the alias,
-* `${parameters#<name>}`: will be replaced by a `?` binding and the parameter named `name` (using bytecode name, ensure to compile with `-parameter` flag) will be used.
-It enables to not set the parameters in the same order as in the query because otherwise it is just bound blindly in order.
-* `${parameters#<name>#in}`: will be replaced by as much `?` than the size of the parameter `name` and surround the bindings by parenthesis prefixed by
-`in ` keyword (ex: `in (?, ?)` if `name` parameter is a list of 2 items). It is useful for `in` where clauses.
-
-Aliases are defined through `@Operation` annotation on the interface and enables to have a shorter syntax in the statement.
-You can also use the fully qualified name of the entity instead of defining aliases, but it is less readable.
-
 You can find all the database available operations in the `Database` interface:
 
 [source,java]
