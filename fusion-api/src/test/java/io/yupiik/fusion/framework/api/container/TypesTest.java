@@ -43,9 +43,25 @@ class TypesTest {
                 new Types.ParameterizedTypeImpl(List.class, Api.class)));
     }
 
+    @Test
+    void parameterizedTypeClass() {
+        assertTrue(types.isAssignable(
+                GenericedImpl.class,
+                new Types.ParameterizedTypeImpl(Generic.class, String.class)));
+        assertFalse(types.isAssignable(
+                GenericedImpl.class,
+                new Types.ParameterizedTypeImpl(Generic.class, Number.class)));
+    }
+
     public interface Api {
     }
 
     public static class Impl implements Api {
+    }
+
+    public interface Generic<A> {
+    }
+
+    public static class GenericedImpl implements Generic<String> {
     }
 }

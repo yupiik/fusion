@@ -28,9 +28,9 @@ import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
-import javax.tools.Diagnostic;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
 
@@ -61,7 +61,7 @@ public class SubclassGenerator extends BaseGenerator implements Supplier<BaseGen
 
     @Override
     public GeneratedClass get() {
-        selectConstructor(typeElement).ifPresent(e -> ensureDefaultNoArgConstructor());
+        final boolean useConstructorSuperNull = findNoArgConstructor().isEmpty();
 
         final var out = new StringBuilder();
         if (!packageName.isBlank()) {
@@ -74,6 +74,34 @@ public class SubclassGenerator extends BaseGenerator implements Supplier<BaseGen
         out.append("\n");
         out.append("  ").append(className).append(DELEGATING_CLASS_SUFFIX)
                 .append("(final ").append(DelegatingContext.class.getName()).append("<").append(className.replace('$', '.')).append("> context) {\n");
+        if (useConstructorSuperNull) {
+            out.append("    super(")
+                    .append(selectConstructor(typeElement)
+                            .map(it -> it.getParameters().stream()
+                                    .map(p -> {
+                                        try {
+                                            final var type = ParsedType.of(p.asType());
+                                            if (type.type() != ParsedType.Type.CLASS) {
+                                                return "null";
+                                            }
+                                            return switch (type.className()) {
+                                                case "boolean" -> "false";
+                                                case "double" -> "0.";
+                                                case "float" -> "0.f";
+                                                case "long" -> "0L";
+                                                case "integer" -> "0";
+                                                case "short" -> "(short) 0";
+                                                case "byte" -> "(byte) 0";
+                                                default -> "null";
+                                            };
+                                        } catch (final RuntimeException re) {
+                                            return "null";
+                                        }
+                                    })
+                                    .collect(joining(", ")))
+                            .orElse(""))
+                    .append(");\n");
+        }
         out.append("    this.fusionContext = context;\n");
         out.append("  }\n");
         out.append(elements.findMethods(typeElement)
@@ -195,16 +223,10 @@ public class SubclassGenerator extends BaseGenerator implements Supplier<BaseGen
                 alreadyHandled.add(type);
     }
 
-    private void ensureDefaultNoArgConstructor() {
-        findConstructors(typeElement)
+    private Optional<ExecutableElement> findNoArgConstructor() {
+        return findConstructors(typeElement)
                 .filter(it -> it.getModifiers().contains(PROTECTED) || it.getModifiers().contains(PUBLIC))
                 .filter(it -> it.getParameters().isEmpty())
-                .findAny()
-                .orElseGet(() -> {
-                    processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
-                            "Subclasses can only be generated if there is a no-arg constructor in protected or public scope. " +
-                                    "Ensure to define one in '" + typeElement + "'.");
-                    return null;
-                });
+                .findAny();
     }
 }

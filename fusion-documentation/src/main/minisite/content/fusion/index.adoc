@@ -217,7 +217,7 @@ NOTE: these are limitations _as of today_, none are _technically_ strong limitat
 * A no-arg constructor must be available for any class bean,
 * If a method producer bean is `AutoCloseable` then it will be automatically closed,
 * Event methods can not be package scope if the enclosing bean uses a subclass proxy (like `@ApplicationScoped` context),
-* Constructor injections are supported but for proxied scopes (`@ApplicationScoped` for ex) it requires a default no-arg constructor (in scope `protected` or `public`) in the class,
+* Constructor injections are supported but for proxied scopes (`@ApplicationScoped` for ex) it requires a default no-arg constructor (in scope `protected` or `public`) in the class (if not existing the instantiation constructor will be called with null parameters),
 * Event bus listeners can only have the event as method parameter,
 * Only classes are supported exception for method producers which can return a `ParameterizedType` (ex: `List<String>`) but injections must exactly match this type and `List`/`Set` injections are handled by looking up all beans matching the parameter.
 

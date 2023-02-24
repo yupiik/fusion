@@ -21,6 +21,7 @@ import io.yupiik.fusion.framework.api.Instance;
 import io.yupiik.fusion.framework.api.RuntimeContainer;
 import io.yupiik.fusion.framework.api.container.FusionListener;
 import io.yupiik.fusion.framework.api.container.FusionModule;
+import io.yupiik.fusion.framework.api.container.Types;
 import io.yupiik.fusion.framework.api.container.bean.BaseBean;
 import io.yupiik.fusion.framework.api.container.context.subclass.DelegatingContext;
 import io.yupiik.fusion.framework.api.container.context.subclass.SupplierDelegatingContext;
@@ -79,6 +80,40 @@ import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
 class FusionProcessorTest {
+    @Test
+    void reuseParentConstructorInSubClass(@TempDir final Path work) throws IOException {
+        final var compiler = new Compiler(work, "AppScopedBeanWithoutSubClassFriendlyConstructor");
+        compiler.compileAndAsserts((loader, container) -> {
+            try {
+                assertEquals("""
+                        package test.p;
+                                                
+                        @io.yupiik.fusion.framework.api.container.Generation(version = 1)
+                        class AppScopedBeanWithoutSubClassFriendlyConstructor$FusionSubclass extends AppScopedBeanWithoutSubClassFriendlyConstructor {
+                          private final io.yupiik.fusion.framework.api.container.context.subclass.DelegatingContext<AppScopedBeanWithoutSubClassFriendlyConstructor> fusionContext;
+                                                
+                          AppScopedBeanWithoutSubClassFriendlyConstructor$FusionSubclass(final io.yupiik.fusion.framework.api.container.context.subclass.DelegatingContext<AppScopedBeanWithoutSubClassFriendlyConstructor> context) {
+                            super(null);
+                            this.fusionContext = context;
+                          }
+                                                
+                          @Override
+                          public java.lang.String get() {
+                            return this.fusionContext.instance().get();
+                          }
+                        }
+                                                
+                        """, Files.readString(compiler.getGeneratedSources().resolve("test/p/AppScopedBeanWithoutSubClassFriendlyConstructor$FusionSubclass.java")));
+            } catch (final IOException e) {
+                fail(e);
+            }
+
+            try (final Instance<Supplier<String>> instance = container.lookup(new Types.ParameterizedTypeImpl(Supplier.class, String.class))) {
+                assertEquals("success", instance.instance().get());
+            }
+        });
+    }
+
     @Test
     void simple(@TempDir final Path work) throws IOException {
         final var compiler = new Compiler(work, "Bean1", "Bean2");

@@ -17,14 +17,21 @@ package io.yupiik.fusion.framework.api.container;
 
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.joining;
 
 public class Types {
     public boolean isAssignable(final Type subClassOrEquals, final Type api) {
+        return isAssignable(subClassOrEquals, api, new HashSet<>());
+    }
+
+    private boolean isAssignable(final Type subClassOrEquals, final Type api, final Set<Class<?>> visited) {
         if (subClassOrEquals instanceof Class<?> sub && api instanceof Class<?> base) {
             return base.isAssignableFrom(sub);
         }
@@ -37,7 +44,12 @@ public class Types {
         if (api instanceof Class<?> clazz &&
                 subClassOrEquals instanceof ParameterizedType pt &&
                 pt.getRawType() instanceof Class<?> raw) {
-            return isAssignable(raw, clazz);
+            return isAssignable(raw, clazz, visited);
+        }
+
+        if (api instanceof ParameterizedType && subClassOrEquals instanceof Class<?> c && visited.add(c)) {
+            return Stream.of(c.getGenericInterfaces()).anyMatch(it -> isAssignable(it, api)) ||
+                    (c != Object.class && c.getGenericSuperclass() != null && isAssignable(c.getGenericSuperclass(), api, visited));
         }
 
         return false;

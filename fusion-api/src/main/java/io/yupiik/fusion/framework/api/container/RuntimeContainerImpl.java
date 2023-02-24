@@ -41,7 +41,8 @@ public class RuntimeContainerImpl implements RuntimeContainer {
     private final Beans beans;
     private final Contexts contexts;
     private final Listeners listeners;
-    private final Types types = new Types();
+    private final Types types = newTypes();
+
     private final Map<Type, Type> slowLookupMatchings = new ConcurrentHashMap<>();
     private final Map<Type, List<FusionBean<?>>> listMatchings = new ConcurrentHashMap<>();
 
@@ -193,5 +194,9 @@ public class RuntimeContainerImpl implements RuntimeContainer {
             return (Instance<T>) new OptionalInstance<>(lookup);
         }
         return (Instance<T>) lookup;
+    }
+
+    protected Types newTypes() {
+        return new Types();
     }
 }
