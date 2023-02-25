@@ -27,7 +27,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.function.Function;
 
-public class TomcatDataSource extends DataSource {
+public class TomcatDataSource extends DataSource implements AutoCloseable {
     private final Class<?>[] connectionProxiedTypes = {Connection.class};
     private final ThreadLocal<Connection> connectionThreadLocal = new ThreadLocal<>();
 
