@@ -17,11 +17,14 @@ package io.yupiik.fusion.persistence.impl.bean;
 
 import io.yupiik.fusion.framework.api.Instance;
 import io.yupiik.fusion.framework.api.RuntimeContainer;
+import io.yupiik.fusion.framework.api.configuration.Configuration;
 import io.yupiik.fusion.framework.api.container.Types;
 import io.yupiik.fusion.framework.api.container.bean.BaseBean;
 import io.yupiik.fusion.framework.api.event.Emitter;
 import io.yupiik.fusion.framework.api.scope.ApplicationScoped;
 import io.yupiik.fusion.persistence.impl.DatabaseConfiguration;
+import io.yupiik.fusion.persistence.impl.datasource.tomcat.TomcatDataSource;
+import io.yupiik.fusion.persistence.impl.datasource.tomcat.TomcatDatabaseConfiguration;
 
 import javax.sql.DataSource;
 import java.util.List;
@@ -42,21 +45,58 @@ public class FusionDatabaseConfigurationBean extends BaseBean<DatabaseConfigurat
             instance.instance().emit(configuration);
         }
 
-        fillConfigurationIfNeeded(container, dependents, configuration);
+        try {
+            setDataSourceIfPossibleAndNeeded(container, dependents, configuration);
+            if (configuration.getDataSource() instanceof TomcatDataSource tds) {
+                tds.read(c -> configuration.getTranslation()); // ensure init is done with a connection bound
+            }
+        } catch (final NoClassDefFoundError ncdfe) {
+            // tomcat-jdbc is likely missing
+        }
 
         return configuration;
     }
 
-    private void fillConfigurationIfNeeded(final RuntimeContainer container, final List<Instance<?>> dependents,
-                                           final DatabaseConfiguration configuration) {
+    @SuppressWarnings("unchecked")
+    private void setDataSourceIfPossibleAndNeeded(final RuntimeContainer container, final List<Instance<?>> dependents,
+                                                  final DatabaseConfiguration configuration) {
         if (configuration.getDataSource() == null) {
             // ensure it is optional to not fail if the module is not yet used
             // todo: revisit this hypothesis?
-            ((Optional<DataSource>) lookup(
+            final var datasourceInstance = (Optional<DataSource>) lookup(
                     container,
                     new Types.ParameterizedTypeImpl(Optional.class, DataSource.class),
-                    dependents))
-                    .ifPresent(configuration::setDataSource);
+                    dependents);
+            if (datasourceInstance.isPresent()) {
+                configuration.setDataSource(datasourceInstance.orElseThrow());
+            } else {
+                try (final var confInstance = container.lookup(Configuration.class)) {
+                    final var conf = confInstance.instance();
+                    final var urlConf = conf.get("fusion.persistence.datasource.url");
+                    if (urlConf.isEmpty()) {
+                        return; // skip, no conf, module is likely not used
+                    }
+                    final var databaseConfiguration = new TomcatDatabaseConfiguration(
+                            conf.get("fusion.persistence.datasource.driver").orElse(null),
+                            urlConf.orElseThrow(),
+                            conf.get("fusion.persistence.datasource.username").orElse(null),
+                            conf.get("fusion.persistence.datasource.password").orElse(null),
+                            conf.get("fusion.persistence.datasource.testOnBorrow").map(Boolean::parseBoolean).orElse(false),
+                            conf.get("fusion.persistence.datasource.testOnReturn").map(Boolean::parseBoolean).orElse(false),
+                            conf.get("fusion.persistence.datasource.testWhileIdle").map(Boolean::parseBoolean).orElse(false),
+                            conf.get("fusion.persistence.datasource.timeBetweenEvictionRuns").map(Integer::parseInt).orElse(0),
+                            conf.get("fusion.persistence.datasource.minEvictableIdleTime").map(Integer::parseInt).orElse(0),
+                            conf.get("fusion.persistence.datasource.validationQuery").orElse(null),
+                            conf.get("fusion.persistence.datasource.validationQueryTimeout").map(Integer::parseInt).orElse(0),
+                            conf.get("fusion.persistence.datasource.minIdle").map(Integer::parseInt).orElse(0),
+                            conf.get("fusion.persistence.datasource.maxActive").map(Integer::parseInt).orElse(0),
+                            conf.get("fusion.persistence.datasource.removeAbandoned").map(Boolean::parseBoolean).orElse(false),
+                            conf.get("fusion.persistence.datasource.defaultAutoCommit").map(Boolean::parseBoolean).orElse(false),
+                            conf.get("fusion.persistence.datasource.logAbandoned").map(Boolean::parseBoolean).orElse(false),
+                            conf.get("fusion.persistence.datasource.removeAbandonedTimeout").map(Integer::parseInt).orElse(0));
+                    configuration.setDataSource(new TomcatDataSource(databaseConfiguration));
+                }
+            }
         }
     }
 }

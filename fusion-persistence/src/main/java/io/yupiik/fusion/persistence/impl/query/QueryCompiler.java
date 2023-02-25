@@ -28,6 +28,7 @@ public class QueryCompiler {
         this.database = database;
     }
 
+    @SuppressWarnings("unchecked")
     public <T> CompiledQuery<T> getOrCreate(final QueryKey<T> key) {
         return queries.computeIfAbsent(key, this::compute);
     }
