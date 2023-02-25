@@ -87,6 +87,8 @@ Here are the available keys:
 ** `fusion.persistence.datasource.validationQuery`
 ** `fusion.persistence.datasource.validationQueryTimeout`
 
+IMPORTANT: this (implicit) datasource requires to define its bounds/transactions calling `read` or `write` wrapper, you can inject `TomcatDataSource` to have these methods.
+
 == Entity
 
 Fusion support java *record* for database entity definition.

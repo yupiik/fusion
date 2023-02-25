@@ -83,18 +83,20 @@ public class FusionDatabaseConfigurationBean extends BaseBean<DatabaseConfigurat
                             conf.get("fusion.persistence.datasource.password").orElse(null),
                             conf.get("fusion.persistence.datasource.testOnBorrow").map(Boolean::parseBoolean).orElse(false),
                             conf.get("fusion.persistence.datasource.testOnReturn").map(Boolean::parseBoolean).orElse(false),
-                            conf.get("fusion.persistence.datasource.testWhileIdle").map(Boolean::parseBoolean).orElse(false),
-                            conf.get("fusion.persistence.datasource.timeBetweenEvictionRuns").map(Integer::parseInt).orElse(0),
-                            conf.get("fusion.persistence.datasource.minEvictableIdleTime").map(Integer::parseInt).orElse(0),
+                            conf.get("fusion.persistence.datasource.testWhileIdle").map(Boolean::parseBoolean).orElse(true),
+                            conf.get("fusion.persistence.datasource.timeBetweenEvictionRuns").map(Integer::parseInt).orElse(5000),
+                            conf.get("fusion.persistence.datasource.minEvictableIdleTime").map(Integer::parseInt).orElse(60000),
                             conf.get("fusion.persistence.datasource.validationQuery").orElse(null),
-                            conf.get("fusion.persistence.datasource.validationQueryTimeout").map(Integer::parseInt).orElse(0),
-                            conf.get("fusion.persistence.datasource.minIdle").map(Integer::parseInt).orElse(0),
-                            conf.get("fusion.persistence.datasource.maxActive").map(Integer::parseInt).orElse(0),
+                            conf.get("fusion.persistence.datasource.validationQueryTimeout").map(Integer::parseInt).orElse(-1),
+                            conf.get("fusion.persistence.datasource.minIdle").map(Integer::parseInt).orElse(2),
+                            conf.get("fusion.persistence.datasource.maxActive").map(Integer::parseInt).orElse(100),
                             conf.get("fusion.persistence.datasource.removeAbandoned").map(Boolean::parseBoolean).orElse(false),
-                            conf.get("fusion.persistence.datasource.defaultAutoCommit").map(Boolean::parseBoolean).orElse(false),
+                            conf.get("fusion.persistence.datasource.defaultAutoCommit").map(Boolean::parseBoolean).orElse(null),
                             conf.get("fusion.persistence.datasource.logAbandoned").map(Boolean::parseBoolean).orElse(false),
-                            conf.get("fusion.persistence.datasource.removeAbandonedTimeout").map(Integer::parseInt).orElse(0));
-                    configuration.setDataSource(new TomcatDataSource(databaseConfiguration));
+                            conf.get("fusion.persistence.datasource.removeAbandonedTimeout").map(Integer::parseInt).orElse(60));
+                    final var dataSource = new TomcatDataSource(databaseConfiguration);
+                    configuration.setDataSource(dataSource);
+                    container.getBeans().doRegister(new FusionDataSourceBean(dataSource));
                 }
             }
         }
