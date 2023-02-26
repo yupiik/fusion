@@ -71,7 +71,6 @@ You need to add the `tomcat-jdbc` dependency to use TomcatDataSource pool:
     <groupId>org.apache.tomcat</groupId>
     <artifactId>tomcat-jdbc</artifactId>
     <version>${tomcat.version}</version>
-    <scope>provided</scope>
 </dependency>
 ----
 
