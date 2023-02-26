@@ -72,7 +72,7 @@ class DatabaseImplTest {
     @EnableH2
     void autoincrement(final DataSource dataSource) throws SQLException {
         final var database = init(dataSource);
-        final var entity = database.getOrCreateEntity(AutoIncrementEntity.class);
+        final var entity = database.entity(AutoIncrementEntity.class);
         final var table = entity.getTable();
         try (final var connection = dataSource.getConnection();
              final var stmt = connection.createStatement()) {
@@ -137,7 +137,7 @@ class DatabaseImplTest {
             entities.add(database.insert(new SimpleFlatEntity(null, "test_" + i, 0)));
         }
         // query
-        final var entity = database.getOrCreateEntity(SimpleFlatEntity.class);
+        final var entity = database.entity(SimpleFlatEntity.class);
         final var all = database.query(
                 "select name as pName, id as pId, SIMPLE_AGE as pSIMPLE_AGE from SIMPLE_FLAT_ENTITY order by pName", StatementBinder.NONE,
                 r -> {

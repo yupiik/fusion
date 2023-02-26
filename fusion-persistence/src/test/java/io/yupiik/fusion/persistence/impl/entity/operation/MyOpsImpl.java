@@ -109,7 +109,7 @@ public class MyOpsImpl implements MyOps {
         if (entityListMapper == null) {
             synchronized (this) {
                 if (entityListMapper == null) {
-                    entityListMapper = database.getOrCreateEntity(SimpleFlatEntity.class).mapper(r.get())::apply;
+                    entityListMapper = database.entity(SimpleFlatEntity.class).mapper(r.get())::apply;
                 }
             }
         }

@@ -386,7 +386,7 @@ public class DatabaseImpl implements Database {
     }
 
     @Override
-    public <T, ID> Entity<T, ID> getOrCreateEntity(final Class<T> type) {
+    public <T, ID> Entity<T, ID> entity(final Class<T> type) {
         return getEntityImpl(type);
     }
 

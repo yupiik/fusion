@@ -138,8 +138,8 @@ public class DelegatingDatabase implements Database, AutoCloseable {
     }
 
     @Override
-    public <T, ID> Entity<T, ID> getOrCreateEntity(final Class<T> type) {
-        return database.getOrCreateEntity(type);
+    public <T, ID> Entity<T, ID> entity(final Class<T> type) {
+        return database.entity(type);
     }
 
     @Override

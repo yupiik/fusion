@@ -246,19 +246,19 @@ final var sql = "SELECT DISTINCT " + String.join(", ",
         "WHERE e1.id = ?";
 
 // precompile the binders
-var fields = database.getOrCreateEntity(Entity1.class).getOrderedColumns().stream()
+var fields = database.entity(Entity1.class).getOrderedColumns().stream()
             .map(Entity.ColumnMetadata::javaName)
             .collect(toList());
-final var e1Binder = database.getOrCreateEntity(Entity1.class)
+final var e1Binder = database.entity(Entity1.class)
         .mapFromPrefix("", fields.toArray(String[]::new));
 
 fields.addAll( // continue to go through the queries fields appending the next entity ones - binder will pick the column indices right this way
-        database.getOrCreateEntity(Entity2.class)
+        database.entity(Entity2.class)
             .getOrderedColumns().stream()
             .filter(c -> !e2Ignored.contains(c.javaName()))
             .map(c -> c.toAliasName(e2Alias))
             .collect(toList()));
-final var e2Binder = database.getOrCreateEntity(Entity2.class)
+final var e2Binder = database.entity(Entity2.class)
         .mapFromPrefix(e2Alias, fields.toArray(String[]::new));
 
 // at runtime
@@ -328,6 +328,6 @@ public interface Database {
 
     <T> List<T> mapAll(Class<T> type, ResultSet resultSet);
 
-    <T, ID> Entity<T, ID> getOrCreateEntity(Class<T> type);
+    <T, ID> Entity<T, ID> entity(Class<T> type);
 }
 ----

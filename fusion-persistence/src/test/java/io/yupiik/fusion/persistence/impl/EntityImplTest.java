@@ -35,7 +35,7 @@ class EntityImplTest {
     @EnableH2
     void concatenateFields(final DataSource dataSource) {
         final var database = Database.of(newDatabaseConfiguration(dataSource));
-        final var entity = database.getOrCreateEntity(SimpleFlatEntity.class);
+        final var entity = database.entity(SimpleFlatEntity.class);
         assertEquals("e.id as eId, e.name as eName", entity.concatenateColumns(new Entity.ColumnsConcatenationRequest().setPrefix("e.").setAliasPrefix("e").setIgnored(Set.of("age"))));
         assertEquals("a.id as aId, a.SIMPLE_AGE as aAge, a.name as aName", entity.concatenateColumns(new Entity.ColumnsConcatenationRequest().setAliasPrefix("a").setPrefix("a.")));
         assertEquals("a.id, a.SIMPLE_AGE, a.name", entity.concatenateColumns(new Entity.ColumnsConcatenationRequest().setPrefix("a.")));
@@ -46,7 +46,7 @@ class EntityImplTest {
     @EnableH2
     void metadata(final DataSource dataSource) {
         final var configuration = newDatabaseConfiguration(dataSource);
-        final var entity = Database.of(configuration).getOrCreateEntity(SimpleFlatEntity.class);
+        final var entity = Database.of(configuration).entity(SimpleFlatEntity.class);
         assertEquals(
                 List.of("id (java.lang.String): id", "age (int): SIMPLE_AGE", "name (java.lang.String): name"),
                 entity.getOrderedColumns().stream()

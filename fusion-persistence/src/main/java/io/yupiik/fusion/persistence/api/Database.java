@@ -96,7 +96,7 @@ public interface Database {
 
     <T> List<T> mapAll(Class<T> type, ResultSet resultSet);
 
-    <T, ID> Entity<T, ID> getOrCreateEntity(Class<T> type);
+    <T, ID> Entity<T, ID> entity(Class<T> type);
 
     static Database of(final DatabaseConfiguration configuration) {
         return new DatabaseImpl(configuration);
