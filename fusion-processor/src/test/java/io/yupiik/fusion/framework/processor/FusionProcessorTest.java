@@ -1761,7 +1761,7 @@ class FusionProcessorTest {
                                         final var id = stringOf(columns.indexOf("id"));
                                         final var name = stringOf(columns.indexOf("name"));
                                         final var arr = bytesOf(columns.indexOf("arr"));
-                                        final var age = intOf(columns.indexOf("age"), true);
+                                        final var age = intOf(columns.indexOf("SIMPLE_AGE"), true);
                                         final var kind = enumOf(columns.indexOf("kind"), test.p.persistence.SimpleFlatEntity.Kind.class);
                                         return rset -> {
                                           try {

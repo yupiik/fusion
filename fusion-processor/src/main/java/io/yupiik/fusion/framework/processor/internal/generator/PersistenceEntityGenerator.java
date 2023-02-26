@@ -51,6 +51,7 @@ import static io.yupiik.fusion.framework.processor.internal.stream.Streams.withI
 import static java.util.Locale.ROOT;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.joining;
+import static java.util.stream.Collectors.toMap;
 
 public class PersistenceEntityGenerator extends BaseGenerator implements Supplier<PersistenceEntityGenerator.Output> {
     private static final Set<String> PRIMITIVES = Set.of("int", "boolean", "char", "short", "byte", "long", "double", "float");
@@ -139,11 +140,13 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
                 .map(this::escapeString)
                 .orElse(className.substring(className.lastIndexOf('.') + 1));
 
-        entities.put(className, new SimpleEntity(tableName, Stream.concat(
+        final var columns = Stream.concat(
                         ids.stream(),
                         standardColumns.stream())
                 .map(this::toSimpleColumn)
-                .toList()));
+                .toList();
+        final var columnsMapping = columns.stream().collect(toMap(SimpleEntity.SimpleColumn::javaName, it -> escapeString(it.databaseName())));
+        entities.put(className, new SimpleEntity(tableName, columns));
 
         return new Output(new GeneratedClass(packagePrefix + tableClassName,
                 packageLine +
@@ -229,8 +232,9 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
                         "          columns -> {\n" +
                         constructorParameters.stream()
                                 .map(p -> {
-                                    final var leftSide = "            final var " + p.getSimpleName().toString() + " = ";
-                                    final var ofPart = "Of(columns.indexOf(\"" + p.getSimpleName().toString() + "\")";
+                                    final var javaName = p.getSimpleName().toString();
+                                    final var leftSide = "            final var " + javaName + " = ";
+                                    final var ofPart = "Of(columns.indexOf(\"" + columnsMapping.getOrDefault(javaName, javaName) + "\")";
                                     final boolean isEnum = isEnum(p);
                                     final var name = ParsedType.of(p.asType()).className();
                                     if (isEnum) {
