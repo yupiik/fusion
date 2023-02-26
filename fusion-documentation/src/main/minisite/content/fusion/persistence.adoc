@@ -50,16 +50,32 @@ public class DatasourceManager {
 
     @Bean
     public DataSource dataSource() {
-        return new SimpleDataSource(configuration.url(), configuration.username(), configuration.password());
+        final var properties = new PoolProperties();
+        properties.setDriverClassName(configuration.driver());
+        properties.setUrl(configuration.url());
+        properties.setUsername(configuration.username());
+        properties.setPassword(configuration.password());
+        properties.setDefaultAutoCommit(false);
+        ...
+
+        return new TomcatDataSource(properties);
     }
 }
 ----
 
-Fusion provide 2 kind of prebuilt datasource:
+You need to add the `tomcat-jdbc` dependency to use TomcatDataSource pool:
 
-* `SimpleDataSource`: simple datasource with no connection pool management
-* `TomcatDataSource`: connection pool datasource based on link:https://tomcat.apache.org[Apache Tomcat] datasource, you can find the full available properties
-to configure the pool link:https://tomcat.apache.org/tomcat-10.1-doc/jndi-datasource-examples-howto.html[here]
+[source,xml]
+----
+<dependency>
+    <groupId>org.apache.tomcat</groupId>
+    <artifactId>tomcat-jdbc</artifactId>
+    <version>${tomcat.version}</version>
+    <scope>provided</scope>
+</dependency>
+----
+
+You can find the full available properties to configure the pool link:https://tomcat.apache.org/tomcat-10.1-doc/jndi-datasource-examples-howto.html[here]
 
 === Default configuration
 
@@ -112,18 +128,6 @@ need to synchronize and use java.sql.Statement.getGeneratedKeys to map the keys.
 the value is directly set but if it is a record the value will be copied at insert time.
 *order*: When using multiple times this annotation, enables to sort the fields.
 <.> Activate the field as a column table. If the name is not set, the field name is used as column name.
-
-=== Translation
-
-Fusion persistence provide some default database translation for data type:
-
-* Default (common for all databases)
-* H2
-* MySQL
-* Oracle
-* PostgreSQL
-
-TIP: Fusion auto set the translation based on the url and driver class define in the datasource configuration.
 
 === Operation on entity
 
@@ -217,17 +221,13 @@ with `JoinModel` being something like:
 [source,java]
 ----
 @Table(name = "ignored")
-public class JoinModel {
+public record JoinModel (
     // e1
-    @Id
-    private String id;
-    @Column
-    private String name;
+    @Id private String id,
+    @Column private String name,
     // e2
-    @Id
-    private String e2Id;
-    @Column
-    private String e2Label;
+    @Id private String e2Id,
+    @Column private String e2Label) {
 }
 ----
 
