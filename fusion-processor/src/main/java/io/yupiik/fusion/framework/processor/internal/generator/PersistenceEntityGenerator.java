@@ -234,7 +234,7 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
                                 .map(p -> {
                                     final var javaName = p.getSimpleName().toString();
                                     final var leftSide = "            final var " + javaName + " = ";
-                                    final var ofPart = "Of(columns.indexOf(\"" + columnsMapping.getOrDefault(javaName, javaName) + "\")";
+                                    final var ofPart = "Of(columns.indexOf(\"" + columnsMapping.getOrDefault(javaName, javaName).toLowerCase(ROOT) + "\")";
                                     final boolean isEnum = isEnum(p);
                                     final var name = ParsedType.of(p.asType()).className();
                                     if (isEnum) {
