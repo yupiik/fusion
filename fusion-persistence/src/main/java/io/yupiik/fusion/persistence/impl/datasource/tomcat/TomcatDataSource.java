@@ -42,6 +42,7 @@ import java.util.Objects;
 import java.util.Properties;
 import java.util.concurrent.Executor;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 public class TomcatDataSource extends DataSource implements AutoCloseable {
     private final ThreadLocal<Connection> connectionThreadLocal = new ThreadLocal<>();
@@ -75,7 +76,7 @@ public class TomcatDataSource extends DataSource implements AutoCloseable {
     }
 
     /**
-     * Binds a connection to current thread in read-only mode, the result will be rolle-backed if needed.
+     * Binds a connection to current thread in read-only mode, the result will be rolled-backed if needed.
      *
      * @param function the task to execute.
      * @param <T>      the returned type.
@@ -96,6 +97,28 @@ public class TomcatDataSource extends DataSource implements AutoCloseable {
                 }
             }
         });
+    }
+
+    /**
+     * Binds a connection to current thread in read-only mode, the result will be rolled-backed if needed.
+     *
+     * @param supplier the task to execute.
+     * @param <T>      the returned type.
+     * @return the result of the function computation.
+     */
+    public <T> T read(final Supplier<T> supplier) {
+        return this.read(c -> supplier.get());
+    }
+
+    /**
+     * Binds a connection to current thread in write mode, the result will be committed if there is no error.
+     *
+     * @param supplier the task to execute.
+     * @param <T>      the returned type.
+     * @return the result of the function computation.
+     */
+    public <T> T write(final Supplier<T> supplier) {
+        return this.write(c -> supplier.get());
     }
 
     @Override
