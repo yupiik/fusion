@@ -19,50 +19,6 @@ IMPORTANT: annotations - design API - is in `fusion-build-api` and is only usefu
 
 == Configuration
 
-The easy way to configure the database access is to set up a `@RootConfiguration` record:
-
-[source,java]
-----
-@RootConfiguration("fusion.datasource.customer")
-public record DatasourceCustomerConfiguration(
-    @Property(value = "driver", documentation = "Driver to use")
-    String driver,
-
-    @Property(value = "url", documentation = "JDBC URL to use", required = true)
-    String url,
-
-    @Property(value = "username", documentation = "Database username.")
-    String username,
-
-    @Property(value = "password", documentation = "Database password.")
-    String password) {}
-----
-
-and use this configuration to create a datasource manager:
-
-[source,java]
-----
-@ApplicationScoped
-public class DatasourceManager {
-
-    @Injection
-    public DatasourceCustomerConfiguration configuration;
-
-    @Bean
-    public DataSource dataSource() {
-        final var properties = new PoolProperties();
-        properties.setDriverClassName(configuration.driver());
-        properties.setUrl(configuration.url());
-        properties.setUsername(configuration.username());
-        properties.setPassword(configuration.password());
-        properties.setDefaultAutoCommit(false);
-        ...
-
-        return new TomcatDataSource(properties);
-    }
-}
-----
-
 You need to add the `tomcat-jdbc` dependency to use TomcatDataSource pool:
 
 [source,xml]
@@ -170,29 +126,46 @@ Fusion database provide common in-house CRUD operations.
 [source,java]
 ----
 @ApplicationScoped
-public class CustomerDAO {
+public class CustomerDao {
 
-    @Injection
-    public Database database;
+    private final Database database;
+    private final TomcatDataSource dataSource;
 
-    public CustomerEntity findCustomer(String id) {
-        return database.findById(CustomerEntity.class, id);
+    public CustomerDao(final Database database, final TomcatDataSource dataSource) {
+        this.database = database;
+        this.dataSource = dataSource;
+    }
+
+    public CustomerEntity findCustomer(final String id) {
+        return dataSource.read(() -> database.findById(CustomerEntity.class, id));
     }
 
     public List<CustomerEntity> findAllCustomer() {
-        return database.findAll(CustomerEntity.class);
+        return dataSource.read(() -> database.findAll(CustomerEntity.class));
     }
 
     public void createCustomer(CustomerEntity entity) {
-        database.insert(entity);
+        try {
+            dataSource.write(() -> database.insert(entity));
+        } catch (Error error) {
+            // error, rollback is managed by datasource, no need to manage it by hand
+        }
     }
 
     public void updateCustomer(CustomerEntity entity) {
-        database.update(entity);
+        try {
+            dataSource.update(() -> database.insert(entity));
+        } catch (Error error) {
+            // error, rollback is managed by datasource, no need to manage it by hand
+        }
     }
 
     public void deleteCustomer(CustomerEntity entity) {
-        database.delete(entity);
+        try {
+            dataSource.delete(() -> database.insert(entity));
+        } catch (Error error) {
+            // error, rollback is managed by datasource, no need to manage it by hand
+        }
     }
 }
 ----
@@ -271,63 +244,4 @@ final var lines = database.query(
         });
 // lines will get both Entity1 and Entity2 instances, then you can just filter them checking there is an id or not for example
 // and join them as needed to create your output model
-----
-
-You can find all the database available operations in the `Database` interface:
-
-[source,java]
-----
-public interface Database {
-    <T> T insert(T instance);
-
-    <T> T update(T instance);
-
-    <T> T delete(T instance);
-
-    <T, ID> T findById(Class<T> type, ID id);
-
-    <T> long countAll(Class<T> type, String whereClause, Consumer<StatementBinder> binder);
-
-    default <T> long countAll(final Class<T> type) {
-        return countAll(type, "", NONE);
-    }
-
-    <T> List<T> findAll(Class<T> type, String whereClause, Consumer<StatementBinder> binder);
-
-    default <T> List<T> findAll(final Class<T> type) {
-        return findAll(type, "", NONE);
-    }
-
-    <T> List<T> query(Class<T> type, String sql, Consumer<StatementBinder> binder);
-
-    default <T> List<T> query(Class<T> type, String sql) {
-        return query(type, sql, NONE);
-    }
-
-    <T> T query(String sql,
-                Consumer<StatementBinder> binder,
-                Function<ResultSetWrapper, T> resultSetMapper);
-
-    default <T> T query(String sql, Function<ResultSetWrapper, T> resultSetMapper) {
-        return query(sql, NONE, resultSetMapper);
-    }
-
-    <T> Optional<T> querySingle(Class<T> type, String sql, Consumer<StatementBinder> binder);
-
-    int execute(String sql, Consumer<StatementBinder> binder);
-
-    int[] batch(String sql, Iterator<Consumer<StatementBinder>> binders);
-
-    <T> int[] batchInsert(Class<T> type, Iterator<T> instances);
-
-    <T> int[] batchUpdate(Class<T> type, Iterator<T> instances);
-
-    <T> int[] batchDelete(Class<T> type, Iterator<T> instances);
-
-    <T> T mapOne(Class<T> type, ResultSet resultSet);
-
-    <T> List<T> mapAll(Class<T> type, ResultSet resultSet);
-
-    <T, ID> Entity<T, ID> entity(Class<T> type);
-}
 ----
