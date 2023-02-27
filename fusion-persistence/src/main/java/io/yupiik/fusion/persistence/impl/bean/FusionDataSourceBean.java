@@ -15,14 +15,50 @@
  */
 package io.yupiik.fusion.persistence.impl.bean;
 
+import io.yupiik.fusion.framework.api.Instance;
 import io.yupiik.fusion.framework.api.RuntimeContainer;
-import io.yupiik.fusion.framework.api.container.bean.ProvidedInstanceBean;
+import io.yupiik.fusion.framework.api.configuration.Configuration;
+import io.yupiik.fusion.framework.api.container.bean.BaseBean;
 import io.yupiik.fusion.framework.api.scope.ApplicationScoped;
 import io.yupiik.fusion.persistence.impl.datasource.tomcat.TomcatDataSource;
+import io.yupiik.fusion.persistence.impl.datasource.tomcat.TomcatDatabaseConfiguration;
 
-public class FusionDataSourceBean extends ProvidedInstanceBean<TomcatDataSource> {
-    public FusionDataSourceBean(final TomcatDataSource dataSource) {
-        super(ApplicationScoped.class, TomcatDataSource.class, () -> dataSource);
+import java.util.List;
+import java.util.Map;
+
+public class FusionDataSourceBean extends BaseBean<TomcatDataSource> {
+    public FusionDataSourceBean() {
+        super(TomcatDataSource.class, ApplicationScoped.class, 0, Map.of());
+    }
+
+    @Override
+    public TomcatDataSource create(final RuntimeContainer container, final List<Instance<?>> dependents) {
+        try (final var confInstance = container.lookup(Configuration.class)) {
+            final var conf = confInstance.instance();
+            final var urlConf = conf.get("fusion.persistence.datasource.url");
+            if (urlConf.isEmpty()) {
+                throw new IllegalArgumentException("No TomcatDataSource configuration, `fusion.persistence.datasource.url`.");
+            }
+            final var databaseConfiguration = new TomcatDatabaseConfiguration(
+                    conf.get("fusion.persistence.datasource.driver").orElse(null),
+                    urlConf.orElseThrow(),
+                    conf.get("fusion.persistence.datasource.username").orElse(null),
+                    conf.get("fusion.persistence.datasource.password").orElse(null),
+                    conf.get("fusion.persistence.datasource.testOnBorrow").map(Boolean::parseBoolean).orElse(false),
+                    conf.get("fusion.persistence.datasource.testOnReturn").map(Boolean::parseBoolean).orElse(false),
+                    conf.get("fusion.persistence.datasource.testWhileIdle").map(Boolean::parseBoolean).orElse(true),
+                    conf.get("fusion.persistence.datasource.timeBetweenEvictionRuns").map(Integer::parseInt).orElse(5000),
+                    conf.get("fusion.persistence.datasource.minEvictableIdleTime").map(Integer::parseInt).orElse(60000),
+                    conf.get("fusion.persistence.datasource.validationQuery").orElse(null),
+                    conf.get("fusion.persistence.datasource.validationQueryTimeout").map(Integer::parseInt).orElse(-1),
+                    conf.get("fusion.persistence.datasource.minIdle").map(Integer::parseInt).orElse(2),
+                    conf.get("fusion.persistence.datasource.maxActive").map(Integer::parseInt).orElse(100),
+                    conf.get("fusion.persistence.datasource.removeAbandoned").map(Boolean::parseBoolean).orElse(false),
+                    conf.get("fusion.persistence.datasource.defaultAutoCommit").map(Boolean::parseBoolean).orElse(null),
+                    conf.get("fusion.persistence.datasource.logAbandoned").map(Boolean::parseBoolean).orElse(false),
+                    conf.get("fusion.persistence.datasource.removeAbandonedTimeout").map(Integer::parseInt).orElse(60));
+            return new TomcatDataSource(databaseConfiguration);
+        }
     }
 
     @Override

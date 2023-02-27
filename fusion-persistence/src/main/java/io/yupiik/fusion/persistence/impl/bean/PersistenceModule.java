@@ -23,9 +23,18 @@ import java.util.stream.Stream;
 public class PersistenceModule implements FusionModule {
     @Override
     public Stream<FusionBean<?>> beans() {
-        return Stream.of(
+        final var optionals = optionalBeans();
+        return Stream.concat(optionals, Stream.of(
                 new FusionDatabaseConfigurationBean(),
                 new FusionDatabaseBean(),
-                new FusionDatabaseFactoryBean());
+                new FusionDatabaseFactoryBean()));
+    }
+
+    private Stream<FusionBean<?>> optionalBeans() { // only if tomcat-jdbc is in the classpath
+        try {
+            return Stream.of(new FusionDataSourceBean());
+        } catch (final NoClassDefFoundError | RuntimeException ncdef) {
+            return Stream.empty();
+        }
     }
 }
