@@ -28,53 +28,5 @@ import java.util.List;
 import static java.util.stream.Collectors.joining;
 
 public class DefaultTranslation implements DatabaseTranslation {
-    @Override
-    public String toDatabaseType(final Class<?> type) {
-        if (String.class == type || type.isEnum()) {
-            return "VARCHAR(255)"; // todo: @Column(length) in annotations? + lob = true for "TEXT"?
-        }
-        if (byte.class == type) {
-            return "TINYINT";
-        }
-        if (byte[].class == type) {
-            return "VARBINARY";
-        }
-        if (Integer.class == type || int.class == type) {
-            return "INTEGER";
-        }
-        if (Double.class == type || double.class == type) {
-            return "DOUBLE";
-        }
-        if (Float.class == type || float.class == type) {
-            return "FLOAT";
-        }
-        if (Long.class == type || long.class == type) {
-            return "INTEGER";
-        }
-        if (Boolean.class == type || boolean.class == type) {
-            return "BOOLEAN";
-        }
-        if (Date.class == type || LocalDate.class == type) {
-            return "DATE";
-        }
-        if (LocalDateTime.class == type) {
-            return "TIMESTAMP";
-        }
-        if (LocalTime.class == type) {
-            return "TIME";
-        }
-        if (OffsetDateTime.class == type || ZonedDateTime.class == type) {
-            return "TIMESTAMP WITH TIME ZONE";
-        }
-        throw new IllegalArgumentException("Unsupported type: " + type);
-    }
 
-    @Override
-    public String toCreateTablePrimaryKeySuffix(final List<String> columns) {
-        return ", PRIMARY KEY (" +
-                columns.stream()
-                        .map(this::wrapFieldName)
-                        .collect(joining(", ")) +
-                ")";
-    }
 }

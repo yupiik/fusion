@@ -25,8 +25,4 @@ public interface DatabaseTranslation {
     default String wrapTableName(final String table) {
         return table;
     }
-
-    String toDatabaseType(Class<?> type);
-
-    String toCreateTablePrimaryKeySuffix(final List<String> columns);
 }
