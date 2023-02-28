@@ -30,23 +30,42 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.type.TypeVariable;
 import java.util.Comparator;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static java.util.Comparator.comparing;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.joining;
 import static javax.lang.model.element.ElementKind.CONSTRUCTOR;
 import static javax.lang.model.element.Modifier.PRIVATE;
 import static javax.lang.model.element.Modifier.PROTECTED;
 import static javax.lang.model.element.Modifier.PUBLIC;
+import static javax.lang.model.type.TypeKind.TYPEVAR;
 
 public abstract class BaseGenerator {
+    protected static final Comparator<ExecutableElement> RECORD_CONSTRUCTOR_COMPARATOR = comparing(e -> {
+        if (e.getModifiers().contains(PUBLIC)) {
+            return 1000;
+        }
+        if (e.getModifiers().contains(PROTECTED)) {
+            return 100;
+        }
+        if (!e.getModifiers().contains(PRIVATE)) { // package scope
+            return 10;
+        }
+        return 0; // private
+    });
+
     protected final ProcessingEnvironment processingEnv;
     protected final Elements elements;
 
@@ -219,6 +238,84 @@ public abstract class BaseGenerator {
                     .map(it -> it + ".class")
                     .collect(joining(",")) + ", dependents)";
         };
+    }
+
+    protected String exceptions(final ExecutableElement m) {
+        final var types = m.getThrownTypes();
+        if (types.isEmpty()) {
+            return "";
+        }
+        return types.stream()
+                .map(ParsedType::of)
+                .filter(it -> it.type() == ParsedType.Type.CLASS)
+                .map(ParsedType::className)
+                .collect(joining(", ", "throws ", ""));
+    }
+
+    protected String templateTypes(final ExecutableElement m) { // todo: enhance and make it even more recursive?
+        final var templates = new LinkedHashSet<String>();
+
+        final var alreadyHandled = new HashSet<TypeMirror>();
+        final var result = m.getReturnType();
+        if (isTemplate(result, alreadyHandled)) {
+            alreadyHandled.add(result);
+            templates.add(result + " " + templateBound((TypeVariable) result));
+        } else if (result instanceof DeclaredType dt) {
+            templates.addAll(dt.getTypeArguments().stream()
+                    .filter(it -> isTemplate(it, alreadyHandled))
+                    .map(it -> it + " " + templateBound((TypeVariable) it))
+                    .toList());
+        }
+
+        templates.addAll(m.getParameters().stream()
+                .map(VariableElement::asType)
+                .filter(it -> isTemplate(it, alreadyHandled))
+                .map(it -> it + " " + templateBound((TypeVariable) it))
+                .toList());
+        templates.addAll(m.getParameters().stream()
+                .map(VariableElement::asType)
+                .filter(it -> it instanceof DeclaredType)
+                .map(it -> (DeclaredType) it)
+                .flatMap(dt -> dt.getTypeArguments().stream())
+                .filter(it -> isTemplate(it, alreadyHandled))
+                .map(it -> it + " " + templateBound((TypeVariable) it))
+                .toList());
+
+        if (templates.isEmpty()) {
+            return "";
+        }
+        return '<' + String.join(", ", templates) + "> ";
+    }
+
+    // todo: refine this
+    protected String templateBound(final TypeVariable type) {
+        String out = "";
+
+        final var lowerBound = type.getUpperBound() == null ? null : ParsedType.of(type.getLowerBound());
+        if (lowerBound != null &&
+                lowerBound.type() == ParsedType.Type.CLASS &&
+                !"null".equals(lowerBound.className()) && // ECJ
+                !"<nulltype>".equals(lowerBound.className()) &&
+                !Object.class.getName().endsWith(lowerBound.className())) {
+            out += " super " + lowerBound.className();
+        }
+
+        final var upperBound = type.getUpperBound() == null ? null : ParsedType.of(type.getUpperBound());
+        if (upperBound != null &&
+                upperBound.type() == ParsedType.Type.CLASS &&
+                !"null".equals(upperBound.className()) && // ECJ
+                !"<nulltype>".equals(upperBound.className()) &&
+                !Object.class.getName().endsWith(upperBound.className())) {
+            out += " extends " + upperBound.className();
+        }
+
+        return out;
+    }
+
+    protected boolean isTemplate(final TypeMirror type, final Set<TypeMirror> alreadyHandled) {
+        return type.getKind() == TYPEVAR && type instanceof TypeVariable &&
+                !"?".equals(type.toString()) && !"<none>".endsWith(type.toString()) &&
+                alreadyHandled.add(type);
     }
 
     public record GeneratedClass(String name, String content) {

@@ -26,6 +26,7 @@ import io.yupiik.fusion.framework.processor.FusionProcessor;
 import io.yupiik.fusion.http.server.api.Request;
 import io.yupiik.fusion.json.JsonMapper;
 import io.yupiik.fusion.jsonrpc.JsonRpcHandler;
+import io.yupiik.fusion.persistence.api.Entity;
 
 import java.io.File;
 import java.io.IOException;
@@ -151,13 +152,14 @@ public class Compiler {
         final var version = Runtime.version().version().get(0).toString();
         final var cp = String.join(
                 File.pathSeparator,
-                FusionProcessor.class.getProtectionDomain().getCodeSource().getLocation().getFile(),
-                Injection.class.getProtectionDomain().getCodeSource().getLocation().getFile(),
-                Generation.class.getProtectionDomain().getCodeSource().getLocation().getFile(),
-                JsonMapper.class.getProtectionDomain().getCodeSource().getLocation().getFile(),
-                Request.class.getProtectionDomain().getCodeSource().getLocation().getFile(),
-                JsonRpcHandler.class.getProtectionDomain().getCodeSource().getLocation().getFile(),
-                CliCommand.class.getProtectionDomain().getCodeSource().getLocation().getFile());
+                pathOf(FusionProcessor.class),
+                pathOf(Injection.class),
+                pathOf(Generation.class),
+                pathOf(JsonMapper.class),
+                pathOf(Request.class),
+                pathOf(JsonRpcHandler.class),
+                pathOf(CliCommand.class),
+                pathOf(Entity.class));
         final var cmd = Stream.concat(
                         Stream.of(
                                 "--release", version,
@@ -182,15 +184,20 @@ public class Compiler {
         return classes;
     }
 
+    private String pathOf(final Class<?> clazz) {
+        return clazz.getProtectionDomain().getCodeSource().getLocation().getFile();
+    }
+
     public Path setupSrc() throws IOException {
         final var src = work.resolve("src");
-        final var pck = Files.createDirectories(src.resolve("test/p"));
         final var tccl = Thread.currentThread().getContextClassLoader();
         Stream.of(classNames).forEach(clazz -> {
-            try (final var in = tccl.getResourceAsStream("test/p/" + clazz + ".java")) {
-                Files.copy(
-                        requireNonNull(in, () -> "Missing '" + clazz + ".java'"), pck.resolve(clazz + ".java"),
-                        StandardCopyOption.REPLACE_EXISTING);
+            final var res = clazz.replace('.', '/');
+            final var rel = "test/p/" + res + ".java";
+            try (final var in = tccl.getResourceAsStream(rel)) {
+                final var out = src.resolve(rel);
+                Files.createDirectories(out.getParent());
+                Files.copy(requireNonNull(in, () -> "Missing '" + clazz + ".java'"), out, StandardCopyOption.REPLACE_EXISTING);
             } catch (final IOException e) {
                 fail(e);
             }
@@ -213,6 +220,15 @@ public class Compiler {
                         }
                     })
                     .collect(joining("\n-------\n"));
+        } catch (final IOException e) {
+            return fail(e);
+        }
+    }
+
+    public String readGeneratedSource(final String relativeName) {
+        try {
+            return Files.readString(getGeneratedSources()
+                    .resolve("test/p/" + relativeName.replace('.', '/') + ".java"));
         } catch (final IOException e) {
             return fail(e);
         }

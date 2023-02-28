@@ -1,0 +1,247 @@
+= Persistence
+
+The Fusion Persistence module provides capabilities to deal with common database operations.
+
+== Project definition
+
+First you need to add the *fusion-persistence* module in your `pom.xml` dependencies section:
+
+[source,xml]
+----
+<dependency>
+    <groupId>io.yupiik.fusion</groupId>
+    <artifactId>fusion-persistence</artifactId>
+    <version>${fusion.version}</version>
+</dependency>
+----
+
+IMPORTANT: annotations - design API - is in `fusion-build-api` and is only useful at build time.
+
+== Configuration
+
+You need to add the `tomcat-jdbc` dependency to use TomcatDataSource pool:
+
+[source,xml]
+----
+<dependency>
+    <groupId>org.apache.tomcat</groupId>
+    <artifactId>tomcat-jdbc</artifactId>
+    <version>${tomcat.version}</version>
+</dependency>
+----
+
+You can find the full available properties to configure the pool link:https://tomcat.apache.org/tomcat-10.1-doc/jndi-datasource-examples-howto.html[here]
+
+=== Default configuration
+
+Default configuration can implicitly configure a datasource if you set `fusion.persistence.datasource.url` value in system properties or environment variables (it uses `io.yupiik.fusion.framework.api.configuration.Configuration`).
+
+All keys have `fusion.persistence.datasource.` prefix and follow `org.apache.tomcat:tomcat-jdbc` configuration (see https://tomcat.apache.org/tomcat-10.1-doc/jdbc-pool.html).
+
+Here are the available keys:
+
+** `fusion.persistence.datasource.defaultAutoCommit`
+** `fusion.persistence.datasource.driver`
+** `fusion.persistence.datasource.logAbandoned`
+** `fusion.persistence.datasource.maxActive`
+** `fusion.persistence.datasource.minEvictableIdleTime`
+** `fusion.persistence.datasource.minIdle`
+** `fusion.persistence.datasource.password`
+** `fusion.persistence.datasource.removeAbandoned`
+** `fusion.persistence.datasource.removeAbandonedTimeout`
+** `fusion.persistence.datasource.testOnBorrow`
+** `fusion.persistence.datasource.testOnReturn`
+** `fusion.persistence.datasource.testWhileIdle`
+** `fusion.persistence.datasource.timeBetweenEvictionRuns`
+** `fusion.persistence.datasource.url`
+** `fusion.persistence.datasource.username`
+** `fusion.persistence.datasource.validationQuery`
+** `fusion.persistence.datasource.validationQueryTimeout`
+
+IMPORTANT: this (implicit) datasource requires to define its bounds/transactions calling `read` or `write` wrapper, you can inject `TomcatDataSource` to have these methods.
+
+== Entity
+
+Fusion support java *record* for database entity definition.
+
+[source,java]
+----
+@Table("CUSTOMER") <1>
+public record CustomerEntity(
+        @Id(autoIncremented = true, order = 0) Integer id, <2>
+        @Column String firstname,
+        @Column(name = "LAST_NAME") String lastname, <3>
+        @Column String title,
+        @Column String organization) {
+}
+----
+
+<.> Activate the record as an entity and setting the name enables to force the table name, if not set it is the simple class name which is used.
+<.> Indicate the primary key of the entity.
+*autoIncremented*: It is recommended to use a UUID or equivalent as identifier but when mapping an existing database you can
+need to synchronize and use java.sql.Statement.getGeneratedKeys to map the keys. For these cases, set this toggle to true. If your model is a POJO
+the value is directly set but if it is a record the value will be copied at insert time.
+*order*: When using multiple times this annotation, enables to sort the fields.
+<.> Activate the field as a column table. If the name is not set, the field name is used as column name.
+
+=== Operation on entity
+
+Some hooks are available and can be added in the entity record directly:
+
+[source,java]
+----
+    @OnInsert
+    public CustomerEntity onInsert() {
+        return id() == null ?
+                new CustomerEntity(UUID.randomUUID().toString(), firstname(), lastname(), title(), organization()) :
+                this;
+    }
+
+    @OnLoad
+    public CustomerEntity onLoad() {
+        return Objects.isNull(title()) ?
+                new CustomerEntity(id(), firstname(), lastname(), "None", organization()) :
+                this;
+    }
+
+    @OnUpdate
+    private void onUpdate() {
+        // no-op
+    }
+
+    @OnDelete
+    private void onDelete() {
+        // no-op
+    }
+----
+
+== Querying
+
+It's very simple to execute common action, you just need to inject the database and use it with the entity.
+
+=== CRUD
+
+Fusion database provide common in-house CRUD operations.
+
+[source,java]
+----
+@ApplicationScoped
+public class CustomerDao {
+
+    private final Database database;
+    private final TomcatDataSource dataSource;
+
+    public CustomerDao(final Database database, final TomcatDataSource dataSource) {
+        this.database = database;
+        this.dataSource = dataSource;
+    }
+
+    public CustomerEntity findCustomer(final String id) {
+        return dataSource.read(() -> database.findById(CustomerEntity.class, id));
+    }
+
+    public List<CustomerEntity> findAllCustomer() {
+        return dataSource.read(() -> database.findAll(CustomerEntity.class));
+    }
+
+    public void createCustomer(CustomerEntity entity) {
+        try {
+            dataSource.write(() -> database.insert(entity));
+        } catch (Error error) {
+            // error, rollback is managed by datasource, no need to manage it by hand
+        }
+    }
+
+    public void updateCustomer(CustomerEntity entity) {
+        try {
+            dataSource.update(() -> database.insert(entity));
+        } catch (Error error) {
+            // error, rollback is managed by datasource, no need to manage it by hand
+        }
+    }
+
+    public void deleteCustomer(CustomerEntity entity) {
+        try {
+            dataSource.delete(() -> database.insert(entity));
+        } catch (Error error) {
+            // error, rollback is managed by datasource, no need to manage it by hand
+        }
+    }
+}
+----
+
+=== Advanced queries
+
+For advanced queries you can use a virtual table (it is a plain table but the `@Table` annotation is ignored) which would be used as project based on query aliases:
+
+[source,java]
+----
+final var sql = "SELECT DISTINCT " + String.join(", ",
+        entty1.concatenateColumns(new Entity.ColumnsConcatenationRequest()
+                .setPrefix("e1.").setAliasPrefix("")),
+        entity2.concatenateColumns(new Entity.ColumnsConcatenationRequest()
+                .setPrefix("e2.").setAliasPrefix("e2").setIgnored(Set.of("e1_id")))) + " " +
+        "FROM ENTITY1 e1" +
+        " LEFT JOIN ENTITY2 admin on e2.e1_id = e1.id " +
+        "WHERE e1.id = ?";
+final var lines = final var lines = database.query(
+        JoinModel.class, sql, b -> b.bind("the-id"));
+----
+
+with `JoinModel` being something like:
+
+[source,java]
+----
+@Table(name = "ignored")
+public record JoinModel (
+    // e1
+    @Id private String id,
+    @Column private String name,
+    // e2
+    @Id private String e2Id,
+    @Column private String e2Label) {
+}
+----
+
+Or you can also use `Entity` binder capacity:
+
+[source,java]
+----
+final var e2Alias = "e2";
+final var e2Ignored = Set.of("e1Id");
+final var sql = "SELECT DISTINCT " + String.join(", ",
+        entity1.concatenateColumns(new Entity.ColumnsConcatenationRequest()
+                .setPrefix("e1.").setAliasPrefix("")),
+        entity2.concatenateColumns(new Entity.ColumnsConcatenationRequest()
+                .setPrefix(e2Alias + '.').setAliasPrefix(e2Alias).setIgnored(e2Ignored))) + " " +
+        "FROM ENTITY1 e1" +
+        " LEFT JOIN ENTITY2 admin on e2.e1_id = e1.id " +
+        "WHERE e1.id = ?";
+
+// precompile the binders
+var fields = database.entity(Entity1.class).getOrderedColumns().stream()
+            .map(Entity.ColumnMetadata::javaName)
+            .collect(toList());
+final var e1Binder = database.entity(Entity1.class)
+        .mapFromPrefix("", fields.toArray(String[]::new));
+
+fields.addAll( // continue to go through the queries fields appending the next entity ones - binder will pick the column indices right this way
+        database.entity(Entity2.class)
+            .getOrderedColumns().stream()
+            .filter(c -> !e2Ignored.contains(c.javaName()))
+            .map(c -> c.toAliasName(e2Alias))
+            .collect(toList()));
+final var e2Binder = database.entity(Entity2.class)
+        .mapFromPrefix(e2Alias, fields.toArray(String[]::new));
+
+// at runtime
+final var lines = database.query(
+        sql,
+        b -> b.bind("the-id"),
+        result -> {
+            // bind current resultSet and iterate over each line of the resultSet
+            return result.mapAll(line -> Tuple2.of(e1Binder.apply(line), e2Binder.apply(line)));
+        });
+// lines will get both Entity1 and Entity2 instances, then you can just filter them checking there is an id or not for example
+// and join them as needed to create your output model
+----

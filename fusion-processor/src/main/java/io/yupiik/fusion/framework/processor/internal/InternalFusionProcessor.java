@@ -33,6 +33,11 @@ import io.yupiik.fusion.framework.build.api.jsonrpc.JsonRpc;
 import io.yupiik.fusion.framework.build.api.lifecycle.Destroy;
 import io.yupiik.fusion.framework.build.api.lifecycle.Init;
 import io.yupiik.fusion.framework.build.api.order.Order;
+import io.yupiik.fusion.framework.build.api.persistence.OnDelete;
+import io.yupiik.fusion.framework.build.api.persistence.OnInsert;
+import io.yupiik.fusion.framework.build.api.persistence.OnLoad;
+import io.yupiik.fusion.framework.build.api.persistence.OnUpdate;
+import io.yupiik.fusion.framework.build.api.persistence.Table;
 import io.yupiik.fusion.framework.build.api.scanning.Injection;
 import io.yupiik.fusion.framework.processor.internal.Bean.FieldInjection;
 import io.yupiik.fusion.framework.processor.internal.generator.BaseGenerator;
@@ -48,12 +53,14 @@ import io.yupiik.fusion.framework.processor.internal.generator.JsonRpcEndpointGe
 import io.yupiik.fusion.framework.processor.internal.generator.ListenerGenerator;
 import io.yupiik.fusion.framework.processor.internal.generator.MethodBeanGenerator;
 import io.yupiik.fusion.framework.processor.internal.generator.ModuleGenerator;
+import io.yupiik.fusion.framework.processor.internal.generator.PersistenceEntityGenerator;
 import io.yupiik.fusion.framework.processor.internal.generator.SubclassGenerator;
 import io.yupiik.fusion.framework.processor.internal.json.JsonStrings;
 import io.yupiik.fusion.framework.processor.internal.meta.Docs;
 import io.yupiik.fusion.framework.processor.internal.meta.JsonSchema;
 import io.yupiik.fusion.framework.processor.internal.meta.PartialOpenRPC;
 import io.yupiik.fusion.framework.processor.internal.meta.renderer.doc.DocJsonRenderer;
+import io.yupiik.fusion.framework.processor.internal.persistence.SimpleEntity;
 
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.ProcessingEnvironment;
@@ -118,6 +125,7 @@ import static javax.tools.StandardLocation.CLASS_OUTPUT;
         "fusion.generateBeanForCliCommands", // if not false all CLI command (@Command) will get a bean
         "fusion.generateBeanForHttpEndpoints", // if not false all endpoints (@HttpMatcher) will get a bean
         "fusion.generateBeanForJsonRpcEndpoints", // if not false all JSON-RPC methods (@JsonRpc) will get a bean
+        "fusion.generateBeanForPersistenceEntities", // if not false all persistence entities (@Table) will get a bean
         "fusion.generatePartialOpenRPC", // if not false {schemas:[...],methods:[]} is generated in the location set there or META-INF/fusion/jsonrpc/openrpc.json
         "fusion.generateJsonSchemas", // if not false {schemas:[...]} is generated in the location set there or META-INF/fusion/json/schemas.json
         "fusion.generateBeanForJsonCodec", // if not false a bean will be generated for the JSON codecs and make them available to JsonMapper
@@ -137,6 +145,15 @@ import static javax.tools.StandardLocation.CLASS_OUTPUT;
         // JSON-RPC
         "io.yupiik.fusion.framework.build.api.jsonrpc.JsonRpc",
         "io.yupiik.fusion.framework.build.api.jsonrpc.JsonRpcParam",
+        // PERSISTENCE
+        "io.yupiik.fusion.framework.build.api.persistence.Column",
+        "io.yupiik.fusion.framework.build.api.persistence.Id",
+        "io.yupiik.fusion.framework.build.api.persistence.OnDelete",
+        "io.yupiik.fusion.framework.build.api.persistence.OnInsert",
+        "io.yupiik.fusion.framework.build.api.persistence.OnLoad",
+        "io.yupiik.fusion.framework.build.api.persistence.OnUpdate",
+        "io.yupiik.fusion.framework.build.api.persistence.Statement",
+        "io.yupiik.fusion.framework.build.api.persistence.Table",
         // CONFIGURATION
         "io.yupiik.fusion.framework.build.api.configuration.RootConfiguration",
         "io.yupiik.fusion.framework.build.api.configuration.Property",
@@ -152,6 +169,10 @@ import static javax.tools.StandardLocation.CLASS_OUTPUT;
 public class InternalFusionProcessor extends AbstractProcessor {
     private TypeMirror init;
     private TypeMirror destroy;
+    private TypeMirror onInsert;
+    private TypeMirror onLoad;
+    private TypeMirror onUpdate;
+    private TypeMirror onDelete;
     private Set<String> knownJsonModels;
 
     private boolean emitNotes;
@@ -160,6 +181,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
     private boolean beanForHttpEndpoints;
     private boolean beanForCliCommands;
     private boolean beanForJsonRpcEndpoints;
+    private boolean beanForPersistenceEntities;
     private String docsMetadataLocation;
     private String jsonSchemaLocation;
     private String openrpcLocation;
@@ -167,6 +189,10 @@ public class InternalFusionProcessor extends AbstractProcessor {
     private Elements elements;
 
     private final Map<String, Element> jsonModels = new HashMap<>();
+
+    // for now we don't use it but if we need entities for a downstream impl (proxies) can help
+    // see uship @Operation for ex
+    private final Map<String, SimpleEntity> entities = new HashMap<>();
 
     // todo: simplify state management for incremental compilation
     // all* naming is used for state related tracked instances
@@ -191,11 +217,16 @@ public class InternalFusionProcessor extends AbstractProcessor {
         elements = new Elements(processingEnv);
         init = asTypeElement(Init.class).asType();
         destroy = asTypeElement(Destroy.class).asType();
+        onInsert = asTypeElement(OnInsert.class).asType();
+        onLoad = asTypeElement(OnLoad.class).asType();
+        onUpdate = asTypeElement(OnUpdate.class).asType();
+        onDelete = asTypeElement(OnDelete.class).asType();
 
         emitNotes = !Boolean.parseBoolean(processingEnv.getOptions().getOrDefault("fusion.skipNotes", "true"));
         beanForHttpEndpoints = Boolean.parseBoolean(processingEnv.getOptions().getOrDefault("fusion.generateBeanForHttpEndpoints", "true"));
         beanForCliCommands = Boolean.parseBoolean(processingEnv.getOptions().getOrDefault("fusion.generateBeanForCliCommands", "true"));
         beanForJsonRpcEndpoints = Boolean.parseBoolean(processingEnv.getOptions().getOrDefault("fusion.generateBeanForJsonRpcEndpoints", "true"));
+        beanForPersistenceEntities = Boolean.parseBoolean(processingEnv.getOptions().getOrDefault("fusion.generateBeanForPersistenceEntities", "true"));
         beanForJsonCodecs = Boolean.parseBoolean(processingEnv.getOptions().getOrDefault("fusion.generateBeanForJsonCodec", "true"));
         generateBeansForConfiguration = Boolean.parseBoolean(processingEnv.getOptions().getOrDefault("fusion.generateBeanForRootConfiguration", "true"));
         docsMetadataLocation = ofNullable(processingEnv.getOptions().getOrDefault("fusion.generateConfigurationDocMetadata", "true"))
@@ -265,6 +296,12 @@ public class InternalFusionProcessor extends AbstractProcessor {
                 .map(ExecutableElement.class::cast)
                 .toList();
 
+        // find persistence entities
+        final var persistenceEntities = roundEnv.getElementsAnnotatedWith(Table.class).stream()
+                .filter(it -> (it.getKind() == RECORD) && it instanceof TypeElement)
+                .map(TypeElement.class::cast)
+                .toList();
+
         // find jsonModels
         final var jsonModels = Stream.concat(
                         roundEnv.getElementsAnnotatedWith(JsonModel.class).stream(),
@@ -307,6 +344,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
         cliCommands.forEach(this::generateCliCommand);
         httpEndpoints.forEach(this::generateHttpEndpoint);
         jsonRpcEndpoints.forEach(this::generateJsonRpcEndpoint); // after json models to get schemas
+        persistenceEntities.forEach(this::generatePersistenceEntity);
         beans.forEach(this::generateBean);
         explicitBeans.stream()
                 .filter(it -> it.getKind() == METHOD)
@@ -630,6 +668,33 @@ public class InternalFusionProcessor extends AbstractProcessor {
             final var bean = generation.bean();
             if (bean != null) {
                 writeGeneratedClass(method, bean);
+                allBeans.add(bean.name());
+            }
+        } catch (final IOException | RuntimeException e) {
+            processingEnv.getMessager().printMessage(ERROR, e.getMessage());
+        }
+    }
+
+    private void generatePersistenceEntity(final TypeElement entity) {
+        if (entity.getKind() != RECORD) {
+            processingEnv.getMessager().printMessage(ERROR, "'" + entity + "' not a record.");
+            return;
+        }
+
+        final var names = ParsedName.of(entity);
+        try {
+            final var generation = new PersistenceEntityGenerator(
+                    processingEnv, elements, beanForPersistenceEntities,
+                    names.packageName(), names.className(),
+                    entity.getAnnotation(Table.class), entity,
+                    onDelete, onInsert, onLoad, onUpdate,
+                    entities)
+                    .get();
+            writeGeneratedClass(entity, generation.entity());
+
+            final var bean = generation.bean();
+            if (bean != null) {
+                writeGeneratedClass(entity, bean);
                 allBeans.add(bean.name());
             }
         } catch (final IOException | RuntimeException e) {

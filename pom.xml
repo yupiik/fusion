@@ -50,6 +50,7 @@
     <module>fusion-httpclient-parent</module>
     <module>fusion-tracing</module>
     <module>fusion-observability</module>
+    <module>fusion-persistence</module>
     <module>fusion-documentation</module>
     <module>fusion-handlebars</module>
   </modules>
@@ -102,7 +103,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
-        <version>3.0.0-M7</version>
+        <version>3.0.0-M9</version>
         <configuration>
           <trimStackTrace>false</trimStackTrace>
           <systemPropertyVariables>
