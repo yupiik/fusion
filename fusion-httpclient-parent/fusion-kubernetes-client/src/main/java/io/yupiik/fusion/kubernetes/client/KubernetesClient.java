@@ -91,17 +91,25 @@ public class KubernetesClient extends HttpClient implements AutoCloseable {
     }
 
     private SSLContext createSSLContext(final String certificates) {
-        final var file = Paths.get(certificates);
-        if (!Files.exists(file)) {
+        final byte[] data;
+        if (certificates.contains("-BEGIN CERT")) {
+            data = certificates.getBytes(StandardCharsets.UTF_8);
+        } else {
+            final var file = Paths.get(certificates);
+            if (!Files.exists(file)) {
+                try {
+                    return SSLContext.getDefault();
+                } catch (final NoSuchAlgorithmException e) {
+                    throw new IllegalStateException(e);
+                }
+            }
             try {
-                return SSLContext.getDefault();
-            } catch (final NoSuchAlgorithmException e) {
-                throw new IllegalStateException(e);
+                data = Files.readAllBytes(file);
+            } catch (final IOException e) {
+                throw new IllegalArgumentException("Invalid certificate", e);
             }
         }
         try {
-            final var data = Files.readAllBytes(file);
-
             final var ks = KeyStore.getInstance(KeyStore.getDefaultType());
             ks.load(null, null);
 
