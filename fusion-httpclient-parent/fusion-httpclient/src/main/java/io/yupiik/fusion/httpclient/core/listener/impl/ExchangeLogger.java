@@ -57,7 +57,7 @@ public class ExchangeLogger implements RequestListener<ExchangeLogger.Data> {
                 "Request: '" + request.method() + " " + request.uri() + "' took " +
                 clock.instant().minusMillis(before.instant.toEpochMilli()).toEpochMilli() + "ms\n" +
                 "Response: " + (error != null ? "[ERROR] " + error.getMessage() : ("HTTP " + response.statusCode())) +
-                (logPayload ? "\nPayload:\n" + response.body() : "");
+                (logPayload ? "\nPayload:\n" + (response == null ? "-" : response.body()) : "");
     }
 
     protected static class Data {
