@@ -1,5 +1,20 @@
 = Fusion Framework
 
-See fusion-documentation for the documentation.
+[abstract]
+Fusion framework aims at providing a very light framework.
+
+== Core Values
+
+For cloud applications, being the most reactive possible is a key criteria so Fusion chose to:
+
+* Be build time oriented: only delegate to runtime the bean resolution (to enable dynamic module aggregation) and not the bean and model discovery nor proxy generation,
+* Stay flexible: even if the model is generated at build time you can generally still customize it by removing a bean and adding your own one,
+* Be native friendly: some applications need to be native to start very fast and bypass the classloading and a bunch of JVM init, for that purpose we ensure the framework is GraalVM friendly - using Apache Geronimo Arthur or not.
+
+== Documentation
+
+See xref:fusion-documentation/src/main/minisite/content/fusion/index.adoc[fusion-documentation] for the documentation.
+
+== Build
 
 Pre-requisite: Maven >= 3.8 and Java >= 17.
