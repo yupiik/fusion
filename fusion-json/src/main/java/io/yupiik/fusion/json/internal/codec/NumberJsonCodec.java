@@ -17,11 +17,12 @@ package io.yupiik.fusion.json.internal.codec;
 
 import io.yupiik.fusion.json.internal.parser.JsonParser;
 import io.yupiik.fusion.json.serialization.JsonCodec;
+import io.yupiik.fusion.json.spi.Parser;
 
 import java.io.IOException;
 import java.lang.reflect.Type;
 
-import static io.yupiik.fusion.json.internal.parser.JsonParser.Event.VALUE_NUMBER;
+import static io.yupiik.fusion.json.spi.Parser.Event.VALUE_NUMBER;
 
 public abstract class NumberJsonCodec<A> implements JsonCodec<A> {
     private final Class<A> type;
@@ -30,7 +31,7 @@ public abstract class NumberJsonCodec<A> implements JsonCodec<A> {
         this.type = type;
     }
 
-    protected abstract A read(final JsonParser parser);
+    protected abstract A read(final Parser parser);
 
     @Override
     public Type type() {

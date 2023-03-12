@@ -45,7 +45,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
-import static io.yupiik.fusion.json.internal.parser.JsonParser.Event.VALUE_STRING;
+import static io.yupiik.fusion.json.spi.Parser.Event.VALUE_STRING;
 
 public class HarJsonMapper extends JsonMapperImpl {
     public HarJsonMapper() {

@@ -24,7 +24,7 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.function.Function;
 
-import static io.yupiik.fusion.json.internal.parser.JsonParser.Event.VALUE_STRING;
+import static io.yupiik.fusion.json.spi.Parser.Event.VALUE_STRING;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toMap;
 

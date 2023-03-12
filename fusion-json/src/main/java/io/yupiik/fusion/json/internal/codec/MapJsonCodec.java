@@ -25,9 +25,9 @@ import java.lang.reflect.Type;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import static io.yupiik.fusion.json.internal.parser.JsonParser.Event.END_OBJECT;
-import static io.yupiik.fusion.json.internal.parser.JsonParser.Event.KEY_NAME;
-import static io.yupiik.fusion.json.internal.parser.JsonParser.Event.START_OBJECT;
+import static io.yupiik.fusion.json.spi.Parser.Event.END_OBJECT;
+import static io.yupiik.fusion.json.spi.Parser.Event.KEY_NAME;
+import static io.yupiik.fusion.json.spi.Parser.Event.START_OBJECT;
 
 public class MapJsonCodec<A> implements JsonCodec<Map<String, A>> {
     private final JsonCodec<A> delegate;

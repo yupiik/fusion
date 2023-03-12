@@ -30,10 +30,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import static io.yupiik.fusion.json.internal.parser.JsonParser.Event.END_OBJECT;
-import static io.yupiik.fusion.json.internal.parser.JsonParser.Event.KEY_NAME;
-import static io.yupiik.fusion.json.internal.parser.JsonParser.Event.START_OBJECT;
-import static io.yupiik.fusion.json.internal.parser.JsonParser.Event.VALUE_STRING;
+import static io.yupiik.fusion.json.spi.Parser.Event.END_OBJECT;
+import static io.yupiik.fusion.json.spi.Parser.Event.KEY_NAME;
+import static io.yupiik.fusion.json.spi.Parser.Event.START_OBJECT;
+import static io.yupiik.fusion.json.spi.Parser.Event.VALUE_STRING;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 

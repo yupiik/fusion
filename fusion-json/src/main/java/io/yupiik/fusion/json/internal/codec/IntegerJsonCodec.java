@@ -15,7 +15,7 @@
  */
 package io.yupiik.fusion.json.internal.codec;
 
-import io.yupiik.fusion.json.internal.parser.JsonParser;
+import io.yupiik.fusion.json.spi.Parser;
 
 public class IntegerJsonCodec extends NumberJsonCodec<Integer> {
     public IntegerJsonCodec() {
@@ -23,7 +23,7 @@ public class IntegerJsonCodec extends NumberJsonCodec<Integer> {
     }
 
     @Override
-    protected Integer read(final JsonParser parser) {
+    protected Integer read(final Parser parser) {
         return parser.getInt();
     }
 }

@@ -15,7 +15,7 @@
  */
 package io.yupiik.fusion.json.serialization;
 
-import io.yupiik.fusion.json.internal.parser.JsonParser;
+import io.yupiik.fusion.json.spi.Parser;
 
 import java.io.IOException;
 import java.io.Writer;
@@ -49,15 +49,15 @@ public interface JsonCodec<A> {
     }
 
     class DeserializationContext {
-        private final JsonParser parser;
+        private final Parser parser;
         private final Function<Class<?>, JsonCodec<?>> codecLookup;
 
-        public DeserializationContext(final JsonParser parser, final Function<Class<?>, JsonCodec<?>> codecLookup) {
+        public DeserializationContext(final Parser parser, final Function<Class<?>, JsonCodec<?>> codecLookup) {
             this.parser = parser;
             this.codecLookup = codecLookup;
         }
 
-        public JsonParser parser() {
+        public Parser parser() {
             return parser;
         }
 

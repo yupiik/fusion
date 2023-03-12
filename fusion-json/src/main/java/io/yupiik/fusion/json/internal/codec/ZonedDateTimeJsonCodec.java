@@ -22,7 +22,7 @@ import java.io.IOException;
 import java.lang.reflect.Type;
 import java.time.ZonedDateTime;
 
-import static io.yupiik.fusion.json.internal.parser.JsonParser.Event.VALUE_STRING;
+import static io.yupiik.fusion.json.spi.Parser.Event.VALUE_STRING;
 
 public class ZonedDateTimeJsonCodec implements JsonCodec<ZonedDateTime> {
     @Override

@@ -24,8 +24,8 @@ import java.lang.reflect.Type;
 import java.util.Collection;
 import java.util.function.Supplier;
 
-import static io.yupiik.fusion.json.internal.parser.JsonParser.Event.END_ARRAY;
-import static io.yupiik.fusion.json.internal.parser.JsonParser.Event.START_ARRAY;
+import static io.yupiik.fusion.json.spi.Parser.Event.END_ARRAY;
+import static io.yupiik.fusion.json.spi.Parser.Event.START_ARRAY;
 
 public class CollectionJsonCodec<A, L extends Collection<A>> implements JsonCodec<L> {
     private final JsonCodec<A> delegate;

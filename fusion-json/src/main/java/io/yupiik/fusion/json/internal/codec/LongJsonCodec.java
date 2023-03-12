@@ -15,7 +15,7 @@
  */
 package io.yupiik.fusion.json.internal.codec;
 
-import io.yupiik.fusion.json.internal.parser.JsonParser;
+import io.yupiik.fusion.json.spi.Parser;
 
 public class LongJsonCodec extends NumberJsonCodec<Long> {
     public LongJsonCodec() {
@@ -23,7 +23,7 @@ public class LongJsonCodec extends NumberJsonCodec<Long> {
     }
 
     @Override
-    protected Long read(final JsonParser parser) {
+    protected Long read(final Parser parser) {
         return parser.getLong();
     }
 }

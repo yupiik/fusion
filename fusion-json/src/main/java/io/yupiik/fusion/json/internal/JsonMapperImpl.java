@@ -34,6 +34,7 @@ import io.yupiik.fusion.json.internal.codec.ZonedDateTimeJsonCodec;
 import io.yupiik.fusion.json.internal.parser.BufferProvider;
 import io.yupiik.fusion.json.internal.parser.JsonParser;
 import io.yupiik.fusion.json.serialization.JsonCodec;
+import io.yupiik.fusion.json.spi.Parser;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -54,6 +55,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -63,22 +65,19 @@ import static java.util.stream.Collectors.toMap;
 
 public class JsonMapperImpl implements JsonMapper {
     private final Map<Type, JsonCodec<?>> codecs;
-    private final int maxStringLength;
-    private final BufferProvider bufferFactory;
-    private final boolean autoAdjust;
+    private final Function<Reader, Parser> parserFactory;
 
     public JsonMapperImpl(final Collection<JsonCodec<?>> jsonCodecs, final Configuration configuration) {
+        this(jsonCodecs, configuration, createReaderParserFunction(configuration));
+    }
+
+    public JsonMapperImpl(final Collection<JsonCodec<?>> jsonCodecs, final Configuration configuration,
+                          final Function<Reader, Parser> readerParserFunction) {
+        this.parserFactory = readerParserFunction;
+
         this.codecs = new ConcurrentHashMap<>();
         this.codecs.putAll(toCodecMap(jsonCodecs.stream()));
         this.codecs.putAll(toCodecMap(builtInCodecs().filter(it -> !this.codecs.containsKey(it.type()))));
-
-        this.maxStringLength = configuration.get("fusion.json.maxStringLength")
-                .map(Integer::parseInt)
-                .orElse(64 * 1024);
-        this.autoAdjust = configuration.get("fusion.json.bufferAutoAdjust")
-                .map(Boolean::parseBoolean)
-                .orElse(true);
-        this.bufferFactory = new BufferProvider(maxStringLength);
     }
 
     protected Stream<JsonCodec<?>> builtInCodecs() {
@@ -161,7 +160,7 @@ public class JsonMapperImpl implements JsonMapper {
 
                 final var firstItem = collection.stream().filter(Objects::nonNull).findFirst().orElse(null);
                 if (firstItem != null) {
-                    if (firstItem instanceof Map<?,?>) { // consider it is just an object
+                    if (firstItem instanceof Map<?, ?>) { // consider it is just an object
                         final JsonCodec jsonCodec = codecs.get(Object.class);
                         jsonCodec.write(collection, new JsonCodec.SerializationContext(writer, this::codecLookup));
                         return;
@@ -202,7 +201,7 @@ public class JsonMapperImpl implements JsonMapper {
                         .findFirst()
                         .orElse(null);
                 if (entry != null && entry.getKey() instanceof String && entry.getValue() != null) {
-                    if (entry.getValue() instanceof Map<?,?>) { // consider it is just an object
+                    if (entry.getValue() instanceof Map<?, ?>) { // consider it is just an object
                         final JsonCodec jsonCodec = codecs.get(Object.class);
                         jsonCodec.write(map, new JsonCodec.SerializationContext(writer, this::codecLookup));
                         return;
@@ -254,7 +253,7 @@ public class JsonMapperImpl implements JsonMapper {
     @Override
     @SuppressWarnings("unchecked")
     public <A> A read(final Type type, final Reader rawReader) {
-        try (final var reader = jsonReader(rawReader)) {
+        try (final var reader = parserFactory.apply(rawReader)) {
             final var codec = (JsonCodec<A>) codecs.get(type);
             if (codec == null) {
                 if (type instanceof ParameterizedType pt && pt.getRawType() instanceof Class<?> rawClass) {
@@ -303,7 +302,7 @@ public class JsonMapperImpl implements JsonMapper {
         if (codec == null) {
             throw missingCodecException(type);
         }
-        try (final var jsonReader = jsonReader(reader)) {
+        try (final var jsonReader = parserFactory.apply(reader)) {
             return codec.read(new JsonCodec.DeserializationContext(jsonReader, this::codecLookup));
         } catch (final IOException e) {
             throw new IllegalStateException(e);
@@ -328,10 +327,6 @@ public class JsonMapperImpl implements JsonMapper {
         }
     }
 
-    private JsonParser jsonReader(final Reader rawReader) {
-        return new JsonParser(rawReader, maxStringLength, bufferFactory, autoAdjust);
-    }
-
     private Map<Type, JsonCodec<?>> toCodecMap(final Stream<JsonCodec<?>> codecStream) {
         return codecStream.collect(toMap(JsonCodec::type, identity()));
     }
@@ -342,5 +337,16 @@ public class JsonMapperImpl implements JsonMapper {
 
     private IllegalStateException missingCodecException(final Type type) {
         return new IllegalStateException("No codec for '" + type.getTypeName() + "', did you forget to mark it @JsonModel");
+    }
+
+    private static Function<Reader, Parser> createReaderParserFunction(final Configuration configuration) {
+        final int maxStringLength = configuration.get("fusion.json.maxStringLength")
+                .map(Integer::parseInt)
+                .orElse(64 * 1024);
+        final boolean autoAdjust = configuration.get("fusion.json.bufferAutoAdjust")
+                .map(Boolean::parseBoolean)
+                .orElse(true);
+        final var bufferFactory = new BufferProvider(maxStringLength);
+        return reader -> new JsonParser(reader, maxStringLength, bufferFactory, autoAdjust);
     }
 }

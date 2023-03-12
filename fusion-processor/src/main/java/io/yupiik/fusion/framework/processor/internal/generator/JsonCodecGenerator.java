@@ -25,8 +25,8 @@ import io.yupiik.fusion.json.internal.JsonStrings;
 import io.yupiik.fusion.json.internal.codec.BaseJsonCodec;
 import io.yupiik.fusion.json.internal.codec.CollectionJsonCodec;
 import io.yupiik.fusion.json.internal.codec.MapJsonCodec;
-import io.yupiik.fusion.json.internal.parser.JsonParser;
 import io.yupiik.fusion.json.serialization.JsonCodec;
+import io.yupiik.fusion.json.spi.Parser;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
@@ -198,14 +198,14 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
         out.append("  public ").append(className.replace('$', '.')).append(" read(")
                 .append(JsonCodec.DeserializationContext.class.getName().replace('$', '.')).append(" context) throws ").append(IOException.class.getName()).append(" {\n");
         out.append("    final var parser = context.parser();\n");
-        out.append("    parser.enforceNext(").append(JsonParser.class.getName()).append(".Event.START_OBJECT);\n");
+        out.append("    parser.enforceNext(").append(Parser.class.getName()).append(".Event.START_OBJECT);\n");
         out.append("\n");
         out.append(params.stream()
                 .map(it -> "    " + it.type() + " param__" + it.javaName() + " = " + it.defaultValue() + ";\n")
                 .collect(joining()));
         out.append("\n");
         out.append("    String key = null;\n");
-        out.append("    ").append(JsonParser.class.getName()).append(".Event event = null;\n");
+        out.append("    ").append(Parser.class.getName()).append(".Event event = null;\n");
         out.append("    while (parser.hasNext()) {\n");
         out.append("      event = parser.next();\n");
         out.append("      switch (event) {\n");
@@ -291,7 +291,7 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
             out.append(booleans.stream()
                     .map(it -> "" +
                             "            case \"" + it.stringEscapedJsonName() + "\":\n" +
-                            "              param__" + it.javaName() + " = " + JsonParser.class.getName() + ".Event.VALUE_TRUE.equals(event);\n" +
+                            "              param__" + it.javaName() + " = " + Parser.class.getName() + ".Event.VALUE_TRUE.equals(event);\n" +
                             "              break;\n")
                     .collect(joining()));
             if (fallbacks.isEmpty()) {
@@ -300,7 +300,7 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
                 out.append("            default:\n");
                 out.append(createIfNullFallbackMap.indent(14));
                 out.append("              param__").append(fallbacks.get(0).javaName())
-                        .append(".put(key, ").append(JsonParser.class.getName()).append(".Event.VALUE_TRUE.equals(event));\n");
+                        .append(".put(key, ").append(Parser.class.getName()).append(".Event.VALUE_TRUE.equals(event));\n");
             }
             out.append("          }\n");
             out.append("          key = null;\n");

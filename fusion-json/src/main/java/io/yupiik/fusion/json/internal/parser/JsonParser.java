@@ -16,27 +16,26 @@
 package io.yupiik.fusion.json.internal.parser;
 
 import io.yupiik.fusion.json.internal.JsonStrings;
+import io.yupiik.fusion.json.spi.Parser;
 
 import java.io.IOException;
 import java.io.Reader;
 import java.math.BigDecimal;
 import java.util.NoSuchElementException;
 
-import static io.yupiik.fusion.json.internal.parser.JsonParser.Event.END_ARRAY;
-import static io.yupiik.fusion.json.internal.parser.JsonParser.Event.END_OBJECT;
-import static io.yupiik.fusion.json.internal.parser.JsonParser.Event.KEY_NAME;
-import static io.yupiik.fusion.json.internal.parser.JsonParser.Event.START_ARRAY;
-import static io.yupiik.fusion.json.internal.parser.JsonParser.Event.START_OBJECT;
-import static io.yupiik.fusion.json.internal.parser.JsonParser.Event.VALUE_FALSE;
-import static io.yupiik.fusion.json.internal.parser.JsonParser.Event.VALUE_NULL;
-import static io.yupiik.fusion.json.internal.parser.JsonParser.Event.VALUE_NUMBER;
-import static io.yupiik.fusion.json.internal.parser.JsonParser.Event.VALUE_STRING;
-import static io.yupiik.fusion.json.internal.parser.JsonParser.Event.VALUE_TRUE;
+import static io.yupiik.fusion.json.spi.Parser.Event.END_ARRAY;
+import static io.yupiik.fusion.json.spi.Parser.Event.END_OBJECT;
+import static io.yupiik.fusion.json.spi.Parser.Event.KEY_NAME;
+import static io.yupiik.fusion.json.spi.Parser.Event.START_ARRAY;
+import static io.yupiik.fusion.json.spi.Parser.Event.START_OBJECT;
+import static io.yupiik.fusion.json.spi.Parser.Event.VALUE_FALSE;
+import static io.yupiik.fusion.json.spi.Parser.Event.VALUE_NULL;
+import static io.yupiik.fusion.json.spi.Parser.Event.VALUE_NUMBER;
+import static io.yupiik.fusion.json.spi.Parser.Event.VALUE_STRING;
+import static io.yupiik.fusion.json.spi.Parser.Event.VALUE_TRUE;
 
 // forked from Apache johnzon
-public class JsonParser implements AutoCloseable {
-    private static final Event[] EVT_MAP = Event.values();
-
+public class JsonParser implements Parser {
     private final boolean autoAdjust;
     private final char[] buffer;
     private int bufferPos = Integer.MIN_VALUE;
@@ -139,7 +138,8 @@ public class JsonParser implements AutoCloseable {
         return currentLength / 4;
     }
 
-    public final boolean hasNext() {
+    @Override
+    public boolean hasNext() {
         if (rewindedEvent != null) {
             return true;
         }
@@ -247,22 +247,17 @@ public class JsonParser implements AutoCloseable {
         return c;
     }
 
-    public Event current() {
-        if (previousEvent < 0 && hasNext()) {
-            next();
-        }
-        return previousEvent >= 0 && previousEvent < Event.values().length ? Event.values()[previousEvent] : null;
-    }
-
     private void unreadChar() {
         bufferPos--;
         bufferLeft++;
     }
 
+    @Override
     public void rewind(final Event event) {
         rewindedEvent = event;
     }
 
+    @Override
     public Event next() {
         if (rewindedEvent != null) {
             final var event = rewindedEvent;
@@ -591,6 +586,7 @@ public class JsonParser implements AutoCloseable {
         };
     }
 
+    @Override
     public String getString() {
         if (previousEvent == KEY_NAME.ordinal() || previousEvent == VALUE_STRING.ordinal() || previousEvent == VALUE_NUMBER.ordinal()) {
             return fallBackCopyBufferLength > 0 ? new String(fallBackCopyBuffer, 0, fallBackCopyBufferLength) : new String(buffer,
@@ -600,6 +596,7 @@ public class JsonParser implements AutoCloseable {
         }
     }
 
+    @Override
     public void enforceNext(final Event event) {
         if (!hasNext()) {
             throw new IllegalStateException("Expected " + event + " stream is finished.");
@@ -610,20 +607,24 @@ public class JsonParser implements AutoCloseable {
         }
     }
 
+    @Override
     public boolean isInArray() {
         return arrayDepth > 0;
     }
 
+    @Override
     public boolean isInObject() {
         return objectDepth > 0;
     }
 
+    @Override
     public void skipObject() {
         if (isInObject()) {
             skip(START_OBJECT, END_OBJECT);
         }
     }
 
+    @Override
     public void skipArray() {
         if (isInArray()) {
             skip(START_ARRAY, END_ARRAY);
@@ -653,6 +654,7 @@ public class JsonParser implements AutoCloseable {
         return (endOfValueInBuffer - startOfValueInBuffer) < 19;
     }
 
+    @Override
     public int getInt() {
         if (previousEvent != VALUE_NUMBER.ordinal()) {
             throw new IllegalStateException(EVT_MAP[previousEvent] + " doesn't support getInt()");
@@ -672,6 +674,7 @@ public class JsonParser implements AutoCloseable {
         return getBigDecimal().intValue();
     }
 
+    @Override
     public long getLong() {
         if (previousEvent != VALUE_NUMBER.ordinal()) {
             throw new IllegalStateException(EVT_MAP[previousEvent] + " doesn't support getLong()");
@@ -699,6 +702,7 @@ public class JsonParser implements AutoCloseable {
         return fallBackCopyBufferLength <= 0 && len > 0 && len <= 18;
     }
 
+    @Override
     public BigDecimal getBigDecimal() {
         if (previousEvent != VALUE_NUMBER.ordinal()) {
             throw new IllegalStateException(EVT_MAP[previousEvent] + " doesn't support getBigDecimal()");
@@ -711,6 +715,7 @@ public class JsonParser implements AutoCloseable {
                 new BigDecimal(buffer, startOfValueInBuffer, (endOfValueInBuffer - startOfValueInBuffer));
     }
 
+    @Override
     public double getDouble() {
         if (previousEvent != VALUE_NUMBER.ordinal()) {
             throw new IllegalStateException(EVT_MAP[previousEvent] + " doesn't support getDouble()");
@@ -781,18 +786,5 @@ public class JsonParser implements AutoCloseable {
     }
 
     private record StructureElement(JsonParser.StructureElement previous, boolean isArray) {
-    }
-
-    public enum Event {
-        START_ARRAY,
-        START_OBJECT,
-        KEY_NAME,
-        VALUE_STRING,
-        VALUE_NUMBER,
-        VALUE_TRUE,
-        VALUE_FALSE,
-        VALUE_NULL,
-        END_OBJECT,
-        END_ARRAY
     }
 }

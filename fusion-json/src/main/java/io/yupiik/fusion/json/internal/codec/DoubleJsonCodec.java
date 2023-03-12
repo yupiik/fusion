@@ -15,7 +15,7 @@
  */
 package io.yupiik.fusion.json.internal.codec;
 
-import io.yupiik.fusion.json.internal.parser.JsonParser;
+import io.yupiik.fusion.json.spi.Parser;
 
 public class DoubleJsonCodec extends NumberJsonCodec<Double> {
     public DoubleJsonCodec() {
@@ -23,7 +23,7 @@ public class DoubleJsonCodec extends NumberJsonCodec<Double> {
     }
 
     @Override
-    protected Double read(final JsonParser parser) {
+    protected Double read(final Parser parser) {
         return parser.getDouble();
     }
 }
