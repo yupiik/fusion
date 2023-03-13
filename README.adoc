@@ -35,7 +35,7 @@ Publish documentation on github page:
 
 [source, bash]
 ----
-git checkout -b <release-tag> <release-tag> && mvn clean package -Pgh-pages`
+git checkout -b <release-tag> <release-tag> && mvn clean package -Pgh-pages
 ----
 
 Pubish release on Github by running in https://github.com/yupiik/yupiik.github.io project:
