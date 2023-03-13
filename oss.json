@@ -1,5 +1,5 @@
 {
-  "skip": true,
+  "skip": false,
   "name": "Fusion",
   "description": "Reflectionless and selfcontained framework (no jakarta/spring/guice dependency).",
   "website": "https://www.yupiik.io/fusion",
