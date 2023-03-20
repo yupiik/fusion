@@ -165,7 +165,7 @@ public class OpenRPCEndpoint extends BaseBean<OpenRPCEndpoint.Impl> implements F
 
         @Override
         public String name() {
-            return "openrpc";
+            return name;
         }
 
         @Override
