@@ -332,7 +332,11 @@ public class JsonMapperImpl implements JsonMapper {
     }
 
     private JsonCodec<?> codecLookup(final Class<?> type) {
-        return codecs.get(type);
+        final var codec = codecs.get(type);
+        if (codec == null && Collection.class.isAssignableFrom(type)) {
+
+        }
+        return codec;
     }
 
     private IllegalStateException missingCodecException(final Type type) {

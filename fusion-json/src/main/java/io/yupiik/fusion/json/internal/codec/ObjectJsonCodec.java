@@ -89,6 +89,15 @@ public class ObjectJsonCodec implements JsonCodec<Object> {
             mapCodec.write((Map) map, context);
             return;
         }
+
+        // tolerance to support serialization of Object mapping properly
+        // /!\ this is NOT symmetric, deserialization stays on a close set of classes to let caller handling it properly
+        final JsonCodec delegating = context.codec(value.getClass());
+        if (delegating != null) {
+            delegating.write(value, context);
+            return;
+        }
+
         throw new IllegalStateException("Unsupported type: " + value);
     }
 }
