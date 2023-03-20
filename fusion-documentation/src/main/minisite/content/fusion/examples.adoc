@@ -280,6 +280,8 @@ public class Endpoints {
 }
 ----
 
+TIP: you can use the configuration entry `fusion.jsonrpc.binding` to change the `/jsonrpc` default binding.
+
 == Define a "reactive" JSON-RPC endpoint
 
 [source,java]

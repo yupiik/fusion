@@ -52,10 +52,9 @@ class OpenRPCEndpointTest {
                 .start();
              final var mapperInstance = container.lookup(JsonMapper.class);
              final var endpoint = container.lookup(OpenRPCEndpoint.Impl.class)) {
-            final var openrpc = endpoint.instance()
+            final var openrpc = mapperInstance.instance().toString(endpoint.instance()
                     .invoke(new JsonRpcMethod.Context(null, null))
-                    .toCompletableFuture().get()
-                    .toString();
+                    .toCompletableFuture().get());
             assertEquals("""
                             {
                               "components": {

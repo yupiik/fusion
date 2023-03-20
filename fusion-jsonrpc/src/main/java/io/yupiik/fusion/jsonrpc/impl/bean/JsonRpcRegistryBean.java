@@ -17,13 +17,18 @@ package io.yupiik.fusion.jsonrpc.impl.bean;
 
 import io.yupiik.fusion.framework.api.Instance;
 import io.yupiik.fusion.framework.api.RuntimeContainer;
+import io.yupiik.fusion.framework.api.container.Types;
 import io.yupiik.fusion.framework.api.container.bean.BaseBean;
 import io.yupiik.fusion.framework.api.scope.ApplicationScoped;
 import io.yupiik.fusion.jsonrpc.JsonRpcRegistry;
+import io.yupiik.fusion.jsonrpc.bean.OpenRPCEndpoint;
 import io.yupiik.fusion.jsonrpc.impl.JsonRpcMethod;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Stream;
 
 public class JsonRpcRegistryBean extends BaseBean<JsonRpcRegistry> {
     public JsonRpcRegistryBean() {
@@ -31,8 +36,22 @@ public class JsonRpcRegistryBean extends BaseBean<JsonRpcRegistry> {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public JsonRpcRegistry create(final RuntimeContainer container, final List<Instance<?>> dependents) {
-        return new JsonRpcRegistry(
-                lookups(container, JsonRpcMethod.class, l -> l.stream().map(Instance::instance).toList(), dependents));
+        var methods = lookups(container, JsonRpcMethod.class, l -> l.stream().map(Instance::instance).toList(), dependents);
+
+        // enable to register OpenRPCEndpoint (a bean) as a @Bean (instance)
+        final var tempDeps = new ArrayList<Instance<?>>();
+        Optional<OpenRPCEndpoint> openrpcEndpoint = (Optional<OpenRPCEndpoint>)
+                lookup(container, new Types.ParameterizedTypeImpl(Optional.class, OpenRPCEndpoint.class), tempDeps);
+        if (openrpcEndpoint.isEmpty()) {
+            tempDeps.forEach(Instance::close);
+        } else {
+            dependents.addAll(tempDeps);
+            methods = Stream.concat(methods.stream(), Stream.of(openrpcEndpoint.orElseThrow().create(container, dependents)))
+                    .toList();
+        }
+
+        return new JsonRpcRegistry(methods);
     }
 }

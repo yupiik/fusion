@@ -32,6 +32,7 @@ import java.util.Objects;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -40,6 +41,9 @@ import static java.util.Optional.ofNullable;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static java.util.stream.Collectors.toMap;
 
+/**
+ * Enables to register OpenRPC spec as a JSON-RPC method.
+ */
 public class OpenRPCEndpoint extends BaseBean<OpenRPCEndpoint.Impl> implements FusionBean<OpenRPCEndpoint.Impl> {
     private String methodName = "openrpc";
     private String openrpcVersion = "1.2.6";
@@ -87,12 +91,22 @@ public class OpenRPCEndpoint extends BaseBean<OpenRPCEndpoint.Impl> implements F
     }
 
     protected static class Impl implements JsonRpcMethod {
-        private final CompletableFuture<String> precomputed;
+        private volatile CompletableFuture<Map<String, Object>> precomputed;
         private final String name;
+        private final Supplier<CompletableFuture<Map<String, Object>>> factory;
 
         protected Impl(final RuntimeContainer container, final String methodName, final String openrpcVersion,
                        final Info info, final List<Server> servers, final List<ErrorValue> globalErrors) {
             this.name = methodName;
+            if (servers.isEmpty()) {
+                factory = () -> doCompute(container, openrpcVersion, info, servers, globalErrors);
+            } else {
+                factory = null;
+                precomputed = doCompute(container, openrpcVersion, info, servers, globalErrors);
+            }
+        }
+
+        private CompletableFuture<Map<String, Object>> doCompute(final RuntimeContainer container, final String openrpcVersion, final Info info, final List<Server> servers, final List<ErrorValue> globalErrors) {
             try (final var mapper = container.lookup(JsonMapper.class)) {
                 var usedServers = servers;
                 if (usedServers.isEmpty()) {
@@ -101,7 +115,7 @@ public class OpenRPCEndpoint extends BaseBean<OpenRPCEndpoint.Impl> implements F
                         usedServers = List.of(new Server("http://" + configuration.host() + ":" + configuration.port() + "/jsonrpc"));
                     }
                 }
-                precomputed = completedFuture(compute(
+                return completedFuture(compute(
                         openrpcVersion, info, usedServers,
                         globalErrors.stream().map(ErrorValue::asMap).toList(),
                         mapper.instance()));
@@ -109,8 +123,8 @@ public class OpenRPCEndpoint extends BaseBean<OpenRPCEndpoint.Impl> implements F
         }
 
         @SuppressWarnings("unchecked")
-        protected String compute(final String openrpcVersion, final Info info, final List<Server> servers,
-                                 final List<Map<String, Object>> globalErrors, final JsonMapper mapper) {
+        protected Map<String, Object> compute(final String openrpcVersion, final Info info, final List<Server> servers,
+                                              final List<Map<String, Object>> globalErrors, final JsonMapper mapper) {
             final var schemas = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
             final var methods = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
             try {
@@ -160,7 +174,7 @@ public class OpenRPCEndpoint extends BaseBean<OpenRPCEndpoint.Impl> implements F
                                 return it;
                             })
                             .toList()));
-            return mapper.toString(out);
+            return out;
         }
 
         @Override
@@ -170,6 +184,13 @@ public class OpenRPCEndpoint extends BaseBean<OpenRPCEndpoint.Impl> implements F
 
         @Override
         public CompletionStage<?> invoke(final Context context) {
+            if (precomputed == null) {
+                synchronized (this) {
+                    if (precomputed == null) {
+                        precomputed = factory.get();
+                    }
+                }
+            }
             return precomputed;
         }
     }

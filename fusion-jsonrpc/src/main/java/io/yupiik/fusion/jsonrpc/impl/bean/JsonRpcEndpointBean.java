@@ -17,6 +17,7 @@ package io.yupiik.fusion.jsonrpc.impl.bean;
 
 import io.yupiik.fusion.framework.api.Instance;
 import io.yupiik.fusion.framework.api.RuntimeContainer;
+import io.yupiik.fusion.framework.api.configuration.Configuration;
 import io.yupiik.fusion.framework.api.container.bean.BaseBean;
 import io.yupiik.fusion.framework.api.scope.ApplicationScoped;
 import io.yupiik.fusion.json.JsonMapper;
@@ -33,10 +34,11 @@ public class JsonRpcEndpointBean extends BaseBean<JsonRpcEndpoint> {
 
     @Override
     public JsonRpcEndpoint create(final RuntimeContainer container, final List<Instance<?>> dependents) {
-        return new JsonRpcEndpoint(
-                lookup(container, JsonRpcHandler.class, dependents),
-                lookup(container, JsonMapper.class, dependents),
-                // todo: could be read from configuration
-                "/jsonrpc");
+        try (final var config = container.lookup(Configuration.class)) {
+            return new JsonRpcEndpoint(
+                    lookup(container, JsonRpcHandler.class, dependents),
+                    lookup(container, JsonMapper.class, dependents),
+                    config.instance().get("fusion.jsonrpc.binding").orElse("/jsonrpc"));
+        }
     }
 }
