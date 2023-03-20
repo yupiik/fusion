@@ -75,6 +75,7 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
+import javax.tools.JavaFileObject;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -802,7 +803,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
                             .sorted()
                             .toList())
                     .get();
-            writeGeneratedClass(null, module);
+            doWriteGeneratedClass(module, processingEnv.getFiler().createSourceFile(module.name()));
 
             // clean internal state
             allBeans.clear();
@@ -863,7 +864,10 @@ public class InternalFusionProcessor extends AbstractProcessor {
     }
 
     private void writeGeneratedClass(final Element relatedTo, final BaseGenerator.GeneratedClass generated) throws IOException {
-        final var out = processingEnv.getFiler().createSourceFile(generated.name(), relatedTo);
+        doWriteGeneratedClass(generated, processingEnv.getFiler().createSourceFile(generated.name(), relatedTo));
+    }
+
+    private void doWriteGeneratedClass(final BaseGenerator.GeneratedClass generated, final JavaFileObject out) throws IOException {
         try (final var writer = out.openWriter()) {
             writer.write(generated.content());
         }
