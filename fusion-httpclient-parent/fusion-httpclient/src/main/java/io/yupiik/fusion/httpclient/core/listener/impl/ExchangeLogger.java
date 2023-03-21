@@ -17,11 +17,17 @@ package io.yupiik.fusion.httpclient.core.listener.impl;
 
 import io.yupiik.fusion.httpclient.core.listener.RequestListener;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.ByteBuffer;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.concurrent.Flow;
 import java.util.logging.Logger;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
  * Usage:
@@ -56,6 +62,44 @@ public class ExchangeLogger implements RequestListener<ExchangeLogger.Data> {
         return "#" + before.count + ", " +
                 "Request: '" + request.method() + " " + request.uri() + "' took " +
                 clock.instant().minusMillis(before.instant.toEpochMilli()).toEpochMilli() + "ms\n" +
+                (logPayload ? request.bodyPublisher()
+                        .map(it -> {
+                            final var out = new ByteArrayOutputStream();
+                            it.subscribe(new Flow.Subscriber<>() {
+                                @Override
+                                public void onSubscribe(final Flow.Subscription subscription) {
+                                    subscription.request(Long.MAX_VALUE);
+                                }
+
+                                @Override
+                                public void onNext(final ByteBuffer item) {
+                                    int l = item.remaining();
+                                    final var buffer = new byte[l];
+                                    item.get(buffer, 0, l);
+                                    try {
+                                        out.write(buffer);
+                                    } catch (final IOException e) {
+                                        // no-op
+                                    }
+                                }
+
+                                @Override
+                                public void onError(final Throwable throwable) {
+                                    try {
+                                        out.write("<can't extract payload>".getBytes(UTF_8));
+                                    } catch (final IOException e) {
+                                        // no-op
+                                    }
+                                }
+
+                                @Override
+                                public void onComplete() {
+                                    // no-op
+                                }
+                            });
+                            return "\nPayload:\n" + out.toString(UTF_8);
+                        })
+                        .orElse("") : "") +
                 "Response: " + (error != null ? "[ERROR] " + error.getMessage() : ("HTTP " + response.statusCode())) +
                 (logPayload ? "\nPayload:\n" + (response == null ? "-" : response.body()) : "");
     }
