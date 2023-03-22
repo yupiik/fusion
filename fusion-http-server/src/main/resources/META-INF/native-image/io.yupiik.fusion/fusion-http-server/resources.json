@@ -5,7 +5,8 @@
       {"pattern": "org\\/apache\\/catalina\\/core\\/RestrictedServlets\\.properties"},
       {"pattern": "org\\/apache\\/catalina\\/core\\/RestrictedFilters\\.properties"},
       {"pattern": "org\\/apache\\/catalina\\/core\\/RestrictedListeners\\.properties"},
-      {"pattern": "org\\/apache\\/catalina\\/util\\/ServerInfo\\.properties"}
+      {"pattern": "org\\/apache\\/catalina\\/util\\/ServerInfo\\.properties"},
+      {"pattern": "org\\/apache\\/catalina\\/startup\\/MimeTypeMappings\\.properties"}
     ]
   }
 }
