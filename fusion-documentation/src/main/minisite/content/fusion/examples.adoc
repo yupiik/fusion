@@ -193,7 +193,7 @@ Then simply inject the `JsonMapper` in any bean to read/write such a model:
 ----
 @Bean
 public class MyServer {
-    private final JsonMapper conf;
+    private final JsonMapper mapper;
 
     public MyServer(final JsonMapper mapper) {
         this.mapper = mapper;
