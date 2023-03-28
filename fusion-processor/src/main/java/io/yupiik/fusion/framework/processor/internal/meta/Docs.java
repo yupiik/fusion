@@ -18,9 +18,22 @@ package io.yupiik.fusion.framework.processor.internal.meta;
 import java.util.List;
 
 public record Docs(List<ClassDoc> docs) {
+    @Override
+    public int hashCode() {
+        return 0; // don't be dependent of docs size
+    }
+
     public record DocItem(String name, String doc, boolean required, String ref, String defaultValue) {
+        @Override
+        public int hashCode() {
+            return name.hashCode();
+        }
     }
 
     public record ClassDoc(String name, List<DocItem> items) {
+        @Override
+        public int hashCode() {
+            return name.hashCode();  // don't be dependent of items size
+        }
     }
 }

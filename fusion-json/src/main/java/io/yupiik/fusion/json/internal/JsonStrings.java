@@ -29,28 +29,21 @@ public final class JsonStrings {
                 sb.append(c);
                 continue;
             }
-            sb.append(escape(c));
+            sb.append(switch (c) {
+                case '"', '\\' -> "\\" + c;
+                case '\b' -> "\\b";
+                case '\f' -> "\\f";
+                case '\n' -> "\\n";
+                case '\r' -> "\\r";
+                case '\t' -> "\\t";
+                default -> {
+                    final var hex = "000" + Integer.toHexString(c);
+                    yield "\\u" + hex.substring(hex.length() - 4);
+                }
+            });
         }
         sb.append('"');
         return sb.toString();
-    }
-
-    public static String escape(final char c) {
-        if (isPassthrough(c)) {
-            return String.valueOf(c);
-        }
-        return switch (c) {
-            case '"', '\\' -> "\\" + c;
-            case '\b' -> "\\b";
-            case '\f' -> "\\f";
-            case '\n' -> "\\n";
-            case '\r' -> "\\r";
-            case '\t' -> "\\t";
-            default -> {
-                final var hex = "000" + Integer.toHexString(c);
-                yield "\\u" + hex.substring(hex.length() - 4);
-            }
-        };
     }
 
     public static char asEscapedChar(final char current) {

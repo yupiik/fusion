@@ -89,7 +89,7 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
     }
 
     @Override
-    // todo: we parse too often paramter types, make it a sorted map or something like that + support byte[] and other java/sql bindings (bigdecimal, biginteger, java.time)
+    // todo: we parse too often parameter types, make it a sorted map or something like that + support byte[] and other java/sql bindings (bigdecimal, biginteger, java.time)
     public Output get() {
         final var packagePrefix = packageName == null || packageName.isBlank() ? "" : (packageName + '.');
         final var packageLine = packagePrefix.isBlank() ? "" : ("package " + packageName + ";\n\n");
