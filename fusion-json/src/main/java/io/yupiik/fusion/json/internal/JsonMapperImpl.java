@@ -31,6 +31,7 @@ import io.yupiik.fusion.json.internal.codec.ObjectJsonCodec;
 import io.yupiik.fusion.json.internal.codec.OffsetDateTimeJsonCodec;
 import io.yupiik.fusion.json.internal.codec.StringJsonCodec;
 import io.yupiik.fusion.json.internal.codec.ZonedDateTimeJsonCodec;
+import io.yupiik.fusion.json.internal.io.FastStringWriter;
 import io.yupiik.fusion.json.internal.parser.BufferProvider;
 import io.yupiik.fusion.json.internal.parser.JsonParser;
 import io.yupiik.fusion.json.serialization.JsonCodec;
@@ -43,7 +44,6 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.Reader;
 import java.io.StringReader;
-import java.io.StringWriter;
 import java.io.Writer;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
@@ -134,7 +134,7 @@ public class JsonMapperImpl implements JsonMapper {
 
     @Override
     public <A> String toString(final A instance) {
-        final var writer = new StringWriter();
+        final var writer = new FastStringWriter(new StringBuilder());
         try (writer) {
             write(instance, writer);
         } catch (final IOException e) {

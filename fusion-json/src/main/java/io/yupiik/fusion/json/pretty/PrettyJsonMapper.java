@@ -17,10 +17,10 @@ package io.yupiik.fusion.json.pretty;
 
 import io.yupiik.fusion.json.JsonMapper;
 import io.yupiik.fusion.json.internal.formatter.SimplePrettyFormatter;
+import io.yupiik.fusion.json.internal.io.FastStringWriter;
 import io.yupiik.fusion.json.mapper.DelegatingMapper;
 
 import java.io.IOException;
-import java.io.StringWriter;
 import java.io.Writer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -56,7 +56,7 @@ public class PrettyJsonMapper extends DelegatingMapper {
 
     @Override
     public <A> void write(final A instance, final Writer out) {
-        final var writer = new StringWriter();
+        final var writer = new FastStringWriter(new StringBuilder());
         try (writer) {
             super.write(instance, writer);
         } catch (final IOException e) {
