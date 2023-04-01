@@ -51,8 +51,6 @@ public class JsonParser implements Parser {
     private int arrayDepth = 0;
     private int objectDepth = 0;
 
-    private final int maxValueLength;
-
     private byte previousEvent = -1;
     private char[] fallBackCopyBuffer;
     private boolean releaseFallBackCopyBufferLength = true;
@@ -76,7 +74,6 @@ public class JsonParser implements Parser {
                       final BufferProvider bufferProvider,
                       final boolean autoAdjust) {
         this.autoAdjust = autoAdjust;
-        this.maxValueLength = maxStringLength <= 0 ? 8192 : maxStringLength;
         this.fallBackCopyBuffer = bufferProvider.newBuffer();
         this.buffer = bufferProvider.newBuffer();
         this.bufferProvider = bufferProvider;
@@ -100,11 +97,6 @@ public class JsonParser implements Parser {
     private void copyCurrentValue() {
         final int length = endOfValueInBuffer - startOfValueInBuffer;
         if (length > 0) {
-
-            if (length > maxValueLength) {
-                throw tmc();
-            }
-
             if (fallBackCopyBufferLength >= fallBackCopyBuffer.length - length) { // not good at runtime but handled
                 doAutoAdjust(length);
             } else {
@@ -232,16 +224,11 @@ public class JsonParser implements Parser {
     }
 
     protected final char readNextNonWhitespaceChar(char c) {
-        int dosCount = 0;
         while (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
             if (c == '\n') {
                 currentLine++;
                 lastLineBreakPosition = pastBufferReadCount + bufferPos;
             }
-            if (dosCount >= maxValueLength) {
-                throw tmc();
-            }
-            dosCount++;
             c = readNextChar();
         }
         return c;
@@ -429,11 +416,6 @@ public class JsonParser implements Parser {
                 if (n == '"') {
                     if (fallBackCopyBufferLength > 0) {
                         copyCurrentValue();
-                    } else {
-                        if ((endOfValueInBuffer - startOfValueInBuffer) > maxValueLength) {
-                            throw tmc();
-                        }
-
                     }
                     return;
                 }
@@ -542,8 +524,6 @@ public class JsonParser implements Parser {
 
             if (fallBackCopyBufferLength > 0) {
                 copyCurrentValue();
-            } else if ((endOfValueInBuffer - startOfValueInBuffer) >= maxValueLength) {
-                throw tmc();
             }
             return;
         }
@@ -778,11 +758,6 @@ public class JsonParser implements Parser {
         final char c = bufferPos < 0 ? 0 : buffer[bufferPos];
         return new IllegalStateException("Unexpected character '" + c + "' (Codepoint: " + String.valueOf(c).codePointAt(0) + ") on "
                 + createLocation() + ". Reason is [[" + message + "]]");
-    }
-
-    private IllegalStateException tmc() {
-        return new IllegalStateException("Too many characters. Maximum string/number length of " + maxValueLength + " exceeded on "
-                + createLocation() + ". Maybe increase org.apache.johnzon.max-string-length in jsonp factory properties or system properties.");
     }
 
     private record StructureElement(JsonParser.StructureElement previous, boolean isArray) {

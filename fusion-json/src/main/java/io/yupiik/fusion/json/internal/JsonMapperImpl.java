@@ -342,7 +342,7 @@ public class JsonMapperImpl implements JsonMapper {
     private static Function<Reader, Parser> createReaderParserFunction(final Configuration configuration) {
         final int maxStringLength = configuration.get("fusion.json.maxStringLength")
                 .map(Integer::parseInt)
-                .orElse(64 * 1024);
+                .orElse(8 * 1024);
         final boolean autoAdjust = configuration.get("fusion.json.bufferAutoAdjust")
                 .map(Boolean::parseBoolean)
                 .orElse(true);
