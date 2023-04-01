@@ -346,7 +346,10 @@ public class JsonMapperImpl implements JsonMapper {
         final boolean autoAdjust = configuration.get("fusion.json.bufferAutoAdjust")
                 .map(Boolean::parseBoolean)
                 .orElse(true);
-        final var bufferFactory = new BufferProvider(maxStringLength);
+        final int maxBuffers = configuration.get("fusion.json.maxBuffers")
+                .map(Integer::parseInt)
+                .orElse(-1);
+        final var bufferFactory = new BufferProvider(maxStringLength, maxBuffers);
         return reader -> new JsonParser(reader, maxStringLength, bufferFactory, autoAdjust);
     }
 }

@@ -16,24 +16,39 @@
 package io.yupiik.fusion.json.internal.parser;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class BufferProvider {
     private final int size;
+    private final int max;
+    private final AtomicInteger counter = new AtomicInteger();
     private final ConcurrentLinkedQueue<char[]> queue = new ConcurrentLinkedQueue<>();
 
-    public BufferProvider(final int size) {
+    public BufferProvider(final int size, final int maxBuffers) {
         this.size = size;
+        this.max = maxBuffers;
     }
 
     public char[] newBuffer() {
         final var buffer = queue.poll();
         if (buffer == null) {
             return new char[size];
+        } else if (max >= 0) {
+            counter.decrementAndGet();
         }
         return buffer;
     }
 
     public void release(final char[] value) {
-        queue.offer(value);
+        if (max < 0) {
+            queue.offer(value);
+            return;
+        }
+        if (counter.getAndUpdate(operand -> {
+            final var incr = operand + 1;
+            return Math.min(max, incr);
+        }) < max) {
+            queue.offer(value);
+        }
     }
 }

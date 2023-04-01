@@ -38,6 +38,6 @@ class MapJsonCodecTest {
     }
 
     private JsonParser parser(final String string) {
-        return new JsonParser(new StringReader(string), 16, new BufferProvider(16), true);
+        return new JsonParser(new StringReader(string), 16, new BufferProvider(16, -1), true);
     }
 }
