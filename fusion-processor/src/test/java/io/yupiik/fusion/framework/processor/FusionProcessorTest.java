@@ -1637,7 +1637,7 @@ class FusionProcessorTest {
                         .toCompletableFuture().get());
                 assertEquals(200, response.status());
                 assertEquals(Map.of("content-type", List.of("application/json;charset=utf-8")), response.headers());
-                assertEquals("{\"message\":\"Hello fusion!\"}", assertDoesNotThrow(() -> new RequestBodyAggregator(response.body()).promise().toCompletableFuture().get()));
+                assertEquals("{\"message\":\"Hello fusion!\"}", assertDoesNotThrow(() -> new String(new RequestBodyAggregator(response.body(), UTF_8).promise().toCompletableFuture().get())));
             });
             withInstance(container, loader, "test.p.HttpEndpoints$greetStage$FusionHttpEndpoint", Endpoint.class, instance -> {
                 assertFalse(instance.matches(new SimpleRequest()));
@@ -1648,7 +1648,7 @@ class FusionProcessorTest {
                         .toCompletableFuture().get());
                 assertEquals(200, response.status());
                 assertEquals(Map.of("content-type", List.of("application/json;charset=utf-8")), response.headers());
-                assertEquals("{\"message\":\"Hello fusion!\"}", assertDoesNotThrow(() -> new RequestBodyAggregator(response.body()).promise().toCompletableFuture().get()));
+                assertEquals("{\"message\":\"Hello fusion!\"}", assertDoesNotThrow(() -> new String(new RequestBodyAggregator(response.body(), UTF_8).promise().toCompletableFuture().get())));
             });
         });
     }
@@ -1810,7 +1810,7 @@ class FusionProcessorTest {
                 .toCompletableFuture().get());
         assertEquals(200, handled.status());
         assertEquals(Map.of("content-type", List.of("application/json;charset=utf-8")), handled.headers());
-        assertEquals(response, assertDoesNotThrow(() -> new RequestBodyAggregator(handled.body()).promise().toCompletableFuture().get()));
+        assertEquals(response, assertDoesNotThrow(() -> new String(new RequestBodyAggregator(handled.body(), UTF_8).promise().toCompletableFuture().get())));
     }
 
     private Request jsonRpc(final String payload) {

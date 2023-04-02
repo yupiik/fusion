@@ -38,7 +38,8 @@ public class JsonRpcEndpointBean extends BaseBean<JsonRpcEndpoint> {
             return new JsonRpcEndpoint(
                     lookup(container, JsonRpcHandler.class, dependents),
                     lookup(container, JsonMapper.class, dependents),
-                    config.instance().get("fusion.jsonrpc.binding").orElse("/jsonrpc"));
+                    config.instance().get("fusion.jsonrpc.binding").orElse("/jsonrpc"),
+                    config.instance().get("fusion.jsonrpc.forceInputStreamUsage").map(Boolean::parseBoolean).orElse(false));
         }
     }
 }

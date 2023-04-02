@@ -27,11 +27,11 @@ public class ServletCookie implements Cookie {
     }
 
     @Override
-    public <T> T unwrap(final Class<T> type) {
+    public <T> T unwrapOrNull(final Class<T> type) {
         if (jakarta.servlet.http.Cookie.class == type) {
             return type.cast(delegate);
         }
-        return Cookie.super.unwrap(type);
+        return Cookie.super.unwrapOrNull(type);
     }
 
     @Override

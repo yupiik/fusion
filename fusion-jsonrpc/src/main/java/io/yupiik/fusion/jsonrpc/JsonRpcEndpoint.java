@@ -15,15 +15,19 @@
  */
 package io.yupiik.fusion.jsonrpc;
 
+import io.yupiik.fusion.http.server.api.IOConsumer;
 import io.yupiik.fusion.http.server.api.Request;
 import io.yupiik.fusion.http.server.api.Response;
 import io.yupiik.fusion.http.server.impl.DefaultEndpoint;
 import io.yupiik.fusion.json.JsonMapper;
 
+import java.io.Reader;
+import java.io.Writer;
 import java.util.concurrent.CompletionStage;
 import java.util.logging.Logger;
 
 import static java.util.concurrent.CompletableFuture.completedFuture;
+import static java.util.logging.Level.FINEST;
 import static java.util.logging.Level.SEVERE;
 
 public class JsonRpcEndpoint extends DefaultEndpoint {
@@ -31,12 +35,14 @@ public class JsonRpcEndpoint extends DefaultEndpoint {
 
     private final JsonRpcHandler handler;
     private final JsonMapper mapper;
+    private final boolean useInputStream;
 
-    public JsonRpcEndpoint(final JsonRpcHandler handler, final JsonMapper mapper, final String path) {
+    public JsonRpcEndpoint(final JsonRpcHandler handler, final JsonMapper mapper, final String path, final boolean useInputStream) {
         super(
                 1000,
                 r -> "POST".equals(r.method()) && path.equals(r.path()),
                 null);
+        this.useInputStream = useInputStream;
         this.handler = handler;
         this.mapper = mapper;
     }
@@ -45,7 +51,7 @@ public class JsonRpcEndpoint extends DefaultEndpoint {
     public CompletionStage<Response> handle(final Request request) {
         final CompletionStage<Object> req;
         try { // deserialization error
-            req = handler.readRequest(request.body());
+            req = readRequest(request);
         } catch (final RuntimeException ex) {
             return completedFuture(jsonRpcError(-32700, ex));
         }
@@ -62,6 +68,21 @@ public class JsonRpcEndpoint extends DefaultEndpoint {
                 .exceptionally(error -> jsonRpcError(-32700, error));
     }
 
+    private CompletionStage<Object> readRequest(final Request request) {
+        try {
+            if (!useInputStream) {
+                final var reader = request.unwrapOrNull(Reader.class);
+                if (reader != null) {
+                    return completedFuture(mapper.read(Object.class, reader));
+                }
+            }
+            return handler.readRequest(request.body());
+        } catch (final IllegalArgumentException iae) {
+            logger.log(FINEST, iae, () -> "canUnwrapAsReader=true but reader was not extracted from the request: " + iae.getMessage());
+            return handler.readRequest(request.body());
+        }
+    }
+
     private Response jsonRpcError(final int code, final Throwable error) {
         return response(handler.createResponse(null, code, error.getMessage()));
     }
@@ -70,7 +91,11 @@ public class JsonRpcEndpoint extends DefaultEndpoint {
         return Response.of()
                 .status(200)
                 .header("content-type", "application/json;charset=utf-8")
-                .body(mapper.toString(payload))
+                .body((IOConsumer<Writer>) writer -> {
+                    try (writer) {
+                        mapper.write(payload, writer);
+                    }
+                })
                 .build();
     }
 }

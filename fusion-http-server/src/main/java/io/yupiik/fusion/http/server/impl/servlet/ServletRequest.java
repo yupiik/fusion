@@ -15,12 +15,13 @@
  */
 package io.yupiik.fusion.http.server.impl.servlet;
 
-import jakarta.servlet.http.HttpServletRequest;
 import io.yupiik.fusion.http.server.api.Cookie;
 import io.yupiik.fusion.http.server.api.Request;
 import io.yupiik.fusion.http.server.impl.flow.ServletInputStreamSubscription;
+import jakarta.servlet.http.HttpServletRequest;
 
 import java.io.IOException;
+import java.io.Reader;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
@@ -41,11 +42,18 @@ public class ServletRequest implements Request {
     }
 
     @Override
-    public <T> T unwrap(final Class<T> type) {
+    public <T> T unwrapOrNull(final Class<T> type) {
         if (type == HttpServletRequest.class || type == jakarta.servlet.ServletRequest.class) {
             return type.cast(delegate);
         }
-        return Request.super.unwrap(type);
+        if (type == Reader.class) {
+            try {
+                return type.cast(delegate.getReader());
+            } catch (final IOException e) {
+                throw new IllegalStateException(e);
+            }
+        }
+        return Request.super.unwrapOrNull(type);
     }
 
     @Override

@@ -20,12 +20,16 @@ import io.yupiik.fusion.framework.processor.internal.ParsedType;
 import io.yupiik.fusion.http.server.api.Request;
 import io.yupiik.fusion.http.server.impl.io.RequestBodyAggregator;
 import io.yupiik.fusion.json.JsonMapper;
+import io.yupiik.fusion.json.deserialization.AvailableCharArrayReader;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.VariableElement;
+import java.io.Reader;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -118,17 +122,19 @@ public abstract class BaseHttpEndpointGenerator extends BaseGenerator {
     }
 
     protected Param createJsonParam(final VariableElement it, final ParsedType param, final int index) {
+        final var type = switch (param.type()) {
+            case CLASS -> param.className() + ".class";
+            case PARAMETERIZED_TYPE -> // todo: store it in fields for speed - avoid alloc - or is it rare enough, it is a bad practise anyway?
+                    param.createParameterizedTypeImpl();
+        };
         return new Param(
                 "final " + JsonMapper.class.getName() + " jsonMapper",
                 "lookup(container, " + JsonMapper.class.getName() + ".class, dependents)",
-                "new " + RequestBodyAggregator.class.getName() + "(request.body())\n" +
-                        "          .promise()\n" +
-                        "          .thenApply(payload -> jsonMapper.fromString(" +
-                        switch (param.type()) {
-                            case CLASS -> param.className() + ".class";
-                            case PARAMETERIZED_TYPE -> // todo: store it in fields for speed - avoid alloc - or is it rare enough?
-                                    param.createParameterizedTypeImpl();
-                        } + ", payload))",
+                Optional.class.getName() + ".ofNullable(request.unwrapOrNull(" + Reader.class.getName() + ".class))\n" +
+                        "          .map(reader -> " + CompletableFuture.class.getName() + ".completedStage(jsonMapper.read(" + type + ", reader)))\n" +
+                        "          .orElseGet(() -> new " + RequestBodyAggregator.class.getName() + "(request.body(), " + StandardCharsets.class.getName() + ".UTF_8)\n" +
+                        "              .promise()\n" +
+                        "              .thenApply(payload -> jsonMapper.read(" + type + ", new " + AvailableCharArrayReader.class.getName() + "(payload))))",
                 "payload");
     }
 

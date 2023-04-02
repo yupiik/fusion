@@ -35,6 +35,11 @@ public class DefaultEndpoint implements Endpoint {
     }
 
     @Override
+    public int priority() {
+        return priority;
+    }
+
+    @Override
     public boolean matches(final Request request) {
         return matcher.test(request);
     }

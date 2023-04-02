@@ -18,6 +18,7 @@ package io.yupiik.fusion.jsonrpc;
 import io.yupiik.fusion.http.server.api.Request;
 import io.yupiik.fusion.http.server.impl.io.RequestBodyAggregator;
 import io.yupiik.fusion.json.JsonMapper;
+import io.yupiik.fusion.json.deserialization.AvailableCharArrayReader;
 import io.yupiik.fusion.jsonrpc.impl.JsonRpcMethod;
 
 import java.nio.ByteBuffer;
@@ -32,6 +33,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Optional.empty;
 import static java.util.Optional.of;
 import static java.util.Optional.ofNullable;
@@ -50,9 +52,9 @@ public class JsonRpcHandler {
     }
 
     public CompletionStage<Object> readRequest(final Flow.Publisher<ByteBuffer> payload) {
-        return new RequestBodyAggregator(payload)
+        return new RequestBodyAggregator(payload, UTF_8)
                 .promise()
-                .thenApply(string -> mapper.fromString(Object.class, string));
+                .thenApply(chars -> mapper.read(Object.class, new AvailableCharArrayReader(chars)));
     }
 
     public CompletionStage<Response> handleRequest(final Map<String, Object> request, final Request httpRequest) {
