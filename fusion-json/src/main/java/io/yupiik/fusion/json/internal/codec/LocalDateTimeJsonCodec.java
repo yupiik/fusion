@@ -41,6 +41,6 @@ public class LocalDateTimeJsonCodec implements JsonCodec<LocalDateTime> {
 
     @Override
     public void write(final LocalDateTime value, final SerializationContext context) throws IOException {
-        context.writer().write(JsonStrings.escape(value.toString()));
+        context.writer().write(JsonStrings.escapeChars(value.toString()));
     }
 }

@@ -18,7 +18,6 @@ package io.yupiik.fusion.json.serialization;
 import io.yupiik.fusion.json.spi.Parser;
 
 import java.io.IOException;
-import java.io.Writer;
 import java.lang.reflect.Type;
 import java.util.function.Function;
 
@@ -30,15 +29,15 @@ public interface JsonCodec<A> {
     void write(A value, SerializationContext writer) throws IOException;
 
     class SerializationContext {
-        private final Writer writer;
+        private final ExtendedWriter writer;
         private final Function<Class<?>, JsonCodec<?>> codecLookup;
 
-        public SerializationContext(final Writer writer, final Function<Class<?>, JsonCodec<?>> codecLookup) {
+        public SerializationContext(final ExtendedWriter writer, final Function<Class<?>, JsonCodec<?>> codecLookup) {
             this.writer = writer;
             this.codecLookup = codecLookup;
         }
 
-        public Writer writer() {
+        public ExtendedWriter writer() {
             return writer;
         }
 

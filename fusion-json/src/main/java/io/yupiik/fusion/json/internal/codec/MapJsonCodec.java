@@ -73,7 +73,8 @@ public class MapJsonCodec<A> implements JsonCodec<Map<String, A>> {
                 continue;
             }
 
-            writer.write(JsonStrings.escape(entry.getKey()) + ":");
+            writer.write(JsonStrings.escapeChars(entry.getKey()));
+            writer.write(":");
             if (entry.getValue() == null) {
                 writer.write("null");
             } else {

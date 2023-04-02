@@ -15,9 +15,11 @@
  */
 package io.yupiik.fusion.json.internal.parser;
 
+import io.yupiik.fusion.json.deserialization.AvailableCharArrayReader;
 import org.junit.jupiter.api.Test;
 
 import java.io.StringReader;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -26,11 +28,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class JsonParserTest {
     @Test
     void nullValue() {
-        try (final var reader = parser("null")) {
-            assertTrue(reader.hasNext());
-            assertEquals(JsonParser.Event.VALUE_NULL, reader.next());
-            assertFalse(reader.hasNext());
-        }
+        Stream.of(true, false).forEach(b -> {
+            try (final var reader = parser("null", b)) {
+                assertTrue(reader.hasNext());
+                assertEquals(JsonParser.Event.VALUE_NULL, reader.next());
+                assertFalse(reader.hasNext());
+            }
+        });
     }
 
     @Test
@@ -73,12 +77,14 @@ class JsonParserTest {
 
     @Test
     void stringValue() {
-        try (final var reader = parser("\"hello\"")) {
-            assertTrue(reader.hasNext());
-            assertEquals(JsonParser.Event.VALUE_STRING, reader.next());
-            assertEquals("hello", reader.getString());
-            assertFalse(reader.hasNext());
-        }
+        Stream.of(true, false).forEach(b -> {
+            try (final var reader = parser("\"hello\"", b)) {
+                assertTrue(reader.hasNext());
+                assertEquals(JsonParser.Event.VALUE_STRING, reader.next());
+                assertEquals("hello", reader.getString());
+                assertFalse(reader.hasNext());
+            }
+        });
     }
 
     @Test
@@ -89,6 +95,18 @@ class JsonParserTest {
             assertEquals("h\\ello", reader.getString());
             assertFalse(reader.hasNext());
         }
+    }
+
+    @Test
+    void stringUnicode() {
+        Stream.of(true, false).forEach(b -> {
+            try (final var reader = parser("\"\\u0039\"", b)) {
+                assertTrue(reader.hasNext());
+                assertEquals(JsonParser.Event.VALUE_STRING, reader.next());
+                assertEquals("9", reader.getString());
+                assertFalse(reader.hasNext());
+            }
+        });
     }
 
     @Test
@@ -104,41 +122,43 @@ class JsonParserTest {
 
     @Test
     void object() {
-        try (final var reader = parser("{\"test\":\"foo\",\"othero\":{\"something\":true},\"otherl\":[1]}")) {
-            assertTrue(reader.hasNext());
-            assertEquals(JsonParser.Event.START_OBJECT, reader.next());
-            assertTrue(reader.hasNext());
-            assertEquals(JsonParser.Event.KEY_NAME, reader.next());
-            assertEquals("test", reader.getString());
-            assertTrue(reader.hasNext());
-            assertEquals(JsonParser.Event.VALUE_STRING, reader.next());
-            assertEquals("foo", reader.getString());
-            assertTrue(reader.hasNext());
-            assertEquals(JsonParser.Event.KEY_NAME, reader.next());
-            assertEquals("othero", reader.getString());
-            assertTrue(reader.hasNext());
-            assertEquals(JsonParser.Event.START_OBJECT, reader.next());
-            assertTrue(reader.hasNext());
-            assertEquals(JsonParser.Event.KEY_NAME, reader.next());
-            assertEquals("something", reader.getString());
-            assertTrue(reader.hasNext());
-            assertEquals(JsonParser.Event.VALUE_TRUE, reader.next());
-            assertTrue(reader.hasNext());
-            assertEquals(JsonParser.Event.END_OBJECT, reader.next());
-            assertTrue(reader.hasNext());
-            assertEquals(JsonParser.Event.KEY_NAME, reader.next());
-            assertEquals("otherl", reader.getString());
-            assertTrue(reader.hasNext());
-            assertEquals(JsonParser.Event.START_ARRAY, reader.next());
-            assertTrue(reader.hasNext());
-            assertEquals(JsonParser.Event.VALUE_NUMBER, reader.next());
-            assertEquals(1, reader.getInt());
-            assertTrue(reader.hasNext());
-            assertEquals(JsonParser.Event.END_ARRAY, reader.next());
-            assertTrue(reader.hasNext());
-            assertEquals(JsonParser.Event.END_OBJECT, reader.next());
-            assertFalse(reader.hasNext(), () -> reader.next().name());
-        }
+        Stream.of(true, false).forEach(b -> {
+            try (final var reader = parser("{\"test\":\"foo\",\"othero\":{\"something\":true},\"otherl\":[1]}", b)) {
+                assertTrue(reader.hasNext());
+                assertEquals(JsonParser.Event.START_OBJECT, reader.next());
+                assertTrue(reader.hasNext());
+                assertEquals(JsonParser.Event.KEY_NAME, reader.next());
+                assertEquals("test", reader.getString());
+                assertTrue(reader.hasNext());
+                assertEquals(JsonParser.Event.VALUE_STRING, reader.next());
+                assertEquals("foo", reader.getString());
+                assertTrue(reader.hasNext());
+                assertEquals(JsonParser.Event.KEY_NAME, reader.next());
+                assertEquals("othero", reader.getString());
+                assertTrue(reader.hasNext());
+                assertEquals(JsonParser.Event.START_OBJECT, reader.next());
+                assertTrue(reader.hasNext());
+                assertEquals(JsonParser.Event.KEY_NAME, reader.next());
+                assertEquals("something", reader.getString());
+                assertTrue(reader.hasNext());
+                assertEquals(JsonParser.Event.VALUE_TRUE, reader.next());
+                assertTrue(reader.hasNext());
+                assertEquals(JsonParser.Event.END_OBJECT, reader.next());
+                assertTrue(reader.hasNext());
+                assertEquals(JsonParser.Event.KEY_NAME, reader.next());
+                assertEquals("otherl", reader.getString());
+                assertTrue(reader.hasNext());
+                assertEquals(JsonParser.Event.START_ARRAY, reader.next());
+                assertTrue(reader.hasNext());
+                assertEquals(JsonParser.Event.VALUE_NUMBER, reader.next());
+                assertEquals(1, reader.getInt());
+                assertTrue(reader.hasNext());
+                assertEquals(JsonParser.Event.END_ARRAY, reader.next());
+                assertTrue(reader.hasNext());
+                assertEquals(JsonParser.Event.END_OBJECT, reader.next());
+                assertFalse(reader.hasNext(), () -> reader.next().name());
+            }
+        });
     }
 
     @Test
@@ -154,22 +174,30 @@ class JsonParserTest {
 
     @Test
     void listString() {
-        try (final var reader = parser("[\"hello\",\"yes\"]")) {
-            assertTrue(reader.hasNext());
-            assertEquals(JsonParser.Event.START_ARRAY, reader.next());
-            assertTrue(reader.hasNext());
-            assertEquals(JsonParser.Event.VALUE_STRING, reader.next());
-            assertEquals("hello", reader.getString());
-            assertTrue(reader.hasNext());
-            assertEquals(JsonParser.Event.VALUE_STRING, reader.next());
-            assertEquals("yes", reader.getString());
-            assertTrue(reader.hasNext());
-            assertEquals(JsonParser.Event.END_ARRAY, reader.next());
-            assertFalse(reader.hasNext(), () -> reader.next().name());
-        }
+        Stream.of(true, false).forEach(b -> {
+            try (final var reader = parser("[\"hello\",\"yes\"]", b)) {
+                assertTrue(reader.hasNext());
+                assertEquals(JsonParser.Event.START_ARRAY, reader.next());
+                assertTrue(reader.hasNext());
+                assertEquals(JsonParser.Event.VALUE_STRING, reader.next());
+                assertEquals("hello", reader.getString());
+                assertTrue(reader.hasNext());
+                assertEquals(JsonParser.Event.VALUE_STRING, reader.next());
+                assertEquals("yes", reader.getString());
+                assertTrue(reader.hasNext());
+                assertEquals(JsonParser.Event.END_ARRAY, reader.next());
+                assertFalse(reader.hasNext(), () -> reader.next().name());
+            }
+        });
     }
 
     private JsonParser parser(final String string) {
-        return new JsonParser(new StringReader(string), 16, new BufferProvider(16, -1), true);
+        return parser(string, false);
+    }
+
+    private JsonParser parser(final String string, final boolean provided) {
+        return new JsonParser(
+                provided ? new AvailableCharArrayReader(string.toCharArray()) : new StringReader(string),
+                16, new BufferProvider(16, -1), true);
     }
 }

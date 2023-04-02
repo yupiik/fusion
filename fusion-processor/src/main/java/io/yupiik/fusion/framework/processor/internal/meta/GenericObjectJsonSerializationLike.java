@@ -16,6 +16,7 @@
 package io.yupiik.fusion.framework.processor.internal.meta;
 
 import io.yupiik.fusion.json.internal.codec.ObjectJsonCodec;
+import io.yupiik.fusion.json.serialization.ExtendedWriter;
 import io.yupiik.fusion.json.serialization.JsonCodec;
 
 import java.io.IOException;
@@ -29,7 +30,7 @@ public interface GenericObjectJsonSerializationLike {
         final var jsonCodec = new ObjectJsonCodec();
         final var writer = new StringWriter();
         try (writer) {
-            jsonCodec.write(asMap(), new JsonCodec.SerializationContext(writer, k -> {
+            jsonCodec.write(asMap(), new JsonCodec.SerializationContext(new ExtendedWriter(writer), k -> {
                 throw new IllegalArgumentException("unsupported type: '" + k + "'");
             }));
         } catch (final IOException e) {

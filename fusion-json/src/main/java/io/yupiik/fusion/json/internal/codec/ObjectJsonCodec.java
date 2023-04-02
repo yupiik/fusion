@@ -20,7 +20,6 @@ import io.yupiik.fusion.json.serialization.JsonCodec;
 
 import java.io.IOException;
 import java.lang.reflect.Type;
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -28,6 +27,9 @@ import java.util.Map;
 
 // used to handle unknown structures
 public class ObjectJsonCodec implements JsonCodec<Object> {
+    private static final char[] TRUE = "true".toCharArray();
+    private static final char[] FALSE = "false".toCharArray();
+
     private final CollectionJsonCodec<Object, Collection<Object>> collectionCodec = new CollectionJsonCodec<>(this, List.class, ArrayList::new);
     private final MapJsonCodec<Object> mapCodec = new MapJsonCodec<>(this);
 
@@ -74,10 +76,18 @@ public class ObjectJsonCodec implements JsonCodec<Object> {
             return;
         }
         if (value instanceof String s) {
-            writer.write(JsonStrings.escape(s));
+            writer.write(JsonStrings.escapeChars(s));
             return;
         }
-        if (value instanceof Boolean || value instanceof Number) {
+        if (value instanceof Boolean b) {
+            if (b) {
+                writer.write(TRUE);
+            } else {
+                writer.write(FALSE);
+            }
+            return;
+        }
+        if (value instanceof Number) {
             writer.write(String.valueOf(value));
             return;
         }

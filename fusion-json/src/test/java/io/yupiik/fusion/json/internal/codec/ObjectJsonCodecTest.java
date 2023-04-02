@@ -17,6 +17,7 @@ package io.yupiik.fusion.json.internal.codec;
 
 import io.yupiik.fusion.json.internal.parser.BufferProvider;
 import io.yupiik.fusion.json.internal.parser.JsonParser;
+import io.yupiik.fusion.json.serialization.ExtendedWriter;
 import io.yupiik.fusion.json.serialization.JsonCodec;
 import org.junit.jupiter.api.Test;
 
@@ -44,7 +45,7 @@ class ObjectJsonCodecTest {
             assertEquals(toString, read.toString());
 
             final var out = new StringWriter();
-            codec.write(read, new JsonCodec.SerializationContext(out, c -> null));
+            codec.write(read, new JsonCodec.SerializationContext(new ExtendedWriter(out), c -> null));
             assertEquals(json, out.toString());
         }
     }

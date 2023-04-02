@@ -16,6 +16,7 @@
 package io.yupiik.fusion.json.spi;
 
 import java.math.BigDecimal;
+import java.nio.CharBuffer;
 
 public interface Parser extends AutoCloseable {
     Event[] EVT_MAP = Event.values();
@@ -32,6 +33,8 @@ public interface Parser extends AutoCloseable {
     Event next();
 
     String getString();
+
+    CharBuffer getChars();
 
     void enforceNext(Event event);
 

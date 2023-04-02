@@ -41,6 +41,6 @@ public class ZonedDateTimeJsonCodec implements JsonCodec<ZonedDateTime> {
 
     @Override
     public void write(final ZonedDateTime value, final SerializationContext context) throws IOException {
-        context.writer().write(JsonStrings.escape(value.toString()));
+        context.writer().write(JsonStrings.escapeChars(value.toString()));
     }
 }

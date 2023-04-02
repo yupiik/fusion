@@ -15,12 +15,14 @@
  */
 package io.yupiik.fusion.json.internal.parser;
 
+import io.yupiik.fusion.json.deserialization.AvailableCharArrayReader;
 import io.yupiik.fusion.json.internal.JsonStrings;
 import io.yupiik.fusion.json.spi.Parser;
 
 import java.io.IOException;
 import java.io.Reader;
 import java.math.BigDecimal;
+import java.nio.CharBuffer;
 import java.util.NoSuchElementException;
 
 import static io.yupiik.fusion.json.spi.Parser.Event.END_ARRAY;
@@ -66,6 +68,7 @@ public class JsonParser implements Parser {
     private StructureElement currentStructureElement = null;
 
     private boolean closed;
+    private boolean releaseBuffer;
 
     // for wrappers mainly
     private Event rewindedEvent;
@@ -74,16 +77,21 @@ public class JsonParser implements Parser {
                       final BufferProvider bufferProvider,
                       final boolean autoAdjust) {
         this.autoAdjust = autoAdjust;
-        this.fallBackCopyBuffer = bufferProvider.newBuffer();
-        this.buffer = bufferProvider.newBuffer();
         this.bufferProvider = bufferProvider;
-
-        if (fallBackCopyBuffer.length < maxStringLength) {
-            throw new IllegalStateException("Exception at " + createLocation() +
-                    ". Reason is [[Size of value buffer cannot be smaller than maximum string length]]");
-        }
-
         this.in = reader;
+        if (reader instanceof AvailableCharArrayReader ar) {
+            this.buffer = ar.charArray();
+            this.releaseBuffer = false;
+            this.fallBackCopyBuffer = null;
+        } else {
+            this.buffer = bufferProvider.newBuffer();
+            this.releaseBuffer = true;
+            this.fallBackCopyBuffer = bufferProvider.newBuffer();
+            if (this.fallBackCopyBuffer.length < maxStringLength) {
+                throw new IllegalStateException("Exception at " + createLocation() +
+                        ". Reason is [[Size of value buffer cannot be smaller than maximum string length]]");
+            }
+        }
     }
 
     private void appendToCopyBuffer(final char c) {
@@ -126,8 +134,8 @@ public class JsonParser implements Parser {
         fallBackCopyBuffer = newArray;
     }
 
-    protected int getBufferExtends(int currentLength) {
-        return currentLength / 4;
+    protected int getBufferExtends(final int currentLength) {
+        return Math.min(1024, currentLength / 4);
     }
 
     @Override
@@ -395,6 +403,9 @@ public class JsonParser implements Parser {
             }
             if (n == '\\') {
                 n = readNextChar();
+                if (this.fallBackCopyBuffer == null) {
+                    this.fallBackCopyBuffer = bufferProvider.newBuffer();
+                }
                 if (n == 'u') {
                     n = parseUnicodeHexChars();
                     appendToCopyBuffer(n);
@@ -569,11 +580,21 @@ public class JsonParser implements Parser {
     @Override
     public String getString() {
         if (previousEvent == KEY_NAME.ordinal() || previousEvent == VALUE_STRING.ordinal() || previousEvent == VALUE_NUMBER.ordinal()) {
-            return fallBackCopyBufferLength > 0 ? new String(fallBackCopyBuffer, 0, fallBackCopyBufferLength) : new String(buffer,
-                    startOfValueInBuffer, endOfValueInBuffer - startOfValueInBuffer);
-        } else {
-            throw new IllegalStateException(EVT_MAP[previousEvent] + " doesn't support getString()");
+            return fallBackCopyBufferLength > 0 ?
+                    new String(fallBackCopyBuffer, 0, fallBackCopyBufferLength) :
+                    new String(buffer, startOfValueInBuffer, endOfValueInBuffer - startOfValueInBuffer);
         }
+        throw new IllegalStateException(EVT_MAP[previousEvent] + " doesn't support getString()");
+    }
+
+    @Override
+    public CharBuffer getChars() {
+        if (previousEvent == KEY_NAME.ordinal() || previousEvent == VALUE_STRING.ordinal() || previousEvent == VALUE_NUMBER.ordinal()) {
+            return fallBackCopyBufferLength > 0 ?
+                    CharBuffer.wrap(fallBackCopyBuffer, 0, fallBackCopyBufferLength) :
+                    CharBuffer.wrap(buffer, startOfValueInBuffer, endOfValueInBuffer - startOfValueInBuffer);
+        }
+        throw new IllegalStateException(EVT_MAP[previousEvent] + " doesn't support getString()");
     }
 
     @Override
@@ -674,14 +695,6 @@ public class JsonParser implements Parser {
         return getBigDecimal().longValue();
     }
 
-    public boolean isFitLong() {
-        if (!isCurrentNumberIntegral) {
-            return false;
-        }
-        final int len = endOfValueInBuffer - startOfValueInBuffer;
-        return fallBackCopyBufferLength <= 0 && len > 0 && len <= 18;
-    }
-
     @Override
     public BigDecimal getBigDecimal() {
         if (previousEvent != VALUE_NUMBER.ordinal()) {
@@ -696,7 +709,7 @@ public class JsonParser implements Parser {
     }
 
     @Override
-    public double getDouble() {
+    public double getDouble() { // todo: optim
         if (previousEvent != VALUE_NUMBER.ordinal()) {
             throw new IllegalStateException(EVT_MAP[previousEvent] + " doesn't support getDouble()");
         }
@@ -714,8 +727,10 @@ public class JsonParser implements Parser {
             return;
         }
 
-        bufferProvider.release(buffer);
-        if (releaseFallBackCopyBufferLength) {
+        if (releaseBuffer) {
+            bufferProvider.release(buffer);
+        }
+        if (releaseFallBackCopyBufferLength && fallBackCopyBuffer != null) {
             bufferProvider.release(fallBackCopyBuffer);
         }
 

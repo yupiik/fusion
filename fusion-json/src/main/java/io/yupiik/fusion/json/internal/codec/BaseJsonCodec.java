@@ -24,6 +24,8 @@ import java.util.Map;
 
 // intended to host utilities for generation if needed (to reduce generated code source size)
 public abstract class BaseJsonCodec<A> implements JsonCodec<A> {
+    protected static final char[] NULL = "null".toCharArray();
+
     protected final Type type;
 
     protected BaseJsonCodec(final Type type) {
@@ -44,7 +46,8 @@ public abstract class BaseJsonCodec<A> implements JsonCodec<A> {
             if (entry.getValue() == null) {
                 continue;
             }
-            writer.write(JsonStrings.escape(entry.getKey()) + ':');
+            writer.write(JsonStrings.escapeChars(entry.getKey()));
+            writer.write(':');
             delegate.write(entry.getValue(), context);
             if (it.hasNext()) {
                 writer.write(',');

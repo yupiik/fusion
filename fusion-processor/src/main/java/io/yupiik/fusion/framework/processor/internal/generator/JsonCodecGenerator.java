@@ -190,6 +190,9 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
                 .append(className).append(SUFFIX)
                 .append(" extends ").append(BaseJsonCodec.class.getName())
                 .append('<').append(modelClass).append("> {\n");
+        out.append(params.stream()
+                .map(p -> "  private static final char[] " + p.javaName() + "__CHAR_ARRAY = \"\\\"" + p.stringEscapedJsonName() + "\\\":\".toCharArray();")
+                .collect(joining("\n", "", "\n\n")));
         out.append("  public ").append(className).append(SUFFIX).append("() {\n");
         out.append("    super(").append(modelClass).append(".class);\n");
         out.append("  }\n");
@@ -460,7 +463,7 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
                         case VALUE -> switch (paramTypeDef) {
                             case INTEGER, LONG, DOUBLE, BOOLEAN -> {
                                 final var write = (paramPosition > 0 ? commaAppender : firstCommaHandler) +
-                                        "      writer.write(\"\\\"" + param.stringEscapedJsonName() + "\\\":\");\n" +
+                                        "      writer.write(" + param.javaName() + "__CHAR_ARRAY);\n" +
                                         "      writer.write(String.valueOf(instance." + param.javaName() + "()));\n";
                                 if (param.type().toString().startsWith("java.lang.")) { // wrapper, can be null
                                     yield "    if (instance." + param.javaName() + "() != null) {\n" + write + "    }\n";
@@ -470,28 +473,28 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
                             case STRING -> "" +
                                     "    if (instance." + param.javaName() + "() != null) {\n" +
                                     (paramPosition > 0 ? commaAppender : firstCommaHandler) +
-                                    "      writer.write(\"\\\"" + param.stringEscapedJsonName() + "\\\":\");\n" +
-                                    "      writer.write(" + JsonStrings.class.getName() + ".escape(instance." + param.javaName() + "()));\n" +
+                                    "      writer.write(" + param.javaName() + "__CHAR_ARRAY);\n" +
+                                    "      writer.write(" + JsonStrings.class.getName() + ".escapeChars(instance." + param.javaName() + "()));\n" +
                                     "    }\n";
                             case ENUM, LOCAL_DATE, LOCAL_DATE_TIME, OFFSET_DATE_TIME, ZONED_DATE_TIME, BIG_DECIMAL ->
                                     "" +
                                             "    if (instance." + param.javaName() + "() != null) {\n" +
                                             (paramPosition > 0 ? commaAppender : firstCommaHandler) +
-                                            "      writer.write(\"\\\"" + param.stringEscapedJsonName() + "\\\":\");\n" +
+                                            "      writer.write(" + param.javaName() + "__CHAR_ARRAY);\n" +
                                             "      context.codec(" + param.type().toString() + ".class).write(instance." + param.javaName() + "(), context);\n" +
                                             "    }\n";
                             case GENERIC_OBJECT -> "" +
                                     "    if (instance." + param.javaName() + "() != null) {\n" +
                                     (paramPosition > 0 ? commaAppender : firstCommaHandler) +
                                     "      final var codec = context.codec(" + Object.class.getName() + ".class);\n" +
-                                    "      writer.write(\"\\\"" + param.stringEscapedJsonName() + "\\\":\");\n" +
+                                    "      writer.write(" + param.javaName() + "__CHAR_ARRAY);\n" +
                                     "      codec.write(instance." + param.javaName() + "(), context);\n" +
                                     "    }\n";
                             case MODEL -> "" +
                                     "    if (instance." + param.javaName() + "() != null) {\n" +
                                     (paramPosition > 0 ? commaAppender : firstCommaHandler) +
                                     "      final var codec = context.codec(" + param.type() + ".class);\n" +
-                                    "      writer.write(\"\\\"" + param.stringEscapedJsonName() + "\\\":\");\n" +
+                                    "      writer.write(" + param.javaName() + "__CHAR_ARRAY);\n" +
                                     "      codec.write(instance." + param.javaName() + "(), context);\n" +
                                     "    }\n";
                         };
@@ -503,7 +506,7 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
                             } else {
                                 structure.append(firstCommaHandler);
                             }
-                            structure.append("      writer.write(\"\\\"").append(param.stringEscapedJsonName()).append("\\\":\");\n");
+                            structure.append("      writer.write(").append(param.javaName()).append("__CHAR_ARRAY);\n");
                             structure.append("      writer.write('[');\n");
                             structure.append("      final var it = instance.").append(param.javaName()).append("().iterator();\n");
                             if (needsCodec(paramTypeDef)) {
@@ -516,10 +519,10 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
                             structure.append((switch (paramTypeDef) {
                                 case INTEGER, LONG, DOUBLE, BOOLEAN -> "writer.write(String.valueOf(next));\n";
                                 case STRING -> "writer.write(next == null ? \"null\" : " +
-                                        JsonStrings.class.getName() + ".escape(next));\n";
+                                        JsonStrings.class.getName() + ".escapeChars(next));\n";
                                 default -> """
                                         if (next == null) {
-                                          writer.write("null");
+                                          writer.write(NULL);
                                         } else {
                                           codec.write(next, context);
                                         }
@@ -541,7 +544,7 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
                             } else {
                                 structure.append(firstCommaHandler);
                             }
-                            structure.append("      writer.write(\"\\\"").append(param.stringEscapedJsonName()).append("\\\":\");\n");
+                            structure.append("      writer.write(").append(param.javaName()).append("__CHAR_ARRAY);\n");
                             structure.append("      writer.write('{');\n");
                             structure.append("      final var it = instance.").append(param.javaName()).append("().entrySet().iterator();\n");
                             if (needsCodec(paramTypeDef)) {
@@ -552,16 +555,21 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
                             structure.append("      while (it.hasNext()) {\n");
                             structure.append("        final var next = it.next();\n");
                             structure.append(("" +
-                                    "writer.write(" + JsonStrings.class.getName() + ".escape(next.getKey()));\n" +
+                                    "writer.write(" + JsonStrings.class.getName() + ".escapeChars(next.getKey()));\n" +
                                     "writer.write(':');\n" +
                                     switch (paramTypeDef) {
                                         case INTEGER, LONG, DOUBLE, BOOLEAN ->
                                                 "writer.write(String.valueOf(next.getValue()));\n";
-                                        case STRING -> "writer.write(next.getValue() == null ? \"null\" : " +
-                                                JsonStrings.class.getName() + ".escape(next.getValue()));\n";
+                                        case STRING -> """
+                                                if (next.getValue() == null) {
+                                                  writer.write(NULL);
+                                                } else {
+                                                  writer.write(io.yupiik.fusion.json.internal.JsonStrings.escapeChars(next.getValue()));
+                                                }
+                                                """;
                                         default -> """
                                                 if (next.getValue() == null) {
-                                                  writer.write("null");
+                                                  writer.write(NULL);
                                                 } else {
                                                   codec.write(next.getValue(), context);
                                                 }

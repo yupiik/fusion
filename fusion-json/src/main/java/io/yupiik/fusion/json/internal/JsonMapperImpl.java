@@ -34,6 +34,7 @@ import io.yupiik.fusion.json.internal.codec.ZonedDateTimeJsonCodec;
 import io.yupiik.fusion.json.internal.io.FastStringWriter;
 import io.yupiik.fusion.json.internal.parser.BufferProvider;
 import io.yupiik.fusion.json.internal.parser.JsonParser;
+import io.yupiik.fusion.json.serialization.ExtendedWriter;
 import io.yupiik.fusion.json.serialization.JsonCodec;
 import io.yupiik.fusion.json.spi.Parser;
 
@@ -162,7 +163,7 @@ public class JsonMapperImpl implements JsonMapper {
                 if (firstItem != null) {
                     if (firstItem instanceof Map<?, ?>) { // consider it is just an object
                         final JsonCodec jsonCodec = codecs.get(Object.class);
-                        jsonCodec.write(collection, new JsonCodec.SerializationContext(writer, this::codecLookup));
+                        jsonCodec.write(collection, new JsonCodec.SerializationContext(wrap(writer), this::codecLookup));
                         return;
                     }
 
@@ -171,7 +172,7 @@ public class JsonMapperImpl implements JsonMapper {
                     final var key = new Types.ParameterizedTypeImpl(Collection.class, itemClass);
                     final JsonCodec existing = codecs.get(key);
                     if (existing != null) {
-                        existing.write(collection, new JsonCodec.SerializationContext(writer, this::codecLookup));
+                        existing.write(collection, new JsonCodec.SerializationContext(wrap(writer), this::codecLookup));
                         return;
                     }
 
@@ -182,7 +183,7 @@ public class JsonMapperImpl implements JsonMapper {
 
                     final var wrapper = new CollectionJsonCodec<>(itemCodec, List.class, () -> (Collection) new ArrayList<>());
                     codecs.putIfAbsent(key, wrapper);
-                    wrapper.write(collection, new JsonCodec.SerializationContext(writer, this::codecLookup));
+                    wrapper.write(collection, new JsonCodec.SerializationContext(wrap(writer), this::codecLookup));
                     return;
                 }
 
@@ -203,7 +204,7 @@ public class JsonMapperImpl implements JsonMapper {
                 if (entry != null && entry.getKey() instanceof String && entry.getValue() != null) {
                     if (entry.getValue() instanceof Map<?, ?>) { // consider it is just an object
                         final JsonCodec jsonCodec = codecs.get(Object.class);
-                        jsonCodec.write(map, new JsonCodec.SerializationContext(writer, this::codecLookup));
+                        jsonCodec.write(map, new JsonCodec.SerializationContext(wrap(writer), this::codecLookup));
                         return;
                     }
 
@@ -211,14 +212,14 @@ public class JsonMapperImpl implements JsonMapper {
                     // if at least one element does not match the type of the first item don't optimise it and go through object codec
                     if (map.values().stream().filter(Objects::nonNull).anyMatch(it -> !itemClass.isInstance(it))) {
                         final JsonCodec jsonCodec = codecs.get(Object.class);
-                        jsonCodec.write(map, new JsonCodec.SerializationContext(writer, this::codecLookup));
+                        jsonCodec.write(map, new JsonCodec.SerializationContext(wrap(writer), this::codecLookup));
                         return;
                     }
 
                     final var key = new Types.ParameterizedTypeImpl(Map.class, String.class, itemClass);
                     final JsonCodec existing = codecs.get(key);
                     if (existing != null) {
-                        existing.write(map, new JsonCodec.SerializationContext(writer, this::codecLookup));
+                        existing.write(map, new JsonCodec.SerializationContext(wrap(writer), this::codecLookup));
                         return;
                     }
 
@@ -228,13 +229,27 @@ public class JsonMapperImpl implements JsonMapper {
                     }
                     final var wrapper = new MapJsonCodec<>(itemCodec);
                     codecs.putIfAbsent(key, wrapper);
-                    wrapper.write((Map) map, new JsonCodec.SerializationContext(writer, this::codecLookup));
+                    wrapper.write((Map) map, new JsonCodec.SerializationContext(wrap(writer), this::codecLookup));
                     return;
                 }
 
-                writer.write(map.keySet().stream()
-                        .map(it -> '"' + JsonStrings.escape(String.valueOf(it)) + "\":null")
-                        .collect(joining(",", "{", "}")));
+                final var wrapped = wrap(writer);
+                final var keys = map.keySet().iterator();
+                wrapped.write('{');
+                while (keys.hasNext()) {
+                    wrapped.write('"');
+                    wrapped.write(JsonStrings.escapeChars(String.valueOf(keys.hasNext())));
+                    wrapped.write('"');
+                    wrapped.write(':');
+                    wrapped.write('n');
+                    wrapped.write('u');
+                    wrapped.write('l');
+                    wrapped.write('l');
+                    if (keys.hasNext()) {
+                        wrapped.write(',');
+                    }
+                }
+                wrapped.write('}');
                 return;
             }
 
@@ -244,7 +259,7 @@ public class JsonMapperImpl implements JsonMapper {
                 throw missingCodecException(clazz);
             }
 
-            codec.write(instance, new JsonCodec.SerializationContext(writer, this::codecLookup));
+            codec.write(instance, new JsonCodec.SerializationContext(wrap(writer), this::codecLookup));
         } catch (final IOException ioe) {
             throw new IllegalStateException(ioe);
         }
@@ -337,6 +352,10 @@ public class JsonMapperImpl implements JsonMapper {
 
     private IllegalStateException missingCodecException(final Type type) {
         return new IllegalStateException("No codec for '" + type.getTypeName() + "', did you forget to mark it @JsonModel");
+    }
+
+    private ExtendedWriter wrap(final Writer writer) {
+        return writer instanceof ExtendedWriter ew ? ew : new ExtendedWriter(writer);
     }
 
     private static Function<Reader, Parser> createReaderParserFunction(final Configuration configuration) {

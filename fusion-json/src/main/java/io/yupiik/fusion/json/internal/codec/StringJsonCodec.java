@@ -40,6 +40,6 @@ public class StringJsonCodec implements JsonCodec<String> {
 
     @Override
     public void write(final String value, final SerializationContext context) throws IOException {
-        context.writer().write(JsonStrings.escape(value));
+        context.writer().write(JsonStrings.escapeChars(value));
     }
 }
