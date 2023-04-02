@@ -281,6 +281,7 @@ public class Endpoints {
 ----
 
 TIP: you can use the configuration entry `fusion.jsonrpc.binding` to change the `/jsonrpc` default binding.
+You can also set `fusion.jsonrpc.forceInputStreamUsage` to `true` to force the input to be reactive instead of using default request `Reader`.
 
 == Define a "reactive" JSON-RPC endpoint
 
