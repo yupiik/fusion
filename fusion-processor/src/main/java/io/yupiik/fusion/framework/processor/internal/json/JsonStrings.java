@@ -46,27 +46,6 @@ public final class JsonStrings {
         return sb.toString();
     }
 
-    public static char asEscapedChar(final char current) {
-        return switch (current) {
-            case 'r' -> '\r';
-            case 't' -> '\t';
-            case 'b' -> '\b';
-            case 'f' -> '\f';
-            case 'n' -> '\n';
-            case '"' -> '\"';
-            case '\\' -> '\\';
-            case '/' -> '/';
-            case '[' -> '[';
-            case ']' -> ']';
-            default -> {
-                if (Character.isHighSurrogate(current) || Character.isLowSurrogate(current)) {
-                    yield current;
-                }
-                throw new IllegalStateException("Invalid escape sequence '" + current + "' (Codepoint: " + String.valueOf(current).codePointAt(0));
-            }
-        };
-    }
-
     private static boolean isPassthrough(final char c) {
         return c >= 0x20 && c != 0x22 && c != 0x5c;
     }
