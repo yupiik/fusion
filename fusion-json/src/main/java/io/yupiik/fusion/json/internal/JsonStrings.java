@@ -24,6 +24,7 @@ public final class JsonStrings {
         // no-op
     }
 
+    /* not yet used
     public static CharBuffer escapeCharsNoQuote(final CharSequence value) { // todo: optimize for numbers
         // no margin, often used for numbers so no escaping most of the time
         final var buffer = escapeChars(CharBuffer.allocate(value.length()), 0, 0, value);
@@ -31,6 +32,7 @@ public final class JsonStrings {
         buffer.position(0);
         return buffer;
     }
+    */
 
     public static CharBuffer escapeChars(final CharSequence value) {
         var array = CharBuffer.allocate(value.length() + 4 /*2 for quotes + a few margin if there are a few escapes*/);
