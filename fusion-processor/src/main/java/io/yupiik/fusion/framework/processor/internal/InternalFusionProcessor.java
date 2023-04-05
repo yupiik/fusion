@@ -122,6 +122,7 @@ import static javax.tools.StandardLocation.CLASS_OUTPUT;
 @SupportedOptions({
         "fusion.skipNotes", // if false, note messages will be emitted, else they are skipped (default)
         "fusion.generateModule", // toggle to enable/disable the automatic module generation (see moduleFqn)
+        "fusion.moduleAppend", // if set to `true`, the fqn of the generated module class is appended to the SPI file instead of overwriten (useful for multiple compilation cycles)
         "fusion.moduleFqn", // fully qualified name of the generated module if generateModule=true
         "fusion.generateBeanForCliCommands", // if not false all CLI command (@Command) will get a bean
         "fusion.generateBeanForHttpEndpoints", // if not false all endpoints (@HttpMatcher) will get a bean
@@ -784,12 +785,25 @@ public class InternalFusionProcessor extends AbstractProcessor {
         final var moduleName = ofNullable(processingEnv.getOptions().get("fusion.moduleFqn")).orElseGet(this::findModuleName);
         try {
             final var spiLocation = "META-INF/services/" + FusionModule.class.getName();
-            final var spi = processingEnv.getFiler().createResource(CLASS_OUTPUT, "", spiLocation);
-            try (final var out = spi.openWriter()) {
-                out.write(moduleName);
-            }
-            if (emitNotes) {
-                processingEnv.getMessager().printMessage(NOTE, "Generated '" + spiLocation + "'");
+            if ("true".equalsIgnoreCase(processingEnv.getOptions().getOrDefault("fusion.moduleAppend", "false"))) {
+                final String content;
+                try (final var in = new BufferedReader(processingEnv.getFiler().getResource(CLASS_OUTPUT, "", spiLocation).openReader(true))) {
+                    content = in.lines().collect(joining("\n"));
+                }
+                try (final var out = processingEnv.getFiler().createResource(CLASS_OUTPUT, "", spiLocation).openWriter()) {
+                    out.write(content + '\n' + moduleName);
+                }
+                if (emitNotes) {
+                    processingEnv.getMessager().printMessage(NOTE, "Updated '" + spiLocation + "'");
+                }
+            } else {
+                final var spi = processingEnv.getFiler().createResource(CLASS_OUTPUT, "", spiLocation);
+                try (final var out = spi.openWriter()) {
+                    out.write(moduleName);
+                }
+                if (emitNotes) {
+                    processingEnv.getMessager().printMessage(NOTE, "Generated '" + spiLocation + "'");
+                }
             }
 
             final var names = ParsedName.of(moduleName);
