@@ -790,11 +790,13 @@ public class InternalFusionProcessor extends AbstractProcessor {
                 try (final var in = new BufferedReader(processingEnv.getFiler().getResource(CLASS_OUTPUT, "", spiLocation).openReader(true))) {
                     content = in.lines().collect(joining("\n"));
                 }
-                try (final var out = processingEnv.getFiler().createResource(CLASS_OUTPUT, "", spiLocation).openWriter()) {
-                    out.write(content + '\n' + moduleName);
-                }
-                if (emitNotes) {
-                    processingEnv.getMessager().printMessage(NOTE, "Updated '" + spiLocation + "'");
+                if (!content.contains(moduleName)) { // can happen with incremental compilation, tolerate it
+                    try (final var out = processingEnv.getFiler().createResource(CLASS_OUTPUT, "", spiLocation).openWriter()) {
+                        out.write(content + '\n' + moduleName);
+                    }
+                    if (emitNotes) {
+                        processingEnv.getMessager().printMessage(NOTE, "Updated '" + spiLocation + "'");
+                    }
                 }
             } else {
                 final var spi = processingEnv.getFiler().createResource(CLASS_OUTPUT, "", spiLocation);
