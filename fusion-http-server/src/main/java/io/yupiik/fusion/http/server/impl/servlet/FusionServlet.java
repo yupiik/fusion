@@ -72,8 +72,8 @@ public class FusionServlet extends HttpServlet {
         asyncContext.start(task);
     }
 
-    private void execute(final HttpServletResponse resp, final Request request,
-                         final Endpoint matched, final AsyncContext asyncContext) {
+    protected void execute(final HttpServletResponse resp, final Request request,
+                           final Endpoint matched, final AsyncContext asyncContext) {
         matched.handle(request).whenComplete((response, ex) -> {
             try {
                 if (ex != null) {
@@ -99,7 +99,7 @@ public class FusionServlet extends HttpServlet {
         return ex;
     }
 
-    private void writeResponse(final HttpServletResponse resp, final Response response) {
+    protected void writeResponse(final HttpServletResponse resp, final Response response) {
         resp.setStatus(response.status());
         if (!response.headers().isEmpty()) {
             response.headers().forEach((k, v) -> {
