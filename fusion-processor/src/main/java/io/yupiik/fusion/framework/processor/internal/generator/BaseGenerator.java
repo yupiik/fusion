@@ -30,8 +30,8 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
-import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.ExecutableType;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
 import java.util.Comparator;
@@ -252,7 +252,7 @@ public abstract class BaseGenerator {
                 .collect(joining(", ", "throws ", ""));
     }
 
-    protected String templateTypes(final ExecutableElement m) { // todo: enhance and make it even more recursive?
+    protected String templateTypes(final ExecutableType m) { // todo: enhance and make it even more recursive?
         final var templates = new LinkedHashSet<String>();
 
         final var alreadyHandled = new HashSet<TypeMirror>();
@@ -267,13 +267,11 @@ public abstract class BaseGenerator {
                     .toList());
         }
 
-        templates.addAll(m.getParameters().stream()
-                .map(VariableElement::asType)
+        templates.addAll(m.getParameterTypes().stream()
                 .filter(it -> isTemplate(it, alreadyHandled))
                 .map(it -> it + " " + templateBound((TypeVariable) it))
                 .toList());
-        templates.addAll(m.getParameters().stream()
-                .map(VariableElement::asType)
+        templates.addAll(m.getParameterTypes().stream()
                 .filter(it -> it instanceof DeclaredType)
                 .map(it -> (DeclaredType) it)
                 .flatMap(dt -> dt.getTypeArguments().stream())

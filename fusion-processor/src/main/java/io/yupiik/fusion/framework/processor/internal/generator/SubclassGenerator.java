@@ -24,6 +24,8 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Name;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.ExecutableType;
 import javax.lang.model.type.TypeKind;
 import java.util.Optional;
 import java.util.function.Supplier;
@@ -120,11 +122,13 @@ public class SubclassGenerator extends BaseGenerator implements Supplier<BaseGen
                                     .map(VariableElement::getSimpleName)
                                     .map(Name::toString)
                                     .collect(joining(", "));
+                    final var contextualMethod = (ExecutableType) elements.getTypeUtils().asMemberOf((DeclaredType) typeElement.asType(), m);
+                    final var paramIt = m.getParameters().iterator();
                     return "@Override\n" +
                             visibilityFrom(m.getModifiers()) +
-                            templateTypes(m) +
-                            m.getReturnType() + " " + methodName + "(" +
-                            m.getParameters().stream().map(p -> p.asType() + " " + p.getSimpleName()).collect(joining(", ")) +
+                            templateTypes(contextualMethod) +
+                            contextualMethod.getReturnType() + " " + methodName + "(" +
+                            contextualMethod.getParameterTypes().stream().map(p -> p + " " + paramIt.next().getSimpleName()).collect(joining(", ")) +
                             ")" + exceptions(m) + " {\n" +
                             (m.getReturnType().getKind() == TypeKind.VOID ?
                                     "  this.fusionContext.instance()." + methodName + "(" + args + ");\n" :

@@ -23,6 +23,7 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.util.ElementFilter;
+import javax.lang.model.util.Types;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -36,6 +37,10 @@ public class Elements {
 
     public Elements(final ProcessingEnvironment processingEnvironment) {
         this.processingEnvironment = processingEnvironment;
+    }
+
+    public Types getTypeUtils() {
+        return processingEnvironment.getTypeUtils();
     }
 
     public Optional<? extends AnnotationMirror> findScopeAnnotation(final Element element) {
