@@ -37,6 +37,7 @@ import java.util.function.LongFunction;
 import java.util.function.Supplier;
 
 import static java.util.Objects.requireNonNull;
+import static java.util.Objects.requireNonNullElseGet;
 
 public class TracingListener implements RequestListener<TracingListener.State> {
     private final ClientTracingConfiguration configuration;
@@ -68,6 +69,7 @@ public class TracingListener implements RequestListener<TracingListener.State> {
         tags.putIfAbsent("http.method", request.method());
         tags.putIfAbsent("peer.hostname", request.uri().getHost());
         tags.putIfAbsent("peer.port", request.uri().getPort());
+        tags.putIfAbsent("span.kind", "CLIENT");
 
         final var endpoint = ip.contains("::") ?
                 new Span.Endpoint(configuration.getServiceName(), null, ip, request.uri().getPort()) :
@@ -84,7 +86,8 @@ public class TracingListener implements RequestListener<TracingListener.State> {
                 HttpHeaders.of(customizeHeaders(request, traceId, id, traceId), (a, b) -> true)),
                 new State(start, duration -> new Span(
                         traceId, parentId, id, configuration.getOperation(), "CLIENT",
-                        timestamp, duration, null, endpoint, tags)));
+                        timestamp, duration, null, endpoint, tags,
+                        null, null, null)));
     }
 
     protected String ipOf(final String host) {
@@ -102,10 +105,11 @@ public class TracingListener implements RequestListener<TracingListener.State> {
         final var end = clock.instant();
         final var span = state.span.apply(TimeUnit.MILLISECONDS.toMicros(end.minusMillis(state.start.toEpochMilli()).toEpochMilli()));
         if (response != null) {
-            span.tags().putIfAbsent("http.status", response.statusCode());
+            span.tags().putIfAbsent("http.status_code", response.statusCode());
         }
         if (error != null) {
-            span.tags().putIfAbsent("http.error", error.getMessage() == null ? error.getClass().getName() : error.getMessage());
+            span.tags().put("error", true);
+            span.tags().put("error.message", requireNonNullElseGet(error.getMessage(), () -> error.getClass().getName()));
         }
         collectSpan(span);
     }
@@ -126,11 +130,11 @@ public class TracingListener implements RequestListener<TracingListener.State> {
         collector.accept(span);
     }
 
-    static class State {
+    protected static class State {
         private final Instant start;
         private final LongFunction<Span> span;
 
-        private State(final Instant start, final LongFunction<Span> span) {
+        protected State(final Instant start, final LongFunction<Span> span) {
             this.start = start;
             this.span = span;
         }

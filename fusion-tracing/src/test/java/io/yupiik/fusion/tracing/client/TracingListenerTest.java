@@ -69,9 +69,10 @@ class TracingListenerTest {
         assertEquals("CLIENT", span1.kind());
         assertEquals(Map.of(
                 "component", "yupiik-httpclient",
+                "span.kind", "CLIENT",
                 "http.method", "GET",
                 "http.url", "http://localhost/foo?bar=dummy",
-                "http.status", 123,
+                "http.status_code", 123,
                 "peer.hostname", "localhost",
                 "peer.port", -1
         ), span1.tags());
@@ -112,9 +113,10 @@ class TracingListenerTest {
                 "component", "yupiik-httpclient",
                 "http.method", "GET",
                 "http.url", "http://localhost/foo?bar=dummy",
-                "http.status", 123,
+                "http.status_code", 123,
                 "peer.hostname", "localhost",
-                "peer.port", -1
+                "peer.port", -1,
+                "span.kind", "CLIENT"
         ), span1.tags());
         assertNotNull(span1.timestamp());
         assertNotNull(span1.duration());

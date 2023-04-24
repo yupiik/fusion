@@ -17,11 +17,15 @@ package io.yupiik.fusion.tracing.span;
 
 import io.yupiik.fusion.framework.build.api.json.JsonModel;
 
+import java.util.List;
 import java.util.Map;
 
 @JsonModel
-public record Span(Object traceId, Object parentId, Object id, String name, String kind, Long timestamp, Long duration,
-                   Endpoint localEndpoint, Endpoint remoteEndpoint, Map<String, Object> tags) {
+public record Span(Object traceId, Object parentId, Object id, String name,
+                   String kind, Long timestamp, Long duration,
+                   Endpoint localEndpoint, Endpoint remoteEndpoint,
+                   Map<String, Object> tags, List<Annotation> annotations,
+                   Boolean shared, Boolean debug) {
     @JsonModel
     public record Endpoint(String serviceName, String ipv4, String ipv6, int port) {
     }

@@ -51,7 +51,7 @@ class ZipkinFlusherTest {
         });
 
         final var endpoint = new Span.Endpoint(null, "1.2.3.4", null, 6543);
-        final var span = new Span(1, "zios", "2", null, null, 1234L, null, null, endpoint, Map.of("foo", "bar"));
+        final var span = new Span(1, "zios", "2", null, null, 1234L, null, null, endpoint, Map.of("foo", "bar"), null, null, null);
 
         server.start();
 

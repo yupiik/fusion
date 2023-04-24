@@ -84,7 +84,7 @@ public class TracingValve extends ValveBase {
         final LongFunction<Span> spanFn = duration -> new Span(
                 traceId, spanTrace, id, configuration.getOperation(), "SERVER",
                 TimeUnit.MILLISECONDS.toMicros(start.toEpochMilli()),
-                duration, localEndpoint, null, tags);
+                duration, localEndpoint, null, tags, null, null, null);
 
         request.setAttribute(PendingSpan.class.getName(), new PendingSpan(traceId, id));
         try {
