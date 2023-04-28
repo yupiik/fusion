@@ -14,8 +14,8 @@ Observability stack is composed of these primitives:
 
 == HTTP Server
 
-By default observability module adds *anotherù web server for observability purposes.
-Default port is 8181 but you can set `fusion.observability.server.port` configuration (system property, environment variable using underscores and uppercasing it) to override it.
+By default, observability module adds *another* web server for observability purposes.
+Default port is 8181, but you can set `fusion.observability.server.port` configuration (system property, environment variable using underscores and uppercasing it) to override it.
 
 The goal to not reuse the same server is to not have to secure this one (it will stay an internal port in your cluster/infrastructure).
 Since some Kubernetes tooling does not like adding headers to gather the data (prometheus for ex.) it is a good compromise.
@@ -24,9 +24,9 @@ Since some Kubernetes tooling does not like adding headers to gather the data (p
 
 A health check implements `io.yupiik.fusion.observability.health.HealthCheck` API.
 
-Then the observability server will expose a `/health` endpoint which will return a HTTP 200 if all health checks are successful and a HTTP 503 if there is at least one failure.
+Then the observability server will expose a `/health` endpoint which will return an HTTP 200 if all health checks are successful and an HTTP 503 if there is at least one failure.
 
-If you need to distinguish between health check types, you can implement `type()` method and return something different than `live`.
+If you need to distinguish between health check types, you can implement `type()` method and return something different from `live`.
 
 Then you can call the particular endpoints using `/health?type=<my type>`.
 To get the live checks, for example, use `/health?type=live`.
@@ -57,5 +57,5 @@ public class MyService {
 }
 ----
 
-TIP: you can unregister your counter on the registry if it is a short live counter (to use with a session for example), it will then no more be available but using that with prometheus, you have no guarantee it will be polled so it can be neat to delay the un-registration until next polling.
+TIP: you can unregister your counter on the registry if it is a short live counter (to use with a session for example), it will then no more be available but using that with prometheus, you have no guarantee it will be polled, so it can be neat to delay the un-registration until next polling.
 Gauge can make it easy using `registerReadOnlyGauge` since you then pass a `LongSupplier` you control.
