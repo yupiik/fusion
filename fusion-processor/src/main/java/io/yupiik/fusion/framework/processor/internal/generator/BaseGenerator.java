@@ -30,6 +30,7 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.ExecutableType;
 import javax.lang.model.type.TypeMirror;
@@ -158,7 +159,13 @@ public abstract class BaseGenerator {
     }
 
     protected String createExecutableInjections(final ExecutableElement it) {
-        return it.getParameters().stream()
+        return createExecutableFieldInjections(it.getParameters())
+                .map(this::injectionLookup)
+                .collect(joining(", "));
+    }
+
+    protected Stream<Bean.FieldInjection> createExecutableFieldInjections(final List<? extends VariableElement> parameters) {
+        return parameters.stream()
                 .map(param -> {
                     final TypeMirror type;
                     final boolean list;
@@ -184,9 +191,7 @@ public abstract class BaseGenerator {
                             set,
                             optional,
                             param.getModifiers());
-                })
-                .map(this::injectionLookup)
-                .collect(joining(", "));
+                });
     }
 
     protected String instanceTypeOf(final Bean.FieldInjection injection) {
@@ -218,7 +223,7 @@ public abstract class BaseGenerator {
         if (injection.set()) { // only supports classes
             return "(" + instanceTypeOf(injection) + ") lookups(container, " + injection.type() + ".class, " + Collectors.class.getName() + "toSet(), dependents)";
         }
-        if (injection.optional()) { // only supports classes
+        if (injection.optional()) { // only supports classes - todo: cache type
             return "(" + instanceTypeOf(injection) + ") " +
                     "lookup(container, new " + Types.ParameterizedTypeImpl.class.getName().replace('$', '.') + "(" +
                     Optional.class.getName() + ".class, " + injection.type() + ".class), " +
@@ -237,6 +242,42 @@ public abstract class BaseGenerator {
                     .map(parsed::simpleName)
                     .map(it -> it + ".class")
                     .collect(joining(",")) + ", dependents)";
+        };
+    }
+
+    protected String eventLookup(final Bean.FieldInjection injection) { // outside a bean
+        if (injection.list()) { // only supports classes
+            return "main__container.lookups(" +
+                    injection.type() + ".class, instances -> " +
+                    String.join("",
+                            "instances.stream()",
+                            isComparable(injection.type()) ?
+                                    ".map(" + Instance.class.getName() + "::instance).sorted()" :
+                                    ".sorted(java.util.Comparator.comparing(i -> i.bean().priority())).map(" + Instance.class.getName() + "::instance)",
+                            ".map(" + injection.type() + ".class::cast).collect(" + Collectors.class.getName() + ".toList())") +
+                    ")";
+        }
+        if (injection.set()) { // only supports classes
+            return "main__container.lookups(" + injection.type() + ".class, " + Collectors.class.getName() + "toSet())";
+        }
+        if (injection.optional()) { // only supports classes - todo: cache type
+            return "(Instance<" + instanceTypeOf(injection) + ">) " +
+                    "main__container.lookup(container, new " + Types.ParameterizedTypeImpl.class.getName().replace('$', '.') + "(" +
+                    Optional.class.getName() + ".class, " + injection.type() + ".class))";
+        }
+
+        final var parsed = ParsedType.of(injection.type());
+        return switch (parsed.type()) {
+            case CLASS -> "main__container.lookup(" + parsed.className() + ".class)";
+            case PARAMETERIZED_TYPE -> "(Instance<" +
+                    parsed.raw() +
+                    parsed.args().stream().map(parsed::simpleName).map(it -> it + ".class").collect(joining(",", "<", ">")) + ">) " +
+                    "main__container.lookup(" +
+                    "new " + Types.ParameterizedTypeImpl.class.getName().replace('$', '.') + "(" +
+                    parsed.raw() + ".class, " + parsed.args().stream()
+                    .map(parsed::simpleName)
+                    .map(it -> it + ".class")
+                    .collect(joining(",")) + ")";
         };
     }
 

@@ -359,6 +359,15 @@ class FusionProcessorTest {
     }
 
     @Test
+    void listeningWithInjections(@TempDir final Path work) throws IOException {
+        new Compiler(work, "ListeningWithInjections", "Bean2").compileAndAssertsInstance((container, instance) -> {
+            assertEquals("", instance.instance().toString());
+            container.emit("hello");
+            assertEquals("hello, injections=bean2[]", instance.instance().toString());
+        });
+    }
+
+    @Test
     void methodFactories(@TempDir final Path work) throws IOException {
         new Compiler(work, "MethodProducer", "Bean2").compileAndAsserts((loader, container) -> {
             final var factory = container.lookup(loader.apply("test.p.MethodProducer"));

@@ -531,8 +531,8 @@ public class InternalFusionProcessor extends AbstractProcessor {
                                     }
 
                                     if (it instanceof ExecutableElement ee) {
-                                        if (ee.getParameters().size() != 1) {
-                                            processingEnv.getMessager().printMessage(ERROR, "Unsupported listener, should get exactly one parameter: '" + it.getEnclosingElement() + "." + it + "'");
+                                        if (ee.getParameters().size() == 0) {
+                                            processingEnv.getMessager().printMessage(ERROR, "Unsupported listener, should get exactly at least one parameter: '" + it.getEnclosingElement() + "." + it + "'");
                                         }
                                     } else {
                                         processingEnv.getMessager().printMessage(ERROR, "Unsupported listener, should be a method: '" + it.getEnclosingElement() + "." + it + "'");
@@ -766,8 +766,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
             final var generation = new ListenerGenerator(
                     processingEnv, elements,
                     names.packageName(), names.className(), "$" + FusionListener.class.getSimpleName() + "$" + listener.getSimpleName(),
-                    listener.getSimpleName().toString(), listener.getParameters().get(0),
-                    listener.getEnclosingElement())
+                    listener)
                     .get();
             writeGeneratedClass(listener, generation);
             allListeners.add(generation.name());
