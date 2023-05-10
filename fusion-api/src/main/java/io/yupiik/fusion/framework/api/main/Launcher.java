@@ -34,12 +34,17 @@ public final class Launcher {
     }
 
     public static void main(final String... args) {
-        // todo: forward args to Configuration props
         try (final var container = ConfiguringContainer.of()
                 .register(new BaseBean<Args>(Args.class, DefaultScoped.class, 1000, Map.of()) {
                     @Override
                     public Args create(final RuntimeContainer container, final List<Instance<?>> dependents) {
                         return new Args(List.of(args));
+                    }
+                })
+                .register(new BaseBean<ArgsConfigSource>(ArgsConfigSource.class, DefaultScoped.class, 1000, Map.of()) {
+                    @Override
+                    public ArgsConfigSource create(final RuntimeContainer container, final List<Instance<?>> dependents) {
+                        return new ArgsConfigSource(List.of(args));
                     }
                 })
                 .start();

@@ -61,3 +61,7 @@ void run(final Stdout stdout) {
     assertEquals("...", stdout.content().strip());
 }
 ----
+
+
+TIP: `args` are made available to `Configuration` thanks a dedicated `ConfigurationSource` which supports these style of arguments (all leading to `foo=bar` mapping):  `--foo bar`,  `-foo bar`, `foo bar`, `--foo=bar`,  `-foo=bar`,  `foo=bar`.
+A particular arg starting by `fusion-properties` will be replaced by loading its value (as `Properties`, it can be inline or a file path - preferred).
