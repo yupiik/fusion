@@ -283,7 +283,7 @@ under the License.
   <licenses>
     <license>
       <name>Apache License, Version 2.0</name>
-      <url>https://github.com/yupiik/uship/blob/master/LICENSE</url>
+      <url>https://github.com/yupiik/fusion/blob/master/LICENSE</url>
       <distribution>may be downloaded from the Maven repository</distribution>
     </license>
   </licenses>
