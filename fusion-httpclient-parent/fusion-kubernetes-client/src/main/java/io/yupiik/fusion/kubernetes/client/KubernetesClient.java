@@ -140,7 +140,7 @@ public class KubernetesClient extends HttpClient implements AutoCloseable {
         }
     }
 
-    private HttpRequest prepare(final HttpRequest request) {
+    public HttpRequest prepare(final HttpRequest request) {
         final var uri = request.uri();
         final var actualUri = "kubernetes.api".equals(uri.getHost()) ?
                 base.resolve(uri.getPath() + (uri.getRawQuery() == null || uri.getRawQuery().isBlank() ? "" : ("?" + uri.getRawQuery()))) :
