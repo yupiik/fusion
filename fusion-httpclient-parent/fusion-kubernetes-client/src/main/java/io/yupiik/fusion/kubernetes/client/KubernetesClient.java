@@ -153,7 +153,10 @@ public class KubernetesClient extends HttpClient implements AutoCloseable {
         request.timeout().ifPresent(builder::timeout);
         request.headers().map().forEach((k, v) -> v.forEach(it -> builder.header(k, it)));
         if (request.headers().firstValue("Authorization").isEmpty()) {
-            builder.header("Authorization", authorization());
+            final var auth = authorization();
+            if (auth != null) {
+                builder.header("Authorization", auth);
+            }
         }
         return builder.build();
     }
