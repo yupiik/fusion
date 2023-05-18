@@ -15,6 +15,10 @@
  */
 package io.yupiik.fusion.kubernetes.client;
 
+import io.yupiik.fusion.kubernetes.client.internal.PrivateKeyReader;
+
+import javax.net.ssl.KeyManager;
+import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.TrustManagerFactory;
@@ -24,6 +28,7 @@ import java.net.Authenticator;
 import java.net.CookieHandler;
 import java.net.ProxySelector;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -36,8 +41,11 @@ import java.security.KeyManagementException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
+import java.security.UnrecoverableKeyException;
+import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -46,6 +54,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import static java.util.Optional.empty;
 import static java.util.Optional.ofNullable;
@@ -84,13 +93,21 @@ public class KubernetesClient extends HttpClient implements AutoCloseable {
         return namespace;
     }
 
+
+    /**
+     * @return the base API url (https in general).
+     */
+    public URI base() {
+        return base;
+    }
+
     private HttpClient createClient(final KubernetesClientConfiguration configuration) {
         return HttpClient.newBuilder()
-                .sslContext(createSSLContext(configuration.getCertificates()))
+                .sslContext(createSSLContext(configuration.getCertificates(), configuration.getPrivateKey(), configuration.getPrivateKeyCertificate()))
                 .build();
     }
 
-    private SSLContext createSSLContext(final String certificates) {
+    private SSLContext createSSLContext(final String certificates, final String key, final String keyCertificate) {
         final byte[] data;
         if (certificates.contains("-BEGIN CERT")) {
             data = certificates.getBytes(StandardCharsets.UTF_8);
@@ -116,7 +133,8 @@ public class KubernetesClient extends HttpClient implements AutoCloseable {
             final var certificateFactory = CertificateFactory.getInstance("X.509");
             try (final var caInput = new ByteArrayInputStream(data)) {
                 final var counter = new AtomicInteger();
-                certificateFactory.generateCertificates(caInput).forEach(c -> {
+                final var certs = certificateFactory.generateCertificates(caInput);
+                certs.forEach(c -> {
                     try {
                         ks.setCertificateEntry("ca-" + counter.incrementAndGet(), c);
                     } catch (final KeyStoreException e) {
@@ -126,25 +144,40 @@ public class KubernetesClient extends HttpClient implements AutoCloseable {
             } catch (final CertificateException | IOException e) {
                 throw new IllegalArgumentException(e);
             }
-
             final var tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
             tmf.init(ks);
+            final var trustManagers = tmf.getTrustManagers();
+
+            final KeyManager[] keyManagers;
+            if (key != null && !key.isBlank() && !"-".equals(key)) {
+                final var privateKey = PrivateKeyReader.readPrivateKey(key.strip());
+                try (final var certStream = new ByteArrayInputStream(keyCertificate.getBytes(StandardCharsets.UTF_8))) {
+                    final var cert = (X509Certificate) CertificateFactory.getInstance("X509").generateCertificate(certStream);
+                    ks.setKeyEntry(
+                            cert.getSubjectX500Principal().getName(),
+                            privateKey, new char[0], new Certificate[]{cert});
+                    final var keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+                    keyManagerFactory.init(ks, new char[0]);
+                    keyManagers = keyManagerFactory.getKeyManagers();
+                }
+            } else {
+                keyManagers = null;
+            }
 
             final var context = SSLContext.getInstance("TLSv1.2");
-            context.init(null, tmf.getTrustManagers(), null);
+            context.init(keyManagers, trustManagers, null);
             return context;
         } catch (final IOException e) {
-            throw new IllegalArgumentException("Invalid certificate: " + e.getMessage(), e);
-        } catch (final KeyStoreException | CertificateException | NoSuchAlgorithmException | KeyManagementException e) {
+            throw new IllegalArgumentException("Invalid certificate/key: " + e.getMessage(), e);
+        } catch (final KeyStoreException | CertificateException | NoSuchAlgorithmException | KeyManagementException |
+                       UnrecoverableKeyException e) {
             throw new IllegalArgumentException("Can't create SSLContext: " + e.getMessage(), e);
         }
     }
 
     public HttpRequest prepare(final HttpRequest request) {
         final var uri = request.uri();
-        final var actualUri = "kubernetes.api".equals(uri.getHost()) ?
-                base.resolve(uri.getPath() + (uri.getRawQuery() == null || uri.getRawQuery().isBlank() ? "" : ("?" + uri.getRawQuery()))) :
-                uri;
+        final var actualUri = fixUri(uri, () -> base);
         final var builder = HttpRequest.newBuilder();
         builder.expectContinue(request.expectContinue());
         request.version().ifPresent(builder::version);
@@ -273,6 +306,40 @@ public class KubernetesClient extends HttpClient implements AutoCloseable {
 
     @Override
     public WebSocket.Builder newWebSocketBuilder() {
-        return delegate.newWebSocketBuilder();
+        return new WebSocketBuilderDelegate(delegate.newWebSocketBuilder()) {
+            private boolean authorization;
+
+            @Override
+            public WebSocket.Builder header(final String name, final String value) {
+                if (!authorization) {
+                    authorization = "authorization".equalsIgnoreCase(name);
+                }
+                return super.header(name, value);
+            }
+
+            @Override
+            public CompletableFuture<WebSocket> buildAsync(final URI uri, final WebSocket.Listener listener) {
+                final var actualUri = fixUri(uri, () -> {
+                    try {
+                        return new URI("https".equals(base.getScheme()) ? "wss" : "ws", base.getUserInfo(), base.getHost(), base.getPort(), base.getPath(), base.getQuery(), base.getFragment());
+                    } catch (final URISyntaxException e) {
+                        throw new IllegalArgumentException(e);
+                    }
+                });
+                if (!authorization) {
+                    final var auth = authorization();
+                    if (auth != null) {
+                        header("Authorization", auth);
+                    }
+                }
+                return super.buildAsync(actualUri, listener);
+            }
+        };
+    }
+
+    private URI fixUri(final URI uri, final Supplier<URI> base) {
+        return "kubernetes.api".equals(uri.getHost()) ?
+                base.get().resolve(uri.getPath() + (uri.getRawQuery() == null || uri.getRawQuery().isBlank() ? "" : ("?" + uri.getRawQuery()))) :
+                uri;
     }
 }

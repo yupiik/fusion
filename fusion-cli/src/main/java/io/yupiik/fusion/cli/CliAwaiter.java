@@ -28,7 +28,6 @@ import java.util.Optional;
 
 import static java.util.Comparator.comparing;
 import static java.util.Optional.empty;
-import static java.util.Optional.of;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toMap;
@@ -42,9 +41,21 @@ public class CliAwaiter implements Awaiter {
     public CliAwaiter(final Args args,
                       final Configuration configuration,
                       final List<CliCommand<? extends Runnable>> commands) {
+        this(args, configuration, commands.stream().collect(toMap(CliCommand::name, identity())));
+    }
+
+    private CliAwaiter(final Args args,
+                       final Configuration configuration,
+                       final Map<String, CliCommand<? extends Runnable>> commands) {
         this.args = args;
         this.configuration = configuration;
-        this.commands = commands.stream().collect(toMap(CliCommand::name, identity()));
+        this.commands = commands;
+    }
+
+    public static CliAwaiter of(final Args args,
+                                final Configuration configuration,
+                                final Map<String, CliCommand<? extends Runnable>> commands) {
+        return new CliAwaiter(args, configuration, commands);
     }
 
     @Override
@@ -79,7 +90,7 @@ public class CliAwaiter implements Awaiter {
     private Optional<String> doFindConf(final String key) {
         final var idx = args.args().indexOf(key);
         if (idx >= 0 && args.args().size() > idx) {
-            return of(args.args().get(idx + 1));
+            return Optional.of(args.args().get(idx + 1));
         }
         return empty();
     }

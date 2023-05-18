@@ -28,9 +28,39 @@ public class KubernetesClientConfiguration {
             .orElse(null);
     private String token = "/var/run/secrets/kubernetes.io/serviceaccount/token";
     private String certificates = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt";
+    private String privateKey = null;
+    private String privateKeyCertificate = null;
 
     public Function<HttpClient, HttpClient> getClientWrapper() {
         return clientWrapper;
+    }
+
+    public String getPrivateKeyCertificate() {
+        return privateKeyCertificate;
+    }
+
+    /**
+     * The X509 certificate associated to the private key (for authentication, not SSL).
+     * @param privateKeyCertificate the X509 certficate for authentication.
+     * @return this.
+     */
+    public KubernetesClientConfiguration setPrivateKeyCertificate(final String privateKeyCertificate) {
+        this.privateKeyCertificate = privateKeyCertificate;
+        return this;
+    }
+
+    public String getPrivateKey() {
+        return privateKey;
+    }
+
+    /**
+     * The SSL private key.
+     * @param privateKey the SSL context private key if needed for k8s authentication.
+     * @return this configuration instance.
+     */
+    public KubernetesClientConfiguration setPrivateKey(final String privateKey) {
+        this.privateKey = privateKey;
+        return this;
     }
 
     /**
