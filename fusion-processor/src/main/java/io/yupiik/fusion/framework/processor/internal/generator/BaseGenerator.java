@@ -209,19 +209,31 @@ public abstract class BaseGenerator {
     }
 
     protected String injectionLookup(final Bean.FieldInjection injection) {
-        if (injection.list()) { // only supports classes
+        final var parsed = ParsedType.of(injection.type());
+        if (injection.list()) { // only supports classes (but take care of parameterized ones)
+            final var clazz = switch (parsed.type()) {
+                case CLASS -> parsed.className();
+                case PARAMETERIZED_TYPE -> parsed.raw();
+            };
             return "(" + instanceTypeOf(injection) + ") " +
-                    "lookups(container, " + injection.type() + ".class, instances -> " +
+                    "lookups(container, " + clazz + ".class, instances -> " +
                     String.join("",
                             "instances.stream()",
                             isComparable(injection.type()) ?
                                     ".map(" + Instance.class.getName() + "::instance).sorted()" :
                                     ".sorted(java.util.Comparator.comparing(i -> i.bean().priority())).map(" + Instance.class.getName() + "::instance)",
-                            ".map(" + injection.type() + ".class::cast).collect(" + Collectors.class.getName() + ".toList())") +
+                            ".map(" + switch (parsed.type()) {
+                                case CLASS -> parsed.className() + ".class::cast";
+                                case PARAMETERIZED_TYPE -> "it -> " + parsed.createParameterizedTypeCast() + " it";
+                            } + ").collect(" + Collectors.class.getName() + ".toList())") +
                     ", dependents)";
         }
         if (injection.set()) { // only supports classes
-            return "(" + instanceTypeOf(injection) + ") lookups(container, " + injection.type() + ".class, " + Collectors.class.getName() + "toSet(), dependents)";
+            final var clazz = switch (parsed.type()) {
+                case CLASS -> parsed.className();
+                case PARAMETERIZED_TYPE -> parsed.raw();
+            };
+            return "(" + instanceTypeOf(injection) + ") lookups(container, " + clazz + ".class, " + Collectors.class.getName() + "toSet(), dependents)";
         }
         if (injection.optional()) { // only supports classes - todo: cache type
             return "(" + instanceTypeOf(injection) + ") " +
@@ -230,18 +242,12 @@ public abstract class BaseGenerator {
                     "dependents)";
         }
 
-        final var parsed = ParsedType.of(injection.type());
         return switch (parsed.type()) {
             case CLASS -> "lookup(container, " + parsed.className() + ".class, dependents)";
             case PARAMETERIZED_TYPE -> "(" +
                     parsed.raw() +
                     parsed.args().stream().map(parsed::simpleName).map(it -> it + ".class").collect(joining(",", "<", ">")) + ") " +
-                    "lookup(container, " +
-                    "new " + Types.ParameterizedTypeImpl.class.getName().replace('$', '.') + "(" +
-                    parsed.raw() + ".class, " + parsed.args().stream()
-                    .map(parsed::simpleName)
-                    .map(it -> it + ".class")
-                    .collect(joining(",")) + ", dependents)";
+                    "lookup(container, " + parsed.createParameterizedTypeImpl() + ", dependents)";
         };
     }
 

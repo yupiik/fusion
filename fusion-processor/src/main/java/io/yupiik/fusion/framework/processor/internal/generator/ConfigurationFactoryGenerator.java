@@ -311,10 +311,7 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
                             .collect(joining(",\n      "));
                     return "    return new " + fqn + "(" + args + ");\n";
                 })
-                .orElseGet(() -> {
-                    processingEnv.getMessager().printMessage(ERROR, "No constructor for '" + fqn + "'");
-                    return "    return new " + fqn + "();\n"; // -Werror should make the compilation fail but this should fail too
-                });
+                .orElseGet(() -> "    return new " + fqn + "();\n"); // cli options don't always have args
     }
 
     public record Output(GeneratedClass generatedClass, Collection<Docs.ClassDoc> docs) {
