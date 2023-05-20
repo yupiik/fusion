@@ -29,12 +29,24 @@ public record JsonSchema(
         String format, String pattern,
         Object additionalProperties,
         Map<String, JsonSchema> properties,
-        JsonSchema items) implements GenericObjectJsonSerializationLike {
+        JsonSchema items,
+        String title, String description) implements GenericObjectJsonSerializationLike {
+    public JsonSchema(final String ref, final String id,
+                      final String type, final Boolean nullable,
+                      final String format, final String pattern,
+                      final Object additionalProperties,
+                      final Map<String, JsonSchema> properties,
+                      final JsonSchema items) { // backward compat
+        this(ref, id, type, nullable, format, pattern, additionalProperties, properties, items, null, null);
+    }
+
     @Override
     public Map<String, Object> asMap() {
         return Stream.of(
                         id == null ? null : entry("$id", id),
                         ref == null ? null : entry("$ref", ref),
+                        title == null ? null : entry("title", title),
+                        description == null ? null : entry("description", description),
                         type == null ? null : entry("type", type),
                         format == null ? null : entry("format", format),
                         pattern == null ? null : entry("pattern", pattern),

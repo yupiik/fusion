@@ -15,6 +15,7 @@
  */
 package io.yupiik.fusion.framework.processor.internal.generator;
 
+import io.yupiik.fusion.framework.build.api.configuration.Property;
 import io.yupiik.fusion.framework.build.api.json.JsonModel;
 import io.yupiik.fusion.framework.build.api.json.JsonOthers;
 import io.yupiik.fusion.framework.build.api.json.JsonProperty;
@@ -96,7 +97,10 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
                                             .orElse(javaName),
                                     typeMirror,
                                     typeOf(typeMirror.toString(), typeMirror),
-                                    it.getAnnotation(JsonOthers.class) != null);
+                                    it.getAnnotation(JsonOthers.class) != null,
+                                    ofNullable(it.getAnnotation(Property.class))
+                                            .map(i -> i.documentation() + (i.required() ? " This attribute is required." : ""))
+                                            .orElse(null));
                         })
                         .peek(a -> {
                             if (a.others() && !(
@@ -128,6 +132,9 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
                 "object",
                 null, null, null, null,
                 params.stream().collect(toMap(Param::jsonName, Param::schema)),
+                null,
+                fqn.substring(Math.max(fqn.lastIndexOf('$'), fqn.lastIndexOf('.')) + 1),
+                // todo: add a @JsonSchema annotation which can be set on params or record?
                 null);
     }
 
@@ -635,7 +642,7 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
     }
 
     private record Param(String javaName, String jsonName, TypeMirror type,
-                         ParamTypes types, boolean others) {
+                         ParamTypes types, boolean others, String doc) {
         public String defaultValue() {
             return switch (types.paramType()) {
                 case VALUE -> switch (types.paramTypeDef()) {
@@ -677,31 +684,41 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
             };
         }
 
+        private String description() {
+            return doc;
+        }
+
         private JsonSchema valueSchema() {
             final var testedType = ofNullable(types.argTypeIfNotValue()).orElse(type()).toString().replace('$', '.');
             return switch (types.paramTypeDef()) {
                 case BOOLEAN ->
-                        new JsonSchema(null, null, "boolean", !"boolean".equals(testedType), null, null, null, null, null);
+                        new JsonSchema(null, null, "boolean", !"boolean".equals(testedType), null, null, null, null, null, null, description());
                 case INTEGER ->
-                        new JsonSchema(null, null, "integer", !"int".equals(testedType), "int32", null, null, null, null);
+                        new JsonSchema(null, null, "integer", !"int".equals(testedType), "int32", null, null, null, null, null, description());
                 case LONG ->
-                        new JsonSchema(null, "number", "integer", !"long".equals(testedType), "int64", null, null, null, null);
+                        new JsonSchema(null, "number", "integer", !"long".equals(testedType), "int64", null, null, null, null, null, description());
                 case DOUBLE ->
-                        new JsonSchema(null, "number", "integer", !"double".equals(testedType), null, null, null, null, null);
+                        new JsonSchema(null, "number", "integer", !"double".equals(testedType), null, null, null, null, null, null, description());
                 // there is not yet a "decimal" format but number is not safe enough for big_decimal
-                case BIG_DECIMAL -> new JsonSchema(null, null, "string", true, null, null, null, null, null);
-                case STRING -> new JsonSchema(null, null, "string", true, null, null, null, null, null);
+                case BIG_DECIMAL ->
+                        new JsonSchema(null, null, "string", true, null, null, null, null, null, null, description());
+                case STRING ->
+                        new JsonSchema(null, null, "string", true, null, null, null, null, null, null, description());
                 // todo: add enum values in the schema - take care to use the enum mapping!
-                case ENUM -> new JsonSchema(null, null, "string", true, null, null, null, null, null);
-                case LOCAL_DATE -> new JsonSchema(null, null, "string", true, "date", null, null, null, null);
+                case ENUM ->
+                        new JsonSchema(null, null, "string", true, null, null, null, null, null, null, description());
+                case LOCAL_DATE ->
+                        new JsonSchema(null, null, "string", true, "date", null, null, null, null, null, description());
                 case LOCAL_DATE_TIME ->
-                        new JsonSchema(null, null, "string", true, null, "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?(\\.[0-9]*)?$", null, null, null);
+                        new JsonSchema(null, null, "string", true, null, "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?(\\.[0-9]*)?$", null, null, null, null, description());
                 case OFFSET_DATE_TIME ->
-                        new JsonSchema(null, null, "string", true, null, "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?(\\\\.[0-9]*)?([+-]?[0-9]{2}:[0-9]{2})?Z?$", null, null, null);
+                        new JsonSchema(null, null, "string", true, null, "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?(\\\\.[0-9]*)?([+-]?[0-9]{2}:[0-9]{2})?Z?$", null, null, null, null, description());
                 case ZONED_DATE_TIME ->
-                        new JsonSchema(null, null, "string", true, null, "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?(\\.[0-9]*)?([+-]?[0-9]{2}:[0-9]{2})?Z?(\\[.*\\])?$", null, null, null);
-                case MODEL -> new JsonSchema("#/schemas/" + testedType, null, null, true, null, null, null, null, null);
-                case GENERIC_OBJECT -> new JsonSchema(null, null, "object", true, null, null, true, null, null);
+                        new JsonSchema(null, null, "string", true, null, "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?(\\.[0-9]*)?([+-]?[0-9]{2}:[0-9]{2})?Z?(\\[.*\\])?$", null, null, null, null, description());
+                case MODEL ->
+                        new JsonSchema("#/schemas/" + testedType, null, null, true, null, null, null, null, null, null, description());
+                case GENERIC_OBJECT ->
+                        new JsonSchema(null, null, "object", true, null, null, true, null, null, null, description());
             };
         }
     }

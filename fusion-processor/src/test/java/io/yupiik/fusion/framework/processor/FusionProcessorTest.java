@@ -624,6 +624,7 @@ class FusionProcessorTest {
                                                 {
                                                   "schemas": {
                                                     "test.p.JsonRecords.AllInOne": {
+                                                      "title": "AllInOne",
                                                       "type": "object",
                                                       "properties": {
                                                         "aBool": {
@@ -819,6 +820,7 @@ class FusionProcessorTest {
                                                       "$id": "test.p.JsonRecords.AllInOne"
                                                     },
                                                     "test.p.JsonRecords.StringHolder": {
+                                                      "title": "StringHolder",
                                                       "type": "object",
                                                       "properties": {
                                                         "name": {
@@ -829,6 +831,7 @@ class FusionProcessorTest {
                                                       "$id": "test.p.JsonRecords.StringHolder"
                                                     },
                                                     "test.p.JsonRecords.StrongTyping": {
+                                                      "title": "StrongTyping",
                                                       "type": "object",
                                                       "properties": {
                                                         "aBool": {
@@ -1069,7 +1072,7 @@ class FusionProcessorTest {
                         (loader, mapper) -> { // ensure JSON-Schemas are generated even when there is a loop
                             try (final var in = requireNonNull(Thread.currentThread().getContextClassLoader()
                                     .getResourceAsStream("META-INF/fusion/json/schemas.json"))) {
-                                assertEquals("{\"schemas\":{\"test.p.JsonCycle\":{\"type\":\"object\",\"properties\":" +
+                                assertEquals("{\"schemas\":{\"test.p.JsonCycle\":{\"title\":\"JsonCycle\",\"type\":\"object\",\"properties\":" +
                                                 "{\"name\":{\"nullable\":true,\"type\":\"string\"}," +
                                                 "\"parent\":{\"nullable\":true,\"$ref\":\"#/schemas/test.p.JsonCycle\"}},\"$id\":\"test.p.JsonCycle\"}}}",
                                         new String(in.readAllBytes(), UTF_8));
@@ -1218,6 +1221,7 @@ class FusionProcessorTest {
                                                 {
                                                   "schemas": {
                                                     "test.p.JsonRpcEndpoints.MyInput": {
+                                                      "title": "MyInput",
                                                       "type": "object",
                                                       "properties": {
                                                         "name": {
@@ -1228,6 +1232,7 @@ class FusionProcessorTest {
                                                       "$id": "test.p.JsonRpcEndpoints.MyInput"
                                                     },
                                                     "test.p.JsonRpcEndpoints.MyResult": {
+                                                      "title": "MyResult",
                                                       "type": "object",
                                                       "properties": {
                                                         "name": {
