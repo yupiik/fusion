@@ -60,7 +60,7 @@ public class ConfiguringContainerImpl implements ConfiguringContainer {
 
         final var modules = disableAutoDiscovery ?
                 this.modules :
-                loadModules()
+                Stream.concat(this.modules.stream(), loadModules())
                         .sorted(comparing(FusionModule::priority))
                         .toList();
 
