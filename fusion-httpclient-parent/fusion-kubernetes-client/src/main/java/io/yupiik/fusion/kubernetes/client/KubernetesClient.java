@@ -21,7 +21,9 @@ import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
+import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
+import javax.net.ssl.X509TrustManager;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.Authenticator;
@@ -103,50 +105,58 @@ public class KubernetesClient extends HttpClient implements AutoCloseable {
 
     private HttpClient createClient(final KubernetesClientConfiguration configuration) {
         return HttpClient.newBuilder()
-                .sslContext(createSSLContext(configuration.getCertificates(), configuration.getPrivateKey(), configuration.getPrivateKeyCertificate()))
+                .sslContext(createSSLContext(
+                        configuration.isSkipTls(), configuration.getCertificates(),
+                        configuration.getPrivateKey(), configuration.getPrivateKeyCertificate()))
                 .build();
     }
 
-    private SSLContext createSSLContext(final String certificates, final String key, final String keyCertificate) {
-        final byte[] data;
+    private SSLContext createSSLContext(final boolean skipTls, final String certificates, final String key, final String keyCertificate) {
+        byte[] data = null;
         if (certificates.contains("-BEGIN CERT")) {
             data = certificates.getBytes(StandardCharsets.UTF_8);
         } else {
             final var file = Paths.get(certificates);
-            if (!Files.exists(file)) {
+            if (Files.exists(file)) {
+                try {
+                    data = Files.readAllBytes(file);
+                } catch (final IOException e) {
+                    throw new IllegalArgumentException("Invalid certificate", e);
+                }
+            } else if (!skipTls) {
                 try {
                     return SSLContext.getDefault();
                 } catch (final NoSuchAlgorithmException e) {
                     throw new IllegalStateException(e);
                 }
             }
-            try {
-                data = Files.readAllBytes(file);
-            } catch (final IOException e) {
-                throw new IllegalArgumentException("Invalid certificate", e);
-            }
         }
         try {
             final var ks = KeyStore.getInstance(KeyStore.getDefaultType());
             ks.load(null, null);
 
-            final var certificateFactory = CertificateFactory.getInstance("X.509");
-            try (final var caInput = new ByteArrayInputStream(data)) {
-                final var counter = new AtomicInteger();
-                final var certs = certificateFactory.generateCertificates(caInput);
-                certs.forEach(c -> {
-                    try {
-                        ks.setCertificateEntry("ca-" + counter.incrementAndGet(), c);
-                    } catch (final KeyStoreException e) {
-                        throw new IllegalArgumentException(e);
-                    }
-                });
-            } catch (final CertificateException | IOException e) {
-                throw new IllegalArgumentException(e);
+            final TrustManager[] trustManagers;
+            if (skipTls) {
+                trustManagers = newNoopTrustManager();
+            } else {
+                final var certificateFactory = CertificateFactory.getInstance("X.509");
+                try (final var caInput = new ByteArrayInputStream(data)) {
+                    final var counter = new AtomicInteger();
+                    final var certs = certificateFactory.generateCertificates(caInput);
+                    certs.forEach(c -> {
+                        try {
+                            ks.setCertificateEntry("ca-" + counter.incrementAndGet(), c);
+                        } catch (final KeyStoreException e) {
+                            throw new IllegalArgumentException(e);
+                        }
+                    });
+                } catch (final CertificateException | IOException e) {
+                    throw new IllegalArgumentException(e);
+                }
+                final var tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+                tmf.init(ks);
+                trustManagers = tmf.getTrustManagers();
             }
-            final var tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
-            tmf.init(ks);
-            final var trustManagers = tmf.getTrustManagers();
 
             final KeyManager[] keyManagers;
             if (key != null && !key.isBlank() && !"-".equals(key)) {
@@ -334,6 +344,27 @@ public class KubernetesClient extends HttpClient implements AutoCloseable {
                 }
                 return super.buildAsync(actualUri, listener);
             }
+        };
+    }
+
+    private TrustManager[] newNoopTrustManager() {
+        return new TrustManager[]{
+                new X509TrustManager() {
+                    @Override
+                    public void checkClientTrusted(final X509Certificate[] chain, final String authType) {
+                        // no-op
+                    }
+
+                    @Override
+                    public void checkServerTrusted(final X509Certificate[] chain, final String authType) {
+                        // no-op
+                    }
+
+                    @Override
+                    public X509Certificate[] getAcceptedIssuers() {
+                        return new X509Certificate[0];
+                    }
+                }
         };
     }
 

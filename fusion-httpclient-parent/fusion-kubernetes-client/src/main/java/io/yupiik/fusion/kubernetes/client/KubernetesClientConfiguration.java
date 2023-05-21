@@ -30,6 +30,16 @@ public class KubernetesClientConfiguration {
     private String certificates = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt";
     private String privateKey = null;
     private String privateKeyCertificate = null;
+    private boolean skipTls = false;
+
+    public boolean isSkipTls() {
+        return skipTls;
+    }
+
+    public KubernetesClientConfiguration setSkipTls(final boolean skipTls) {
+        this.skipTls = skipTls;
+        return this;
+    }
 
     public Function<HttpClient, HttpClient> getClientWrapper() {
         return clientWrapper;
