@@ -16,6 +16,7 @@
 package io.yupiik.fusion.kubernetes.client;
 
 import java.net.http.HttpClient;
+import java.nio.file.Path;
 import java.util.function.Function;
 
 import static java.util.Optional.ofNullable;
@@ -31,6 +32,22 @@ public class KubernetesClientConfiguration {
     private String privateKey = null;
     private String privateKeyCertificate = null;
     private boolean skipTls = false;
+    private Path kubeconfig = null;
+
+    public Path getKubeconfig() {
+        return kubeconfig;
+    }
+
+    /**
+     * IMPORTANT: only a subset of YAML is supported so your kubeconfig can not be read properly, prefer json adding fusion-json if possible.
+     *
+     * @param kubeconfig path to a kubeconfig, if set the client configuration tries to be automatic from this file.
+     * @return this.
+     */
+    public KubernetesClientConfiguration setKubeconfig(final Path kubeconfig) {
+        this.kubeconfig = kubeconfig;
+        return this;
+    }
 
     public boolean isSkipTls() {
         return skipTls;

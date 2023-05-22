@@ -15,6 +15,8 @@
  */
 package io.yupiik.fusion.kubernetes.client;
 
+import io.yupiik.fusion.json.internal.JsonMapperImpl;
+import io.yupiik.fusion.kubernetes.client.internal.LightYamlParser;
 import io.yupiik.fusion.kubernetes.client.internal.PrivateKeyReader;
 
 import javax.net.ssl.KeyManager;
@@ -51,14 +53,20 @@ import java.security.cert.X509Certificate;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Base64;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.logging.Logger;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Optional.empty;
+import static java.util.Optional.of;
 import static java.util.Optional.ofNullable;
 
 public class KubernetesClient extends HttpClient implements AutoCloseable {
@@ -71,20 +79,25 @@ public class KubernetesClient extends HttpClient implements AutoCloseable {
     private volatile String authorization;
 
     public KubernetesClient(final KubernetesClientConfiguration configuration) {
+        final var ns = fillFromKubeConfig(configuration.getKubeconfig(), configuration);
         this.delegate = ofNullable(configuration.getClient())
                 .orElseGet(() -> ofNullable(configuration.getClientWrapper()).orElseGet(Function::identity).apply(createClient(configuration)));
         this.token = Paths.get(configuration.getToken());
         this.base = URI.create(configuration.getMaster());
 
-        final var namespaceFile = Paths.get("/var/run/secrets/kubernetes.io/serviceaccount/namespace");
-        if (Files.exists(namespaceFile)) {
-            try {
-                this.namespace = ofNullable(Files.readString(namespaceFile, StandardCharsets.UTF_8).strip());
-            } catch (final IOException e) {
-                throw new IllegalStateException(e);
-            }
+        if (ns != null) {
+            this.namespace = of(ns);
         } else {
-            this.namespace = empty();
+            final var namespaceFile = Paths.get("/var/run/secrets/kubernetes.io/serviceaccount/namespace");
+            if (Files.exists(namespaceFile)) {
+                try {
+                    this.namespace = ofNullable(Files.readString(namespaceFile, StandardCharsets.UTF_8).strip());
+                } catch (final IOException e) {
+                    throw new IllegalStateException(e);
+                }
+            } else {
+                this.namespace = empty();
+            }
         }
     }
 
@@ -372,5 +385,140 @@ public class KubernetesClient extends HttpClient implements AutoCloseable {
         return "kubernetes.api".equals(uri.getHost()) ?
                 base.get().resolve(uri.getPath() + (uri.getRawQuery() == null || uri.getRawQuery().isBlank() ? "" : ("?" + uri.getRawQuery()))) :
                 uri;
+    }
+
+    @SuppressWarnings("unchecked")
+    private String fillFromKubeConfig(final Path kubeconfig, final KubernetesClientConfiguration configuration) {
+        if (configuration.getKubeconfig() == null || Files.notExists(configuration.getKubeconfig())) {
+            return null;
+        }
+
+        final var conf = loadKubeConfig(kubeconfig);
+        final var currentContext = conf.get("current-context");
+        if (!(currentContext instanceof String currentCtx)) {
+            Logger.getLogger(getClass().getName()).warning(() -> "No current-context in '" + kubeconfig + "' skipping autoconfiguration of k8s connection.");
+            return null;
+        }
+
+        final var contexts = conf.get("contexts");
+        if (!(contexts instanceof List<?> ctxs)) {
+            Logger.getLogger(getClass().getName()).warning(() -> "No contexts in '" + kubeconfig + "' skipping autoconfiguration of k8s connection.");
+            return null;
+        }
+
+        final var ctx = ctxs.stream()
+                .map(it -> (Map<String, Object>) it)
+                .filter(it -> it.getOrDefault("name", "").equals(currentCtx))
+                .findFirst()
+                .map(it -> (Map<String, Object>) it.get("context"))
+                .orElse(null);
+        if (ctx == null) {
+            Logger.getLogger(getClass().getName()).warning(() -> "No context '" + currentCtx + "' in '" + kubeconfig + "' skipping autoconfiguration of k8s connection.");
+            return null;
+        }
+
+        final var namespace = ofNullable(ctx.get("namespace")).map(Object::toString).orElse(null);
+        final var selectedCluster = findIn(ctx, "cluster", conf, "clusters");
+        final var selectedUser = findIn(ctx, "user", conf, "users");
+
+        selectedCluster
+                .map(it -> it.get("server"))
+                .map(Object::toString)
+                .ifPresent(configuration::setMaster);
+        selectedCluster
+                .map(it -> {
+                    try {
+                        if (it.get("certificate-authority") instanceof String filePath) {
+                            return Files.readString(Path.of(filePath));
+                        }
+                        if (it.get("certificate-authority-data") instanceof String data) {
+                            return new String(Base64.getDecoder().decode(data), UTF_8);
+                        }
+                    } catch (final IOException ioe) {
+                        throw new IllegalStateException(ioe);
+                    }
+                    return null;
+                })
+                .ifPresent(configuration::setCertificates);
+        selectedCluster
+                .map(it -> it.get("insecure-skip-tls-verify") instanceof String skip && Boolean.parseBoolean(skip))
+                .ifPresent(configuration::setSkipTls);
+        selectedUser
+                .map(it -> {
+                    try {
+                        if (it.get("token") instanceof String data) {
+                            return data;
+                        }
+                        if (it.get("tokenFile") instanceof String path) {
+                            return Files.readString(Path.of(path));
+                        }
+                    } catch (final IOException ioe) {
+                        throw new IllegalStateException(ioe);
+                    }
+                    return null;
+                })
+                .map(Object::toString)
+                .ifPresent(configuration::setToken);
+        selectedUser
+                .map(it -> {
+                    try {
+                        if (it.get("client-key") instanceof String filePath) {
+                            return Files.readString(Path.of(filePath));
+                        }
+                        if (it.get("client-key-data") instanceof String data) {
+                            return new String(Base64.getDecoder().decode(data), UTF_8);
+                        }
+                    } catch (final IOException ioe) {
+                        throw new IllegalStateException(ioe);
+                    }
+                    return null;
+                })
+                .map(Object::toString)
+                .ifPresent(configuration::setPrivateKey);
+        selectedUser
+                .map(it -> {
+                    try {
+                        if (it.get("client-certificate") instanceof String filePath) {
+                            return Files.readString(Path.of(filePath));
+                        }
+                        if (it.get("client-certificate-data") instanceof String data) {
+                            return new String(Base64.getDecoder().decode(data), UTF_8);
+                        }
+                    } catch (final IOException ioe) {
+                        throw new IllegalStateException(ioe);
+                    }
+                    return null;
+                })
+                .map(Object::toString)
+                .ifPresent(configuration::setPrivateKeyCertificate);
+
+        return namespace;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Optional<Map<String, Object>> findIn(final Map<String, Object> ctx, final String attribute,
+                                                 final Map<String, Object> conf, final String list) {
+        return ofNullable(ctx.get(attribute))
+                .map(Object::toString)
+                .flatMap(cluster -> ofNullable(conf.get(list))
+                        .map(it -> (List<Map<String, Object>>) it)
+                        .flatMap(it -> it.stream()
+                                .filter(c -> c.getOrDefault("name", "").equals(cluster))
+                                .findFirst()))
+                .map(it -> (Map<String, Object>) it.get(attribute));
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> loadKubeConfig(final Path kubeconfig) {
+        try (final var reader = Files.newBufferedReader(kubeconfig)) {
+            if (kubeconfig.getFileName().toString().endsWith(".json")) {
+                try (final var jsonMapper = new JsonMapperImpl(List.of(), k -> empty())) {
+                    return (Map<String, Object>) jsonMapper.read(Object.class, reader);
+                }
+            }
+            return (Map<String, Object>) new LightYamlParser().parse(reader);
+        } catch (final IOException e) {
+            throw new IllegalArgumentException("Can't parse kubeconfig: '" + kubeconfig + "'", e);
+        }
     }
 }
