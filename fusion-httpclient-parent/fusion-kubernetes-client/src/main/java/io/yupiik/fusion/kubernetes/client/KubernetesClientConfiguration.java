@@ -17,6 +17,7 @@ package io.yupiik.fusion.kubernetes.client;
 
 import java.net.http.HttpClient;
 import java.nio.file.Path;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 import static java.util.Optional.ofNullable;
@@ -24,6 +25,7 @@ import static java.util.Optional.ofNullable;
 public class KubernetesClientConfiguration {
     private HttpClient client;
     private Function<HttpClient, HttpClient> clientWrapper;
+    private Consumer<HttpClient.Builder> clientCustomizer;
     private String master = ofNullable(System.getenv("KUBERNETES_SERVICE_HOST"))
             .map(host -> "https://" + host + ':' + ofNullable(System.getenv("KUBERNETES_SERVICE_PORT")).orElse("443"))
             .orElse(null);
@@ -33,6 +35,21 @@ public class KubernetesClientConfiguration {
     private String privateKeyCertificate = null;
     private boolean skipTls = false;
     private Path kubeconfig = null;
+
+    public Consumer<HttpClient.Builder> getClientCustomizer() {
+        return clientCustomizer;
+    }
+
+    /**
+     * Enables to customize the HTTP client before it is fully built, it generally has the SSL context already set.
+     * Ignored if client is provided.
+     *
+     * @param clientCustomizer customizer of the http client.
+     */
+    public KubernetesClientConfiguration setClientCustomizer(final Consumer<HttpClient.Builder> clientCustomizer) {
+        this.clientCustomizer = clientCustomizer;
+        return this;
+    }
 
     public Path getKubeconfig() {
         return kubeconfig;
@@ -68,6 +85,7 @@ public class KubernetesClientConfiguration {
 
     /**
      * The X509 certificate associated to the private key (for authentication, not SSL).
+     *
      * @param privateKeyCertificate the X509 certficate for authentication.
      * @return this.
      */
@@ -82,6 +100,7 @@ public class KubernetesClientConfiguration {
 
     /**
      * The SSL private key.
+     *
      * @param privateKey the SSL context private key if needed for k8s authentication.
      * @return this configuration instance.
      */
@@ -91,6 +110,7 @@ public class KubernetesClientConfiguration {
     }
 
     /**
+     * Ignored if client is provided.
      * @param clientWrapper function which will wrap the automatically created kubernetes client (when {@code client} is null in the configuration).
      * @return this configuration.
      */

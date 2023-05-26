@@ -82,7 +82,7 @@ public class KubernetesClient extends HttpClient implements AutoCloseable {
         final var ns = fillFromKubeConfig(configuration.getKubeconfig(), configuration);
         this.delegate = ofNullable(configuration.getClient())
                 .orElseGet(() -> ofNullable(configuration.getClientWrapper()).orElseGet(Function::identity).apply(createClient(configuration)));
-        this.token = Paths.get(configuration.getToken());
+        this.token = configuration.getToken() == null ? null : Paths.get(configuration.getToken());
         this.base = URI.create(configuration.getMaster());
 
         if (ns != null) {
@@ -117,20 +117,23 @@ public class KubernetesClient extends HttpClient implements AutoCloseable {
     }
 
     private HttpClient createClient(final KubernetesClientConfiguration configuration) {
-        return HttpClient.newBuilder()
+        final var builder = HttpClient.newBuilder()
                 .sslContext(createSSLContext(
                         configuration.isSkipTls(), configuration.getCertificates(),
-                        configuration.getPrivateKey(), configuration.getPrivateKeyCertificate()))
-                .build();
+                        configuration.getPrivateKey(), configuration.getPrivateKeyCertificate()));
+        if (configuration.getClientCustomizer() != null) {
+            configuration.getClientCustomizer().accept(builder);
+        }
+        return builder.build();
     }
 
     private SSLContext createSSLContext(final boolean skipTls, final String certificates, final String key, final String keyCertificate) {
         byte[] data = null;
-        if (certificates.contains("-BEGIN CERT")) {
+        if (certificates != null && certificates.contains("-BEGIN CERT")) {
             data = certificates.getBytes(StandardCharsets.UTF_8);
         } else {
-            final var file = Paths.get(certificates);
-            if (Files.exists(file)) {
+            final var file = certificates == null ? null : Paths.get(certificates);
+            if (file != null && Files.exists(file)) {
                 try {
                     data = Files.readAllBytes(file);
                 } catch (final IOException e) {
@@ -237,8 +240,8 @@ public class KubernetesClient extends HttpClient implements AutoCloseable {
         return lastRefresh.isBefore(instant.minusSeconds(60));
     }
 
-    private void init() { // todo: ignore if not there? log? weird case: mocked k8s without this need
-        if (Files.exists(token)) {
+    private void init() {
+        if (token != null && Files.exists(token)) {
             try {
                 authorization = "Bearer " + Files.readString(token, StandardCharsets.UTF_8).strip();
             } catch (final IOException e) {
