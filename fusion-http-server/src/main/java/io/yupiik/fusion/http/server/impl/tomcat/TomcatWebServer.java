@@ -15,9 +15,13 @@
  */
 package io.yupiik.fusion.http.server.impl.tomcat;
 
+import io.yupiik.fusion.http.server.api.WebServer;
+import io.yupiik.fusion.http.server.impl.servlet.FusionServlet;
 import jakarta.servlet.annotation.HandlesTypes;
 import org.apache.catalina.LifecycleException;
 import org.apache.catalina.LifecycleState;
+import org.apache.catalina.connector.Request;
+import org.apache.catalina.connector.Response;
 import org.apache.catalina.core.StandardContext;
 import org.apache.catalina.core.StandardHost;
 import org.apache.catalina.session.StandardManager;
@@ -27,14 +31,13 @@ import org.apache.catalina.valves.AbstractAccessLogValve;
 import org.apache.catalina.valves.ErrorReportValve;
 import org.apache.coyote.AbstractProtocol;
 import org.apache.juli.logging.LogFactory;
-import io.yupiik.fusion.http.server.api.WebServer;
-import io.yupiik.fusion.http.server.impl.servlet.FusionServlet;
 import org.apache.tomcat.util.modeler.Registry;
 
 import java.io.CharArrayWriter;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
 import java.util.logging.Logger;
 
 import static java.util.Optional.ofNullable;
@@ -253,6 +256,28 @@ public class TomcatWebServer implements WebServer {
 
     public static class JULAccessLogValve extends AbstractAccessLogValve {
         private final Logger logger = Logger.getLogger("fusion.webserver.tomcat.access.log");
+        private BiConsumer<Request, Runnable> logWrapper;
+
+        /**
+         * Very useful to get from the request (attributes) some context to initialize while logger output data.
+         * This is commonly used with a custom logger appender/handler or formatter to log contextual data like traceId.
+         *
+         * @param logWrapper consumer which will setup the context for this request logging.
+         * @return this.
+         */
+        public JULAccessLogValve setLogWrapper(final BiConsumer<Request, Runnable> logWrapper) {
+            this.logWrapper = logWrapper;
+            return this;
+        }
+
+        @Override
+        public void log(final Request request, final Response response, final long time) {
+            if (logWrapper == null) {
+                super.log(request, response, time);
+            } else {
+                logWrapper.accept(request, () -> super.log(request, response, time));
+            }
+        }
 
         @Override
         protected void log(final CharArrayWriter message) {
