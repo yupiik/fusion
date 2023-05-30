@@ -43,16 +43,26 @@ public class TracingValve extends ValveBase {
     private final AccumulatingSpanCollector collector;
     private final Supplier<Object> idGenerator;
     private final Clock clock;
+    private final boolean closeCollector;
 
     public TracingValve(final ServerTracingConfiguration configuration,
                         final AccumulatingSpanCollector collector,
                         final Supplier<Object> idGenerator,
                         final Clock clock) {
+        this(configuration, collector, idGenerator, clock, true);
+    }
+
+    public TracingValve(final ServerTracingConfiguration configuration,
+                        final AccumulatingSpanCollector collector,
+                        final Supplier<Object> idGenerator,
+                        final Clock clock,
+                        final boolean closeCollector) {
         super(true);
         this.configuration = requireNonNull(configuration, "configuration must be not null");
         this.collector = requireNonNull(collector, "collector must be not null");
         this.idGenerator = requireNonNull(idGenerator, "idGenerator must be not null");
         this.clock = requireNonNull(clock, "clock must be not null");
+        this.closeCollector = closeCollector;
     }
 
     @Override
@@ -60,7 +70,9 @@ public class TracingValve extends ValveBase {
         try {
             super.stopInternal();
         } finally {
-            collector.close();
+            if (closeCollector) {
+                collector.close();
+            }
         }
     }
 
