@@ -78,7 +78,7 @@ public class AccumulatingSpanCollector implements Consumer<Span>, AutoCloseable 
         }
     }
 
-    public void flush() {
+    public synchronized void flush() {
         if (onFlush == null) {
             return;
         }
@@ -91,6 +91,8 @@ public class AccumulatingSpanCollector implements Consumer<Span>, AutoCloseable 
     @Override
     public void close() {
         closed = true;
-        flush();
+        while (!buffer.isEmpty()) {
+            flush();
+        }
     }
 }
