@@ -74,7 +74,7 @@
         <artifactId>yupiik-tools-maven-plugin</artifactId>
         <version>1.1.2</version>
         <configuration>
-          <siteBase>/fusion/</siteBase>
+          <siteBase>//www.yupiik.io/fusion</siteBase>
         </configuration>
       </plugin>
     </plugins>
