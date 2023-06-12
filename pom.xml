@@ -32,7 +32,7 @@
 
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-    <tomcat.version>10.1.9</tomcat.version>
+    <tomcat.version>10.1.10</tomcat.version>
     <junit-jupiter.version>5.10.0-M1</junit-jupiter.version>
   </properties>
 
