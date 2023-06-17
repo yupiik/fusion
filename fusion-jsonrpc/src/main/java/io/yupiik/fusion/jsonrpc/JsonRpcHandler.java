@@ -15,15 +15,20 @@
  */
 package io.yupiik.fusion.jsonrpc;
 
+import io.yupiik.fusion.framework.api.RuntimeContainer;
+import io.yupiik.fusion.framework.api.event.Emitter;
 import io.yupiik.fusion.http.server.api.Request;
 import io.yupiik.fusion.http.server.impl.io.RequestBodyAggregator;
 import io.yupiik.fusion.json.JsonMapper;
 import io.yupiik.fusion.json.deserialization.AvailableCharArrayReader;
+import io.yupiik.fusion.jsonrpc.event.BeforeRequest;
 import io.yupiik.fusion.jsonrpc.impl.JsonRpcMethod;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -42,11 +47,15 @@ import static java.util.concurrent.CompletableFuture.completedFuture;
 public class JsonRpcHandler {
     private static final String REQUEST_METHOD_ATTRIBUTE = "yupiik.jsonrpc.method";
 
+    private final CompletionStage<?> alwaysReady = completedFuture(null);
     private final Logger logger = Logger.getLogger(getClass().getName());
+
+    private final Emitter emitter;
     private final JsonMapper mapper;
     private final JsonRpcRegistry registry;
 
-    public JsonRpcHandler(final JsonMapper mapper, final JsonRpcRegistry registry) {
+    public JsonRpcHandler(final RuntimeContainer emitter, final JsonMapper mapper, final JsonRpcRegistry registry) {
+        this.emitter = emitter.getListeners().hasDirectListener(BeforeRequest.class) ? emitter : null;
         this.mapper = mapper;
         this.registry = registry;
     }
@@ -156,6 +165,13 @@ public class JsonRpcHandler {
     @SuppressWarnings({"rawtypes", "unchecked"})
     public CompletionStage<?> execute(final Object request, final Request httpRequest) {
         if (request instanceof Map obj) {
+            if (emitter != null) {
+                return onBefore(new BeforeRequest(List.of(obj), httpRequest, new ArrayList<>()))
+                        .thenCompose(ok -> ok
+                                .map(it -> it.get(0))
+                                .map(CompletableFuture::completedStage)
+                                .orElseGet(() -> handleRequest(obj, httpRequest)));
+            }
             return handleRequest(obj, httpRequest);
         }
         if (request instanceof List<?> requests) {
@@ -163,25 +179,67 @@ public class JsonRpcHandler {
                 return completedFuture(toErrorResponse(null, new JsonRpcException(
                         10_100, "Too much request at once, limit it to " + getMaxBulkRequests() + " max please.", null), request));
             }
-            final CompletableFuture<?>[] futures = requests.stream()
-                    .map(it -> it instanceof Map nested ?
-                            handleRequest(nested, httpRequest) :
-                            completedFuture(createResponse(it, -32600, "Batch requests must be JSON objects")))
-                    .map(CompletionStage::toCompletableFuture)
-                    .toArray(CompletableFuture[]::new);
-            return CompletableFuture
-                    .allOf(futures)
-                    .thenApply(ignored -> Stream.of(futures)
-                            .map(f -> f.getNow(null))
-                            .toArray(Object[]::new));
+
+            final var maps = (List<Tuple2<Map<String, Object>, Object>>) requests.stream()
+                    .map(it -> it instanceof Map<?, ?> nested ?
+                            new Tuple2<Map<String, Object>, Object>((Map<String, Object>) nested, nested) :
+                            new Tuple2<Map<String, Object>, Object>(null, it))
+                    .toList();
+
+            if (emitter != null) {
+                return onBefore(new BeforeRequest(maps.stream().map(Tuple2::first).filter(Objects::nonNull).toList(), httpRequest, new ArrayList<>()))
+                        .thenCompose(ok -> ok
+                                .map(List::toArray)
+                                .map(CompletableFuture::completedStage)
+                                .orElseGet(() -> handleRequests(maps, httpRequest)));
+            }
+            return handleRequests(maps, httpRequest);
         }
         return completedFuture(createResponse(null, -32600, "Unknown request type: " + request.getClass()));
+    }
+
+    protected CompletableFuture<Object[]> handleRequests(final List<Tuple2<Map<String, Object>, Object>> requests,
+                                                         final Request httpRequest) {
+        final CompletableFuture<?>[] futures = requests.stream()
+                .map(it -> it.first() != null ?
+                        handleRequest(it.first(), httpRequest) :
+                        completedFuture(createResponse(it.second(), -32600, "Batch requests must be JSON objects")))
+                .map(CompletionStage::toCompletableFuture)
+                .toArray(CompletableFuture[]::new);
+        return CompletableFuture
+                .allOf(futures)
+                .thenApply(ignored -> Stream.of(futures)
+                        .map(f -> f.getNow(null))
+                        .toArray(Object[]::new));
+    }
+
+    protected CompletionStage<Optional<List<Response>>> onBefore(final BeforeRequest event) {
+        emitter.emit(event);
+        return (switch (event.promises().size()) {
+            case 0 -> alwaysReady;
+            case 1 -> event.promises().get(0).toCompletableFuture();
+            default -> CompletableFuture.allOf(event.promises().toArray(new CompletableFuture<?>[0]));
+        }).thenApply(ready -> Optional.<List<Response>>empty()).exceptionally(ex -> {
+            if (ex instanceof JsonRpcException jre) {
+                final var req = event.requests().iterator();
+                return of(event.requests().stream()
+                        .map(r -> {
+                            final var next = req.next();
+                            return toErrorResponse(next != null && next.get("id") instanceof String id ? id : null, jre, next);
+                        })
+                        .toList());
+            }
+            if (ex instanceof RuntimeException re) {
+                throw re;
+            }
+            throw new IllegalStateException(ex);
+        });
     }
 
     protected int getMaxBulkRequests() {
         return 50;
     }
 
-    private record Tuple2<A, B>(A first, B second) {
+    protected record Tuple2<A, B>(A first, B second) {
     }
 }

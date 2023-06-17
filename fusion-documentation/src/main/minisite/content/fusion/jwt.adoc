@@ -1,0 +1,77 @@
+= JWT validation
+
+The JWT module intend to parse and validate a JWT just using `fusion-json` dependency and the JVM.
+
+Most of the time you will use an API gateway to do that but for advanced business validations or lighter architectures, it can make sense to do it in the application.
+
+== Runtime Dependency
+
+[source,xml]
+----
+<dependency>
+  <groupId>${project.groupId}</groupId>
+  <artifactId>fusion-jwt</artifactId>
+  <version>${project.version}</version>
+</dependency>
+----
+
+== Usage
+
+Entry point is to inject a `JwtvalidatorFactory` (through constructor or `@Injection` on a field) and create an instance of validator passing a `JwtValidatorConfiguration` which sets the JWT algorithm, issuer, key etc...
+
+[source,java]
+----
+@ApplicationScoped
+public class MyService {
+  private final Function<String, Jwt> jwtValidator;
+
+  protected MyService() {
+    // no-op, for application scoped proxy
+  }
+
+  public MyService(final JwtValidatorFactory jwtValidatorFactory, final MyAppConfig config) { <1>
+    this.jwtValidator = jwtValidatorFactory.newValidator(config.jwt()); <2>
+  }
+
+  public Optional<Jwt> findJwt(final Request request) { <3>
+    final var jwt = request.header("authorization");
+    if (jwt == null || !jwt.startsWith("Bearer ")) {
+        return empty();
+    }
+    try {
+      return jwtValidator.apply(jwt.substring("Bearer ".length()));
+    } catch (final RuntimeException re) {
+      // depending your code you can log the error or not but generally good to log it
+      return empty();
+    }
+  }
+}
+----
+<.> Inject the validator factory and the JWT validator configuration (key, algorithm, ...),
+<.> Create the runtime validator (once for the app),
+<.> If the JWT header is present extract it (or fail with an exception if invalid).
+
+== Integration with web layer
+
+For JSON-RPC module, the easiest integration is to observe `io.yupiik.fusion.jsonrpc.event.BeforeRequest` event and plug your validation logic there (claim checks for example):
+
+[source,java]
+----
+// jwtValidator as in MyService
+public void onJsonRpcJwt(@OnEvent final BeforeRequest event) {
+  final var jwt = readJwtFromHeaderValue(event.request().header("authorization")); // <1>
+  final var validated = jwtValidator.apply(jwt); <2>
+  if (!validated
+        .map(ok -> ok.claim("roles", List.class).contains("admin")) <3>
+        .orElse(true)) {
+    <4>
+    final var failed = new CompletableFuture<Response>();
+    failed.completeExceptionally(new JsonRpcException(...)); // set your code, message, data
+    event.promises().add(failed);
+  }
+}
+----
+<.> Like in `MyService` (previous snippet), extract the jwt from the header checking/dropping `Bearer` prefix,
+<.> Validate the JWT,
+<.> Check `roles` claim contains `admin`,
+<.> Complete the request as failed (all requests if bulk is used).

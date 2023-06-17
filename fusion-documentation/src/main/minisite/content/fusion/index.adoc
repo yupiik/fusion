@@ -228,6 +228,7 @@ See xref:setup.adoc[setup] page to see how to get your project started.
 == Extension Modules
 
 * xref:json.adoc[JSON]
+* xref:jwt.adoc[JWT validation]
 * xref:http-server.adoc[HTTP Server]
 * xref:http-client.adoc[HTTP Client]
 * xref:observability.adoc[Observability]

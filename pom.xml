@@ -51,6 +51,7 @@
     <module>fusion-persistence</module>
     <module>fusion-documentation</module>
     <module>fusion-handlebars</module>
+    <module>fusion-jwt</module>
   </modules>
 
   <dependencies>

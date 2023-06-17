@@ -34,6 +34,7 @@ public class JsonRpcHandlerBean extends BaseBean<JsonRpcHandler> {
     @Override
     public JsonRpcHandler create(final RuntimeContainer container, final List<Instance<?>> dependents) {
         return new JsonRpcHandler(
+                container,
                 lookup(container, JsonMapper.class, dependents),
                 lookup(container, JsonRpcRegistry.class, dependents));
     }
