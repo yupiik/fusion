@@ -15,27 +15,32 @@
  */
 package io.yupiik.fusion.jwt;
 
+import io.yupiik.fusion.framework.build.api.configuration.Property;
+import io.yupiik.fusion.framework.build.api.configuration.RootConfiguration;
+
+@RootConfiguration("jwt") // enforces factory and doc generation
 public record JwtValidatorConfiguration(
         // PEM of the public key (RSA/EC) or the secret (hmac).
-        String key,
+        @Property(documentation = "Public key to use to validate the incoming JWT.", required = true) String key,
 
         // JWT algorithm.
-        String algo,
+        @Property(documentation = "JWT `alg` value.", defaultValue = "\"RS256\"") String algo,
 
         // JWT expected issuer (iss claim).
-        String issuer,
+        @Property(documentation = "JWT issuer, validation is ignored if null.") String issuer,
 
         // iat/exp tolerance in seconds.
-        long tolerance,
+        @Property(documentation = "Tolerance for date validation (in seconds).", defaultValue = "30L") long tolerance,
 
-        // are exp/iat required or their absence can be ignored
-        boolean expRequired,
-        boolean iatRequired
+        // are exp/iat/nbf required or their absence can be ignored
+        @Property(documentation = "Are `exp` (expiry) validation required of can it be skipped if claim is missing.", defaultValue = "true") boolean expRequired,
+        @Property(documentation = "Are `iat` (issued at) validation required of can it be skipped if claim is missing.", defaultValue = "false") boolean iatRequired,
+        @Property(documentation = "Are `nbf` (not before) validation required of can it be skipped if claim is missing.", defaultValue = "false") boolean nbfRequired
 ) {
     public JwtValidatorConfiguration {
     }
 
     public JwtValidatorConfiguration(final String key, final String algo, final String issuer) {
-        this(key, algo, issuer, 30, true, false);
+        this(key, algo, issuer, 30, true, false, false);
     }
 }

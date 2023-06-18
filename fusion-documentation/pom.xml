@@ -58,6 +58,24 @@
       <version>${project.version}</version>
       <scope>provided</scope>
     </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>fusion-json</artifactId>
+      <version>${project.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>fusion-handlebars</artifactId>
+      <version>${project.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>fusion-jwt</artifactId>
+      <version>${project.version}</version>
+      <scope>provided</scope>
+    </dependency>
   </dependencies>
 
   <build>
@@ -75,6 +93,14 @@
         <version>1.1.2</version>
         <configuration>
           <siteBase>//www.yupiik.io/fusion</siteBase>
+          <attributes>
+            <partialsdir>${project.basedir}/src/main/minisite/content/_partials</partialsdir>
+          </attributes>
+          <preActions>
+            <preAction>
+              <type>io.yupiik.fusion.documentation.DocumentationGenerator</type>
+            </preAction>
+          </preActions>
         </configuration>
       </plugin>
     </plugins>

@@ -15,6 +15,13 @@ Most of the time you will use an API gateway to do that but for advanced busines
 </dependency>
 ----
 
+== Configuration
+
+The configuration is a `JwtValidationConfiguration` (you have to integrate it in your application configuration or reuse the `jwt` named one you can inject).
+Here are the subkeys:
+
+include::{partialsdir}/generated/documentation.jwt.adoc[lines=4..-1]
+
 == Usage
 
 Entry point is to inject a `JwtvalidatorFactory` (through constructor or `@Injection` on a field) and create an instance of validator passing a `JwtValidatorConfiguration` which sets the JWT algorithm, issuer, key etc...

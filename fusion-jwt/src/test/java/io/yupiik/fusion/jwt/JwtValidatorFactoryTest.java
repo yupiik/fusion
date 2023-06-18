@@ -35,6 +35,7 @@ import java.util.function.Function;
 
 import static java.time.Clock.fixed;
 import static java.util.Optional.empty;
+import static java.util.Optional.of;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -50,8 +51,8 @@ class JwtValidatorFactoryTest {
         keyGenerator.initialize(1024);
         key = keyGenerator.generateKeyPair();
         validator = new JwtValidatorFactory(
-                new JsonMapperImpl(List.of(), k -> empty()),
-                clock)
+                of(new JsonMapperImpl(List.of(), k -> empty())),
+                of(clock))
                 .newValidator(new JwtValidatorConfiguration("" +
                         "-----BEGIN PUBLIC KEY-----\n" +
                         Base64.getEncoder().encodeToString(key.getPublic().getEncoded()) + "\n" +
@@ -98,6 +99,14 @@ class JwtValidatorFactoryTest {
         final var now = clock.instant().getEpochSecond();
         final var header = validHeader();
         final var payload = "{\"test\":true,\"iss\":\"http://yupiik.test/oauth2/\",\"sub\":\"yupiik\",\"iat\":" + (now + 32) + ",\"exp\":" + (now + 35) + "}";
+        assertThrows(IllegalArgumentException.class, () -> validate(header, payload));
+    }
+
+    @Test
+    void invalidNbf() {
+        final var now = clock.instant().getEpochSecond();
+        final var header = validHeader();
+        final var payload = "{\"test\":true,\"iss\":\"http://yupiik.test/oauth2/\",\"sub\":\"yupiik\",\"nbf\":" + (now + 32) + ",\"exp\":" + (now + 35) + "}";
         assertThrows(IllegalArgumentException.class, () -> validate(header, payload));
     }
 

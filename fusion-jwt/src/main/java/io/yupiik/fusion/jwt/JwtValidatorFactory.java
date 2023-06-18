@@ -15,6 +15,7 @@
  */
 package io.yupiik.fusion.jwt;
 
+import io.yupiik.fusion.framework.api.scope.ApplicationScoped;
 import io.yupiik.fusion.json.JsonMapper;
 import io.yupiik.fusion.jwt.internal.JwtImpl;
 
@@ -32,18 +33,19 @@ import java.time.Clock;
 import java.util.Base64;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-// @ApplicationScoped
+@ApplicationScoped
 public class JwtValidatorFactory {
     private final JsonMapper mapper;
     private final Clock clock;
 
-    public JwtValidatorFactory(final JsonMapper mapper, final Clock clock) {
-        this.mapper = mapper;
-        this.clock = clock;
+    public JwtValidatorFactory(final Optional<JsonMapper> mapper, final Optional<Clock> clock) { // also used by proxies
+        this.mapper = mapper == null ? null : mapper.orElse(null);
+        this.clock = clock == null ? null : clock.orElse(null);
     }
 
     public Function<String, Jwt> newValidator(final JwtValidatorConfiguration configuration) {
@@ -161,7 +163,7 @@ public class JwtValidatorFactory {
         }
 
         final var iss = payloadData.get("iss");
-        if (!Objects.equals(iss, configuration.issuer())) {
+        if (configuration.issuer() != null && !Objects.equals(iss, configuration.issuer())) {
             throw new IllegalArgumentException("Invalid JWT iss: '" + iss + "'");
         }
 
@@ -186,6 +188,18 @@ public class JwtValidatorFactory {
             }
         } else if (configuration.iatRequired()) {
             throw new IllegalArgumentException("Missing iat in JWT");
+        }
+
+        final var nbf = payloadData.get("nbf");
+        if (nbf instanceof Number number) {
+            if (now < 0) {
+                now = TimeUnit.MILLISECONDS.toSeconds(clock.millis());
+            }
+            if (number.longValue() > now + configuration.tolerance()) {
+                throw new IllegalArgumentException("nbf after now, invalid JWT");
+            }
+        } else if (configuration.nbfRequired()) {
+            throw new IllegalArgumentException("Missing nbf in JWT");
         }
 
         return new JwtImpl(mapper, header, payload, headerData, payloadData);
