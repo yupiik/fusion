@@ -433,141 +433,143 @@ class FusionProcessorTest {
     @Test
     void configuration(@TempDir final Path work) throws IOException {
         new Compiler(work, "RecordConfiguration", "NestedConf", "TestConf", "EnumType")
-                .compileAndAsserts(
-                        instance -> {
-                            assertEquals(
-                                    "RecordConfiguration[" +
-                                            "name=test, " +
-                                            "toggle=true, " +
-                                            "age=123, " +
-                                            "aLong=456, " +
-                                            "number=7.89, " +
-                                            "bigNumber=10.2, " +
-                                            "nested=NestedConf[nestedValue=down, second=Nest2[value=5]], " +
-                                            "nesteds=[NestedConf[nestedValue=down1, second=Nest2[value=0]], NestedConf[nestedValue=down2, second=Nest2[value=0]]], " +
-                                            "list=[ab, cde, fgh], " +
-                                            "type=ENUM_1, " +
-                                            "intWithDefault=100, " +
-                                            "strWithDefault=bump, " +
-                                            "listStrWithDefault=[bump, bump2]" +
-                                            "]",
-                                    instance.instance().toString());
+                .compileAndAssertsInstance((container, instance) -> {
+                    assertEquals(
+                            "RecordConfiguration[" +
+                                    "name=test, " +
+                                    "toggle=true, " +
+                                    "age=123, " +
+                                    "aLong=456, " +
+                                    "number=7.89, " +
+                                    "bigNumber=10.2, " +
+                                    "nested=NestedConf[nestedValue=down, second=Nest2[value=5]], " +
+                                    "nesteds=[NestedConf[nestedValue=down1, second=Nest2[value=0]], NestedConf[nestedValue=down2, second=Nest2[value=0]]], " +
+                                    "list=[ab, cde, fgh], " +
+                                    "type=ENUM_1, " +
+                                    "intWithDefault=100, " +
+                                    "strWithDefault=bump, " +
+                                    "listStrWithDefault=[bump, bump2]" +
+                                    "]",
+                            instance.instance().toString());
+                    try (final var otherInstance = container.lookup(instance.instance().getClass())) { // scope is respected
+                        assertSame(otherInstance.instance(), instance.instance());
+                    }
 
-                            // doc
-                            try (final var in = requireNonNull(instance.instance().getClass().getClassLoader()
-                                    .getResourceAsStream("META-INF/fusion/configuration/documentation.json"))) {
-                                assertEquals("{\n" +
-                                                "  \"version\": 1,\n" +
-                                                "  \"classes\": {\n" +
-                                                "    \"test.p.NestedConf\": [\n" +
-                                                "      {\n" +
-                                                "        \"name\": \"nestedValue\",\n" +
-                                                "        \"documentation\": \"The nested main value.\",\n" +
-                                                "        \"defaultValue\": null,\n" +
-                                                "        \"required\": false\n" +
-                                                "      },\n" +
-                                                "      {\n" +
-                                                "        \"ref\": \"test.p.NestedConf.Nest2\",\n" +
-                                                "        \"name\": \"second\",\n" +
-                                                "        \"documentation\": \"\",\n" +
-                                                "        \"required\": false\n" +
-                                                "      }\n" +
-                                                "    ],\n" +
-                                                "    \"test.p.NestedConf.Nest2\": [\n" +
-                                                "      {\n" +
-                                                "        \"name\": \"value\",\n" +
-                                                "        \"documentation\": \"Some int.\",\n" +
-                                                "        \"defaultValue\": 0.0,\n" +
-                                                "        \"required\": false\n" +
-                                                "      }\n" +
-                                                "    ],\n" +
-                                                "    \"test.p.RecordConfiguration\": [\n" +
-                                                "      {\n" +
-                                                "        \"name\": \"app.age\",\n" +
-                                                "        \"documentation\": \"\",\n" +
-                                                "        \"defaultValue\": 0.0,\n" +
-                                                "        \"required\": false\n" +
-                                                "      },\n" +
-                                                "      {\n" +
-                                                "        \"name\": \"app.bigInt\",\n" +
-                                                "        \"documentation\": \"\",\n" +
-                                                "        \"defaultValue\": 0,\n" +
-                                                "        \"required\": false\n" +
-                                                "      },\n" +
-                                                "      {\n" +
-                                                "        \"name\": \"app.bigNumber\",\n" +
-                                                "        \"documentation\": \"\",\n" +
-                                                "        \"defaultValue\": null,\n" +
-                                                "        \"required\": false\n" +
-                                                "      },\n" +
-                                                "      {\n" +
-                                                "        \"name\": \"app.intWithDefault\",\n" +
-                                                "        \"documentation\": \"\",\n" +
-                                                "        \"defaultValue\": 100.0,\n" +
-                                                "        \"required\": false\n" +
-                                                "      },\n" +
-                                                "      {\n" +
-                                                "        \"name\": \"app.list\",\n" +
-                                                "        \"documentation\": \"\",\n" +
-                                                "        \"defaultValue\": null,\n" +
-                                                "        \"required\": false\n" +
-                                                "      },\n" +
-                                                "      {\n" +
-                                                "        \"name\": \"app.listStrWithDefault\",\n" +
-                                                "        \"documentation\": \"\",\n" +
-                                                "        \"defaultValue\": \"java.util.List.of(\\\"bump\\\",\\\"bump2\\\")\",\n" +
-                                                "        \"required\": false\n" +
-                                                "      },\n" +
-                                                "      {\n" +
-                                                "        \"name\": \"app.name\",\n" +
-                                                "        \"documentation\": \"The app name\",\n" +
-                                                "        \"defaultValue\": null,\n" +
-                                                "        \"required\": false\n" +
-                                                "      },\n" +
-                                                "      {\n" +
-                                                "        \"ref\": \"test.p.NestedConf\",\n" +
-                                                "        \"name\": \"app.nested\",\n" +
-                                                "        \"documentation\": \"\",\n" +
-                                                "        \"required\": false\n" +
-                                                "      },\n" +
-                                                "      {\n" +
-                                                "        \"ref\": \"test.p.NestedConf\",\n" +
-                                                "        \"name\": \"app.nesteds.$index\",\n" +
-                                                "        \"documentation\": \"\",\n" +
-                                                "        \"required\": false\n" +
-                                                "      },\n" +
-                                                "      {\n" +
-                                                "        \"name\": \"app.number\",\n" +
-                                                "        \"documentation\": \"\",\n" +
-                                                "        \"defaultValue\": 0.0,\n" +
-                                                "        \"required\": false\n" +
-                                                "      },\n" +
-                                                "      {\n" +
-                                                "        \"name\": \"app.strWithDefault\",\n" +
-                                                "        \"documentation\": \"\",\n" +
-                                                "        \"defaultValue\": \"\\\"bump\\\"\",\n" +
-                                                "        \"required\": false\n" +
-                                                "      },\n" +
-                                                "      {\n" +
-                                                "        \"name\": \"app.toggle\",\n" +
-                                                "        \"documentation\": \"\",\n" +
-                                                "        \"defaultValue\": false,\n" +
-                                                "        \"required\": false\n" +
-                                                "      },\n" +
-                                                "      {\n" +
-                                                "        \"name\": \"app.type\",\n" +
-                                                "        \"documentation\": \"\",\n" +
-                                                "        \"defaultValue\": null,\n" +
-                                                "        \"required\": false\n" +
-                                                "      }\n" +
-                                                "    ]\n" +
-                                                "  }\n" +
-                                                "}",
-                                        new SimplePrettyFormatter(new JsonMapperImpl(java.util.List.of(), key -> Optional.empty())).apply(new String(in.readAllBytes(), UTF_8)));
-                            } catch (final IOException e) {
-                                fail(e);
-                            }
-                        });
+                    // doc
+                    try (final var in = requireNonNull(instance.instance().getClass().getClassLoader()
+                            .getResourceAsStream("META-INF/fusion/configuration/documentation.json"))) {
+                        assertEquals("{\n" +
+                                        "  \"version\": 1,\n" +
+                                        "  \"classes\": {\n" +
+                                        "    \"test.p.NestedConf\": [\n" +
+                                        "      {\n" +
+                                        "        \"name\": \"nestedValue\",\n" +
+                                        "        \"documentation\": \"The nested main value.\",\n" +
+                                        "        \"defaultValue\": null,\n" +
+                                        "        \"required\": false\n" +
+                                        "      },\n" +
+                                        "      {\n" +
+                                        "        \"ref\": \"test.p.NestedConf.Nest2\",\n" +
+                                        "        \"name\": \"second\",\n" +
+                                        "        \"documentation\": \"\",\n" +
+                                        "        \"required\": false\n" +
+                                        "      }\n" +
+                                        "    ],\n" +
+                                        "    \"test.p.NestedConf.Nest2\": [\n" +
+                                        "      {\n" +
+                                        "        \"name\": \"value\",\n" +
+                                        "        \"documentation\": \"Some int.\",\n" +
+                                        "        \"defaultValue\": 0.0,\n" +
+                                        "        \"required\": false\n" +
+                                        "      }\n" +
+                                        "    ],\n" +
+                                        "    \"test.p.RecordConfiguration\": [\n" +
+                                        "      {\n" +
+                                        "        \"name\": \"app.age\",\n" +
+                                        "        \"documentation\": \"\",\n" +
+                                        "        \"defaultValue\": 0.0,\n" +
+                                        "        \"required\": false\n" +
+                                        "      },\n" +
+                                        "      {\n" +
+                                        "        \"name\": \"app.bigInt\",\n" +
+                                        "        \"documentation\": \"\",\n" +
+                                        "        \"defaultValue\": 0,\n" +
+                                        "        \"required\": false\n" +
+                                        "      },\n" +
+                                        "      {\n" +
+                                        "        \"name\": \"app.bigNumber\",\n" +
+                                        "        \"documentation\": \"\",\n" +
+                                        "        \"defaultValue\": null,\n" +
+                                        "        \"required\": false\n" +
+                                        "      },\n" +
+                                        "      {\n" +
+                                        "        \"name\": \"app.intWithDefault\",\n" +
+                                        "        \"documentation\": \"\",\n" +
+                                        "        \"defaultValue\": 100.0,\n" +
+                                        "        \"required\": false\n" +
+                                        "      },\n" +
+                                        "      {\n" +
+                                        "        \"name\": \"app.list\",\n" +
+                                        "        \"documentation\": \"\",\n" +
+                                        "        \"defaultValue\": null,\n" +
+                                        "        \"required\": false\n" +
+                                        "      },\n" +
+                                        "      {\n" +
+                                        "        \"name\": \"app.listStrWithDefault\",\n" +
+                                        "        \"documentation\": \"\",\n" +
+                                        "        \"defaultValue\": \"java.util.List.of(\\\"bump\\\",\\\"bump2\\\")\",\n" +
+                                        "        \"required\": false\n" +
+                                        "      },\n" +
+                                        "      {\n" +
+                                        "        \"name\": \"app.name\",\n" +
+                                        "        \"documentation\": \"The app name\",\n" +
+                                        "        \"defaultValue\": null,\n" +
+                                        "        \"required\": false\n" +
+                                        "      },\n" +
+                                        "      {\n" +
+                                        "        \"ref\": \"test.p.NestedConf\",\n" +
+                                        "        \"name\": \"app.nested\",\n" +
+                                        "        \"documentation\": \"\",\n" +
+                                        "        \"required\": false\n" +
+                                        "      },\n" +
+                                        "      {\n" +
+                                        "        \"ref\": \"test.p.NestedConf\",\n" +
+                                        "        \"name\": \"app.nesteds.$index\",\n" +
+                                        "        \"documentation\": \"\",\n" +
+                                        "        \"required\": false\n" +
+                                        "      },\n" +
+                                        "      {\n" +
+                                        "        \"name\": \"app.number\",\n" +
+                                        "        \"documentation\": \"\",\n" +
+                                        "        \"defaultValue\": 0.0,\n" +
+                                        "        \"required\": false\n" +
+                                        "      },\n" +
+                                        "      {\n" +
+                                        "        \"name\": \"app.strWithDefault\",\n" +
+                                        "        \"documentation\": \"\",\n" +
+                                        "        \"defaultValue\": \"\\\"bump\\\"\",\n" +
+                                        "        \"required\": false\n" +
+                                        "      },\n" +
+                                        "      {\n" +
+                                        "        \"name\": \"app.toggle\",\n" +
+                                        "        \"documentation\": \"\",\n" +
+                                        "        \"defaultValue\": false,\n" +
+                                        "        \"required\": false\n" +
+                                        "      },\n" +
+                                        "      {\n" +
+                                        "        \"name\": \"app.type\",\n" +
+                                        "        \"documentation\": \"\",\n" +
+                                        "        \"defaultValue\": null,\n" +
+                                        "        \"required\": false\n" +
+                                        "      }\n" +
+                                        "    ]\n" +
+                                        "  }\n" +
+                                        "}",
+                                new SimplePrettyFormatter(new JsonMapperImpl(java.util.List.of(), key -> Optional.empty())).apply(new String(in.readAllBytes(), UTF_8)));
+                    } catch (final IOException e) {
+                        fail(e);
+                    }
+                });
     }
 
     @Test

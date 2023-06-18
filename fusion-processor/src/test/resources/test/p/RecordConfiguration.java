@@ -15,6 +15,7 @@
  */
 package test.p;
 
+import io.yupiik.fusion.framework.api.scope.ApplicationScoped;
 import io.yupiik.fusion.framework.build.api.configuration.Property;
 import io.yupiik.fusion.framework.build.api.configuration.RootConfiguration;
 
@@ -22,6 +23,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 @RootConfiguration("app")
+@ApplicationScoped
 public record RecordConfiguration(
         @Property(documentation = "The app name") String name,
         boolean toggle,
