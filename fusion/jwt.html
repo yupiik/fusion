@@ -58,12 +58,12 @@
                         <i class="fas fa-building"></i>Setup
                     </a>
                 </li>                <li>
-                    <a title="Fusion CLI" href="//www.yupiik.io/fusion/fusion/cli.html">
-                        <i class="fas fa-terminal"></i>CLI
-                    </a>
-                </li>                <li>
                     <a title="Fusion JSON support" href="//www.yupiik.io/fusion/fusion/json.html">
                         <i class="fas fa-wifi"></i>JSON
+                    </a>
+                </li>                <li>
+                    <a title="Fusion CLI" href="//www.yupiik.io/fusion/fusion/cli.html">
+                        <i class="fas fa-terminal"></i>CLI
                     </a>
                 </li>                <li>
                     <a title="framework and GraalVM (native-image)" href="//www.yupiik.io/fusion/fusion/graalvm.html">
@@ -99,6 +99,40 @@
   &lt;version&gt;${project.version}&lt;/version&gt;
 &lt;/dependency&gt;</code></pre>
 </div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_configuration">Configuration</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The configuration is a <code>JwtValidationConfiguration</code> (you have to integrate it in your application configuration or reuse the <code>jwt</code> named one you can inject).
+Here are the subkeys:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><code>algo</code> (default: <code>"RS256"</code>): JWT <code>alg</code> value..</p>
+</li>
+<li>
+<p><code>expRequired</code> (default: <code>true</code>): Are <code>exp</code> (expiry) validation required of can it be skipped if claim is missing..</p>
+</li>
+<li>
+<p><code>iatRequired</code> (default: <code>false</code>): Are <code>iat</code> (issued at) validation required of can it be skipped if claim is missing..</p>
+</li>
+<li>
+<p><code>issuer</code>: JWT issuer, validation is ignored if null..</p>
+</li>
+<li>
+<p><code>key</code>*: Public key to use to validate the incoming JWT..</p>
+</li>
+<li>
+<p><code>nbfRequired</code> (default: <code>false</code>): Are <code>nbf</code> (not before) validation required of can it be skipped if claim is missing..</p>
+</li>
+<li>
+<p><code>tolerance</code> (default: <code>30</code>): Tolerance for date validation (in seconds)..</p>
+</li>
+</ul>
 </div>
 </div>
 </div>
