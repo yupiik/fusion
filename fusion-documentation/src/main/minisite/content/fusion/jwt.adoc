@@ -82,3 +82,5 @@ public void onJsonRpcJwt(@OnEvent final BeforeRequest event) {
 <.> Validate the JWT,
 <.> Check `roles` claim contains `admin`,
 <.> Complete the request as failed (all requests if bulk is used).
+
+TIP: if you don't want to redefine the configuration nor the validator, you can inject `io.yupiik.fusion.jwt.bean.DefaultJwtValidator` directly.

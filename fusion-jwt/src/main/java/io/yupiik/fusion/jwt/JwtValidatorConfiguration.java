@@ -38,6 +38,7 @@ public record JwtValidatorConfiguration(
         @Property(documentation = "Are `nbf` (not before) validation required of can it be skipped if claim is missing.", defaultValue = "false") boolean nbfRequired
 ) {
     public JwtValidatorConfiguration {
+        // no-op
     }
 
     public JwtValidatorConfiguration(final String key, final String algo, final String issuer) {
