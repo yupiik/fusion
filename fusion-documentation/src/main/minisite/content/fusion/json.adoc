@@ -71,6 +71,8 @@ public record MyModel(
 }
 ----
 
+WARNING: `BigDecimal` is supported but avoid to use `toBigInteger()` or scale related methods without size validation due to java implementation.
+
 Then read/write data using `JsonMapper`:
 
 [source,java]
