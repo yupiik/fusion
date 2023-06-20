@@ -139,7 +139,9 @@ public class TomcatDataSource extends DataSource implements AutoCloseable {
     }
 
     public <T> T withConnection(final SQLFunction<Connection, T> function) {
+        Connection conRef = null;
         try (final var connection = super.getConnection()) {
+            conRef = connection;
             connectionThreadLocal.set(wrap(connection));
             final var original = disableAutoCommit(connection);
             try {
@@ -153,6 +155,13 @@ public class TomcatDataSource extends DataSource implements AutoCloseable {
                 restoreAutoCommit(connection, original);
             }
         } catch (final SQLException ex) {
+            try {
+                if (conRef != null && !conRef.isClosed()) {
+                    conRef.rollback();
+                }
+            } catch (final SQLException e) {
+                // no-op
+            }
             throw new IllegalStateException(ex);
         } finally {
             connectionThreadLocal.remove();
