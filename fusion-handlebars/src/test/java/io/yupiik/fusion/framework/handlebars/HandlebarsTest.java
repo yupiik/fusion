@@ -317,11 +317,14 @@ class HandlebarsTest {
                         "items", List.of(
                                 Map.of("metadata", Map.of("name", "s1"), "spec", Map.of("ports", List.of(Map.of("nodePort", 1)))),
                                 Map.of("metadata", Map.of("name", "s2"), "spec", Map.of("ports", List.of(Map.of("name", "second", "nodePort", 2)))),
-                                Map.of("metadata", Map.of("name", "s3"), "spec", Map.of("ports", List.of(Map.of("nodePort", 3)))))),
+                                Map.of("metadata", Map.of("name", "s3"), "spec", Map.of("ports", List.of(
+                                        Map.of("nodePort", 3),
+                                        Map.of("nodePort", 4, "name", "last")))))),
                 """
                         s1 (0): 1
                         s2 (second): 2
-                        s3 (2): 3""");
+                        s3 (0): 3
+                        s3 (last): 4""");
     }
 
     private void assertRender(final String resource, final Object data, final String expected) {

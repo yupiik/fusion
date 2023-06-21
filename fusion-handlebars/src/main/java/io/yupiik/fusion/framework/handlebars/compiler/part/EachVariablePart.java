@@ -56,8 +56,8 @@ public record EachVariablePart(String name, Function<Accessor, Part> itemPartFac
         final var iterator = collection.iterator();
         final var iterableDataVariablesAccessor = new IterableDataVariablesAccessor(iterator, accessor);
         final var dataVariableAccessor = new ChainedAccessor(
-                new DataAwareAccessor(root, accessor),
-                iterableDataVariablesAccessor);
+                iterableDataVariablesAccessor,
+                new DataAwareAccessor(root, accessor));
         final var item = itemPartFactory.apply(partsAccessor.apply(dataVariableAccessor));
         final var out = new StringBuilder();
         if (iterator.hasNext()) {
