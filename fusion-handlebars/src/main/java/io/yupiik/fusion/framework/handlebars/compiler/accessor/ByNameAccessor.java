@@ -17,33 +17,23 @@ package io.yupiik.fusion.framework.handlebars.compiler.accessor;
 
 import io.yupiik.fusion.framework.handlebars.spi.Accessor;
 
-import java.util.Iterator;
+import java.util.Map;
 
-public class IterableDataVariablesAccessor implements Accessor {
-    private final Iterator<?> iterator;
-    private int index = 0;
-    private final Accessor delegate;
+public class ByNameAccessor implements Accessor {
+    private final Map<String, Accessor> byName;
+    private final Accessor fallback;
 
-    public IterableDataVariablesAccessor(final Iterator<?> iterator, final Accessor delegate) {
-        this.iterator = iterator;
-        this.delegate = delegate;
-    }
-
-    public void onNext() {
-        index++;
+    public ByNameAccessor(final Map<String, Accessor> byName, final Accessor fallback) {
+        this.byName = byName;
+        this.fallback = fallback;
     }
 
     @Override
     public Object find(final Object data, final String name) {
-        return switch (name) {
-            case "@first" -> index == 0;
-            case "@index" -> index;
-            case "@last" -> !iterator.hasNext();
-            default -> delegate.find(data, name);
-        };
-    }
-
-    public IterableDataVariablesAccessor of(final Accessor delegate) {
-        return new IterableDataVariablesAccessor(iterator, delegate);
+        final var explicit = byName.get(name);
+        if (explicit == null) {
+            return fallback.find(data, name);
+        }
+        return explicit.find(data, name);
     }
 }

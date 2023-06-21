@@ -15,6 +15,8 @@
  */
 package io.yupiik.fusion.framework.handlebars;
 
+import io.yupiik.fusion.framework.handlebars.compiler.accessor.ByNameAccessor;
+import io.yupiik.fusion.framework.handlebars.compiler.accessor.ChainedAccessor;
 import io.yupiik.fusion.framework.handlebars.compiler.accessor.MapAccessor;
 import io.yupiik.fusion.framework.handlebars.compiler.part.BlockHelperPart;
 import io.yupiik.fusion.framework.handlebars.compiler.part.ConstantPart;
@@ -286,7 +288,11 @@ public class HandlebarsCompiler {
         }
 
         if (part instanceof EachVariablePart p) {
-            return acc -> new EachVariablePart(p.name(), p.itemPartFactory(), acc);
+            final var accessor = p.accessor();
+            if (!(accessor instanceof ChainedAccessor ca)) {
+                return a -> new EachVariablePart(p.name(), p.itemPartFactory(), a);
+            }
+            return acc -> new EachVariablePart(p.name(), p.itemPartFactory(), new ByNameAccessor(Map.of(ca.getSupportedName(), ca), acc));
         }
         if (part instanceof PartListPart p) {
             if (p.delegates().stream().allMatch(it -> it instanceof EmptyPart ||
@@ -360,9 +366,11 @@ public class HandlebarsCompiler {
             throw new IllegalArgumentException("Unclosed expression at index " + i);
         }
 
+        /*
         while (!buffer.isEmpty() && ' ' == buffer.charAt(buffer.length() - 1)) {
             buffer.setLength(buffer.length() - 1);
         }
+         */
         flushBuffer(out, buffer);
 
         final var string = content.substring(i + "{{#".length(), end);
@@ -380,63 +388,83 @@ public class HandlebarsCompiler {
         return switch (keyword) {
             case "" -> {
                 final var endBlockMarker = "{{/" + value + "}}";
-                final int endBlock = content.indexOf(endBlockMarker, nextIndex);
+                final int endBlock = findEndBlock("{{#" + value, endBlockMarker, content, nextIndex);
                 if (endBlock < 0) {
                     throw new IllegalArgumentException("Missing " + endBlockMarker + " at index " + nextIndex + "'");
                 }
                 final var itemPart = doCompile(stripSurroundingEol(content.substring(nextIndex, endBlock)), helpers, partials);
-                out.add(new IfVariablePart(value, itemPart, defaultAccessor));
+                out.add(new IfVariablePart(value, itemPart, toAccessor(value)));
                 yield endBlock + "{{/}}".length() + value.length();
             }
             case "with" -> {
-                final int endBlock = content.indexOf("{{/with}}", nextIndex);
+                final int endBlock = findEndBlock("{{#with", "{{/with}}", content, nextIndex);
                 if (endBlock < 0) {
                     throw new IllegalArgumentException("Missing {{/with}} at index " + nextIndex + "'");
                 }
                 final var substring = stripSurroundingEol(content.substring(nextIndex, endBlock));
-                out.add(new NestedVariablePart(value, doCompile(substring, helpers, partials), defaultAccessor));
+                out.add(new NestedVariablePart(value, doCompile(substring, helpers, partials), toAccessor(value)));
                 yield endBlock + "{{/with}}".length();
             }
             case "each" -> {
-                final int endBlock = content.indexOf("{{/each}}", nextIndex);
+                final int endBlock = findEndBlock("{{#each", "{{/each}}", content, nextIndex);
                 if (endBlock < 0) {
                     throw new IllegalArgumentException("Missing {{/each}} at index " + nextIndex + "'");
                 }
                 final var eachContent = stripSurroundingEol(content.substring(nextIndex, endBlock)).stripTrailing();
                 final var itemPart = doCompile(eachContent, helpers, partials);
-                out.add(new EachVariablePart(value, toPartFactory(itemPart), defaultAccessor));
+                out.add(new EachVariablePart(value, toPartFactory(itemPart), toAccessor(value)));
                 yield endBlock + "{{/each}}".length();
             }
             case "if" -> {
-                final int endBlock = content.indexOf("{{/if}}", nextIndex);
+                final int endBlock = findEndBlock("{{#if", "{{/if}}", content, nextIndex);
                 if (endBlock < 0) {
                     throw new IllegalArgumentException("Missing {{/if}} at index " + nextIndex + "'");
                 }
                 final var itemPart = doCompile(stripSurroundingEol(content.substring(nextIndex, endBlock)), helpers, partials);
-                out.add(new IfVariablePart(value, itemPart, defaultAccessor));
+                out.add(new IfVariablePart(value, itemPart, toAccessor(value)));
                 yield endBlock + "{{/if}}".length();
             }
             case "unless" -> {
-                final int endBlock = content.indexOf("{{/unless}}", nextIndex);
+                final int endBlock = findEndBlock("{{#unless", "{{/unless}}", content, nextIndex);
                 if (endBlock < 0) {
                     throw new IllegalArgumentException("Missing {{/unless}} at index " + nextIndex + "'");
                 }
                 final var itemPart = doCompile(stripSurroundingEol(content.substring(nextIndex, endBlock)), helpers, partials);
-                out.add(new UnlessVariablePart(value, itemPart, defaultAccessor));
+                out.add(new UnlessVariablePart(value, itemPart, toAccessor(value)));
                 yield endBlock + "{{/unless}}".length();
             }
             default -> ofNullable(helpers.get(keyword))
                     .map(helper -> {
-                        final int endBlock = content.indexOf("{{/" + keyword + "}}", nextIndex);
+                        final int endBlock = findEndBlock("{{#" + keyword, "{{/" + keyword + "}}", content, nextIndex);
                         if (endBlock < 0) {
-                            throw new IllegalArgumentException("Missing {{/each}} at index " + nextIndex + "'");
+                            throw new IllegalArgumentException("Missing {{/" + keyword + "}} at index " + nextIndex + "'");
                         }
                         final var itemPart = doCompile(stripSurroundingEol(content.substring(nextIndex, endBlock)), helpers, partials);
-                        out.add(new BlockHelperPart(helper, value, itemPart, defaultAccessor));
+                        out.add(new BlockHelperPart(helper, value, itemPart, toAccessor(value)));
                         return endBlock + "{{/}}".length() + keyword.length();
                     })
                     .orElseThrow(() -> new IllegalArgumentException("Unknown keyword '" + keyword + "'"));
         };
+    }
+
+    private Accessor toAccessor(final String value) {
+        final int sep = value.indexOf('.');
+        if (sep > 0 && sep != value.length() - 1) {
+            final var first = value.substring(0, sep);
+            return new ChainedAccessor(first, value, defaultAccessor, toAccessor(value.substring(sep + 1)));
+        }
+        return defaultAccessor;
+    }
+
+    private int findEndBlock(final String start, final String end, final String content, final int nextIndex) {
+        final int endBlock = content.indexOf(end, nextIndex);
+        if (endBlock > 0) {
+            final int endBlock2 = content.indexOf(start, nextIndex);
+            if (endBlock2 > 0 && endBlock2 < endBlock) { // has a nested opening tag
+                return findEndBlock(start, end, content, endBlock + end.length());
+            }
+        }
+        return endBlock;
     }
 
     private int toNextInterestingChar(final String content, int currentEnd) {

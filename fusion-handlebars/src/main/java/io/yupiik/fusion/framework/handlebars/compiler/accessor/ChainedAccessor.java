@@ -17,33 +17,29 @@ package io.yupiik.fusion.framework.handlebars.compiler.accessor;
 
 import io.yupiik.fusion.framework.handlebars.spi.Accessor;
 
-import java.util.Iterator;
+public class ChainedAccessor implements Accessor {
+    private final String key;
+    private final String supportedName;
+    private final Accessor delegating;
+    private final Accessor next;
 
-public class IterableDataVariablesAccessor implements Accessor {
-    private final Iterator<?> iterator;
-    private int index = 0;
-    private final Accessor delegate;
-
-    public IterableDataVariablesAccessor(final Iterator<?> iterator, final Accessor delegate) {
-        this.iterator = iterator;
-        this.delegate = delegate;
+    public ChainedAccessor(final String key, final String supportedName, final Accessor delegating, final Accessor next) {
+        this.key = key;
+        this.supportedName = supportedName;
+        this.delegating = delegating;
+        this.next = next;
     }
 
-    public void onNext() {
-        index++;
+    public String getSupportedName() {
+        return supportedName;
     }
 
     @Override
     public Object find(final Object data, final String name) {
-        return switch (name) {
-            case "@first" -> index == 0;
-            case "@index" -> index;
-            case "@last" -> !iterator.hasNext();
-            default -> delegate.find(data, name);
-        };
-    }
-
-    public IterableDataVariablesAccessor of(final Accessor delegate) {
-        return new IterableDataVariablesAccessor(iterator, delegate);
+        final var init = !supportedName.equals(name) ? null : delegating.find(data, key);
+        if (init == null) {
+            return null;
+        }
+        return next.find(init, name.substring(key.length() + 1));
     }
 }

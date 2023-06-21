@@ -112,7 +112,7 @@ class HandlebarsTest {
         assertRender(
                 """
                         <ul class="people_list">
-                          {{#each people}}
+                        {{#each people}}
                             <li>{{this}}</li>
                           {{/each}}
                         </ul>""",
@@ -130,7 +130,7 @@ class HandlebarsTest {
         assertRender(
                 """
                         <ul class="people_list">
-                          {{#each people}}
+                        {{#each people}}
                             <li>{{this}}:{{#if @first}} first,{{/if}}{{#if @last}} last,{{/if}} index={{@index}}</li>
                           {{/each}}
                         </ul>""",
@@ -154,7 +154,7 @@ class HandlebarsTest {
         assertRender(
                 """
                         <ul class="people_list">
-                          {{#each people}}
+                        {{#each people}}
                             <li>firstname={{@key}} lastname={{@value}}:{{#if @first}} first,{{/if}}{{#if @last}} last,{{/if}} index={{@index}}</li>
                           {{/each}}
                         </ul>""",
@@ -292,6 +292,21 @@ class HandlebarsTest {
                         \s Nils is 20 years old.
                           Teddy is 10 years old.
                           Nelson is 40 years old.""");
+    }
+
+    @Test
+    void nestedEach() {
+        assertRender(
+                "{{#each items}}{{{metadata.name}}}: {{#each spec.ports}}{{{nodePort}}}{{/each}}{{/metadata}}{{/each}}",
+                Map.of(
+                        "items", List.of(
+                                Map.of("metadata", Map.of("name", "s1"), "spec", Map.of("ports", List.of(Map.of("nodePort", 1)))),
+                                Map.of("metadata", Map.of("name", "s2"), "spec", Map.of("ports", List.of(Map.of("nodePort", 2)))),
+                                Map.of("metadata", Map.of("name", "s3"), "spec", Map.of("ports", List.of(Map.of("nodePort", 3)))))),
+                """
+                        s1: 1
+                        s2: 2
+                        s3: 3""");
     }
 
     private void assertRender(final String resource, final Object data, final String expected) {
