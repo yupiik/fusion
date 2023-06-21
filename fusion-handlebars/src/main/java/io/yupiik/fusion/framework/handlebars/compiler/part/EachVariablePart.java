@@ -15,6 +15,8 @@
  */
 package io.yupiik.fusion.framework.handlebars.compiler.part;
 
+import io.yupiik.fusion.framework.handlebars.compiler.accessor.ChainedAccessor;
+import io.yupiik.fusion.framework.handlebars.compiler.accessor.DataAwareAccessor;
 import io.yupiik.fusion.framework.handlebars.compiler.accessor.IterableDataVariablesAccessor;
 import io.yupiik.fusion.framework.handlebars.compiler.accessor.MapEntryDataVariablesAccessor;
 import io.yupiik.fusion.framework.handlebars.spi.Accessor;
@@ -37,30 +39,34 @@ public record EachVariablePart(String name, Function<Accessor, Part> itemPartFac
             if (collection.isEmpty()) {
                 return "";
             }
-            return doApply(context, collection, identity());
+            return doApply(context, collection, identity(), currentData);
         }
         if (value instanceof Map<?, ?> nestedMap) {
             if (nestedMap.isEmpty()) {
                 return "";
             }
-            return doApply(context, nestedMap.entrySet(), MapEntryDataVariablesAccessor::new);
+            return doApply(context, nestedMap.entrySet(), MapEntryDataVariablesAccessor::new, currentData);
         }
         throw new IllegalArgumentException("Unsupported each for " + value);
     }
 
     private String doApply(final RenderContext context, final Collection<?> collection,
-                           final Function<Accessor, Accessor> partsAccessor) {
+                           final Function<Accessor, Accessor> partsAccessor,
+                           final Object root) {
         final var iterator = collection.iterator();
-        final var dataVariableAccessor = new IterableDataVariablesAccessor(iterator, accessor);
+        final var iterableDataVariablesAccessor = new IterableDataVariablesAccessor(iterator, accessor);
+        final var dataVariableAccessor = new ChainedAccessor(
+                new DataAwareAccessor(root, accessor),
+                iterableDataVariablesAccessor);
         final var item = itemPartFactory.apply(partsAccessor.apply(dataVariableAccessor));
         final var out = new StringBuilder();
         if (iterator.hasNext()) {
             out.append(item.apply(context, iterator.next()));
-            dataVariableAccessor.onNext();
+            iterableDataVariablesAccessor.onNext();
         }
         while (iterator.hasNext()) {
             out.append('\n').append(item.apply(context, iterator.next()));
-            dataVariableAccessor.onNext();
+            iterableDataVariablesAccessor.onNext();
         }
         return out.toString();
     }

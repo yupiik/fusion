@@ -17,18 +17,17 @@ package io.yupiik.fusion.framework.handlebars.compiler.accessor;
 
 import io.yupiik.fusion.framework.handlebars.spi.Accessor;
 
-public class ChainedAccessor implements Accessor {
-    private final Accessor first;
-    private final Accessor second;
+public class DataAwareAccessor implements Accessor {
+    private final Object data;
+    private final Accessor delegating;
 
-    public ChainedAccessor(final Accessor first, final Accessor second) {
-        this.first = first;
-        this.second = second;
+    public DataAwareAccessor(final Object data, final Accessor delegating) {
+        this.data = data;
+        this.delegating = delegating;
     }
 
     @Override
-    public Object find(final Object data, final String name) {
-        final var value = first.find(data, name);
-        return value == null ? second.find(data, name) : value;
+    public Object find(final Object ignored, final String name) {
+        return delegating.find(data, name);
     }
 }

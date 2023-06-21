@@ -16,8 +16,8 @@
 package io.yupiik.fusion.framework.handlebars;
 
 import io.yupiik.fusion.framework.handlebars.compiler.accessor.ByNameAccessor;
-import io.yupiik.fusion.framework.handlebars.compiler.accessor.ChainedAccessor;
 import io.yupiik.fusion.framework.handlebars.compiler.accessor.MapAccessor;
+import io.yupiik.fusion.framework.handlebars.compiler.accessor.PrecomputedChainAccessor;
 import io.yupiik.fusion.framework.handlebars.compiler.part.BlockHelperPart;
 import io.yupiik.fusion.framework.handlebars.compiler.part.ConstantPart;
 import io.yupiik.fusion.framework.handlebars.compiler.part.EachVariablePart;
@@ -289,7 +289,7 @@ public class HandlebarsCompiler {
 
         if (part instanceof EachVariablePart p) {
             final var accessor = p.accessor();
-            if (!(accessor instanceof ChainedAccessor ca)) {
+            if (!(accessor instanceof PrecomputedChainAccessor ca)) {
                 return a -> new EachVariablePart(p.name(), p.itemPartFactory(), a);
             }
             return acc -> new EachVariablePart(p.name(), p.itemPartFactory(), new ByNameAccessor(Map.of(ca.getSupportedName(), ca), acc));
@@ -302,7 +302,10 @@ public class HandlebarsCompiler {
                 return acc -> p; // no need of any recomputation
             }
             final var delegates = p.delegates().stream().map(this::toPartFactory).toList();
-            return acc -> new PartListPart(delegates.stream().map(it -> it.apply(acc)).toList());
+            return acc -> {
+                final var newDelegates = delegates.stream().map(it -> it.apply(acc)).toList();
+                return new PartListPart(newDelegates);
+            };
         }
         if (part instanceof EscapedPart p) {
             if (p.delegate() instanceof EmptyPart ||
@@ -315,22 +318,26 @@ public class HandlebarsCompiler {
             return acc -> new EscapedPart(delegate.apply(acc));
         }
         if (part instanceof BlockHelperPart p) {
-            return acc -> new BlockHelperPart(p.helper(), p.name(), p.subPart(), acc);
+            final var dynamicSub = toPartFactory(p.subPart());
+            return acc -> new BlockHelperPart(p.helper(), p.name(), dynamicSub.apply(acc), acc);
         }
         if (part instanceof IfVariablePart p) {
-            return acc -> new IfVariablePart(p.name(), p.next(), acc);
+            final var dynamicNext = toPartFactory(p.next());
+            return acc -> new IfVariablePart(p.name(), dynamicNext.apply(acc), acc);
         }
         if (part instanceof InlineHelperPart p) {
             return acc -> new InlineHelperPart(p.helper(), p.name(), acc);
         }
         if (part instanceof NestedVariablePart p) {
-            return acc -> new NestedVariablePart(p.name(), p.next(), acc);
+            final var dynamicNext = toPartFactory(p.next());
+            return acc -> new NestedVariablePart(p.name(), dynamicNext.apply(acc), acc);
         }
         if (part instanceof UnescapedVariablePart p) {
             return acc -> new UnescapedVariablePart(p.name(), acc);
         }
         if (part instanceof UnlessVariablePart p) {
-            return acc -> new UnlessVariablePart(p.name(), p.next(), acc);
+            final var dynamicNext = toPartFactory(p.next());
+            return acc -> new UnlessVariablePart(p.name(), dynamicNext.apply(acc), acc);
         }
         throw new IllegalArgumentException("Unknown part type, update code please: " + part);
     }
@@ -366,11 +373,6 @@ public class HandlebarsCompiler {
             throw new IllegalArgumentException("Unclosed expression at index " + i);
         }
 
-        /*
-        while (!buffer.isEmpty() && ' ' == buffer.charAt(buffer.length() - 1)) {
-            buffer.setLength(buffer.length() - 1);
-        }
-         */
         flushBuffer(out, buffer);
 
         final var string = content.substring(i + "{{#".length(), end);
@@ -451,7 +453,7 @@ public class HandlebarsCompiler {
         final int sep = value.indexOf('.');
         if (sep > 0 && sep != value.length() - 1) {
             final var first = value.substring(0, sep);
-            return new ChainedAccessor(first, value, defaultAccessor, toAccessor(value.substring(sep + 1)));
+            return new PrecomputedChainAccessor(first, value, defaultAccessor, toAccessor(value.substring(sep + 1)));
         }
         return defaultAccessor;
     }
