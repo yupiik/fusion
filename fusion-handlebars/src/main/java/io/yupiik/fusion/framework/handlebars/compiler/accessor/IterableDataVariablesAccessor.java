@@ -19,10 +19,11 @@ import io.yupiik.fusion.framework.handlebars.spi.Accessor;
 
 import java.util.Iterator;
 
-public class IterableDataVariablesAccessor implements Accessor {
+public class IterableDataVariablesAccessor implements Accessor, Iterator<Object> {
     private final Iterator<?> iterator;
     private int index = 0;
     private final Accessor delegate;
+    private Object current;
 
     public IterableDataVariablesAccessor(final Iterator<?> iterator, final Accessor delegate) {
         this.iterator = iterator;
@@ -39,11 +40,24 @@ public class IterableDataVariablesAccessor implements Accessor {
             case "@first" -> index == 0;
             case "@index" -> index;
             case "@last" -> !iterator.hasNext();
-            default -> delegate.find(data, name);
+            default -> {
+                final var extracted = delegate.find(data, name);
+                yield extracted == null ? delegate.find(current, name) : extracted;
+            }
         };
     }
 
     public IterableDataVariablesAccessor of(final Accessor delegate) {
         return new IterableDataVariablesAccessor(iterator, delegate);
+    }
+
+    @Override
+    public boolean hasNext() {
+        return iterator.hasNext();
+    }
+
+    @Override
+    public Object next() {
+        return current = iterator.next();
     }
 }

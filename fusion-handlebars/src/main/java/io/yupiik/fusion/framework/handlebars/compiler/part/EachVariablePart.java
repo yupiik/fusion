@@ -60,12 +60,12 @@ public record EachVariablePart(String name, Function<Accessor, Part> itemPartFac
                 new DataAwareAccessor(root, accessor));
         final var item = itemPartFactory.apply(partsAccessor.apply(dataVariableAccessor));
         final var out = new StringBuilder();
-        if (iterator.hasNext()) {
-            out.append(item.apply(context, iterator.next()));
+        if (iterableDataVariablesAccessor.hasNext()) {
+            out.append(item.apply(context, iterableDataVariablesAccessor.next()));
             iterableDataVariablesAccessor.onNext();
         }
-        while (iterator.hasNext()) {
-            out.append('\n').append(item.apply(context, iterator.next()));
+        while (iterableDataVariablesAccessor.hasNext()) {
+            out.append('\n').append(item.apply(context, iterableDataVariablesAccessor.next()));
             iterableDataVariablesAccessor.onNext();
         }
         return out.toString();
