@@ -297,7 +297,7 @@ class HandlebarsTest {
     @Test
     void nestedEach() {
         assertRender(
-                "{{#each items}}{{{metadata.name}}}: {{#each spec.ports}}{{{nodePort}}}{{/each}}{{/metadata}}{{/each}}",
+                "{{#each items}}{{{metadata.name}}}: {{#each spec.ports}}{{{nodePort}}}{{/each}}{{/each}}",
                 Map.of(
                         "items", List.of(
                                 Map.of("metadata", Map.of("name", "s1"), "spec", Map.of("ports", List.of(Map.of("nodePort", 1)))),
@@ -312,7 +312,7 @@ class HandlebarsTest {
     @Test
     void parentAccessor() {
         assertRender(
-                "{{#each items}}{{#each spec.ports}}{{{metadata.name}}} ({{#if name}}{{{name}}}{{/if}}{{#unless name}}{{@index}}{{/unless}}): {{{nodePort}}}{{/each}}{{/metadata}}{{/each}}",
+                "{{#each items}}{{#each spec.ports}}{{{metadata.name}}} ({{#if name}}{{{name}}}{{/if}}{{#unless name}}{{@index}}{{/unless}}): {{{nodePort}}}{{/each}}{{/each}}",
                 Map.of(
                         "items", List.of(
                                 Map.of("metadata", Map.of("name", "s1"), "spec", Map.of("ports", List.of(Map.of("nodePort", 1)))),
