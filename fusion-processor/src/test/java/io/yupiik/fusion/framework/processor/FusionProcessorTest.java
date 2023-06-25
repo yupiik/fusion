@@ -29,6 +29,7 @@ import io.yupiik.fusion.framework.api.main.Args;
 import io.yupiik.fusion.framework.api.scope.DefaultScoped;
 import io.yupiik.fusion.framework.processor.test.CompilationClassLoader;
 import io.yupiik.fusion.framework.processor.test.Compiler;
+import io.yupiik.fusion.http.server.api.Body;
 import io.yupiik.fusion.http.server.api.Cookie;
 import io.yupiik.fusion.http.server.api.Request;
 import io.yupiik.fusion.http.server.impl.flow.BytesPublisher;
@@ -60,6 +61,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Flow;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -1854,8 +1856,23 @@ class FusionProcessorTest {
         }
 
         @Override
-        public Flow.Publisher<ByteBuffer> body() {
-            return body;
+        public Body fullBody() {
+            return new Body() {
+                @Override
+                public CompletionStage<String> string() {
+                    throw new UnsupportedOperationException("test");
+                }
+
+                @Override
+                public CompletionStage<byte[]> bytes() {
+                    throw new UnsupportedOperationException("test");
+                }
+
+                @Override
+                public void subscribe(final Flow.Subscriber<? super ByteBuffer> subscriber) {
+                    body.subscribe(subscriber);
+                }
+            };
         }
 
         @Override
