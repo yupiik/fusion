@@ -15,6 +15,7 @@
  */
 package io.yupiik.fusion.http.server.impl.servlet;
 
+import io.yupiik.fusion.http.server.api.Body;
 import io.yupiik.fusion.http.server.api.Cookie;
 import io.yupiik.fusion.http.server.api.Request;
 import io.yupiik.fusion.http.server.impl.flow.ServletInputStreamSubscription;
@@ -22,10 +23,8 @@ import jakarta.servlet.http.HttpServletRequest;
 
 import java.io.IOException;
 import java.io.Reader;
-import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Flow;
 import java.util.stream.Stream;
 
 import static java.util.Collections.list;
@@ -80,15 +79,9 @@ public class ServletRequest implements Request {
     }
 
     @Override
-    public Flow.Publisher<ByteBuffer> body() {
+    public Body fullBody() {
         // not yet the best reactive impl but likely as good as servlet
-        return subscriber -> {
-            try {
-                subscriber.onSubscribe(new ServletInputStreamSubscription(delegate.getInputStream(), subscriber));
-            } catch (final IOException e) {
-                subscriber.onError(e);
-            }
-        };
+        return new ServletBody(delegate);
     }
 
     @Override

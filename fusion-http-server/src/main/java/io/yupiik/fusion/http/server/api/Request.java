@@ -30,7 +30,16 @@ public interface Request extends Unwrappable {
 
     String query();
 
-    Flow.Publisher<ByteBuffer> body();
+    /**
+     * @deprecated prefer {@link #fullBody()} instead. Kept for backward compatibility only.
+     * @return same value as {@link #fullBody()}.
+     */
+    @Deprecated(since = "1.0.4")
+    default Flow.Publisher<ByteBuffer> body() {
+        return fullBody();
+    }
+
+    Body fullBody();
 
     Stream<Cookie> cookies();
 
