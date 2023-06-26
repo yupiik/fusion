@@ -20,8 +20,10 @@ import io.yupiik.fusion.http.server.impl.flow.ServletInputStreamSubscription;
 import jakarta.servlet.http.HttpServletRequest;
 
 import java.io.IOException;
+import java.net.http.HttpResponse;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
+import java.util.List;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Flow;
 
@@ -48,12 +50,39 @@ public class ServletBody implements Body {
 
     @Override
     public CompletionStage<String> string() {
-        return ofString(ofNullable(request.getCharacterEncoding()).map(Charset::forName).orElse(UTF_8))
-                .getBody();
+        final var subscriber = ofString(ofNullable(request.getCharacterEncoding()).map(Charset::forName).orElse(UTF_8));
+        doSubscribe(subscriber);
+        return subscriber.getBody();
     }
 
     @Override
     public CompletionStage<byte[]> bytes() {
-        return ofByteArray().getBody();
+        final var subscriber = ofByteArray();
+        doSubscribe(subscriber);
+        return subscriber.getBody();
+    }
+
+    private <T> void doSubscribe(final HttpResponse.BodySubscriber<T> subscriber) {
+        subscribe(new Flow.Subscriber<>() {
+            @Override
+            public void onSubscribe(final Flow.Subscription subscription) {
+                subscriber.onSubscribe(subscription);
+            }
+
+            @Override
+            public void onNext(final ByteBuffer item) {
+                subscriber.onNext(List.of(item));
+            }
+
+            @Override
+            public void onError(final Throwable throwable) {
+                subscriber.onError(throwable);
+            }
+
+            @Override
+            public void onComplete() {
+                subscriber.onComplete();
+            }
+        });
     }
 }
