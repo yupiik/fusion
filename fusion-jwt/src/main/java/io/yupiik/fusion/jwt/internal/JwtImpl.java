@@ -60,10 +60,17 @@ public class JwtImpl implements Jwt {
     public <T> Optional<T> claim(final String name, final Type type) {
         return ofNullable(payloadData.get(name))
                 .map(value -> {
-                    if (type instanceof Class<?> c && c.isInstance(value)) {
-                        return (T) value;
+                    if (type instanceof Class<?> c) {
+                        if (c.isInstance(value)) {
+                            return (T) value;
+                        }
+                        throw new IllegalArgumentException(value.getClass() + " does not match " + type);
                     }
-                    throw new IllegalArgumentException(value.getClass() + " does not match " + type);
+                    try { // mainly lists, avoids a costly type check
+                        return (T) value;
+                    } catch (final ClassCastException ce) {
+                        throw new IllegalArgumentException(value.getClass() + " does not match " + type);
+                    }
                 });
     }
 }
