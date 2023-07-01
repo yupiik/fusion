@@ -67,9 +67,9 @@ public class ConfiguringContainerImpl implements ConfiguringContainer {
         // beans
         beans.doRegister(filter(
                 Stream.concat(
+                        defaultBeans(runtimeContainer),
                         modules.stream()
-                                .flatMap(FusionModule::beans),
-                        defaultBeans(runtimeContainer)),
+                                .flatMap(FusionModule::beans)),
                 modules.stream().map(FusionModule::beanFilter),
                 runtimeContainer)
                 .toArray(FusionBean<?>[]::new));

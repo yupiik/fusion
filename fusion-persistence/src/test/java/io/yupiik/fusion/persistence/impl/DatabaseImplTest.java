@@ -17,6 +17,7 @@ package io.yupiik.fusion.persistence.impl;
 
 import io.yupiik.fusion.persistence.api.Database;
 import io.yupiik.fusion.persistence.api.StatementBinder;
+import io.yupiik.fusion.persistence.impl.datasource.SimpleTransactionManager;
 import io.yupiik.fusion.persistence.impl.entity.AutoIncrementEntity;
 import io.yupiik.fusion.persistence.impl.entity.AutoIncrementEntityModel;
 import io.yupiik.fusion.persistence.impl.entity.SimpleFlatEntity;
@@ -38,6 +39,7 @@ import static java.util.Objects.requireNonNull;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 class DatabaseImplTest {
     @Test
@@ -106,6 +108,26 @@ class DatabaseImplTest {
 
         assertEquals(3, database.execute("delete from SIMPLE_FLAT_ENTITY where name like ?", b -> b.bind("test%")));
         assertEquals(0, database.query(SimpleFlatEntity.class, "select name, id, SIMPLE_AGE from SIMPLE_FLAT_ENTITY order by name", StatementBinder.NONE).size());
+    }
+
+    @Test
+    @EnableH2
+    void executeContextLess(final DataSource dataSource) throws SQLException {
+        final var database = init(dataSource);
+
+        for (int i = 0; i < 3; i++) { // seed data context less
+            final var instance = new SimpleFlatEntity(null, "test_" + i, 0);
+            new SimpleTransactionManager(task -> { // simplified version
+                try (final var connection = dataSource.getConnection()) {
+                    return task.apply(connection);
+                } catch (final SQLException ex) {
+                    return fail(ex);
+                }
+            }).write(c -> database.insert(c, instance));
+        }
+
+        final var all = database.query(SimpleFlatEntity.class, "select name, id, SIMPLE_AGE from SIMPLE_FLAT_ENTITY order by name", StatementBinder.NONE);
+        assertEquals(3, all.size());
     }
 
     @Test
@@ -271,7 +293,7 @@ class DatabaseImplTest {
         database.delete(instance);
     }
 
-    private Database init(final DataSource dataSource) throws SQLException {
+    private DatabaseImpl init(final DataSource dataSource) throws SQLException {
         final var configuration = new DatabaseConfiguration();
         configuration
                 .setDataSource(dataSource)
@@ -279,7 +301,7 @@ class DatabaseImplTest {
                         new SimpleFlatEntityModel(configuration) :
                         (k == AutoIncrementEntity.class ? new AutoIncrementEntityModel(configuration) :
                                 requireNonNull(null, () -> "No entity '" + k + "'")));
-        final var database = Database.of(configuration);
+        final var database = (DatabaseImpl) Database.of(configuration);
 
         // ddl
         try (final var connection = dataSource.getConnection();

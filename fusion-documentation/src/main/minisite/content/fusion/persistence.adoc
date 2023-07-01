@@ -2,6 +2,8 @@
 
 The Fusion Persistence module provides capabilities to deal with common database operations.
 
+TIP: even if the default `Database` is the more tempting thanks its simplicity, we encourage you to go with the `ContextLessDatabase` instead which has a way better design, in particular on recent JVM.
+
 == Project definition
 
 First you need to add the *fusion-persistence* module in your `pom.xml` dependencies section:
@@ -78,11 +80,12 @@ public record CustomerEntity(
 
 <.> Activate the record as an entity and setting the name enables to force the table name, if not set it is the simple class name which is used.
 <.> Indicate the primary key of the entity.
-*autoIncremented*: It is recommended to use a UUID or equivalent as identifier but when mapping an existing database you can
-need to synchronize and use java.sql.Statement.getGeneratedKeys to map the keys. For these cases, set this toggle to true. If your model is a POJO
-the value is directly set but if it is a record the value will be copied at insert time.
+*autoIncremented*: It is recommended to use a UUID or equivalent as identifier but when mapping an existing database you can need to synchronize and use java.sql.Statement.getGeneratedKeys to map the keys.
+For these cases, set this toggle to true.
+If your model is a POJO the value is directly set but if it is a record the value will be copied at insert time.
 *order*: When using multiple times this annotation, enables to sort the fields.
-<.> Activate the field as a column table. If the name is not set, the field name is used as column name.
+<.> Activate the field as a column table.
+If the name is not set, the field name is used as column name.
 
 === Operation on entity
 
@@ -154,7 +157,7 @@ public class CustomerDao {
 
     public void updateCustomer(CustomerEntity entity) {
         try {
-            dataSource.update(() -> database.insert(entity));
+            dataSource.write(() -> database.insert(entity));
         } catch (Error error) {
             // error, rollback is managed by datasource, no need to manage it by hand
         }
@@ -162,7 +165,7 @@ public class CustomerDao {
 
     public void deleteCustomer(CustomerEntity entity) {
         try {
-            dataSource.delete(() -> database.insert(entity));
+            dataSource.write(() -> database.insert(entity));
         } catch (Error error) {
             // error, rollback is managed by datasource, no need to manage it by hand
         }
@@ -245,3 +248,49 @@ final var lines = database.query(
 // lines will get both Entity1 and Entity2 instances, then you can just filter them checking there is an id or not for example
 // and join them as needed to create your output model
 ----
+
+=== Get rid of thread local usage
+
+Most of `Database` API relies on an implicit connection given from the `DataSource`.
+All these implementations rely on `ThreadLocal` to handle properly transactions (until you just do CRUD).
+
+To avoid that, we recommend you to use `ContextLessDatabase` instead.
+It is exactly the same API except it takes a `Connection` as parameter replacing the `ThreadLocal`:
+
+[source,java]
+----
+try (final var connection = dataSource.getConnection()) {
+ database.insert(connection, entity);
+}
+----
+
+The big advantage is when used with `read()` or `write()` connection provider wrappers:
+
+[source,java]
+----
+dataSource.write(connection -> {
+ database.insert(connection, entity);
+ aServiceDoingAnInsert(connection);
+});
+----
+
+With this pattern no more need of any `ThreadLocal`.
+You can rely on `TransactionManager` to ease the overall usage.
+
+In terms of configuration, the same than for the thread local case is supported, you just need to set `fusion.persistence.contextLess` to `true` to enable the context less case and inject a plain `DataSource` instead of `TomcatDataSource`:
+
+[source,java]
+----
+@ApplicationScoped
+public class MyPersistingService {
+    private final TransactionManager txMgr;
+    private final ContextLessDatabase db;
+
+    // constructor to get injections
+
+    public void insert(final MyModel model) {
+        txMgr.write(connection -> db.insert(connection, model));
+    }
+}
+----
+

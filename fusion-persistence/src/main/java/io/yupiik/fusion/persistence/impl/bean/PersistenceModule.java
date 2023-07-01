@@ -26,13 +26,15 @@ public class PersistenceModule implements FusionModule {
         final var optionals = optionalBeans();
         return Stream.concat(optionals, Stream.of(
                 new FusionDatabaseConfigurationBean(),
-                new FusionDatabaseBean(),
+                new FusionDatabaseBean(), new FusionContextLessDatabaseBean(),
                 new FusionDatabaseFactoryBean()));
     }
 
     private Stream<FusionBean<?>> optionalBeans() { // only if tomcat-jdbc is in the classpath
         try {
-            return Stream.of(new FusionDataSourceBean());
+            return Stream.of(
+                    new FusionDataSourceBean(),
+                    new FusionTransactionManagerBean() /* no need of txmgr if no datasource is available */);
         } catch (final NoClassDefFoundError | RuntimeException ncdef) {
             return Stream.empty();
         }

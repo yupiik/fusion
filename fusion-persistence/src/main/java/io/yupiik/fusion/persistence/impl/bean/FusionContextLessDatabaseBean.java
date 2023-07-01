@@ -15,17 +15,20 @@
  */
 package io.yupiik.fusion.persistence.impl.bean;
 
-import io.yupiik.fusion.persistence.api.Database;
+import io.yupiik.fusion.persistence.api.ContextLessDatabase;
 import io.yupiik.fusion.persistence.impl.DatabaseConfiguration;
 
-public class FusionDatabaseBean extends FusionBaseDatabaseBean<Database> {
-    public FusionDatabaseBean() {
-        super(Database.class);
+import java.util.concurrent.atomic.AtomicBoolean;
+
+public class FusionContextLessDatabaseBean extends FusionBaseDatabaseBean<ContextLessDatabase> {
+    private final AtomicBoolean closed = new AtomicBoolean();
+
+    public FusionContextLessDatabaseBean() {
+        super(ContextLessDatabase.class);
     }
 
-
     @Override
-    protected Database doCreate(final DatabaseConfiguration configuration) {
-        return Database.of(configuration);
+    protected ContextLessDatabase doCreate(final DatabaseConfiguration configuration) {
+        return ContextLessDatabase.of(configuration);
     }
 }

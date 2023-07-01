@@ -13,19 +13,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package io.yupiik.fusion.persistence.impl.bean;
+package io.yupiik.fusion.persistence.api;
 
-import io.yupiik.fusion.persistence.api.Database;
-import io.yupiik.fusion.persistence.impl.DatabaseConfiguration;
+import java.sql.ResultSet;
+import java.util.List;
 
-public class FusionDatabaseBean extends FusionBaseDatabaseBean<Database> {
-    public FusionDatabaseBean() {
-        super(Database.class);
-    }
+/**
+ * Connection idependent operations (mainly around the mapping and model).
+ */
+public interface BaseDatabase {
+    <T, ID> Entity<T, ID> entity(Class<T> type);
 
+    /**
+     * @param type      entity type.
+     * @param resultSet resultset positionned at the row to map (next() already called).
+     * @param <T>       entity type.
+     * @return the mapped entity.
+     */
+    <T> T mapOne(Class<T> type, ResultSet resultSet);
 
-    @Override
-    protected Database doCreate(final DatabaseConfiguration configuration) {
-        return Database.of(configuration);
-    }
+    <T> List<T> mapAll(Class<T> type, ResultSet resultSet);
 }

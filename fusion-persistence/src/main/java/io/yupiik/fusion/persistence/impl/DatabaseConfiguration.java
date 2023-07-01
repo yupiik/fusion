@@ -24,35 +24,18 @@ import io.yupiik.fusion.persistence.spi.DatabaseTranslation;
 
 import javax.sql.DataSource;
 import java.sql.SQLException;
-import java.util.function.Function;
 
 import static java.util.Locale.ROOT;
 import static java.util.Objects.requireNonNull;
 
-public class DatabaseConfiguration {
-    private Function<Class<?>, Object> instanceLookup;
+public class DatabaseConfiguration extends ContextLessDatabaseConfiguration<DatabaseConfiguration> {
     private DataSource dataSource;
-    private DatabaseTranslation translation;
-
-    public Function<Class<?>, Object> getInstanceLookup() {
-        return instanceLookup;
-    }
-
-    public DatabaseConfiguration setInstanceLookup(final Function<Class<?>, Object> instanceLookup) {
-        this.instanceLookup = instanceLookup;
-        return this;
-    }
 
     public DatabaseTranslation getTranslation() {
         if (translation == null && dataSource != null) {
             translation = guessTranslation();
         }
         return translation;
-    }
-
-    public DatabaseConfiguration setTranslation(final DatabaseTranslation translation) {
-        this.translation = translation;
-        return this;
     }
 
     public DataSource getDataSource() {
@@ -68,6 +51,7 @@ public class DatabaseConfiguration {
      * @return {@code this} instance, mainly used to ensure it can be passed to a
      * {@link io.yupiik.fusion.persistence.api.Database} instance.
      */
+    @Override
     public DatabaseConfiguration validate() {
         requireNonNull(dataSource, "No datasource set");
         return this;

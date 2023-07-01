@@ -13,19 +13,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package io.yupiik.fusion.persistence.impl.bean;
+package io.yupiik.fusion.persistence.impl;
 
-import io.yupiik.fusion.persistence.api.Database;
-import io.yupiik.fusion.persistence.impl.DatabaseConfiguration;
+import java.sql.SQLException;
 
-public class FusionDatabaseBean extends FusionBaseDatabaseBean<Database> {
-    public FusionDatabaseBean() {
-        super(Database.class);
-    }
-
-
-    @Override
-    protected Database doCreate(final DatabaseConfiguration configuration) {
-        return Database.of(configuration);
-    }
+public interface SQLBiFunction<A, B, T> {
+    T apply(A input1, B input2) throws SQLException;
 }

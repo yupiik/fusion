@@ -18,7 +18,6 @@ package io.yupiik.fusion.persistence.api;
 import io.yupiik.fusion.persistence.impl.DatabaseConfiguration;
 import io.yupiik.fusion.persistence.impl.DatabaseImpl;
 
-import java.sql.ResultSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
@@ -33,7 +32,7 @@ import static io.yupiik.fusion.persistence.api.StatementBinder.NONE;
  * IMPORTANT: there is no transaction management there, if you need one, ensure your datasource does
  * or is set up to run in a transactional context (autoCommit setup in particular).
  */
-public interface Database {
+public interface Database extends BaseDatabase {
     <T> T insert(T instance);
 
     <T> T update(T instance);
@@ -85,18 +84,6 @@ public interface Database {
     <T> int[] batchUpdate(Class<T> type, Iterator<T> instances);
 
     <T> int[] batchDelete(Class<T> type, Iterator<T> instances);
-
-    /**
-     * @param type      entity type.
-     * @param resultSet resultset positionned at the row to map (next() already called).
-     * @param <T>       entity type.
-     * @return the mapped entity.
-     */
-    <T> T mapOne(Class<T> type, ResultSet resultSet);
-
-    <T> List<T> mapAll(Class<T> type, ResultSet resultSet);
-
-    <T, ID> Entity<T, ID> entity(Class<T> type);
 
     static Database of(final DatabaseConfiguration configuration) {
         return new DatabaseImpl(configuration);

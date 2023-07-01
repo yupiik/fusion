@@ -15,6 +15,7 @@
  */
 package io.yupiik.fusion.persistence.api;
 
+import io.yupiik.fusion.persistence.impl.ContextLessDatabaseConfiguration;
 import io.yupiik.fusion.persistence.impl.DatabaseConfiguration;
 
 /**
@@ -33,6 +34,11 @@ public interface DatabaseFactory {
      * @return the database.
      */
     CloseableDatabase create(DatabaseConfiguration configuration);
+
+    CloseableContextLessDatabase create(ContextLessDatabaseConfiguration<?> configuration);
+
+    interface CloseableContextLessDatabase extends ContextLessDatabase, AutoCloseable {
+    }
 
     interface CloseableDatabase extends Database, AutoCloseable {
     }
