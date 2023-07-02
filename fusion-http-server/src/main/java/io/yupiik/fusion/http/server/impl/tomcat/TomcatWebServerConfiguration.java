@@ -39,6 +39,16 @@ public class TomcatWebServerConfiguration implements WebServer.Configuration {
     private List<ServletContainerInitializer> initializers = List.of();
     private List<Consumer<Tomcat>> tomcatCustomizers = List.of(Tomcat::getConnector); // force init
     private List<Consumer<StandardContext>> contextCustomizers = List.of();
+    private MonitoringServerConfiguration monitoringServerConfiguration;
+
+    public MonitoringServerConfiguration getMonitoringServerConfiguration() {
+        return monitoringServerConfiguration;
+    }
+
+    public TomcatWebServerConfiguration setMonitoringServerConfiguration(final MonitoringServerConfiguration monitoringServerConfiguration) {
+        this.monitoringServerConfiguration = monitoringServerConfiguration;
+        return this;
+    }
 
     public List<Endpoint> getEndpoints() {
         return endpoints;

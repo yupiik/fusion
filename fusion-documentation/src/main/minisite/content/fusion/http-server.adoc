@@ -54,6 +54,45 @@ However, there are a few system properties/environment variables (uppercased and
 * To set the fusion default servlet mapping: `fusion.http-server.fusionServletMapping=/`. It can be useful if you want to bind it to a subcontext to use standard servlets for other things like serving base directory,
 * To set if UTF-8 is enforced (default) or not over the requests/responses: `fusion.http-server.utf8Setup=true`.
 
+Finally, you can also set by default the deployment of a monitoring server (for health checks or metrics depending your application).
+This is done setting `fusion.http-server.monitoring.enabled` to `true`, optionally `fusion.http-server.monitoring.port` to something else than `8081`.
+The deployed endpoints in this context will be the `MonitoringEndpoint` bean instances.
+
+Here is a sample `MonitoringEndpoint`:
+
+[source,java]
+----
+@DefaultScoped
+public class Health implements MonitoringEndpoint {
+    private final TransactionManager transactionManager;
+
+    public Health(final TransactionManager transactionManager) {
+        this.transactionManager = transactionManager;
+    }
+
+    @Override
+    public boolean matches(final Request request) {
+        return "GET".equalsIgnoreCase(request.method()) && "/metrics".equalsIgnoreCase(request.path());
+    }
+
+    @Override
+    public CompletionStage<Response> unsafeHandle(final Request request) {
+        return transactionManager
+                .read(c -> {
+                    try {
+                        if (!c.isValid(30_000)) {
+                            return Optional.of(fail("Timeout"));
+                        }
+                        return Optional.<CompletionStage<Response>>empty();
+                    } catch (final SQLException e) {
+                        return Optional.of(fail(e.getMessage()));
+                    }
+                })
+                .orElseGet(() -> completedStage(Response.of().body("OK").build()));
+    }
+}
+----
+
 == High level API
 
 The first option to define an endpoint as a bean - automatically picked - is to use `Endpoint.of` API:

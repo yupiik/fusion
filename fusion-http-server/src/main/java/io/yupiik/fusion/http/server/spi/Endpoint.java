@@ -23,15 +23,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
-public interface Endpoint {
-    default int priority() {
-        return 1000;
-    }
-
-    boolean matches(Request request);
-
-    CompletionStage<Response> handle(Request request);
-
+public interface Endpoint extends BaseEndpoint {
     /**
      * Factory enabling to instantiate an endpoint in a bean producer method easily.
      *

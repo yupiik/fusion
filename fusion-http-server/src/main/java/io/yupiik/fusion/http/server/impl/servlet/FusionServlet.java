@@ -20,7 +20,7 @@ import io.yupiik.fusion.http.server.api.Request;
 import io.yupiik.fusion.http.server.api.Response;
 import io.yupiik.fusion.http.server.impl.flow.WriterPublisher;
 import io.yupiik.fusion.http.server.impl.io.CloseOnceWriter;
-import io.yupiik.fusion.http.server.spi.Endpoint;
+import io.yupiik.fusion.http.server.spi.BaseEndpoint;
 import jakarta.servlet.AsyncContext;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServlet;
@@ -41,9 +41,9 @@ import static java.util.logging.Level.SEVERE;
 public class FusionServlet extends HttpServlet {
     private final Logger logger = Logger.getLogger(getClass().getName());
 
-    private final List<Endpoint> endpoints;
+    private final List<? extends BaseEndpoint> endpoints;
 
-    public FusionServlet(final List<Endpoint> endpoints) {
+    public FusionServlet(final List<? extends BaseEndpoint> endpoints) {
         this.endpoints = endpoints;
     }
 
@@ -73,7 +73,7 @@ public class FusionServlet extends HttpServlet {
     }
 
     protected void execute(final HttpServletResponse resp, final Request request,
-                           final Endpoint matched, final AsyncContext asyncContext) {
+                           final BaseEndpoint matched, final AsyncContext asyncContext) {
         matched.handle(request).whenComplete((response, ex) -> {
             try {
                 if (ex != null) {

@@ -15,20 +15,63 @@
  */
 package io.yupiik.fusion.http.server;
 
-import jakarta.servlet.http.HttpServlet;
+import io.yupiik.fusion.http.server.api.Request;
+import io.yupiik.fusion.http.server.api.Response;
 import io.yupiik.fusion.http.server.api.WebServer;
+import io.yupiik.fusion.http.server.impl.tomcat.MonitoringServerConfiguration;
 import io.yupiik.fusion.http.server.impl.tomcat.TomcatWebServerConfiguration;
+import io.yupiik.fusion.http.server.spi.MonitoringEndpoint;
+import jakarta.servlet.http.HttpServlet;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletionStage;
 
 import static java.lang.Thread.sleep;
+import static java.util.concurrent.CompletableFuture.completedStage;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class WebServerTest {
+    @Test
+    void enableMonitoring() throws IOException, InterruptedException {
+        final var configuration = WebServer.Configuration.of().port(0);
+        final var tomcat = configuration.unwrap(TomcatWebServerConfiguration.class);
+        tomcat.setMonitoringServerConfiguration(new MonitoringServerConfiguration()
+                .setPort(0)
+                .setEndpoints(List.of(new MonitoringEndpoint() {
+                    @Override
+                    public CompletionStage<Response> unsafeHandle(final Request request) {
+                        return completedStage(Response.of().body("monitoring: true").build());
+                    }
+
+                    @Override
+                    public boolean matches(final Request request) {
+                        return "GET".equalsIgnoreCase(request.method()) && "/test".equalsIgnoreCase(request.path());
+                    }
+                })));
+        try (final var server = WebServer.of(configuration)) {
+            final var port = tomcat.getMonitoringServerConfiguration().getPort();
+            assertNotEquals(0, port);
+            assertNotEquals(8081, port);
+
+            final var get = HttpClient.newHttpClient().send(HttpRequest.newBuilder()
+                            .GET()
+                            .uri(URI.create("http://localhost:" + port + "/test"))
+                            .build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, get.statusCode());
+            assertEquals("monitoring: true", get.body());
+        }
+    }
+
     @Test
     void runEmpty() {
         try (final var server = WebServer.of(WebServer.Configuration.of().port(0))) {

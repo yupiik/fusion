@@ -22,8 +22,10 @@ import io.yupiik.fusion.framework.api.container.bean.BaseBean;
 import io.yupiik.fusion.framework.api.event.Emitter;
 import io.yupiik.fusion.framework.api.scope.ApplicationScoped;
 import io.yupiik.fusion.http.server.api.WebServer;
+import io.yupiik.fusion.http.server.impl.tomcat.MonitoringServerConfiguration;
 import io.yupiik.fusion.http.server.impl.tomcat.TomcatWebServerConfiguration;
 import io.yupiik.fusion.http.server.spi.Endpoint;
+import io.yupiik.fusion.http.server.spi.MonitoringEndpoint;
 
 import java.util.List;
 import java.util.Map;
@@ -37,6 +39,7 @@ public class FusionServerConfigurationBean extends BaseBean<WebServer.Configurat
     @Override
     public WebServer.Configuration create(final RuntimeContainer container, final List<Instance<?>> dependents) {
         final var configuration = WebServer.Configuration.of();
+        final var unwrapped = configuration.unwrap(TomcatWebServerConfiguration.class);
         try (final var conf = container.lookup(Configuration.class)) {
             final var confAccessor = conf.instance();
             confAccessor.get("fusion.http-server.port").map(Integer::parseInt).ifPresent(configuration::port);
@@ -45,14 +48,20 @@ public class FusionServerConfigurationBean extends BaseBean<WebServer.Configurat
             confAccessor.get("fusion.http-server.base").ifPresent(configuration::base);
             confAccessor.get("fusion.http-server.fusionServletMapping").ifPresent(configuration::fusionServletMapping);
             confAccessor.get("fusion.http-server.utf8Setup").map(Boolean::parseBoolean).ifPresent(configuration::utf8Setup);
+            confAccessor.get("fusion.http-server.monitoring.enabled").map(Boolean::parseBoolean).filter(i -> i).ifPresent(ignored -> {
+                final var monitoringServerConfiguration = new MonitoringServerConfiguration();
+                confAccessor.get("fusion.http-server.monitoring.port").map(Integer::parseInt).ifPresent(monitoringServerConfiguration::setPort);
+
+                final var endpoints = lookups(container, MonitoringEndpoint.class, l -> l.stream().map(Instance::instance).toList(), dependents);
+                monitoringServerConfiguration.setEndpoints(endpoints);
+                unwrapped.setMonitoringServerConfiguration(monitoringServerConfiguration);
+            });
         }
 
-        configuration
-                .unwrap(TomcatWebServerConfiguration.class)
-                .setEndpoints(lookups(
-                        container, Endpoint.class,
-                        l -> l.stream().map(Instance::instance).toList(),
-                        dependents));
+        unwrapped.setEndpoints(lookups(
+                container, Endpoint.class,
+                l -> l.stream().map(Instance::instance).toList(),
+                dependents));
 
         try (final var instance = container.lookup(Emitter.class)) { // enable a listener to customize the configuration
             instance.instance().emit(configuration);

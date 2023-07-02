@@ -17,13 +17,19 @@ package io.yupiik.fusion.http.server.impl.tomcat;
 
 import io.yupiik.fusion.http.server.api.WebServer;
 import io.yupiik.fusion.http.server.impl.servlet.FusionServlet;
+import io.yupiik.fusion.http.server.spi.MonitoringEndpoint;
 import jakarta.servlet.annotation.HandlesTypes;
+import org.apache.catalina.Host;
 import org.apache.catalina.LifecycleException;
 import org.apache.catalina.LifecycleState;
+import org.apache.catalina.Service;
+import org.apache.catalina.connector.Connector;
 import org.apache.catalina.connector.Request;
 import org.apache.catalina.connector.Response;
 import org.apache.catalina.core.StandardContext;
+import org.apache.catalina.core.StandardEngine;
 import org.apache.catalina.core.StandardHost;
+import org.apache.catalina.core.StandardService;
 import org.apache.catalina.session.StandardManager;
 import org.apache.catalina.startup.Tomcat;
 import org.apache.catalina.util.StandardSessionIdGenerator;
@@ -34,11 +40,14 @@ import org.apache.juli.logging.LogFactory;
 import org.apache.tomcat.util.modeler.Registry;
 
 import java.io.CharArrayWriter;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
+import java.util.function.IntConsumer;
 import java.util.logging.Logger;
+import java.util.stream.Stream;
 
 import static java.util.Optional.ofNullable;
 
@@ -132,9 +141,14 @@ public class TomcatWebServer implements WebServer {
             tomcat.getConnector().setProperty("compression", configuration.getCompression());
         }
 
+        if (configuration.getMonitoringServerConfiguration() != null) {
+            addMonitoring(tomcat);
+        }
+
         if (configuration.getTomcatCustomizers() != null) {
             configuration.getTomcatCustomizers().forEach(c -> c.accept(tomcat));
         }
+
         onTomcat(tomcat);
 
         try {
@@ -154,6 +168,50 @@ public class TomcatWebServer implements WebServer {
             throw new IllegalStateException(e);
         }
         return tomcat;
+    }
+
+    private void addMonitoring(final Tomcat tomcat) {
+        // do not recreate a tomcat tree, reuse the main one, just add a monitoring context and a connector
+        final var tomcatServer = tomcat.getServer();
+
+        final var tmpContextConf = new TomcatWebServerConfiguration();
+        tmpContextConf.setAccessLogPattern(null); // skip access log completely
+
+        final var context = createBaseContext(new TomcatWebServer.NoWorkDirContext(), tmpContextConf);
+        context.setName("monitoring");
+        context.setPath("");
+        context.addServletContainerInitializer((i, c) -> {
+            final var endpoints = configuration.getMonitoringServerConfiguration().getEndpoints() == null ?
+                    List.<MonitoringEndpoint>of() : configuration.getMonitoringServerConfiguration().getEndpoints();
+            final var instance = c.addServlet("fusion-monitoring", new FusionServlet(endpoints));
+            instance.setLoadOnStartup(1);
+            instance.setAsyncSupported(true);
+            instance.addMapping("/");
+        }, Set.of());
+
+        final var host = new StandardHost();
+        host.setAutoDeploy(false);
+        host.setName("localhost");
+        host.addChild(context);
+
+        final var engine = new StandardEngine();
+        engine.setName("Monitoring");
+        engine.setDefaultHost(host.getName());
+        engine.addChild(host);
+
+        final var connector = new CapturingPortConnector(p -> {
+            if (configuration.getMonitoringServerConfiguration().getPort() == 0) {
+                configuration.getMonitoringServerConfiguration().setPort(p);
+            }
+        });
+        connector.setPort(configuration.getMonitoringServerConfiguration().getPort());
+
+        final var service = new StandardService();
+        service.setName("Monitoring");
+        service.addConnector(connector);
+        service.setContainer(engine);
+
+        tomcatServer.addService(service);
     }
 
     protected StandardContext createContext() {
@@ -303,6 +361,22 @@ public class TomcatWebServer implements WebServer {
         @Override
         protected void getRandomBytes(final byte[] bytes) {
             ThreadLocalRandom.current().nextBytes(bytes);
+        }
+    }
+
+    private static class CapturingPortConnector extends Connector {
+        private final IntConsumer onPort;
+
+        private CapturingPortConnector(final IntConsumer onPort) {
+            this.onPort = onPort;
+        }
+
+        @Override
+        protected void startInternal() throws LifecycleException {
+            super.startInternal();
+            if (getProtocolHandler() instanceof AbstractProtocol<?> ap) {
+                onPort.accept(ap.getLocalPort());
+            }
         }
     }
 }
