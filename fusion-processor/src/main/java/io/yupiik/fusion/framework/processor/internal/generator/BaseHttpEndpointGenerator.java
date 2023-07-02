@@ -15,6 +15,7 @@
  */
 package io.yupiik.fusion.framework.processor.internal.generator;
 
+import io.yupiik.fusion.framework.build.api.json.JsonModel;
 import io.yupiik.fusion.framework.processor.internal.Elements;
 import io.yupiik.fusion.framework.processor.internal.ParsedType;
 import io.yupiik.fusion.http.server.api.Request;
@@ -109,14 +110,15 @@ public abstract class BaseHttpEndpointGenerator extends BaseGenerator {
         final var index = new AtomicInteger();
         return method.getParameters().stream()
                 .map(it -> {
-                    final var param = ParsedType.of(it.asType());
+                    final var type = it.asType();
+                    final var param = ParsedType.of(type);
                     if (isRequest(param)) {
                         return createRequestParameter();
                     }
-                    if (isJson(param)) {
+                    if (isJson(param) || type.getAnnotation(JsonModel.class) != null) {
                         return createJsonParam(it, param, index.getAndIncrement());
                     }
-                    throw new IllegalArgumentException("Invalid parameter to " + method.getEnclosingElement() + "." + method + ", only Request is supported");
+                    throw new IllegalArgumentException("Invalid parameter '" + type + " " + it + "', in " + method.getEnclosingElement() + "." + method + ", only Request or JSON models are supported.");
                 })
                 .toList();
     }

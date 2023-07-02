@@ -19,6 +19,7 @@ import io.yupiik.fusion.framework.api.Instance;
 import io.yupiik.fusion.framework.api.RuntimeContainer;
 import io.yupiik.fusion.framework.api.container.FusionBean;
 import io.yupiik.fusion.framework.api.container.bean.BaseBean;
+import io.yupiik.fusion.framework.build.api.json.JsonModel;
 import io.yupiik.fusion.framework.build.api.jsonrpc.JsonRpc;
 import io.yupiik.fusion.framework.build.api.jsonrpc.JsonRpcParam;
 import io.yupiik.fusion.framework.processor.internal.Elements;
@@ -64,7 +65,7 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
     @Override
     public BaseHttpEndpointGenerator.Generation get() {
         final var returnType = ParsedType.of(method.getReturnType());
-        final boolean isReturnTypeJson = isJson(returnType);
+        final boolean isReturnTypeJson = isJson(returnType) || method.getReturnType().getAnnotation(JsonModel.class) != null;
         if (!isReturnTypeJson) {
             throw new IllegalArgumentException("JSON-RPC method must return a JSON instance, invalid type: '" + method.getReturnType() + "'");
         }

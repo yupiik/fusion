@@ -20,6 +20,7 @@ import io.yupiik.fusion.framework.api.RuntimeContainer;
 import io.yupiik.fusion.framework.api.container.FusionBean;
 import io.yupiik.fusion.framework.api.container.bean.BaseBean;
 import io.yupiik.fusion.framework.build.api.http.HttpMatcher;
+import io.yupiik.fusion.framework.build.api.json.JsonModel;
 import io.yupiik.fusion.framework.processor.internal.Elements;
 import io.yupiik.fusion.framework.processor.internal.ParsedType;
 import io.yupiik.fusion.http.server.api.Request;
@@ -60,7 +61,7 @@ public class HttpEndpointGenerator extends BaseHttpEndpointGenerator implements 
         final var enclosingClassName = className.substring(0, className.lastIndexOf('$')).replace('$', '.');
         final var returnType = ParsedType.of(method.getReturnType());
         final var params = prepareParams();
-        final boolean isReturnTypeJson = isJson(returnType);
+        final boolean isReturnTypeJson = isJson(returnType) || method.getReturnType().getAnnotation(JsonModel.class) != null;
 
         return new Generation(
                 new GeneratedClass(packagePrefix + endpointClassName, packageLine +
