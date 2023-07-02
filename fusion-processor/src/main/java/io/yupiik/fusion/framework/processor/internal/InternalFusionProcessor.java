@@ -82,6 +82,9 @@ import java.io.InputStreamReader;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -96,6 +99,7 @@ import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
+import static java.time.Clock.systemUTC;
 import static java.util.Collections.list;
 import static java.util.Comparator.comparing;
 import static java.util.Optional.ofNullable;
@@ -133,7 +137,8 @@ import static javax.tools.StandardLocation.CLASS_OUTPUT;
         "fusion.generateBeanForJsonCodec", // if not false a bean will be generated for the JSON codecs and make them available to JsonMapper
         "fusion.generateConfigurationDocMetadata", // if not false it will generate a JSON metadata for configuration, by default in META-INF/fusion/configuration/documentation.json else in the value set to the option
         "fusion.generateBeanForRootConfiguration", // if false @RootConfiguration will not get an automatic bean
-        "fusion.skipLoadingModules" // if false, modules will not be loaded to find available json codecs
+        "fusion.skipLoadingModules", // if false, modules will not be loaded to find available json codecs
+        "fusion.debug.timeTracking" // debug generation time reporting
 })
 @SupportedAnnotationTypes({
         // CLI
@@ -187,6 +192,8 @@ public class InternalFusionProcessor extends AbstractProcessor {
     private String docsMetadataLocation;
     private String jsonSchemaLocation;
     private String openrpcLocation;
+    private boolean debugTime;
+    private Clock clock;
 
     private Elements elements;
 
@@ -215,6 +222,11 @@ public class InternalFusionProcessor extends AbstractProcessor {
     @Override
     public synchronized void init(final ProcessingEnvironment processingEnv) {
         super.init(processingEnv);
+
+        debugTime = Boolean.parseBoolean(processingEnv.getOptions().getOrDefault("fusion.debug.timeTracking", "false"));
+        clock = debugTime ? systemUTC() : null;
+
+        final var start = debugStart();
 
         elements = new Elements(processingEnv);
         init = asTypeElement(Init.class).asType();
@@ -266,20 +278,27 @@ public class InternalFusionProcessor extends AbstractProcessor {
         if (openrpcLocation != null) {
             partialOpenRPC = new PartialOpenRPC(new TreeMap<>(String.CASE_INSENSITIVE_ORDER), new TreeMap<>(String.CASE_INSENSITIVE_ORDER));
         }
+        debugEnd("init", processingEnv, start);
     }
 
     @Override
     public boolean process(final Set<? extends TypeElement> annotations, final RoundEnvironment roundEnv) {
         if (roundEnv.processingOver()) {
+            final var start = debugStart();
             generateMetadata();
+            debugEnd("generateMeta", processingEnv, start);
         } else {
+            final var start = debugStart();
             doProcess(roundEnv);
+            debugEnd("doProcess", processingEnv, start);
             generateImplicitModuleIfNeeded();
         }
         return false;
     }
 
     private void doProcess(final RoundEnvironment roundEnv) {
+        final var start = debugStart();
+
         // find CLI commands
         final var cliCommands = roundEnv.getElementsAnnotatedWith(Command.class).stream()
                 .filter(it -> (it.getKind() == CLASS || it.getKind() == RECORD) && it instanceof TypeElement)
@@ -336,18 +355,44 @@ public class InternalFusionProcessor extends AbstractProcessor {
                 .filter(it -> !beans.containsKey(it))
                 .collect(toMap(identity(), i -> new ArrayList<>( /* see handleSuperClassesInjections() */))));
 
+        debugEnd("gatherClasses", processingEnv, start);
+
         // handle inheritance - parent injections
         // NOTE: requires for now that parent is built in the same cycle, if not we should resolve it at runtime using FusionBean#inject
         beans.forEach((bean, injections) -> handleSuperClassesInjections(beans, bean, injections));
 
+        final var startGenerate = debugStart();
+
         // generate beans, listeners, ...
+        final var startConf = debugStart();
         configurations.forEach(this::generateConfigurationFactory);
+        debugEnd("  generateConf", processingEnv, startConf);
+
+        final var startJsonModel = debugStart();
         jsonModels.forEach(this::generateJsonCodec);
+        debugEnd("  generateJsonModel", processingEnv, startJsonModel);
+
+        final var startCli = debugStart();
         cliCommands.forEach(this::generateCliCommand);
+        debugEnd("  generateCli", processingEnv, startCli);
+
+        final var startHttp = debugStart();
         httpEndpoints.forEach(this::generateHttpEndpoint);
+        debugEnd("  generateHttp", processingEnv, startHttp);
+
+        final var startJsonRpc = debugStart();
         jsonRpcEndpoints.forEach(this::generateJsonRpcEndpoint); // after json models to get schemas
+        debugEnd("  generateJsonRpc", processingEnv, startJsonRpc);
+
+        final var startEntity = debugStart();
         persistenceEntities.forEach(this::generatePersistenceEntity);
+        debugEnd("  generateEntity", processingEnv, startEntity);
+
+        final var startBean = debugStart();
         beans.forEach(this::generateBean);
+        debugEnd("  generateBean", processingEnv, startBean);
+
+        final var startProducer = debugStart();
         explicitBeans.stream()
                 .filter(it -> it.getKind() == METHOD)
                 .map(ExecutableElement.class::cast)
@@ -357,9 +402,15 @@ public class InternalFusionProcessor extends AbstractProcessor {
                     }
                 })
                 .forEach(this::generateProducerBean);
+        debugEnd("  generateProducerBean", processingEnv, startProducer);
+
+        final var startListener = debugStart();
         listeners.stream()
                 .map(it -> (ExecutableElement) it.getEnclosingElement())
                 .forEach(this::generateListener);
+        debugEnd("  generateListener", processingEnv, startListener);
+
+        debugEnd("generate", processingEnv, startGenerate);
     }
 
     private Stream<? extends FusionModule> findAvailableModules() {
@@ -928,6 +979,17 @@ public class InternalFusionProcessor extends AbstractProcessor {
             current = newCurrent.toString();
         }
         return (current != null && !current.isBlank() ? current : "fusion") + '.' + "FusionGeneratedModule";
+    }
+
+    private Instant debugStart() {
+        return debugTime ? clock.instant() : null;
+    }
+
+    private void debugEnd(final String type, final ProcessingEnvironment processingEnv, final Instant start) {
+        if (debugTime) {
+            final var end = clock.instant();
+            processingEnv.getMessager().printMessage(NOTE, type + ": " + Duration.between(start, end).toMillis() + "ms");
+        }
     }
 
     private record ParsedName(String packageName, String className) {
