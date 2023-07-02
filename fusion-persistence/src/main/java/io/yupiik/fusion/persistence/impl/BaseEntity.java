@@ -80,7 +80,7 @@ public abstract class BaseEntity<A, B> implements Entity<A, B> {
                 "DELETE FROM " + table + byIdWhereClause(configuration, columns),
                 "INSERT INTO " + table + " (" + fieldsCommaSeparated(configuration, columns, autoIncremented) + ") " +
                         "VALUES (" + columns.stream()
-                        .filter(it -> it.idIndex() < 0)
+                        .filter(it -> it.idIndex() <= 0)
                         .map(f -> "?")
                         .collect(joining(", ")) + ")",
                 "SELECT " + fieldsCommaSeparated(configuration, columns, false) + " FROM " + table,
