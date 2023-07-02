@@ -51,9 +51,15 @@ public class ModuleGenerator extends BaseGenerator implements Supplier<BaseGener
             out.append("package ").append(packageName).append(";\n");
             out.append("\n");
         }
-        out.append("import ").append(Stream.class.getName()).append(";\n");
-        out.append("import ").append(FusionBean.class.getName()).append(";\n");
-        out.append("import ").append(FusionListener.class.getName()).append(";\n");
+        if (!allBeans.isEmpty() || !allListeners.isEmpty()) {
+            out.append("import ").append(Stream.class.getName()).append(";\n");
+        }
+        if (!allBeans.isEmpty()) {
+            out.append("import ").append(FusionBean.class.getName()).append(";\n");
+        }
+        if (!allListeners.isEmpty()) {
+            out.append("import ").append(FusionListener.class.getName()).append(";\n");
+        }
         out.append("import ").append(FusionModule.class.getName()).append(";\n");
         out.append("\n");
         out.append("public class ").append(className).append(" implements ").append(FusionModule.class.getSimpleName()).append(" {\n");

@@ -174,7 +174,6 @@ class FusionProcessorTest {
                                         
                         import java.util.stream.Stream;
                         import io.yupiik.fusion.framework.api.container.FusionBean;
-                        import io.yupiik.fusion.framework.api.container.FusionListener;
                         import io.yupiik.fusion.framework.api.container.FusionModule;
                                         
                         public class FusionGeneratedModule implements FusionModule {
