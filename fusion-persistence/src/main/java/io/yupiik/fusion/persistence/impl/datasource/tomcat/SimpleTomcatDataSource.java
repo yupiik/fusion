@@ -56,7 +56,7 @@ public class SimpleTomcatDataSource extends TomcatDataSource {
             return txMgr.executeWithoutAutoCommit(connection, function);
         } catch (final SQLException ex) {
             try {
-                if (conRef != null && !conRef.isClosed()) {
+                if (conRef != null && !conRef.isClosed()  && !conRef.getAutoCommit()) {
                     conRef.rollback();
                 }
             } catch (final SQLException e) {

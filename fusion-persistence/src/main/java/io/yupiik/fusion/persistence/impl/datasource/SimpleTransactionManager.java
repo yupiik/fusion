@@ -27,13 +27,17 @@ import java.util.function.Function;
 // important: this class does not depend on DataSource, connection can be obtained from any source
 public class SimpleTransactionManager implements TransactionManager {
     private final BiFunction<SQLBiFunction<Connection, SQLFunction<Connection, ?>, ?>, SQLFunction<Connection, ?>, ?> withConnection;
+    private final boolean forceReadOnly;
 
-    public SimpleTransactionManager(final BiFunction<SQLBiFunction<Connection, SQLFunction<Connection, ?>, ?>, SQLFunction<Connection, ?>, ?> withConnection) {
+    public SimpleTransactionManager(final BiFunction<SQLBiFunction<Connection, SQLFunction<Connection, ?>, ?>, SQLFunction<Connection, ?>, ?> withConnection,
+                                    final boolean forceReadOnly) {
         this.withConnection = withConnection;
+        this.forceReadOnly = forceReadOnly;
     }
 
-    public SimpleTransactionManager(final Function<SQLFunction<Connection, ?>, ?> withConnection) {
-        this((ctx, fn) -> withConnection.apply(c -> ctx.apply(c, fn)));
+    public SimpleTransactionManager(final Function<SQLFunction<Connection, ?>, ?> withConnection,
+                                    final boolean forceReadOnly) {
+        this((ctx, fn) -> withConnection.apply(c -> ctx.apply(c, fn)), forceReadOnly);
     }
 
     @Override
@@ -66,10 +70,10 @@ public class SimpleTransactionManager implements TransactionManager {
     @Override
     @SuppressWarnings("unchecked")
     public <T> T read(final Function<Connection, T> function) {
-        return (T) withConnection.apply(this::executeWithoutAutoCommit, connection -> {
+        return (T) withConnection.apply((c, f) -> f.apply(c), connection -> {
             final boolean readOnly = onRead(connection);
             try {
-                return function.apply(connection);
+                return executeWithoutAutoCommit(connection, function::apply);
             } finally {
                 afterRead(connection, readOnly);
             }
@@ -79,10 +83,10 @@ public class SimpleTransactionManager implements TransactionManager {
     @Override
     @SuppressWarnings("unchecked")
     public <T> T readSQL(final SQLFunction<Connection, T> function) {
-        return (T) withConnection.apply(this::executeWithoutAutoCommit, connection -> {
+        return (T) withConnection.apply((c, f) -> f.apply(c), connection -> {
             final boolean readOnly = onRead(connection);
             try {
-                return function.apply(connection);
+                return executeWithoutAutoCommit(connection, function);
             } finally {
                 afterRead(connection, readOnly);
             }
@@ -104,16 +108,40 @@ public class SimpleTransactionManager implements TransactionManager {
     }
 
     private boolean onRead(final Connection connection) throws SQLException {
+        if (!forceReadOnly) {
+            return true;
+        }
+
         final var readOnly = connection.isReadOnly();
-        connection.setReadOnly(true);
+        final var autoCommit = connection.getAutoCommit();
+        if (!autoCommit) {
+            connection.setAutoCommit(true);
+        }
+        try {
+            connection.setReadOnly(true);
+        } finally {
+            if (!autoCommit) {
+                connection.setAutoCommit(false);
+            }
+        }
         return readOnly;
     }
 
     private void afterRead(final Connection connection, final boolean readOnly) throws SQLException {
         if (!readOnly) {
-            connection.setReadOnly(false);
+            final var autoCommit = connection.getAutoCommit();
+            if (!autoCommit) {
+                connection.setAutoCommit(true);
+            }
+            try {
+                connection.setReadOnly(false);
+            } finally {
+                if (!autoCommit) {
+                    connection.setAutoCommit(false);
+                }
+            }
         }
-        if (!connection.isClosed()) {
+        if (!connection.isClosed() && !connection.getAutoCommit()) {
             connection.rollback();
         }
     }

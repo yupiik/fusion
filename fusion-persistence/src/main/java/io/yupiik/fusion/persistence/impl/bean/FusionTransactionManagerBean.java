@@ -17,6 +17,7 @@ package io.yupiik.fusion.persistence.impl.bean;
 
 import io.yupiik.fusion.framework.api.Instance;
 import io.yupiik.fusion.framework.api.RuntimeContainer;
+import io.yupiik.fusion.framework.api.configuration.Configuration;
 import io.yupiik.fusion.framework.api.container.bean.BaseBean;
 import io.yupiik.fusion.framework.api.scope.ApplicationScoped;
 import io.yupiik.fusion.persistence.api.TransactionManager;
@@ -36,21 +37,23 @@ public class FusionTransactionManagerBean extends BaseBean<TransactionManager> {
     @Override
     public TransactionManager create(final RuntimeContainer container, final List<Instance<?>> dependents) {
         final var dataSource = lookup(container, DataSource.class, dependents);
-        return new SimpleTransactionManager(task -> {
-            Connection conRef = null;
-            try (final var connection = dataSource.getConnection()) {
-                conRef = connection;
-                return task.apply(connection);
-            } catch (final SQLException ex) {
-                try {
-                    if (conRef != null && !conRef.isClosed()) {
-                        conRef.rollback();
+        try (final var conf = container.lookup(Configuration.class)) {
+            return new SimpleTransactionManager(task -> {
+                Connection conRef = null;
+                try (final var connection = dataSource.getConnection()) {
+                    conRef = connection;
+                    return task.apply(connection);
+                } catch (final SQLException ex) {
+                    try {
+                        if (conRef != null && !conRef.isClosed() && !conRef.getAutoCommit()) {
+                            conRef.rollback();
+                        }
+                    } catch (final SQLException e) {
+                        // no-op
                     }
-                } catch (final SQLException e) {
-                    // no-op
+                    throw new IllegalStateException(ex);
                 }
-                throw new IllegalStateException(ex);
-            }
-        });
+            }, conf.instance().get("fusion.persistence.datasource.forceReadOnly").map(Boolean::parseBoolean).orElse(false));
+        }
     }
 }

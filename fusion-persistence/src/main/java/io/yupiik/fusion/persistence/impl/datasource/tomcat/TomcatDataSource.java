@@ -33,16 +33,28 @@ public abstract class TomcatDataSource extends DataSource implements AutoCloseab
     protected final SimpleTransactionManager txMgr;
 
     public TomcatDataSource(final Configuration configuration) {
-        this(toProperties(configuration));
+        this(
+                toProperties(configuration),
+                configuration.get("fusion.persistence.datasource.forceReadOnly")
+                        .map(Boolean::parseBoolean)
+                        .orElse(false));
     }
 
     public TomcatDataSource(final TomcatDatabaseConfiguration configuration) {
-        this(toProperties(configuration));
+        this(configuration, false);
+    }
+
+    public TomcatDataSource(final TomcatDatabaseConfiguration configuration, final boolean forceReadOnly) {
+        this(toProperties(configuration), forceReadOnly);
     }
 
     public TomcatDataSource(final PoolConfiguration properties) {
+        this(properties, false);
+    }
+
+    public TomcatDataSource(final PoolConfiguration properties, final boolean forceReadOnly) {
         super(properties);
-        this.txMgr = new SimpleTransactionManager((context, task) -> withConnection(task));
+        this.txMgr = new SimpleTransactionManager((context, task) -> withConnection(task), forceReadOnly);
     }
 
     // for proxy when produced by CDI

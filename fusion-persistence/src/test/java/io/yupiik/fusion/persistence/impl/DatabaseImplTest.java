@@ -123,7 +123,7 @@ class DatabaseImplTest {
                 } catch (final SQLException ex) {
                     return fail(ex);
                 }
-            }).write(c -> database.insert(c, instance));
+            }, true).write(c -> database.insert(c, instance));
         }
 
         final var all = database.query(SimpleFlatEntity.class, "select name, id, SIMPLE_AGE from SIMPLE_FLAT_ENTITY order by name", StatementBinder.NONE);
