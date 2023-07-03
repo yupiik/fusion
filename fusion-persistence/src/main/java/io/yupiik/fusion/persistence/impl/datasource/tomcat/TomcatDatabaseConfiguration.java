@@ -32,5 +32,17 @@ public record TomcatDatabaseConfiguration(
         boolean removeAbandoned,
         Boolean defaultAutoCommit,
         Boolean logAbandoned,
-        int removeAbandonedTimeout) {
+        int removeAbandonedTimeout,
+        boolean rollbackOnReturn) {
+    public TomcatDatabaseConfiguration(final String driver, final String url, final String username, final String password,
+                                       final boolean testOnBorrow, final boolean testOnReturn, final boolean testWhileIdle,
+                                       final int timeBetweenEvictionRuns, final int minEvictableIdleTime,
+                                       final String validationQuery, final int validationQueryTimeout, final int minIdle,
+                                       final int maxActive, final boolean removeAbandoned, final Boolean defaultAutoCommit,
+                                       final Boolean logAbandoned, final int removeAbandonedTimeout) {
+        this(
+                driver, url, username, password, testOnBorrow, testOnReturn,
+                testWhileIdle, timeBetweenEvictionRuns, minEvictableIdleTime, validationQuery, validationQueryTimeout,
+                minIdle, maxActive, removeAbandoned, defaultAutoCommit, logAbandoned, removeAbandonedTimeout, false);
+    }
 }

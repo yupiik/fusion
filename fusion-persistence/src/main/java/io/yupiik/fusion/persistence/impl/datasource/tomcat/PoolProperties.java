@@ -45,7 +45,8 @@ public final class PoolProperties {
                 conf.get("fusion.persistence.datasource.removeAbandoned").map(Boolean::parseBoolean).orElse(false),
                 conf.get("fusion.persistence.datasource.defaultAutoCommit").map(Boolean::parseBoolean).orElse(null),
                 conf.get("fusion.persistence.datasource.logAbandoned").map(Boolean::parseBoolean).orElse(false),
-                conf.get("fusion.persistence.datasource.removeAbandonedTimeout").map(Integer::parseInt).orElse(60)));
+                conf.get("fusion.persistence.datasource.removeAbandonedTimeout").map(Integer::parseInt).orElse(60),
+                conf.get("fusion.persistence.datasource.rollbackOnReturn").map(Boolean::parseBoolean).orElse(false)));
     }
 
     public static PoolConfiguration toProperties(final TomcatDatabaseConfiguration db) {
@@ -68,6 +69,7 @@ public final class PoolProperties {
         properties.setRemoveAbandoned(db.removeAbandoned());
         properties.setRemoveAbandonedTimeout(db.removeAbandonedTimeout());
         properties.setLogAbandoned(db.logAbandoned());
+        properties.setRollbackOnReturn(db.rollbackOnReturn());
         return properties;
     }
 }

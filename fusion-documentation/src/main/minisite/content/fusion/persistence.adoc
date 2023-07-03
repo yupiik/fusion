@@ -59,6 +59,7 @@ Here are the available keys:
 ** `fusion.persistence.datasource.username`
 ** `fusion.persistence.datasource.validationQuery`
 ** `fusion.persistence.datasource.validationQueryTimeout`
+** `fusion.persistence.datasource.rollbackOnReturn`
 
 IMPORTANT: this (implicit) datasource requires to define its bounds/transactions calling `read` or `write` wrapper, you can inject `TomcatDataSource` to have these methods.
 
