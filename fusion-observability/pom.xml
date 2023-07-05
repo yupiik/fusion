@@ -62,7 +62,7 @@
         <configuration>
           <systemPropertyVariables>
             <fusion.http-server.port>0</fusion.http-server.port>
-            <fusion.observability.port>0</fusion.observability.port>
+            <fusion.observability.server.port>0</fusion.observability.server.port>
           </systemPropertyVariables>
         </configuration>
       </plugin>
