@@ -82,6 +82,13 @@ public class FusionServlet extends HttpServlet {
                     } else {
                         writeResponse(resp, response);
                     }
+                } catch (final RuntimeException re) {
+                    if (!resp.isCommitted()) {
+                        onError(resp, re);
+                    } else {
+                        logger.log(SEVERE, re, re::getMessage);
+                    }
+                    throw re;
                 } finally {
                     asyncContext.complete();
                 }
