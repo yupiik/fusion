@@ -74,22 +74,34 @@ public class FusionServlet extends HttpServlet {
 
     protected void execute(final HttpServletResponse resp, final Request request,
                            final BaseEndpoint matched, final AsyncContext asyncContext) {
-        matched.handle(request).whenComplete((response, ex) -> {
-            try {
-                if (ex != null) {
-                    logger.log(SEVERE, ex, ex::getMessage);
-                    if (unwrap(ex) instanceof HttpException he) {
-                        writeResponse(resp, he.getResponse());
+        try {
+            matched.handle(request).whenComplete((response, ex) -> {
+                try {
+                    if (ex != null) {
+                        onError(resp, ex);
                     } else {
-                        resp.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                        writeResponse(resp, response);
                     }
-                } else {
-                    writeResponse(resp, response);
+                } finally {
+                    asyncContext.complete();
                 }
+            });
+        } catch (final RuntimeException re) {
+            try {
+                onError(resp, re);
             } finally {
                 asyncContext.complete();
             }
-        });
+        }
+    }
+
+    private void onError(final HttpServletResponse resp, final Throwable ex) {
+        logger.log(SEVERE, ex, ex::getMessage);
+        if (unwrap(ex) instanceof HttpException he) {
+            writeResponse(resp, he.getResponse());
+        } else {
+            resp.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        }
     }
 
     private Throwable unwrap(final Throwable ex) {
