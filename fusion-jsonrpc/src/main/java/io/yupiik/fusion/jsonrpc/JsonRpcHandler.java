@@ -189,8 +189,7 @@ public class JsonRpcHandler {
             if (emitter != null) {
                 return onBefore(new BeforeRequest(maps.stream().map(Tuple2::first).filter(Objects::nonNull).toList(), httpRequest, new ArrayList<>()))
                         .thenCompose(ok -> ok
-                                .map(List::toArray)
-                                .map(CompletableFuture::completedStage)
+                                .map(CompletableFuture::completedFuture)
                                 .orElseGet(() -> handleRequests(maps, httpRequest)));
             }
             return handleRequests(maps, httpRequest);
@@ -198,8 +197,8 @@ public class JsonRpcHandler {
         return completedFuture(createResponse(null, -32600, "Unknown request type: " + request.getClass()));
     }
 
-    protected CompletableFuture<Object[]> handleRequests(final List<Tuple2<Map<String, Object>, Object>> requests,
-                                                         final Request httpRequest) {
+    protected CompletableFuture<List<Response>> handleRequests(final List<Tuple2<Map<String, Object>, Object>> requests,
+                                                               final Request httpRequest) {
         final CompletableFuture<?>[] futures = requests.stream()
                 .map(it -> it.first() != null ?
                         handleRequest(it.first(), httpRequest) :
@@ -209,8 +208,8 @@ public class JsonRpcHandler {
         return CompletableFuture
                 .allOf(futures)
                 .thenApply(ignored -> Stream.of(futures)
-                        .map(f -> f.getNow(null))
-                        .toArray(Object[]::new));
+                        .map(f -> (Response) f.getNow(null))
+                        .toList());
     }
 
     protected CompletionStage<Optional<List<Response>>> onBefore(final BeforeRequest event) {
