@@ -17,14 +17,18 @@ package io.yupiik.fusion.framework.processor.internal;
 
 import io.yupiik.fusion.framework.api.container.Types;
 
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 import java.util.List;
 
+import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.joining;
+import static javax.lang.model.element.ElementKind.ENUM_CONSTANT;
 
-public record ParsedType(Type type, String className, String raw, List<String> args) {
+public record ParsedType(Type type, String className, String raw, List<String> args, List<String> enumValues) {
     public static ParsedType of(final TypeMirror type) {
         if (type instanceof DeclaredType dt && !dt.getTypeArguments().isEmpty()) {
             final var element = dt.asElement();
@@ -33,9 +37,14 @@ public record ParsedType(Type type, String className, String raw, List<String> a
                     element instanceof TypeElement te ? te.getQualifiedName().toString() : element.toString(),
                     dt.getTypeArguments().stream()
                             .map(TypeMirror::toString) // simplistic for now
-                            .toList());
+                            .toList(),
+                    element.getKind() == ElementKind.ENUM ? findEnumValues(element) : null);
         }
-        return new ParsedType(Type.CLASS, type.toString(), null, null);
+        return new ParsedType(Type.CLASS, type.toString(), null, null,
+                type instanceof DeclaredType dt ? ofNullable(dt.asElement())
+                        .filter(it -> it.getKind() == ElementKind.ENUM)
+                        .map(ParsedType::findEnumValues)
+                        .orElse(null) : null);
     }
 
     public String simpleName(final String value) {
@@ -56,6 +65,13 @@ public record ParsedType(Type type, String className, String raw, List<String> a
             throw new IllegalStateException("only PARAMETERIZED_TYPE can call createParameterizedTypeCast()");
         }
         return "(" + raw() + '<' + String.join(", ", args()) + ">) ";
+    }
+
+    private static List<String> findEnumValues(final Element element) {
+        return element.getEnclosedElements().stream()
+                .filter(e -> e.getKind() == ENUM_CONSTANT)
+                .map(it -> it.getSimpleName().toString())
+                .toList();
     }
 
     public enum Type {

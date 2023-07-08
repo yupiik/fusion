@@ -193,6 +193,13 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
                             new JsonSchema(null, null, "integer", !"long".equals(type.className()), "int64", null, null, null, null);
                     case "java.lang.String" -> new JsonSchema(null, null, "string", true, null, null, null, null, null);
                     default -> {
+                        if (type.enumValues() != null) {
+                            yield new JsonSchema(
+                                    null, null,
+                                    "string",
+                                    null, null, null, null, null, null, null, null,
+                                    type.enumValues());
+                        }
                         final var schema = openRPC.schemas().computeIfAbsent(
                                 type.className().replace('$', '.'),
                                 k -> generateFullJsonSchema(type.className()));

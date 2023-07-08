@@ -16,6 +16,7 @@
 package io.yupiik.fusion.framework.processor.internal.meta;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Stream;
@@ -30,14 +31,15 @@ public record JsonSchema(
         Object additionalProperties,
         Map<String, JsonSchema> properties,
         JsonSchema items,
-        String title, String description) implements GenericObjectJsonSerializationLike {
+        String title, String description,
+        List<String> enumeration) implements GenericObjectJsonSerializationLike {
     public JsonSchema(final String ref, final String id,
                       final String type, final Boolean nullable,
                       final String format, final String pattern,
                       final Object additionalProperties,
                       final Map<String, JsonSchema> properties,
                       final JsonSchema items) { // backward compat
-        this(ref, id, type, nullable, format, pattern, additionalProperties, properties, items, null, null);
+        this(ref, id, type, nullable, format, pattern, additionalProperties, properties, items, null, null, null);
     }
 
     @Override
@@ -53,6 +55,7 @@ public record JsonSchema(
                         additionalProperties == null ? null : entry("additionalProperties", additionalProperties),
                         nullable == null ? null : entry("nullable", nullable),
                         items == null ? null : entry("items", items.asMap()),
+                        enumeration == null ? null : entry("enum", enumeration()),
                         properties == null ? null : entry("properties", properties.entrySet().stream()
                                 .sorted(Map.Entry.comparingByKey())
                                 .collect(toMap(Map.Entry::getKey, e -> e.getValue().asMap(), (a, b) -> a, LinkedHashMap::new))))

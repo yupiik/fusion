@@ -160,7 +160,7 @@ public abstract class BaseHttpEndpointGenerator extends BaseGenerator {
                     Boolean.class.getName().equals(param.className()) ||
                     Object.class.getName().equals(param.className());
             case PARAMETERIZED_TYPE -> // todo: test raw = collection or list or set or map or optional?
-                    isJson(new ParsedType(ParsedType.Type.CLASS, param.args().get(param.args().size() - 1), null, null));
+                    isJson(new ParsedType(ParsedType.Type.CLASS, param.args().get(param.args().size() - 1), null, null, null));
         };
     }
 

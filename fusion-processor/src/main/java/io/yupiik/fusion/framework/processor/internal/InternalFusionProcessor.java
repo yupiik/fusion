@@ -340,7 +340,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
 
         // add jsonModels to known ones to ensure we can use incremental compilation (resolution/validation as json model works)
         knownJsonModels.addAll(jsonModels.stream()
-                .filter(it -> it.getKind() == RECORD)
+                .filter(it -> it.getKind() == RECORD || it.getKind() == ENUM)
                 .map(it -> ((TypeElement) it).getQualifiedName().toString())
                 .toList());
 
