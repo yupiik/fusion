@@ -66,6 +66,14 @@ class JsonMapperTest {
     });
 
     @Test
+    void generic() {
+        try (final var mapper = new JsonMapperImpl(List.of(), key -> Optional.empty())) {
+            assertEquals(Map.of("name", "ok"), mapper.fromString(Object.class, "{\"name\": \"ok\"}"));
+            assertEquals(Map.of("name", "ok"), mapper.fromString(Map.class, "{\"name\": \"ok\"}"));
+        }
+    }
+
+    @Test
     void prettyMapper() {
         try (final var mapper = new PrettyJsonMapper(new JsonMapperImpl(jsonCodecs, key -> Optional.empty()))) {
             assertEquals("""

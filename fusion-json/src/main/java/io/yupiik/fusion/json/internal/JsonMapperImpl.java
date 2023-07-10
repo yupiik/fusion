@@ -79,6 +79,12 @@ public class JsonMapperImpl implements JsonMapper {
         this.codecs = new ConcurrentHashMap<>();
         this.codecs.putAll(toCodecMap(jsonCodecs.stream()));
         this.codecs.putAll(toCodecMap(builtInCodecs().filter(it -> !this.codecs.containsKey(it.type()))));
+        if (!this.codecs.containsKey(Map.class)) {
+            final var object = this.codecs.get(Object.class);
+            if (object != null) {
+                this.codecs.put(Map.class, object);
+            }
+        }
     }
 
     protected Stream<JsonCodec<?>> builtInCodecs() {
