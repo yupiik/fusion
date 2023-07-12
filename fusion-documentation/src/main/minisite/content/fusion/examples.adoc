@@ -109,11 +109,11 @@ The bus is synchronous and sorted using `@Order` annotation.
 [source,java]
 ----
 public class MyListener {
-    public void onStart(@Event final Start start) {
+    public void onStart(@OnEvent final Start start) {
         System.out.println("Application started");
     }
 
-    public void onStop(@Event final Stop stop) {
+    public void onStop(@OnEvent final Stop stop) {
         System.out.println("Application stopped");
     }
 }
@@ -123,7 +123,7 @@ Example of ordered event listener (default being `1000`):
 
 [source,java]
 ----
-public void onStart(@Event @Order(990) final Start start);
+public void onStart(@OnEvent @Order(990) final Start start);
 ----
 
 TIP: listening to `Start` event can enable a lazy instance (`@ApplicationScoped`) to be forced to be initialized.
