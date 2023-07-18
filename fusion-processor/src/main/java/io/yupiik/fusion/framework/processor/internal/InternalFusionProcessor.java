@@ -323,7 +323,9 @@ public class InternalFusionProcessor extends AbstractProcessor {
 
         // find persistence entities
         final var persistenceEntities = roundEnv.getElementsAnnotatedWith(Table.class).stream()
-                .filter(it -> (it.getKind() == RECORD) && it instanceof TypeElement)
+                .filter(it -> (it.getKind() == RECORD) &&
+                        it instanceof TypeElement te &&
+                        !Objects.equals(Table.EMBEDDABLE, te.getAnnotation(Table.class).value()))
                 .map(TypeElement.class::cast)
                 .toList();
 

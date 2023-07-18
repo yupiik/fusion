@@ -1815,6 +1815,100 @@ class FusionProcessorTest {
         });
     }
 
+    @Test
+    void nestedRecordPersistence(@TempDir final Path work) throws IOException {
+        final var entity = "persistence.NestedEntity";
+        final var compiler = new Compiler(work, entity);
+        compiler.compileAndAsserts((loader, container) -> {
+            assertEquals(
+                    """
+                            package test.p.persistence;
+                                                        
+                                                        
+                            @io.yupiik.fusion.framework.api.container.Generation(version = 1)
+                            public class NestedEntity$FusionPersistenceEntity extends io.yupiik.fusion.persistence.impl.BaseEntity<NestedEntity, java.lang.String> {
+                                public NestedEntity$FusionPersistenceEntity(io.yupiik.fusion.persistence.impl.DatabaseConfiguration configuration) {
+                                    super(
+                                      configuration,
+                                      NestedEntity.class,
+                                      "NESTED_ENTITY",
+                                      java.util.List.of(
+                                        new io.yupiik.fusion.persistence.impl.ColumnMetadataImpl("id", java.lang.String.class, "id", 0, false),
+                                        new io.yupiik.fusion.persistence.impl.ColumnMetadataImpl("name", java.lang.String.class, "name"),
+                                        new io.yupiik.fusion.persistence.impl.ColumnMetadataImpl("arr", byte[].class, "arr"),
+                                        new io.yupiik.fusion.persistence.impl.ColumnMetadataImpl("age", int.class, "SIMPLE_AGE"),
+                                        new io.yupiik.fusion.persistence.impl.ColumnMetadataImpl("kind", test.p.persistence.NestedEntity.Kind.class, "kind")
+                                      ),
+                                      false,
+                                      (instance, statement) -> {
+                                        if (instance.id() == null) { statement.setNull(1, java.sql.Types.VARCHAR); } else { statement.setString(1, instance.id()); }
+                                        if (instance.name() == null) { statement.setNull(2, java.sql.Types.VARCHAR); } else { statement.setString(2, instance.name()); }
+                                        if (instance.arr() == null) { statement.setNull(3, java.sql.Types.VARBINARY); } else { statement.setBytes(3, instance.arr()); }
+                                        statement.setInt(4, instance.nested().age());
+                                        if (instance.nested() == null || instance.nested().kind() == null) { statement.setNull(5, java.sql.Types.VARCHAR); } else { statement.setString(5, instance.nested().kind().name()); }
+                                        return instance;
+                                      },
+                                      (instance, statement) -> {
+                                        if (instance.name() == null) { statement.setNull(1, java.sql.Types.VARCHAR); } else { statement.setString(1, instance.name()); }
+                                        if (instance.arr() == null) { statement.setNull(2, java.sql.Types.VARBINARY); } else { statement.setBytes(2, instance.arr()); }
+                                        statement.setInt(3, instance.nested().age());
+                                        if (instance.nested() == null || instance.nested().kind() == null) { statement.setNull(4, java.sql.Types.VARCHAR); } else { statement.setString(4, instance.nested().kind().name()); }
+                                        if (instance.id() == null) { statement.setNull(5, java.sql.Types.VARCHAR); } else { statement.setString(5, instance.id()); }
+                                        return instance;
+                                      },
+                                      (instance, statement) -> {
+                                        if (instance.id() == null) { statement.setNull(1, java.sql.Types.VARCHAR); } else { statement.setString(1, instance.id()); }
+                                      },
+                                      (id, statement) -> {
+                                        if (id == null) { statement.setNull(1, java.sql.Types.VARCHAR); } else { statement.setString(1, id); }
+                                      },
+                                      (entity, statement) -> entity,
+                                      columns -> {
+                                        final var id = stringOf(columns.indexOf("id"));
+                                        final var name = stringOf(columns.indexOf("name"));
+                                        final var arr = bytesOf(columns.indexOf("arr"));
+                                        final var age = intOf(columns.indexOf("simple_age"), true);
+                                        final var kind = enumOf(columns.indexOf("kind"), test.p.persistence.NestedEntity.Kind.class);
+                                        final var nested = (java.util.function.Function<java.sql.ResultSet, test.p.persistence.NestedEntity.Nested>)  rset -> {
+                                          try {
+                                            return new test.p.persistence.NestedEntity.Nested(age.apply(rset), kind.apply(rset));
+                                          } catch (final java.sql.SQLException e) {
+                                            throw new io.yupiik.fusion.persistence.api.PersistenceException(e);
+                                          }
+                                        };
+                                        return rset -> {
+                                          try {
+                                            return new test.p.persistence.NestedEntity(id.apply(rset), name.apply(rset), arr.apply(rset), nested.apply(rset));
+                                          } catch (final java.sql.SQLException e) {
+                                            throw new io.yupiik.fusion.persistence.api.PersistenceException(e);
+                                          }
+                                        };
+                                      });
+                                }
+                            }
+                                                        
+                            """,
+                    compiler.readGeneratedSource(entity + "$FusionPersistenceEntity"));
+
+            final var databaseConfiguration = container.lookup(DatabaseConfiguration.class);
+            assertNotNull(databaseConfiguration.instance());
+
+            // no datasource in this test
+            assertNull(databaseConfiguration.instance().getDataSource());
+
+            // force a translation to avoid to guess it since we don't have any datasource
+            databaseConfiguration.instance().setTranslation(new DefaultTranslation());
+
+            final var database = container.lookup(Database.class);
+            assertNotNull(database.instance());
+
+            // init with database init so tested after (until user sets it explicitly but not our case)
+            final var model = (Entity<?, ?>) databaseConfiguration.instance().getInstanceLookup().apply(loader.apply("test.p." + entity));
+            assertNotNull(model);
+            assertEquals("NESTED_ENTITY", model.getTable());
+        });
+    }
+
     private <A> void withInstance(final RuntimeContainer container, final Function<String, Class<?>> loader, final String name,
                                   final Class<A> type, final Consumer<A> consumer) {
         try (final var instance = container.lookup(loader.apply(name))) {

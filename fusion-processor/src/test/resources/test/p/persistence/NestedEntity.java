@@ -13,13 +13,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package io.yupiik.fusion.framework.processor.internal.persistence;
+package test.p.persistence;
 
-import javax.lang.model.element.VariableElement;
-import java.util.Collection;
-import java.util.Map;
+import io.yupiik.fusion.framework.build.api.persistence.Column;
+import io.yupiik.fusion.framework.build.api.persistence.Id;
+import io.yupiik.fusion.framework.build.api.persistence.Table;
 
-public record SimpleEntity(String table, Collection<SimpleColumn> columns) {
-    public record SimpleColumn(String javaName /* null for embeddables */, String databaseName,
-                               String embeddableJavaName, Map<VariableElement, SimpleColumn> columns /* for embeddables */) {}
+@Table("NESTED_ENTITY")
+public record NestedEntity(
+        @Id String id,
+        String name,
+        byte[] arr,
+        Nested nested) {
+    public enum Kind {
+        SIMPLE
+    }
+
+    @Table(Table.EMBEDDABLE)
+    public record Nested(@Column(name = "SIMPLE_AGE") int age, Kind kind) {
+    }
 }
