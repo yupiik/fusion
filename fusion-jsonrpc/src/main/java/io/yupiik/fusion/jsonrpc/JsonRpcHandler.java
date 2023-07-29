@@ -105,7 +105,7 @@ public class JsonRpcHandler {
 
     @SuppressWarnings("unchecked")
     private Object unwrapResult(final Object result, final Request request) {
-        if (result instanceof PartialResponse pr) {
+        if (result instanceof PartialResponse<?> pr) {
             final var jsonRpcResult = pr.getJsonRpcResult();
             if (request != null && !pr.getHttpResponseHeaders().isEmpty()) {
                 var attribute = (Map<String, String>) request.attribute(RESPONSE_HEADERS, Map.class);

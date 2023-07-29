@@ -27,11 +27,14 @@ import io.yupiik.fusion.framework.processor.internal.ParsedType;
 import io.yupiik.fusion.framework.processor.internal.meta.JsonSchema;
 import io.yupiik.fusion.framework.processor.internal.meta.PartialOpenRPC;
 import io.yupiik.fusion.json.JsonMapper;
+import io.yupiik.fusion.jsonrpc.api.PartialResponse;
 import io.yupiik.fusion.jsonrpc.impl.DefaultJsonRpcMethod;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.TypeMirror;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -64,7 +67,7 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
 
     @Override
     public BaseHttpEndpointGenerator.Generation get() {
-        final var returnType = ParsedType.of(method.getReturnType());
+        final var returnType = unwrapReturnedType(method.getReturnType(), ParsedType.of(method.getReturnType()));
         final boolean isReturnTypeJson = isJson(returnType) || method.getReturnType().getAnnotation(JsonModel.class) != null;
         if (!isReturnTypeJson) {
             throw new IllegalArgumentException("JSON-RPC method must return a JSON instance, invalid type: '" + method.getReturnType() + "'");
@@ -170,6 +173,12 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
                                 "}\n" +
                                 "\n") :
                         null);
+    }
+
+    private ParsedType unwrapReturnedType(final TypeMirror typeMirror, final ParsedType type) {
+        return type.type() == ParsedType.Type.PARAMETERIZED_TYPE && PartialResponse.class.getName().equals(type.raw()) ?
+                ParsedType.of(((DeclaredType) typeMirror).getTypeArguments().get(0)) :
+                type;
     }
 
     // get it from jsonschemas - ideally we should extract the logic from JsonCodecGenerator but for now just use it

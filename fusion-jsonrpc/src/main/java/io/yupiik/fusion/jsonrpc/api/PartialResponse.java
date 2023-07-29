@@ -21,11 +21,11 @@ import java.util.Map;
  * Enables to force the response to have some headers (like cache ones).
  * This is only for successful responses as of today (not exceptions).
  */
-public class PartialResponse {
-    private final Object jsonRpcResult;
+public class PartialResponse<T> {
+    private final T jsonRpcResult;
     private Map<String, String> httpResponseHeaders = Map.of();
 
-    public PartialResponse(final Object jsonRpcResult) {
+    public PartialResponse(final T jsonRpcResult) {
         this.jsonRpcResult = jsonRpcResult;
     }
 
@@ -34,7 +34,7 @@ public class PartialResponse {
         return this;
     }
 
-    public Object getJsonRpcResult() {
+    public T getJsonRpcResult() {
         return jsonRpcResult;
     }
 
