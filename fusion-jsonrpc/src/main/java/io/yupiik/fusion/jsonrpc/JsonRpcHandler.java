@@ -21,6 +21,7 @@ import io.yupiik.fusion.http.server.api.Request;
 import io.yupiik.fusion.http.server.impl.io.RequestBodyAggregator;
 import io.yupiik.fusion.json.JsonMapper;
 import io.yupiik.fusion.json.deserialization.AvailableCharArrayReader;
+import io.yupiik.fusion.jsonrpc.api.PartialResponse;
 import io.yupiik.fusion.jsonrpc.event.BeforeRequest;
 import io.yupiik.fusion.jsonrpc.impl.JsonRpcMethod;
 
@@ -33,6 +34,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Flow;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -46,6 +48,7 @@ import static java.util.concurrent.CompletableFuture.completedFuture;
 
 public class JsonRpcHandler {
     private static final String REQUEST_METHOD_ATTRIBUTE = "yupiik.jsonrpc.method";
+    static final String RESPONSE_HEADERS = "yupiik.jsonrpc.response.headers";
 
     private final CompletionStage<?> alwaysReady = completedFuture(null);
     private final Logger logger = Logger.getLogger(getClass().getName());
@@ -93,11 +96,29 @@ public class JsonRpcHandler {
                                     error instanceof CompletionException && error.getCause() != null ? error.getCause() : error,
                                     request);
                         }
-                        return new Response("2.0", reqId, result, null);
+                        return new Response("2.0", reqId, unwrapResult(result, httpRequest), null);
                     }).toCompletableFuture();
         } catch (final RuntimeException re) {
             return completedFuture(toErrorResponse(id == null ? null : id.toString(), re, request));
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Object unwrapResult(final Object result, final Request request) {
+        if (result instanceof PartialResponse pr) {
+            final var jsonRpcResult = pr.getJsonRpcResult();
+            if (request != null && !pr.getHttpResponseHeaders().isEmpty()) {
+                var attribute = (Map<String, String>) request.attribute(RESPONSE_HEADERS, Map.class);
+                if (attribute == null) {
+                    attribute = new ConcurrentHashMap<>();
+                    request.setAttribute(RESPONSE_HEADERS, attribute);
+                    attribute = request.attribute(RESPONSE_HEADERS, Map.class); // avoid to "synchronized"
+                }
+                attribute.putAll(pr.getHttpResponseHeaders());
+            }
+            return jsonRpcResult;
+        }
+        return result;
     }
 
     private void appendJsonRpcMethod(final Request httpRequest, final String method) {
@@ -112,7 +133,7 @@ public class JsonRpcHandler {
     public Response toErrorResponse(final String id, final Throwable re, final Object request) {
         final Response.ErrorResponse errorResponse;
         if (re instanceof JsonRpcException jre) {
-            errorResponse = new Response.ErrorResponse(jre.code(), re.getMessage(), jre.data());
+            errorResponse = new Response.ErrorResponse(jre.code(), re.getMessage(), unwrapResult(jre.data(), null));
         } else {
             errorResponse = new Response.ErrorResponse(-2, re.getMessage(), null);
         }

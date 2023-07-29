@@ -23,9 +23,11 @@ import io.yupiik.fusion.json.JsonMapper;
 
 import java.io.Reader;
 import java.io.Writer;
+import java.util.Map;
 import java.util.concurrent.CompletionStage;
 import java.util.logging.Logger;
 
+import static io.yupiik.fusion.jsonrpc.JsonRpcHandler.RESPONSE_HEADERS;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static java.util.logging.Level.FINEST;
 import static java.util.logging.Level.SEVERE;
@@ -53,19 +55,19 @@ public class JsonRpcEndpoint extends DefaultEndpoint {
         try { // deserialization error
             req = readRequest(request);
         } catch (final RuntimeException ex) {
-            return completedFuture(jsonRpcError(-32700, ex));
+            return completedFuture(jsonRpcError(-32700, ex, request));
         }
         // todo: add Before event using the bus to enable security validation -
         //  can be done wrapping the endpoint + overriding (priority) it in the IoC as of today?
         return req
                 .thenCompose(in -> handler
                         .execute(in, request)
-                        .thenApply(this::response)
+                        .thenApply(it -> response(it, request))
                         .exceptionally(ex -> {
                             logger.log(SEVERE, ex, ex::getMessage);
-                            return jsonRpcError(-32603, ex);
+                            return jsonRpcError(-32603, ex, request);
                         }))
-                .exceptionally(error -> jsonRpcError(-32700, error));
+                .exceptionally(error -> jsonRpcError(-32700, error, request));
     }
 
     private CompletionStage<Object> readRequest(final Request request) {
@@ -83,15 +85,20 @@ public class JsonRpcEndpoint extends DefaultEndpoint {
         }
     }
 
-    private Response jsonRpcError(final int code, final Throwable error) {
-        return response(handler.createResponse(null, code, error.getMessage()));
+    private Response jsonRpcError(final int code, final Throwable error, final Request request) {
+        return response(handler.createResponse(null, code, error.getMessage()), request);
     }
 
-    private Response response(final Object payload) {
-        return Response.of()
+    @SuppressWarnings("unchecked")
+    private Response response(final Object payload, final Request request) {
+        final var attribute = request.attribute(RESPONSE_HEADERS, Map.class);
+        final var res = Response.of()
                 .status(200)
-                .header("content-type", "application/json;charset=utf-8")
-                .body((IOConsumer<Writer>) writer -> {
+                .header("content-type", "application/json;charset=utf-8");
+        if (attribute != null) {
+            ((Map<String, String>) attribute).forEach(res::header);
+        }
+        return res.body((IOConsumer<Writer>) writer -> {
                     try (writer) {
                         mapper.write(payload, writer);
                     }
