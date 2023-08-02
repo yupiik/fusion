@@ -24,6 +24,7 @@ import java.net.http.HttpResponse;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Flow;
 
@@ -31,9 +32,12 @@ import static java.net.http.HttpResponse.BodySubscribers.ofByteArray;
 import static java.net.http.HttpResponse.BodySubscribers.ofString;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Optional.ofNullable;
+import static java.util.concurrent.CompletableFuture.completedFuture;
 
 public class ServletBody implements Body {
     private final HttpServletRequest request;
+    private boolean cached = false;
+    private CompletableFuture<byte[]> body = null;
 
     public ServletBody(final HttpServletRequest delegate) {
         this.request = delegate;
@@ -49,16 +53,37 @@ public class ServletBody implements Body {
     }
 
     @Override
+    public Body cached() {
+        cached = true;
+        return this;
+    }
+
+    @Override
     public CompletionStage<String> string() {
+        if (cached && body != null) {
+            return body.thenApply(b -> new String(b, UTF_8));
+        }
         final var subscriber = ofString(ofNullable(request.getCharacterEncoding()).map(Charset::forName).orElse(UTF_8));
         doSubscribe(subscriber);
+        if (cached) {
+            final var result = subscriber.getBody();
+            body = result.toCompletableFuture().thenApply(s -> s.getBytes(UTF_8));
+            return result;
+        }
         return subscriber.getBody();
     }
 
     @Override
     public CompletionStage<byte[]> bytes() {
+        if (cached && body != null) {
+            return body;
+        }
         final var subscriber = ofByteArray();
         doSubscribe(subscriber);
+        if (cached) {
+            body = subscriber.getBody().toCompletableFuture();
+            return body;
+        }
         return subscriber.getBody();
     }
 

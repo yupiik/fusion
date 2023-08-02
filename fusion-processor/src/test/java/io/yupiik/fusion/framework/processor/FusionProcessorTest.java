@@ -1952,6 +1952,11 @@ class FusionProcessorTest {
         public Body fullBody() {
             return new Body() {
                 @Override
+                public Body cached() {
+                    throw new UnsupportedOperationException();
+                }
+
+                @Override
                 public CompletionStage<String> string() {
                     throw new UnsupportedOperationException("test");
                 }

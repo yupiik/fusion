@@ -23,6 +23,11 @@ import java.util.concurrent.Flow;
  * Mainly a convenient API around {@code Flow.Publisher<ByteBuffer>} to ease usage.
  */
 public interface Body extends Flow.Publisher<ByteBuffer> {
+    /**
+     * @return mark the body as being re-readable by storing the content in memory.
+     */
+    Body cached();
+
     CompletionStage<String> string();
 
     CompletionStage<byte[]> bytes();
