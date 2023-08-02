@@ -1967,6 +1967,11 @@ class FusionProcessorTest {
                 }
 
                 @Override
+                public String parameter(final String name) {
+                    throw new UnsupportedOperationException();
+                }
+
+                @Override
                 public void subscribe(final Flow.Subscriber<? super ByteBuffer> subscriber) {
                     body.subscribe(subscriber);
                 }

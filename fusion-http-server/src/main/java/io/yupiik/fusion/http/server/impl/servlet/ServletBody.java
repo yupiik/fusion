@@ -87,6 +87,11 @@ public class ServletBody implements Body {
         return subscriber.getBody();
     }
 
+    @Override
+    public String parameter(final String name) {
+        return request.getParameter(name);
+    }
+
     private <T> void doSubscribe(final HttpResponse.BodySubscriber<T> subscriber) {
         subscribe(new Flow.Subscriber<>() {
             @Override

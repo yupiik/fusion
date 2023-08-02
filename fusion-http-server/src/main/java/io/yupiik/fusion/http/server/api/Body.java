@@ -31,4 +31,6 @@ public interface Body extends Flow.Publisher<ByteBuffer> {
     CompletionStage<String> string();
 
     CompletionStage<byte[]> bytes();
+
+    String parameter(String name);
 }
