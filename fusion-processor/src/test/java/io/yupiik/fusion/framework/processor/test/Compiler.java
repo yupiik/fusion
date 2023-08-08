@@ -172,6 +172,7 @@ public class Compiler {
                                 "-Werror",
                                 "-Xlint:unchecked",
                                 "-Afusion.skipNotes=false",
+                                "-Afusion.workdir=false",
                                 // "-verbose",
                                 "-processor", FusionProcessor.class.getName()),
                         Stream.of(classNames).map(it -> "test.p." + it))

@@ -185,7 +185,7 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
     // and assume openrpc spec generation is only enabled if json one is
     private JsonSchema generateFullJsonSchema(final String name) {
         return requireNonNull(allJsonSchemas.get(name),
-                "Missing JSON schema for '" + name + "', check you enabled its generation.");
+                "Missing JSON schema for '" + name + "', check you enabled its generation, known: " + allJsonSchemas.keySet());
     }
 
     private JsonSchema getSchema(final EnrichedParsedType enrichedParsedType) {

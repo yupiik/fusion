@@ -102,6 +102,8 @@ import java.util.stream.Stream;
 import static java.time.Clock.systemUTC;
 import static java.util.Collections.list;
 import static java.util.Comparator.comparing;
+import static java.util.Optional.empty;
+import static java.util.Optional.of;
 import static java.util.Optional.ofNullable;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.groupingBy;
@@ -118,6 +120,7 @@ import static javax.lang.model.element.ElementKind.RECORD;
 import static javax.lang.model.element.Modifier.PRIVATE;
 import static javax.tools.Diagnostic.Kind.ERROR;
 import static javax.tools.Diagnostic.Kind.NOTE;
+import static javax.tools.Diagnostic.Kind.WARNING;
 import static javax.tools.StandardLocation.CLASS_OUTPUT;
 
 // NOTE: we can support private/package fields for injections/proxying but it requires to modify the
@@ -125,6 +128,7 @@ import static javax.tools.StandardLocation.CLASS_OUTPUT;
 //       -> for now we stick to plain default java but it can be revised later.
 @SupportedOptions({
         "fusion.skipNotes", // if false, note messages will be emitted, else they are skipped (default)
+        "fusion.workdir", // where to store state to support incremental compilation, experimental
         "fusion.generateModule", // toggle to enable/disable the automatic module generation (see moduleFqn)
         "fusion.moduleAppend", // if set to `true`, the fqn of the generated module class is appended to the SPI file instead of overwriten (useful for multiple compilation cycles)
         "fusion.moduleFqn", // fully qualified name of the generated module if generateModule=true
@@ -216,6 +220,8 @@ public class InternalFusionProcessor extends AbstractProcessor {
     // just for perf
     private final Map<String, String> configurationEnumValueOfCache = new HashMap<>();
     private String module;
+    private Path outputRoot;
+    private Path workdir;
 
     @Override
     public SourceVersion getSupportedSourceVersion() {
@@ -228,6 +234,21 @@ public class InternalFusionProcessor extends AbstractProcessor {
 
         debugTime = Boolean.parseBoolean(processingEnv.getOptions().getOrDefault("fusion.debug.timeTracking", "false"));
         clock = debugTime ? systemUTC() : null;
+        outputRoot = findOutput().orElse(null);
+        workdir = ofNullable(processingEnv.getOptions().get("fusion.workdir"))
+                .filter(it -> !it.isBlank() && !"false".equals(it)) // disable with property for ex
+                .map(Path::of)
+                .or(() -> {
+                    // maven hack
+                    if (outputRoot != null &&
+                            "classes".equals(outputRoot.getFileName().toString()) &&
+                            outputRoot.getParent() != null &&
+                            "target".equals(outputRoot.getParent().getFileName().toString())) {
+                        return of(outputRoot.getParent().resolve("work_fusion"));
+                    }
+                    return empty();
+                })
+                .orElse(null);
 
         final var start = debugStart();
 
@@ -259,10 +280,11 @@ public class InternalFusionProcessor extends AbstractProcessor {
                 .filter(it -> !"false".equals(it))
                 .map(it -> "true".equals(it) ? "META-INF/fusion/jsonrpc/openrpc.json" : it)
                 .orElse(null);
+
         knownJsonModels = Boolean.parseBoolean(processingEnv.getOptions().getOrDefault("fusion.skipLoadingModules", "false")) ?
                 Set.of() :
                 Stream.concat(
-                                findAlreadyBuiltJsonModels(),
+                                outputRoot != null && Files.exists(outputRoot) ? findAlreadyBuiltJsonModels(outputRoot) : Stream.empty(),
                                 findAvailableModules()
                                         .flatMap(it -> {
                                             try {
@@ -281,6 +303,30 @@ public class InternalFusionProcessor extends AbstractProcessor {
 
         if (jsonSchemaLocation != null) {
             allJsonSchemas = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+
+            if (workdir != null) {
+                final var base = workdir.resolve("json_schema");
+                if (Files.exists(base)) {
+                    try (final var list = Files.list(base)) {
+                        allJsonSchemas.putAll(list.filter(it -> it.getFileName().toString().endsWith(".json"))
+                                .collect(toMap(
+                                        it -> {
+                                            final var name = it.getFileName().toString();
+                                            return name.substring(0, name.length() - ".json".length());
+                                        },
+                                        it -> {
+                                            try {
+                                                return new GeneratedJsonSchema(null, Files.readString(it));
+                                            } catch (final IOException e) {
+                                                throw new IllegalStateException(e);
+                                            }
+                                        }
+                                )));
+                    } catch (final IOException e) {
+                        processingEnv.getMessager().printMessage(WARNING, e.getMessage());
+                    }
+                }
+            }
         }
         if (openrpcLocation != null) {
             partialOpenRPC = new PartialOpenRPC(new TreeMap<>(String.CASE_INSENSITIVE_ORDER), new TreeMap<>(String.CASE_INSENSITIVE_ORDER));
@@ -479,13 +525,27 @@ public class InternalFusionProcessor extends AbstractProcessor {
         }
 
         final var json = processingEnv.getFiler().createResource(CLASS_OUTPUT, "", jsonSchemaLocation);
+        final var cache = new HashMap<String, String>();
         try (final var out = json.openWriter()) {
             out.write(allJsonSchemas.entrySet().stream()
                     .collect(toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a /* drop state one if duplicated */))
                     .entrySet().stream()
                     .sorted(Map.Entry.comparingByKey())
-                    .map(e -> JsonStrings.escape(e.getKey()) + ":" + e.getValue().content().toJson())
+                    .map(e -> {
+                        final var value = e.getValue().raw() != null ? e.getValue().raw() : e.getValue().content().toJson();
+                        cache.put(e.getKey(), value);
+                        return JsonStrings.escape(e.getKey()) + ":" + value;
+                    })
                     .collect(joining(",", "{\"schemas\":{", "}}")));
+        }
+
+        if (workdir != null) {
+            final var base = workdir.resolve("json_schema");
+            for (final var schema : cache.entrySet()) {
+                final var out = base.resolve(schema.getKey() + ".json");
+                Files.createDirectories(out.getParent());
+                Files.writeString(out, schema.getValue());
+            }
         }
 
         allJsonSchemas.clear();
@@ -697,7 +757,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
             final var generation = generator.get();
             if (schemas != null && !schemas.isEmpty()) {
                 allJsonSchemas.putAll(schemas.entrySet().stream()
-                        .collect(toMap(Map.Entry::getKey, e -> new GeneratedJsonSchema(e.getValue()))));
+                        .collect(toMap(Map.Entry::getKey, e -> new GeneratedJsonSchema(e.getValue(), null))));
             }
             writeGeneratedClass(model, generation);
             jsonModels.put(generation.name(), element);
@@ -753,12 +813,15 @@ public class InternalFusionProcessor extends AbstractProcessor {
             final var generation = new JsonRpcEndpointGenerator(
                     processingEnv, elements, beanForJsonRpcEndpoints,
                     names.packageName(), names.className() + "$" + method.getSimpleName(), method,
-                    Stream.concat(
+                    Stream.of(
                                     knownJsonModels.stream(),
+                                    allJsonSchemas.keySet().stream(),
                                     jsonModels.keySet().stream())
+                            .flatMap(identity())
                             .collect(toSet()),
                     partialOpenRPC,
                     allJsonSchemas.values().stream()
+                            .filter(it -> it.content() != null) // for now ignore others but better to parse them pby
                             .map(GeneratedJsonSchema::content)
                             .filter(it -> it.id() != null)
                             .collect(toMap(JsonSchema::id, identity()))).get();
@@ -812,9 +875,11 @@ public class InternalFusionProcessor extends AbstractProcessor {
             final var generation = new HttpEndpointGenerator(
                     processingEnv, elements, beanForHttpEndpoints,
                     names.packageName(), names.className() + "$" + method.getSimpleName(), method,
-                    Stream.concat(
+                    Stream.of(
                                     knownJsonModels.stream(),
+                                    allJsonSchemas.keySet().stream(),
                                     jsonModels.keySet().stream())
+                            .flatMap(identity())
                             .collect(toSet())).get();
             writeGeneratedClass(method, generation.endpoint());
             // todo: openapi?
@@ -1034,14 +1099,22 @@ public class InternalFusionProcessor extends AbstractProcessor {
         return (current != null && !current.isBlank() ? current : "fusion") + '.' + "FusionGeneratedModule";
     }
 
-    private Stream<String> findAlreadyBuiltJsonModels() {
+    private Optional<Path> findOutput() {
         try {
             final var uri = processingEnv.getFiler().getResource(CLASS_OUTPUT, "", "fusion_marker_not_used_anywhere").toUri();
             if (!"file".equals(uri.getScheme())) {
-                return Stream.empty();
+                return Optional.empty();
             }
+            final var outputRoot = Path.of(uri.getPath()).getParent();
+            return of(outputRoot);
+        } catch (final RuntimeException | IOException re) {
+            return Optional.empty();
+        }
+    }
 
-            final var path = Path.of(uri.getPath()).getParent().resolve("META-INF/fusion/json/schemas.json");
+    private Stream<String> findAlreadyBuiltJsonModels(final Path outputRoot) {
+        try {
+            final var path = outputRoot.resolve("META-INF/fusion/json/schemas.json");
             if (Files.notExists(path)) {
                 return Stream.empty();
             }
@@ -1110,6 +1183,6 @@ public class InternalFusionProcessor extends AbstractProcessor {
         }
     }
 
-    private record GeneratedJsonSchema(JsonSchema content) {
+    private record GeneratedJsonSchema(JsonSchema content, String raw) {
     }
 }
