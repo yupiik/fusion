@@ -261,19 +261,22 @@ public class InternalFusionProcessor extends AbstractProcessor {
                 .orElse(null);
         knownJsonModels = Boolean.parseBoolean(processingEnv.getOptions().getOrDefault("fusion.skipLoadingModules", "false")) ?
                 Set.of() :
-                findAvailableModules()
-                        .flatMap(it -> {
-                            try {
-                                return it.beans();
-                            } catch (final Error | RuntimeException error) {
-                                // likely the module we are building - incremental compile which breaks the compile
-                                return Stream.empty();
-                            }
-                        })
-                        // we just use the naming convention to match
-                        .map(it -> it.type().getTypeName())
-                        .filter(it -> it.endsWith(JsonCodecGenerator.SUFFIX))
-                        .map(name -> name.substring(0, name.length() - JsonCodecGenerator.SUFFIX.length()))
+                Stream.concat(
+                                findAlreadyBuiltJsonModels(),
+                                findAvailableModules()
+                                        .flatMap(it -> {
+                                            try {
+                                                return it.beans();
+                                            } catch (final Error | RuntimeException error) {
+                                                // likely the module we are building - incremental compile which breaks the compile
+                                                return Stream.empty();
+                                            }
+                                        })
+                                        // we just use the naming convention to match
+                                        .map(it -> it.type().getTypeName())
+                                        .filter(it -> it.endsWith(JsonCodecGenerator.SUFFIX))
+                                        .map(name -> name.substring(0, name.length() - JsonCodecGenerator.SUFFIX.length())))
+                        .distinct()
                         .collect(toSet());
 
         if (jsonSchemaLocation != null) {
@@ -1029,6 +1032,42 @@ public class InternalFusionProcessor extends AbstractProcessor {
             current = newCurrent.toString();
         }
         return (current != null && !current.isBlank() ? current : "fusion") + '.' + "FusionGeneratedModule";
+    }
+
+    private Stream<String> findAlreadyBuiltJsonModels() {
+        try {
+            final var uri = processingEnv.getFiler().getResource(CLASS_OUTPUT, "", "fusion_marker_not_used_anywhere").toUri();
+            if (!"file".equals(uri.getScheme())) {
+                return Stream.empty();
+            }
+
+            final var path = Path.of(uri.getPath()).getParent().resolve("META-INF/fusion/json/schemas.json");
+            if (Files.notExists(path)) {
+                return Stream.empty();
+            }
+
+            final var content = Files.readString(path);
+            int start = 0;
+            final var out = new HashSet<String>();
+            while (true) {
+                final int next = content.indexOf("\"$id\":\"", start);
+                if (next < 0) {
+                    return out.stream();
+                }
+
+                start = next + "\"$id\":\"".length();
+                final int end = content.indexOf("\"", start);
+                if (start <= next) {
+                    return out.stream();
+                }
+
+                out.add(content.substring(start, end));
+                start = end;
+            }
+            // this is a light parsing, we should copy JsonParser in this module to make it more reliable
+        } catch (final RuntimeException | IOException re) {
+            return Stream.empty();
+        }
     }
 
     private Instant debugStart() {
