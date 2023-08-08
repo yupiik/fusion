@@ -23,10 +23,15 @@ import io.yupiik.fusion.framework.build.api.json.JsonModel;
 import io.yupiik.fusion.framework.build.api.jsonrpc.JsonRpc;
 import io.yupiik.fusion.framework.build.api.jsonrpc.JsonRpcParam;
 import io.yupiik.fusion.framework.processor.internal.Elements;
+import io.yupiik.fusion.framework.processor.internal.GeneratedJsonSchema;
 import io.yupiik.fusion.framework.processor.internal.ParsedType;
 import io.yupiik.fusion.framework.processor.internal.meta.JsonSchema;
 import io.yupiik.fusion.framework.processor.internal.meta.PartialOpenRPC;
 import io.yupiik.fusion.json.JsonMapper;
+import io.yupiik.fusion.json.internal.codec.ObjectJsonCodec;
+import io.yupiik.fusion.json.internal.parser.BufferProvider;
+import io.yupiik.fusion.json.internal.parser.JsonParser;
+import io.yupiik.fusion.json.serialization.JsonCodec;
 import io.yupiik.fusion.jsonrpc.api.PartialResponse;
 import io.yupiik.fusion.jsonrpc.impl.DefaultJsonRpcMethod;
 
@@ -35,6 +40,8 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
+import java.io.IOException;
+import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -48,18 +55,19 @@ import java.util.stream.Stream;
 import static java.util.Objects.requireNonNull;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.joining;
+import static java.util.stream.Collectors.toMap;
 
 public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implements Supplier<BaseHttpEndpointGenerator.Generation> {
     private static final String SUFFIX = "$FusionJsonRpcMethod";
 
     private final PartialOpenRPC openRPC;
-    private final Map<String, JsonSchema> allJsonSchemas;
+    private final Map<String, GeneratedJsonSchema> allJsonSchemas;
     private final List<ParamMeta> jsonRpcParams = new ArrayList<>();
 
     public JsonRpcEndpointGenerator(final ProcessingEnvironment processingEnv, final Elements elements,
                                     final boolean beanForJsonRpcEndpoints, final String packageName, final String className,
                                     final ExecutableElement method, final Set<String> knownJsonModels,
-                                    final PartialOpenRPC openRPC, final Map<String, JsonSchema> allJsonSchemas) {
+                                    final PartialOpenRPC openRPC, final Map<String, GeneratedJsonSchema> allJsonSchemas) {
         super(processingEnv, elements, beanForJsonRpcEndpoints, packageName, className, method, knownJsonModels);
         this.openRPC = openRPC;
         this.allJsonSchemas = allJsonSchemas;
@@ -183,9 +191,42 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
 
     // get it from jsonschemas - ideally we should extract the logic from JsonCodecGenerator but for now just use it
     // and assume openrpc spec generation is only enabled if json one is
+    @SuppressWarnings("unchecked")
     private JsonSchema generateFullJsonSchema(final String name) {
-        return requireNonNull(allJsonSchemas.get(name),
+        final var generatedJsonSchema = requireNonNull(allJsonSchemas.get(name),
                 "Missing JSON schema for '" + name + "', check you enabled its generation, known: " + allJsonSchemas.keySet());
+        if (generatedJsonSchema.content() != null) {
+            return generatedJsonSchema.content();
+        }
+        try (final var parser = new JsonParser(new StringReader(generatedJsonSchema.raw()), 81920, new BufferProvider(81920, 2), true)) {
+            final var objectJsonCodec = new ObjectJsonCodec();
+            final var read = (Map<String, Object>) objectJsonCodec.read(new JsonCodec.DeserializationContext(parser, c -> {
+                throw new IllegalArgumentException("missing codec: " + c);
+            }));
+            return toSchema(read);
+        } catch (final IOException | RuntimeException e) { // mock the schema
+            return new JsonSchema(null, null, null, null, null, null, null, null, null);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private JsonSchema toSchema(final Map<String, Object> read) {
+        return new JsonSchema(
+                ofNullable(read.get("$ref")).map(String::valueOf).orElse(null),
+                ofNullable(read.get("$id")).map(String::valueOf).orElse(null),
+                ofNullable(read.get("type")).map(String::valueOf).orElse(null),
+                ofNullable(read.get("nullable")).map(Boolean.class::cast).orElse(null),
+                ofNullable(read.get("format")).map(String::valueOf).orElse(null),
+                ofNullable(read.get("pattern")).map(String::valueOf).orElse(null),
+                read.get("additionalProperties"),
+                ofNullable(read.get("properties"))
+                        .map(it -> ((Map<String, Object>) it).entrySet().stream()
+                                .collect(toMap(Map.Entry::getKey, i -> toSchema((Map<String, Object>) i))))
+                        .orElse(null),
+                ofNullable(read.get("items")).map(Map.class::cast).map(it -> toSchema((Map<String, Object>) it)).orElse(null),
+                ofNullable(read.get("title")).map(String::valueOf).orElse(null),
+                ofNullable(read.get("description")).map(String::valueOf).orElse(null),
+                ofNullable(read.get("enum")).map(List.class::cast).orElse(null));
     }
 
     private JsonSchema getSchema(final EnrichedParsedType enrichedParsedType) {
@@ -200,9 +241,12 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
                             new JsonSchema(null, null, "integer", !"int".equals(type.className()), "int32", null, null, null, null);
                     case "long", "java.lang.Long" ->
                             new JsonSchema(null, null, "integer", !"long".equals(type.className()), "int64", null, null, null, null);
-                    case "java.time.OffsetDateTime" -> new JsonSchema(null, null, "string", true, "date-time", null, null, null, null);
-                    case "java.time.ZoneOffset" -> new JsonSchema(null, null, "string", true, "date-time", null, null, null, null);
-                    case "java.time.LocalDate" -> new JsonSchema(null, null, "string", true, "date", null, null, null, null);
+                    case "java.time.OffsetDateTime" ->
+                            new JsonSchema(null, null, "string", true, "date-time", null, null, null, null);
+                    case "java.time.ZoneOffset" ->
+                            new JsonSchema(null, null, "string", true, "date-time", null, null, null, null);
+                    case "java.time.LocalDate" ->
+                            new JsonSchema(null, null, "string", true, "date", null, null, null, null);
                     case "java.lang.String" -> new JsonSchema(null, null, "string", true, null, null, null, null, null);
                     default -> {
                         if (type.enumValues() != null) {

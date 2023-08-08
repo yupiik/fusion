@@ -820,11 +820,12 @@ public class InternalFusionProcessor extends AbstractProcessor {
                             .flatMap(identity())
                             .collect(toSet()),
                     partialOpenRPC,
-                    allJsonSchemas.values().stream()
-                            .filter(it -> it.content() != null) // for now ignore others but better to parse them pby
-                            .map(GeneratedJsonSchema::content)
-                            .filter(it -> it.id() != null)
-                            .collect(toMap(JsonSchema::id, identity()))).get();
+                    allJsonSchemas.entrySet().stream()
+                            .filter(it -> it.getValue().raw() != null || it.getValue().content().id() != null)
+                            .collect(toMap(
+                                    it -> it.getValue().raw() != null ? it.getKey() : it.getValue().content().id(),
+                                    it -> it.getValue())))
+                    .get();
             writeGeneratedClass(method, generation.endpoint());
 
             final var bean = generation.bean();
@@ -1181,8 +1182,5 @@ public class InternalFusionProcessor extends AbstractProcessor {
             final var className = packageName.isBlank() ? fqn : fqn.substring(lastDot + 1);
             return new ParsedName(packageName, className);
         }
-    }
-
-    private record GeneratedJsonSchema(JsonSchema content, String raw) {
     }
 }
