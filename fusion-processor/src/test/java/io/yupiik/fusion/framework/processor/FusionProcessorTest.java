@@ -1115,6 +1115,7 @@ class FusionProcessorTest {
                                         "test.p.JsonRpcEndpoints$arg$FusionJsonRpcMethod",
                                         "test.p.JsonRpcEndpoints$asynResult$FusionJsonRpcMethod",
                                         "test.p.JsonRpcEndpoints$fail$FusionJsonRpcMethod",
+                                        "test.p.JsonRpcEndpoints$offsetDateTime$FusionJsonRpcMethod",
                                         "test.p.JsonRpcEndpoints$paramTypes$FusionJsonRpcMethod",
                                         "test.p.JsonRpcEndpoints$req$FusionJsonRpcMethod",
                                         "test.p.JsonRpcEndpoints$result$FusionJsonRpcMethod"),
@@ -1125,6 +1126,9 @@ class FusionProcessorTest {
                                         .filter(it -> it.endsWith("$FusionJsonRpcMethod"))
                                         .sorted()
                                         .toList())),
+                        dynamicTest("jsonRpc_offsetDateTime", () -> assertJsonRpc(instance,
+                                "{\"jsonrpc\":\"2.0\",\"method\":\"offsetDateTime\",\"params\":{\"date\":\"2023-07-31T15:06:37Z\"}}",
+                                "{\"jsonrpc\":\"2.0\",\"result\":{\"name\":\"2023-07-31T15:06:37Z\"}}")),
                         dynamicTest("jsonRpc_unknownMethod", () -> assertJsonRpc(instance,
                                 "{\"jsonrpc\":\"2.0\",\"method\":\"unknown\"}",
                                 "{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32601,\"message\":\"Unknown method (unknown)\"}}")),
@@ -1294,6 +1298,29 @@ class FusionProcessorTest {
                                                             "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyResult"
                                                           },
                                                           "type": "object"
+                                                        }
+                                                      },
+                                                      "summary": ""
+                                                    },
+                                                    "offsetDateTime": {
+                                                      "description": "",
+                                                      "errors": [],
+                                                      "name": "offsetDateTime",
+                                                      "paramStructure": "either",
+                                                      "params": [
+                                                        {
+                                                          "name": "date",
+                                                          "schema": {
+                                                            "nullable": true,
+                                                            "format": "date-time",
+                                                            "type": "string"
+                                                          }
+                                                        }
+                                                      ],
+                                                      "result": {
+                                                        "name": "result",
+                                                        "schema": {
+                                                          "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyResult"
                                                         }
                                                       },
                                                       "summary": ""

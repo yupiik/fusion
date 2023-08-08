@@ -20,6 +20,7 @@ import io.yupiik.fusion.framework.build.api.jsonrpc.JsonRpc;
 import io.yupiik.fusion.framework.build.api.jsonrpc.JsonRpcParam;
 import io.yupiik.fusion.http.server.api.Request;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -43,6 +44,11 @@ public class JsonRpcEndpoints {
     @JsonRpc("arg")
     public CompletionStage<MyResult> arg(@JsonRpcParam("wrapper") final MyInput input) {
         return completedFuture(new MyResult(new StringBuilder(input.name()).reverse().toString()));
+    }
+
+    @JsonRpc("offsetDateTime")
+    public MyResult offsetDateTime(@JsonRpcParam("date") final OffsetDateTime input) {
+        return new MyResult(input.toString());
     }
 
     @JsonRpc("req")

@@ -200,6 +200,9 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
                             new JsonSchema(null, null, "integer", !"int".equals(type.className()), "int32", null, null, null, null);
                     case "long", "java.lang.Long" ->
                             new JsonSchema(null, null, "integer", !"long".equals(type.className()), "int64", null, null, null, null);
+                    case "java.time.OffsetDateTime" -> new JsonSchema(null, null, "string", true, "date-time", null, null, null, null);
+                    case "java.time.ZoneOffset" -> new JsonSchema(null, null, "string", true, "date-time", null, null, null, null);
+                    case "java.time.LocalDate" -> new JsonSchema(null, null, "string", true, "date", null, null, null, null);
                     case "java.lang.String" -> new JsonSchema(null, null, "string", true, null, null, null, null, null);
                     default -> {
                         if (type.enumValues() != null) {

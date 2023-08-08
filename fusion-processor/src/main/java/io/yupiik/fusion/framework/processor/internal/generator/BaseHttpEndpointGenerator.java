@@ -29,6 +29,9 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.VariableElement;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -156,6 +159,9 @@ public abstract class BaseHttpEndpointGenerator extends BaseGenerator {
                     long.class.getName().equals(param.className()) ||
                     boolean.class.getName().equals(param.className()) ||
                     String.class.getName().equals(param.className()) ||
+                    OffsetDateTime.class.getName().equals(param.className()) ||
+                    ZoneOffset.class.getName().equals(param.className()) ||
+                    LocalDate.class.getName().equals(param.className()) ||
                     Integer.class.getName().equals(param.className()) ||
                     Long.class.getName().equals(param.className()) ||
                     Boolean.class.getName().equals(param.className()) ||
