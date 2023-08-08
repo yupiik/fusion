@@ -198,14 +198,15 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
         if (generatedJsonSchema.content() != null) {
             return generatedJsonSchema.content();
         }
+
+        final var objectJsonCodec = new ObjectJsonCodec();
         try (final var parser = new JsonParser(new StringReader(generatedJsonSchema.raw()), 81920, new BufferProvider(81920, 2), true)) {
-            final var objectJsonCodec = new ObjectJsonCodec();
             final var read = (Map<String, Object>) objectJsonCodec.read(new JsonCodec.DeserializationContext(parser, c -> {
                 throw new IllegalArgumentException("missing codec: " + c);
             }));
             return toSchema(read);
         } catch (final IOException | RuntimeException e) { // mock the schema
-            return new JsonSchema(null, null, null, null, null, null, null, null, null);
+            return new JsonSchema(null, name, null, null, null, null, null, null, null);
         }
     }
 
