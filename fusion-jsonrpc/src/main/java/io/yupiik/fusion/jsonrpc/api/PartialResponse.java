@@ -29,7 +29,7 @@ public class PartialResponse<T> {
         this.jsonRpcResult = jsonRpcResult;
     }
 
-    public PartialResponse setHttpResponseHeaders(final Map<String, String> httpResponseHeaders) {
+    public PartialResponse<T> setHttpResponseHeaders(final Map<String, String> httpResponseHeaders) {
         this.httpResponseHeaders = httpResponseHeaders;
         return this;
     }
