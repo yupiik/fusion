@@ -32,6 +32,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.ServiceLoader;
+import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
 import java.util.stream.Stream;
 
@@ -71,7 +72,8 @@ public class ConfiguringContainerImpl implements ConfiguringContainer {
                         modules.stream()
                                 .flatMap(FusionModule::beans)),
                 modules.stream().map(FusionModule::beanFilter),
-                runtimeContainer)
+                runtimeContainer,
+                modules.stream().map(FusionModule::beanMapper))
                 .toArray(FusionBean<?>[]::new));
 
         // contexts
@@ -82,14 +84,16 @@ public class ConfiguringContainerImpl implements ConfiguringContainer {
                         // discovered ones (through module)
                         modules.stream().flatMap(FusionModule::contexts)),
                 modules.stream().map(FusionModule::contextFilter),
-                runtimeContainer)
+                runtimeContainer,
+                modules.stream().map(FusionModule::contextMapper))
                 .toArray(FusionContext[]::new));
 
         // listeners
         listeners.doRegister(filter(
                 modules.stream().flatMap(FusionModule::listeners),
                 modules.stream().map(FusionModule::listenerFilter),
-                runtimeContainer)
+                runtimeContainer,
+                modules.stream().map(FusionModule::listenerMapper))
                 .toArray(FusionListener[]::new));
 
         // startup event
@@ -150,8 +154,11 @@ public class ConfiguringContainerImpl implements ConfiguringContainer {
     }
 
     private <A> Stream<A> filter(final Stream<A> input, final Stream<BiPredicate<RuntimeContainer, A>> predicates,
-                                 final RuntimeContainer runtimeContainer) {
+                                 final RuntimeContainer runtimeContainer,
+                                 final Stream<BiFunction<RuntimeContainer, A, A>> mappers) {
         final var predicate = predicates.filter(Objects::nonNull).reduce(null, (a, b) -> a == null ? b : a.and(b));
-        return predicate == null ? input : input.filter(it -> predicate.test(runtimeContainer, it));
+        final var in = predicate == null ? input : input.filter(it -> predicate.test(runtimeContainer, it));
+        final var mapper = mappers.filter(Objects::nonNull).reduce((f1, f2) -> (c, b) -> f2.apply(c, f1.apply(c, b))).orElse(null);
+        return mapper == null ? in : in.map(it -> mapper.apply(runtimeContainer, it));
     }
 }

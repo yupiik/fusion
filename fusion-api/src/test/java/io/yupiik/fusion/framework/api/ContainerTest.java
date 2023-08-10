@@ -15,9 +15,11 @@
  */
 package io.yupiik.fusion.framework.api;
 
+import io.yupiik.fusion.framework.api.container.FusionModule;
 import io.yupiik.fusion.framework.api.container.Generation;
 import io.yupiik.fusion.framework.api.container.FusionBean;
 import io.yupiik.fusion.framework.api.container.FusionListener;
+import io.yupiik.fusion.framework.api.container.bean.DelegatingBean;
 import io.yupiik.fusion.framework.api.lifecycle.Start;
 import io.yupiik.fusion.framework.api.lifecycle.Stop;
 import io.yupiik.fusion.framework.api.scope.DefaultScoped;
@@ -27,7 +29,9 @@ import org.junit.jupiter.api.Test;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BiFunction;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -40,6 +44,45 @@ class ContainerTest {
                 .start();
              final var lookup = container.lookup(Bean1.class)) {
             assertEquals("bean1[bean2[]]", lookup.instance().toString());
+        }
+    }
+
+    @Test
+    void beanMapper() {
+        try (final var container = ConfiguringContainer.of()
+                .register(new FusionModule() {
+                    @Override
+                    public Stream<FusionBean<?>> beans() {
+                        return Stream.of(new Bean1$FusionBean(), new Bean2$FusionBean());
+                    }
+                })
+                .register(new FusionModule() {
+                    @Override
+                    public BiFunction<RuntimeContainer, FusionBean<?>, FusionBean<?>> beanMapper() {
+                        return (c, b) -> {
+                            if (b.type() == Bean1.class) {
+                                final FusionBean<Bean1> b1 = (FusionBean<Bean1>) b;
+                                return new DelegatingBean<>(b1) {
+                                    @Override
+                                    public Bean1 create(final RuntimeContainer container, final List<Instance<?>> dependents) {
+                                        final var base = new Bean1() {
+                                            @Override
+                                            public String toString() {
+                                                return "overriden:" + super.toString();
+                                            }
+                                        };
+                                        b1.inject(container, dependents, base);
+                                        return base;
+                                    }
+                                };
+                            }
+                            return b;
+                        };
+                    }
+                })
+                .start();
+             final var lookup = container.lookup(Bean1.class)) {
+            assertEquals("overriden:bean1[null]", lookup.instance().toString());
         }
     }
 

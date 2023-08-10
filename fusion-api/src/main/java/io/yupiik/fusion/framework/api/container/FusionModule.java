@@ -19,6 +19,7 @@ import io.yupiik.fusion.framework.api.RuntimeContainer;
 import io.yupiik.fusion.framework.api.spi.FusionContext;
 
 import java.util.Map;
+import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
 import java.util.stream.Stream;
 
@@ -85,6 +86,33 @@ public interface FusionModule {
      * @return null if no filter should be applied (faster than an always true predicate) or a predicate filtering beans.
      */
     default BiPredicate<RuntimeContainer, FusionListener<?>> listenerFilter() {
+        return null;
+    }
+
+    /**
+     * Enables to modify a listener before it is integrated in the runtime.
+     *
+     * @return null if no mapper should be applied (faster than an always true predicate) or a function.
+     */
+    default BiFunction<RuntimeContainer, FusionListener<?>, FusionListener<?>> listenerMapper() {
+        return null;
+    }
+
+    /**
+     * Enables to modify a bean before it is integrated in the runtime.
+     *
+     * @return null if no mapper should be applied (faster than an always true predicate) or a function.
+     */
+    default BiFunction<RuntimeContainer, FusionBean<?>, FusionBean<?>> beanMapper() {
+        return null;
+    }
+
+    /**
+     * Enables to modify a context before it is integrated in the runtime.
+     *
+     * @return null if no mapper should be applied (faster than an always true predicate) or a function.
+     */
+    default BiFunction<RuntimeContainer, FusionContext, FusionContext> contextMapper() {
         return null;
     }
 }
