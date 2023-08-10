@@ -704,9 +704,10 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
                         new JsonSchema(null, null, "string", true, null, null, null, null, null, null, description(), null);
                 case STRING ->
                         new JsonSchema(null, null, "string", true, null, null, null, null, null, null, description(), null);
-                // todo: add enum values in the schema - take care to use the enum mapping!
-                case ENUM ->
-                        new JsonSchema(null, null, "string", true, null, null, null, null, null, null, description(), null);
+                case ENUM -> new JsonSchema(
+                        null, null, "string", true,
+                        null, null, null, null, null, null, description(),
+                        type == null ? null : ParsedType.of(type).enumValues());
                 case LOCAL_DATE ->
                         new JsonSchema(null, null, "string", true, "date", null, null, null, null, null, description(), null);
                 case LOCAL_DATE_TIME ->

@@ -749,8 +749,17 @@ public class InternalFusionProcessor extends AbstractProcessor {
                         processingEnv, elements, names.packageName(), names.className(), element.asType()).get();
                 writeGeneratedClass(element, generation);
                 allBeans.add(generation.name());
+                allJsonSchemas.put(names.packageName() + '.' + names.className(),
+                        new GeneratedJsonSchema(
+                                new JsonSchema(
+                                        null, null,
+                                        "string", true,
+                                        null, null, null, null, null, null, null,
+                                        ParsedType.of(element.asType()).enumValues()),
+                                null));
                 return;
             }
+
             final var schemas = allJsonSchemas == null ? null : new HashMap<String, JsonSchema>();
             final var generator = new JsonCodecGenerator(
                     processingEnv, elements, names.packageName(), names.className(), element, knownJsonModels, schemas);
