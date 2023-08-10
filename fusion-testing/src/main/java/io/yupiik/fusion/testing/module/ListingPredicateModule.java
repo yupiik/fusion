@@ -19,10 +19,12 @@ import io.yupiik.fusion.framework.api.RuntimeContainer;
 import io.yupiik.fusion.framework.api.container.FusionBean;
 import io.yupiik.fusion.framework.api.container.FusionListener;
 import io.yupiik.fusion.framework.api.container.FusionModule;
+import io.yupiik.fusion.framework.api.lifecycle.Start;
 
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Type;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -57,13 +59,26 @@ public class ListingPredicateModule implements FusionModule {
 
     @Override
     public Stream<FusionListener<?>> listeners() {
-        try {
-            return listeners.stream();
-        } finally {
-            // last method called in ContainerImpl so just cleanup
-            beans.clear();
-            listeners.clear();
+        if (listeners.isEmpty() && beans.isEmpty()) {
+            return Stream.empty();
         }
+        return Stream.concat(listeners.stream(), Stream.of(new FusionListener<Start>() {
+            @Override
+            public int priority() {
+                return Integer.MAX_VALUE;
+            }
+
+            @Override
+            public Type eventType() {
+                return Start.class;
+            }
+
+            @Override
+            public void onEvent(final RuntimeContainer container, final Start event) {
+                beans.clear();
+                listeners.clear();
+            }
+        }));
     }
 
     @Override
