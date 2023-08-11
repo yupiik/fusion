@@ -189,6 +189,12 @@ public class TomcatWebServer implements WebServer {
             instance.addMapping("/");
         }, Set.of());
 
+        if (configuration.isFastSessionId()) {
+            final var mgr = new StandardManager();
+            mgr.setSessionIdGenerator(new FastSessionIdGenerator());
+            context.setManager(mgr);
+        }
+
         final var host = new StandardHost();
         host.setAutoDeploy(false);
         host.setName("localhost");
