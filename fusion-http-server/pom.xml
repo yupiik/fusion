@@ -40,6 +40,10 @@
       <exclusions>
         <exclusion>
           <groupId>org.apache.tomcat</groupId>
+          <artifactId>tomcat-annotations-api</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.tomcat</groupId>
           <artifactId>tomcat-jni</artifactId>
         </exclusion>
         <exclusion>

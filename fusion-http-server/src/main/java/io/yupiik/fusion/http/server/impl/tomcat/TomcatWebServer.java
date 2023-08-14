@@ -19,10 +19,8 @@ import io.yupiik.fusion.http.server.api.WebServer;
 import io.yupiik.fusion.http.server.impl.servlet.FusionServlet;
 import io.yupiik.fusion.http.server.spi.MonitoringEndpoint;
 import jakarta.servlet.annotation.HandlesTypes;
-import org.apache.catalina.Host;
 import org.apache.catalina.LifecycleException;
 import org.apache.catalina.LifecycleState;
-import org.apache.catalina.Service;
 import org.apache.catalina.connector.Connector;
 import org.apache.catalina.connector.Request;
 import org.apache.catalina.connector.Response;
@@ -37,6 +35,7 @@ import org.apache.catalina.valves.AbstractAccessLogValve;
 import org.apache.catalina.valves.ErrorReportValve;
 import org.apache.coyote.AbstractProtocol;
 import org.apache.juli.logging.LogFactory;
+import org.apache.tomcat.SimpleInstanceManager;
 import org.apache.tomcat.util.modeler.Registry;
 
 import java.io.CharArrayWriter;
@@ -47,12 +46,24 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.IntConsumer;
 import java.util.logging.Logger;
-import java.util.stream.Stream;
 
 import static java.util.Optional.ofNullable;
 
 // inspired from @apache/openwebbeans-meecrowave and @yupiik/uship
 public class TomcatWebServer implements WebServer {
+    private static final boolean HAS_JAKARTA_ANNOTATIONS;
+
+    static {
+        boolean hasJakartaAnnotations;
+        try {
+            Class.forName("jakarta.annotation.PostConstruct");
+            hasJakartaAnnotations = true;
+        } catch (final ClassNotFoundException cnfe) {
+            hasJakartaAnnotations = false;
+        }
+        HAS_JAKARTA_ANNOTATIONS = hasJakartaAnnotations;
+    }
+
     protected final TomcatWebServerConfiguration configuration;
     protected final Tomcat tomcat;
 
@@ -189,12 +200,6 @@ public class TomcatWebServer implements WebServer {
             instance.addMapping("/");
         }, Set.of());
 
-        if (configuration.isFastSessionId()) {
-            final var mgr = new StandardManager();
-            mgr.setSessionIdGenerator(new FastSessionIdGenerator());
-            context.setManager(mgr);
-        }
-
         final var host = new StandardHost();
         host.setAutoDeploy(false);
         host.setName("localhost");
@@ -240,12 +245,6 @@ public class TomcatWebServer implements WebServer {
                         .map(this::scanFor)
                         .orElseGet(Set::of)));
 
-        if (configuration.isFastSessionId()) {
-            final var mgr = new StandardManager();
-            mgr.setSessionIdGenerator(new FastSessionIdGenerator());
-            ctx.setManager(mgr);
-        }
-
         if (configuration.getContextCustomizers() != null) {
             configuration.getContextCustomizers().forEach(c -> c.accept(ctx));
         }
@@ -284,6 +283,16 @@ public class TomcatWebServer implements WebServer {
         }
 
         ctx.getPipeline().addValve(errorReportValve);
+
+        if (configuration.isFastSessionId()) {
+            final var mgr = new StandardManager();
+            mgr.setSessionIdGenerator(new FastSessionIdGenerator());
+            ctx.setManager(mgr);
+        }
+
+        if (!HAS_JAKARTA_ANNOTATIONS) {
+            ctx.setInstanceManager(new SimpleInstanceManager());
+        }
 
         // no need of all these checks in general since we use a flat classpath
         ctx.setClearReferencesObjectStreamClassCaches(false);
