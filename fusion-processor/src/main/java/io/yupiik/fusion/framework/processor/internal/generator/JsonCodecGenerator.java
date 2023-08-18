@@ -100,7 +100,10 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
                                     it.getAnnotation(JsonOthers.class) != null,
                                     ofNullable(it.getAnnotation(Property.class))
                                             .map(i -> i.documentation() + (i.required() ? " This attribute is required." : ""))
-                                            .orElse(null));
+                                            .orElse(null),
+                                    ofNullable(it.getAnnotation(JsonProperty.class))
+                                            .map(JsonProperty::order)
+                                            .orElse(Integer.MIN_VALUE));
                         })
                         .peek(a -> {
                             if (a.others() && !(
@@ -448,8 +451,9 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
 
         final var serializerPosition = new AtomicInteger();
         out.append(params.stream()
-                // todo: add a config in @JsonModel to make sorting configurable
-                .sorted(Comparator.<Param, Integer>comparing(p -> p.others() ? 2 : 1)
+                .sorted(Comparator.<Param, Integer>comparing(p -> p.order() != Integer.MIN_VALUE ?
+                                p.order() :
+                                (p.others() ? Integer.MIN_VALUE + 2 : Integer.MIN_VALUE + 1))
                         .thenComparing(Param::javaName))
                 .map(param -> {
                     final var paramPosition = serializerPosition.getAndIncrement();
@@ -642,7 +646,7 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
     }
 
     private record Param(String javaName, String jsonName, TypeMirror type,
-                         ParamTypes types, boolean others, String doc) {
+                         ParamTypes types, boolean others, String doc, int order) {
         public String defaultValue() {
             return switch (types.paramType()) {
                 case VALUE -> switch (types.paramTypeDef()) {

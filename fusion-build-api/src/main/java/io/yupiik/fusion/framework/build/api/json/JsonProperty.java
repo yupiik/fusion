@@ -27,5 +27,13 @@ import static java.lang.annotation.RetentionPolicy.SOURCE;
 @Retention(SOURCE)
 @Target(PARAMETER)
 public @interface JsonProperty {
+    /**
+     * @return the property JSON name.
+     */
     String value() default "";
+
+    /**
+     * @return order when serializing the instance (sorted by natural integer order, if two attributes have the same value, alpha order is used).
+     */
+    int order() default Integer.MIN_VALUE;
 }

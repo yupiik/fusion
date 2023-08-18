@@ -596,19 +596,21 @@ class FusionProcessorTest {
                 .jsonRoundTripAsserts("test.p.JsonRecords$AllInOne",
                         "" +
                                 "{" +
-                                "\"aBool\":true,\"bigNumber\":\"1E+10\",\"bigNumbers\":[\"123\",\"456\"],\"booleanList\":[true,false]," +
+                                "\"bigNumber\":\"1E+10\",\"bigNumbers\":[\"123\",\"456\"],\"booleanList\":[true,false]," +
                                 "\"date\":\"2022-12-06\",\"dateList\":[\"2022-12-06\",\"2022-12-07\"]," +
                                 "\"dateTime\":\"2022-12-06T14:47\",\"dateTimeList\":[\"2022-12-06T15:19\",\"2022-12-06T15:19:49\"]," +
                                 "\"doubleList\":[9.1,10.2]," +
                                 "\"generic\":{\"gen\":true},\"genericList\":[{\"gen\":{\"n\":true}},{\"gen2\":{\"other\":2}}]," +
-                                "\"intList\":[3,4],\"integer\":1,\"lg\":3,\"longList\":[5,6],\"mapNested\":{\"k\":{\"name\":\"self\"}}," +
+                                "\"intList\":[3,4],\"lg\":3,\"longList\":[5,6],\"mapNested\":{\"k\":{\"name\":\"self\"}}," +
                                 "\"mapStringInt\":{\"k\":1},\"mapStringString\":{\"k\":\"v\"},\"more\":4.5,\"nested\":{\"name\":\"lower\"}," +
                                 "\"nestedList\":[{\"name\":\"santa\"},{\"name\":\"nicolas\"}],\"nullableInt\":2,\"offset\":\"2022-12-06T14:47Z\"," +
                                 "\"offsetList\":[\"2022-12-06T15:19Z\",\"2022-12-06T15:19:49Z\"],\"simplest\":\"the chars\"," +
                                 "\"stringList\":[\"first\",\"second\"],\"zoned\":\"2022-12-06T14:47Z\"," +
                                 "\"zonedList\":[\"2022-12-06T15:19Z\",\"2022-12-06T15:19:49Z\"]," +
                                 // @JsonOthers - pushed at the end by default sorting (serialization)
-                                "\"fall\":\"back\",\"fall-obj\":{\"down\":1},\"fall-list\":[5],\"unmapped\":true}",
+                                "\"fall\":\"back\",\"fall-obj\":{\"down\":1},\"fall-list\":[5],\"unmapped\":true," +
+                                // custom order
+                                "\"aBool\":true,\"integer\":1}",
                         "AllInOne[" +
                                 "aBool=true, bigDecimal=1E+10, integer=1, nullableInt=2, lg=3, more=4.5, simplest=the chars, " +
                                 "date=2022-12-06, dateTime=2022-12-06T14:47, offset=2022-12-06T14:47Z, zoned=2022-12-06T14:47Z, " +

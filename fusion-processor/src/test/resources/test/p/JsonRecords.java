@@ -36,9 +36,9 @@ public interface JsonRecords {
 
     @JsonModel
     public record AllInOne(
-            boolean aBool,
+            @JsonProperty(order = 100) boolean aBool,
             @JsonProperty("bigNumber") BigDecimal bigDecimal,
-            int integer,
+            @JsonProperty(order = 101) int integer,
             Integer nullableInt,
             long lg,
             double more,
