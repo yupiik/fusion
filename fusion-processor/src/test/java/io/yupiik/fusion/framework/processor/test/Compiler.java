@@ -38,6 +38,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.spi.ToolProvider;
 import java.util.stream.Stream;
 
@@ -53,10 +54,16 @@ public class Compiler {
     private Path src;
     private Path generatedSources;
     private Path classes;
+    private Predicate<Class<?>> classpathFilter;
 
     public Compiler(final Path work, final String... classNames) {
         this.work = work;
         this.classNames = classNames;
+    }
+
+    public Compiler classpathFilter(final Predicate<Class<?>> classpathFilter) {
+        this.classpathFilter = classpathFilter;
+        return this;
     }
 
     public Path getGeneratedSources() {
@@ -150,16 +157,18 @@ public class Compiler {
         this.generatedSources = src.getParent().resolve("generated-sources");
 
         final var version = Runtime.version().version().get(0).toString();
-        final var cp = String.join(
-                File.pathSeparator,
-                pathOf(FusionProcessor.class),
-                pathOf(Injection.class),
-                pathOf(Generation.class),
-                pathOf(JsonMapper.class),
-                pathOf(Request.class),
-                pathOf(JsonRpcHandler.class),
-                pathOf(CliCommand.class),
-                pathOf(Entity.class));
+        final var cp = Stream.of(
+                        FusionProcessor.class,
+                        Injection.class,
+                        Generation.class,
+                        JsonMapper.class,
+                        Request.class,
+                        JsonRpcHandler.class,
+                        CliCommand.class,
+                        Entity.class)
+                .filter(it -> classpathFilter == null || classpathFilter.test(it))
+                .map(this::pathOf)
+                .collect(joining(File.pathSeparator));
         final var cmd = Stream.concat(
                         Stream.of(
                                 "--release", version,
@@ -174,15 +183,44 @@ public class Compiler {
                                 "-Afusion.skipNotes=false",
                                 "-Afusion.workdir=false",
                                 // "-verbose",
-                                "-processor", FusionProcessor.class.getName()),
+                                "-processor", "io.yupiik.fusion.framework.processor.FusionProcessor"),
                         Stream.of(classNames).map(it -> "test.p." + it))
                 .toArray(String[]::new);
-        final var compiled = ToolProvider
-                .findFirst("javac")
-                .orElseThrow()
-                .run(System.out, System.err, cmd);
-        assertEquals(exitCode, compiled, () -> "Compiled Status=" + compiled + "\n" + list(generatedSources));
-        return classes;
+        try {
+            final var compiled = classpathFilter == null ?
+                    // run embedded, easier to debug, run and avoids to leak anyway
+                    ToolProvider
+                            .findFirst("javac")
+                            .orElseThrow()
+                            .run(System.out, System.err, cmd) :
+                    // else run forked otherwise base classloader can fake the test
+                    new ProcessBuilder(Stream.concat(Stream.of(findJavac()), Stream.of(cmd)).toArray(String[]::new))
+                            .inheritIO()
+                            .start()
+                            .waitFor();
+            assertEquals(exitCode, compiled, () -> "Compiled Status=" + compiled + "\n" + list(generatedSources));
+            return classes;
+        } catch (final IOException e) {
+            return fail(e);
+        } catch (final InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return fail(e);
+        }
+    }
+
+    private String findJavac() {
+        try (final var list = Files.list(Path.of(System.getProperty("java.home")).resolve("bin"))) {
+            return list
+                    .filter(it -> {
+                        final var fileName = it.getFileName().toString();
+                        return fileName.equals("javac") || fileName.startsWith("javac.") /* win */;
+                    })
+                    .findFirst()
+                    .map(Path::toString)
+                    .orElse("javac");
+        } catch (final IOException e) {
+            return fail(e);
+        }
     }
 
     private String pathOf(final Class<?> clazz) {

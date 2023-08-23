@@ -1620,83 +1620,37 @@ class FusionProcessorTest {
 
     @Test
     void httpEndpoint(@TempDir final Path work) throws IOException {
-        final var compiler = new Compiler(work, "HttpEndpoints");
-        compiler.compileAndAsserts((loader, container) -> {
-            assertEquals(
-                    List.of(
-                            "test.p.HttpEndpoints$all$FusionHttpEndpoint",
-                            "test.p.HttpEndpoints$get$FusionHttpEndpoint",
-                            "test.p.HttpEndpoints$getAndEndsWithFooPath$FusionHttpEndpoint",
-                            "test.p.HttpEndpoints$getAndFooPath$FusionHttpEndpoint",
-                            "test.p.HttpEndpoints$getAndRegexFooPath$FusionHttpEndpoint",
-                            "test.p.HttpEndpoints$getAndStartsWithFooPath$FusionHttpEndpoint",
-                            "test.p.HttpEndpoints$greet$FusionHttpEndpoint",
-                            "test.p.HttpEndpoints$greetStage$FusionHttpEndpoint"),
-                    container.getBeans().getBeans().keySet().stream()
-                            .filter(Class.class::isInstance)
-                            .map(Class.class::cast)
-                            .map(Class::getName)
-                            .filter(it -> it.endsWith("$FusionHttpEndpoint"))
-                            .sorted()
-                            .toList());
+        new Compiler(work, "HttpEndpoints").compileAndAsserts(this::assertHttpEndpoints);
+    }
 
-            withInstance(container, loader, "test.p.HttpEndpoints$all$FusionHttpEndpoint", Endpoint.class, instance -> {
-                assertTrue(instance.matches(new SimpleRequest()));
-                assertTrue(instance.matches(new SimpleRequest("POST", "/foo", Map.of())));
-                assertTrue(instance.matches(new SimpleRequest("POST", "/whatever", Map.of())));
-            });
-            withInstance(container, loader, "test.p.HttpEndpoints$get$FusionHttpEndpoint", Endpoint.class, instance -> {
-                assertTrue(instance.matches(new SimpleRequest()));
-                assertFalse(instance.matches(new SimpleRequest("POST", "/foo", Map.of())));
-                assertTrue(instance.matches(new SimpleRequest("GET", "/whatever", Map.of())));
-            });
-            withInstance(container, loader, "test.p.HttpEndpoints$getAndFooPath$FusionHttpEndpoint", Endpoint.class, instance -> {
-                assertTrue(instance.matches(new SimpleRequest()));
-                assertFalse(instance.matches(new SimpleRequest("POST", "/foo", Map.of())));
-                assertFalse(instance.matches(new SimpleRequest("GET", "/whatever", Map.of())));
-            });
-            withInstance(container, loader, "test.p.HttpEndpoints$getAndEndsWithFooPath$FusionHttpEndpoint", Endpoint.class, instance -> {
-                assertTrue(instance.matches(new SimpleRequest()));
-                assertFalse(instance.matches(new SimpleRequest("GET", "/foo/bar", Map.of())));
-                assertTrue(instance.matches(new SimpleRequest("GET", "/whatever/foo", Map.of())));
-            });
-            withInstance(container, loader, "test.p.HttpEndpoints$getAndStartsWithFooPath$FusionHttpEndpoint", Endpoint.class, instance -> {
-                assertTrue(instance.matches(new SimpleRequest()));
-                assertTrue(instance.matches(new SimpleRequest("GET", "/foo/bar", Map.of())));
-                assertFalse(instance.matches(new SimpleRequest("GET", "/whatever/foo", Map.of())));
-            });
-            withInstance(container, loader, "test.p.HttpEndpoints$getAndRegexFooPath$FusionHttpEndpoint", Endpoint.class, instance -> {
-                assertFalse(instance.matches(new SimpleRequest()));
+    @Test
+    void httpEndpointNoJsonRpc(@TempDir final Path work) throws IOException {
+        new Compiler(work, "HttpEndpoints")
+                .classpathFilter(c -> !c.getName().contains("jsonrpc"))
+                .compileAndAsserts(this::assertHttpEndpoints);
+    }
 
-                final var attributes = new HashMap<String, Object>();
-                assertTrue(instance.matches(new SimpleRequest("GET", "/foo/bar/foo", attributes)));
-
-                final var matcher = attributes.get("fusion.http.matcher");
-                assertInstanceOf(Matcher.class, matcher);
-            });
-            withInstance(container, loader, "test.p.HttpEndpoints$greet$FusionHttpEndpoint", Endpoint.class, instance -> {
-                assertFalse(instance.matches(new SimpleRequest()));
-                assertTrue(instance.matches(new SimpleRequest("POST", "/greet", Map.of())));
-
-                final var response = assertDoesNotThrow(() -> instance.handle(
-                                new SimpleRequest("POST", "/greet", Map.of(), new BytesPublisher("{\"name\":\"fusion\"}")))
-                        .toCompletableFuture().get());
-                assertEquals(200, response.status());
-                assertEquals(Map.of("content-type", List.of("application/json;charset=utf-8")), response.headers());
-                assertEquals("{\"message\":\"Hello fusion!\"}", assertDoesNotThrow(() -> new String(new RequestBodyAggregator(response.body(), UTF_8).promise().toCompletableFuture().get())));
-            });
-            withInstance(container, loader, "test.p.HttpEndpoints$greetStage$FusionHttpEndpoint", Endpoint.class, instance -> {
-                assertFalse(instance.matches(new SimpleRequest()));
-                assertTrue(instance.matches(new SimpleRequest("POST", "/greetstage", Map.of())));
-
-                final var response = assertDoesNotThrow(() -> instance.handle(
-                                new SimpleRequest("POST", "/greetstage", Map.of(), new BytesPublisher("{\"name\":\"fusion\"}")))
-                        .toCompletableFuture().get());
-                assertEquals(200, response.status());
-                assertEquals(Map.of("content-type", List.of("application/json;charset=utf-8")), response.headers());
-                assertEquals("{\"message\":\"Hello fusion!\"}", assertDoesNotThrow(() -> new String(new RequestBodyAggregator(response.body(), UTF_8).promise().toCompletableFuture().get())));
-            });
-        });
+    @Test
+    void httpEndpointNoJson(@TempDir final Path work) throws IOException {
+        new Compiler(work, "HttpNoJson")
+                .classpathFilter(c -> !c.getName().contains("json") &&
+                        !c.getName().contains("cli") &&
+                        !c.getName().contains("persistence"))
+                .compileAndAsserts((loader, container) -> assertEquals(
+                        List.of(
+                                "test.p.HttpNoJson$all$FusionHttpEndpoint",
+                                "test.p.HttpNoJson$get$FusionHttpEndpoint",
+                                "test.p.HttpNoJson$getAndEndsWithFooPath$FusionHttpEndpoint",
+                                "test.p.HttpNoJson$getAndFooPath$FusionHttpEndpoint",
+                                "test.p.HttpNoJson$getAndRegexFooPath$FusionHttpEndpoint",
+                                "test.p.HttpNoJson$getAndStartsWithFooPath$FusionHttpEndpoint"),
+                        container.getBeans().getBeans().keySet().stream()
+                                .filter(Class.class::isInstance)
+                                .map(Class.class::cast)
+                                .map(Class::getName)
+                                .filter(it -> it.endsWith("$FusionHttpEndpoint"))
+                                .sorted()
+                                .toList()));
     }
 
     @Test
@@ -1955,6 +1909,83 @@ class FusionProcessorTest {
 
     private Request jsonRpc(final String payload) {
         return new SimpleRequest("POST", "/jsonrpc", new HashMap<>(), new BytesPublisher(payload));
+    }
+
+    private void assertHttpEndpoints(final Function<String, Class<?>> loader, final RuntimeContainer container) {
+        assertEquals(
+                List.of(
+                        "test.p.HttpEndpoints$all$FusionHttpEndpoint",
+                        "test.p.HttpEndpoints$get$FusionHttpEndpoint",
+                        "test.p.HttpEndpoints$getAndEndsWithFooPath$FusionHttpEndpoint",
+                        "test.p.HttpEndpoints$getAndFooPath$FusionHttpEndpoint",
+                        "test.p.HttpEndpoints$getAndRegexFooPath$FusionHttpEndpoint",
+                        "test.p.HttpEndpoints$getAndStartsWithFooPath$FusionHttpEndpoint",
+                        "test.p.HttpEndpoints$greet$FusionHttpEndpoint",
+                        "test.p.HttpEndpoints$greetStage$FusionHttpEndpoint"),
+                container.getBeans().getBeans().keySet().stream()
+                        .filter(Class.class::isInstance)
+                        .map(Class.class::cast)
+                        .map(Class::getName)
+                        .filter(it -> it.endsWith("$FusionHttpEndpoint"))
+                        .sorted()
+                        .toList());
+
+        withInstance(container, loader, "test.p.HttpEndpoints$all$FusionHttpEndpoint", Endpoint.class, instance -> {
+            assertTrue(instance.matches(new SimpleRequest()));
+            assertTrue(instance.matches(new SimpleRequest("POST", "/foo", Map.of())));
+            assertTrue(instance.matches(new SimpleRequest("POST", "/whatever", Map.of())));
+        });
+        withInstance(container, loader, "test.p.HttpEndpoints$get$FusionHttpEndpoint", Endpoint.class, instance -> {
+            assertTrue(instance.matches(new SimpleRequest()));
+            assertFalse(instance.matches(new SimpleRequest("POST", "/foo", Map.of())));
+            assertTrue(instance.matches(new SimpleRequest("GET", "/whatever", Map.of())));
+        });
+        withInstance(container, loader, "test.p.HttpEndpoints$getAndFooPath$FusionHttpEndpoint", Endpoint.class, instance -> {
+            assertTrue(instance.matches(new SimpleRequest()));
+            assertFalse(instance.matches(new SimpleRequest("POST", "/foo", Map.of())));
+            assertFalse(instance.matches(new SimpleRequest("GET", "/whatever", Map.of())));
+        });
+        withInstance(container, loader, "test.p.HttpEndpoints$getAndEndsWithFooPath$FusionHttpEndpoint", Endpoint.class, instance -> {
+            assertTrue(instance.matches(new SimpleRequest()));
+            assertFalse(instance.matches(new SimpleRequest("GET", "/foo/bar", Map.of())));
+            assertTrue(instance.matches(new SimpleRequest("GET", "/whatever/foo", Map.of())));
+        });
+        withInstance(container, loader, "test.p.HttpEndpoints$getAndStartsWithFooPath$FusionHttpEndpoint", Endpoint.class, instance -> {
+            assertTrue(instance.matches(new SimpleRequest()));
+            assertTrue(instance.matches(new SimpleRequest("GET", "/foo/bar", Map.of())));
+            assertFalse(instance.matches(new SimpleRequest("GET", "/whatever/foo", Map.of())));
+        });
+        withInstance(container, loader, "test.p.HttpEndpoints$getAndRegexFooPath$FusionHttpEndpoint", Endpoint.class, instance -> {
+            assertFalse(instance.matches(new SimpleRequest()));
+
+            final var attributes = new HashMap<String, Object>();
+            assertTrue(instance.matches(new SimpleRequest("GET", "/foo/bar/foo", attributes)));
+
+            final var matcher = attributes.get("fusion.http.matcher");
+            assertInstanceOf(Matcher.class, matcher);
+        });
+        withInstance(container, loader, "test.p.HttpEndpoints$greet$FusionHttpEndpoint", Endpoint.class, instance -> {
+            assertFalse(instance.matches(new SimpleRequest()));
+            assertTrue(instance.matches(new SimpleRequest("POST", "/greet", Map.of())));
+
+            final var response = assertDoesNotThrow(() -> instance.handle(
+                            new SimpleRequest("POST", "/greet", Map.of(), new BytesPublisher("{\"name\":\"fusion\"}")))
+                    .toCompletableFuture().get());
+            assertEquals(200, response.status());
+            assertEquals(Map.of("content-type", List.of("application/json;charset=utf-8")), response.headers());
+            assertEquals("{\"message\":\"Hello fusion!\"}", assertDoesNotThrow(() -> new String(new RequestBodyAggregator(response.body(), UTF_8).promise().toCompletableFuture().get())));
+        });
+        withInstance(container, loader, "test.p.HttpEndpoints$greetStage$FusionHttpEndpoint", Endpoint.class, instance -> {
+            assertFalse(instance.matches(new SimpleRequest()));
+            assertTrue(instance.matches(new SimpleRequest("POST", "/greetstage", Map.of())));
+
+            final var response = assertDoesNotThrow(() -> instance.handle(
+                            new SimpleRequest("POST", "/greetstage", Map.of(), new BytesPublisher("{\"name\":\"fusion\"}")))
+                    .toCompletableFuture().get());
+            assertEquals(200, response.status());
+            assertEquals(Map.of("content-type", List.of("application/json;charset=utf-8")), response.headers());
+            assertEquals("{\"message\":\"Hello fusion!\"}", assertDoesNotThrow(() -> new String(new RequestBodyAggregator(response.body(), UTF_8).promise().toCompletableFuture().get())));
+        });
     }
 
     private record SimpleRequest(String method, String path, Map<String, Object> attributes,
