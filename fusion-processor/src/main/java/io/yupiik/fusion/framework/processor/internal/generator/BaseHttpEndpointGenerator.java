@@ -22,7 +22,6 @@ import io.yupiik.fusion.http.server.api.Request;
 import io.yupiik.fusion.http.server.impl.io.RequestBodyAggregator;
 import io.yupiik.fusion.json.JsonMapper;
 import io.yupiik.fusion.json.deserialization.AvailableCharArrayReader;
-import io.yupiik.fusion.jsonrpc.api.PartialResponse;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.ExecutableElement;
@@ -165,7 +164,7 @@ public abstract class BaseHttpEndpointGenerator extends BaseGenerator {
                     Integer.class.getName().equals(param.className()) ||
                     Long.class.getName().equals(param.className()) ||
                     Boolean.class.getName().equals(param.className()) ||
-                    PartialResponse.class.getName().equals(param.className()) ||
+                    "io.yupiik.fusion.jsonrpc.api.PartialResponse".equals(param.className()) ||
                     Object.class.getName().equals(param.className());
             case PARAMETERIZED_TYPE -> // todo: test raw = collection or list or set or map or optional?
                     isJson(new ParsedType(ParsedType.Type.CLASS, param.args().get(param.args().size() - 1), null, null, null));
