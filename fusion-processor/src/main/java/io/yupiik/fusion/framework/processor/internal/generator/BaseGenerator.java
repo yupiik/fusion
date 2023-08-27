@@ -35,6 +35,7 @@ import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.ExecutableType;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -299,11 +300,20 @@ public abstract class BaseGenerator {
                 .collect(joining(", ", "throws ", ""));
     }
 
-    protected String templateTypes(final ExecutableType m) { // todo: enhance and make it even more recursive?
+    // todo: enhance and make it even more recursive?
+    protected String templateTypes(final ExecutableType m, final Collection<? extends TypeMirror> classOnes) {
         final var templates = new LinkedHashSet<String>();
-
         final var alreadyHandled = new HashSet<TypeMirror>();
         final var result = m.getReturnType();
+        return templates(
+                m.getParameterTypes().stream()
+                        .filter(it -> classOnes == null || !classOnes.contains(it))
+                        .toList(),
+                result, alreadyHandled, templates);
+    }
+
+    protected String templates(final List<? extends TypeMirror> params, final TypeMirror result,
+                               final Set<TypeMirror> alreadyHandled, final Set<String> templates) {
         if (isTemplate(result, alreadyHandled)) {
             alreadyHandled.add(result);
             templates.add(result + " " + templateBound((TypeVariable) result));
@@ -314,11 +324,11 @@ public abstract class BaseGenerator {
                     .toList());
         }
 
-        templates.addAll(m.getParameterTypes().stream()
+        templates.addAll(params.stream()
                 .filter(it -> isTemplate(it, alreadyHandled))
                 .map(it -> it + " " + templateBound((TypeVariable) it))
                 .toList());
-        templates.addAll(m.getParameterTypes().stream()
+        templates.addAll(params.stream()
                 .filter(it -> it instanceof DeclaredType)
                 .map(it -> (DeclaredType) it)
                 .flatMap(dt -> dt.getTypeArguments().stream())
