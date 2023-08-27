@@ -17,7 +17,7 @@
     <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/asciidoctor.js/1.5.5-5/css/asciidoctor.min.css" integrity="sha512-kI7tn5cuEg16kMeXnYmg8rEJPxbxzEM7Gsr191iQdLDevFBLXPCSU9aZWSVuP61tMZWU3nBAR1cJ7SmXnOGLZw==" crossorigin="anonymous" />
     <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.3/css/bootstrap.min.css" integrity="sha512-oc9+XSs1H243/FRN9Rw62Fn8EtxjEYWHXRvjS43YtueEewbS6ObfXcJNyohjHqVKFPoXXUxwc+q1K7Dee6vv9g==" crossorigin="anonymous" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/styles/vs2015.min.css" integrity="sha512-w8aclkBlN3Ha08SMwFKXFJqhSUx2qlvTBFLLelF8sm4xQnlg64qmGB/A6pBIKy0W8Bo51yDMDtQiPLNRq1WMcQ==" crossorigin="anonymous" />
-    <link id="theme-style" rel="stylesheet" href="//www.yupiik.io/fusion/css/theme.css?v=1.0.4-SNAPSHOT">
+    <link id="theme-style" rel="stylesheet" href="//www.yupiik.io/fusion/css/theme.css?v=1.0.8-SNAPSHOT">
     
 </head>
 <body>
@@ -112,25 +112,25 @@ Here are the subkeys:</p>
 <div class="ulist">
 <ul>
 <li>
-<p><code>algo</code> (default: <code>"RS256"</code>): JWT <code>alg</code> value..</p>
+<p><code>jwt.algo</code> (default: <code>"RS256"</code>): JWT <code>alg</code> value..</p>
 </li>
 <li>
-<p><code>expRequired</code> (default: <code>true</code>): Are <code>exp</code> (expiry) validation required of can it be skipped if claim is missing..</p>
+<p><code>jwt.expRequired</code> (default: <code>true</code>): Are <code>exp</code> (expiry) validation required of can it be skipped if claim is missing..</p>
 </li>
 <li>
-<p><code>iatRequired</code> (default: <code>false</code>): Are <code>iat</code> (issued at) validation required of can it be skipped if claim is missing..</p>
+<p><code>jwt.iatRequired</code> (default: <code>false</code>): Are <code>iat</code> (issued at) validation required of can it be skipped if claim is missing..</p>
 </li>
 <li>
-<p><code>issuer</code>: JWT issuer, validation is ignored if null..</p>
+<p><code>jwt.issuer</code>: JWT issuer, validation is ignored if null..</p>
 </li>
 <li>
-<p><code>key</code>*: Public key to use to validate the incoming JWT..</p>
+<p><code>jwt.key</code>*: Public key to use to validate the incoming JWT..</p>
 </li>
 <li>
-<p><code>nbfRequired</code> (default: <code>false</code>): Are <code>nbf</code> (not before) validation required of can it be skipped if claim is missing..</p>
+<p><code>jwt.nbfRequired</code> (default: <code>false</code>): Are <code>nbf</code> (not before) validation required of can it be skipped if claim is missing..</p>
 </li>
 <li>
-<p><code>tolerance</code> (default: <code>30</code>): Tolerance for date validation (in seconds)..</p>
+<p><code>jwt.tolerance</code> (default: <code>30</code>): Tolerance for date validation (in seconds)..</p>
 </li>
 </ul>
 </div>
@@ -225,6 +225,18 @@ public void onJsonRpcJwt(@OnEvent final BeforeRequest event) {
 </li>
 </ol>
 </div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<div class="title">Tip</div>
+</td>
+<td class="content">
+if you don&#8217;t want to redefine the configuration nor the validator, you can inject <code>io.yupiik.fusion.jwt.bean.DefaultJwtValidator</code> directly.
+</td>
+</tr>
+</table>
+</div>
 </div>
 </div>
                 
@@ -279,7 +291,7 @@ public void onJsonRpcJwt(@OnEvent final BeforeRequest event) {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/languages/json.min.js" integrity="sha512-37sW1XqaJmseHAGNg4N4Y01u6g2do6LZL8tsziiL5CMXGy04Th65OXROw2jeDeXLo5+4Fsx7pmhEJJw77htBFg==" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/languages/dockerfile.min.js" integrity="sha512-eRNl3ty7GOJPBN53nxLgtSSj2rkYj5/W0Vg0MFQBw8xAoILeT6byOogENHHCRRvHil4pKQ/HbgeJ5DOwQK3SJA==" crossorigin="anonymous"></script>
     <script>if (!(window.minisite || {}).skipHighlightJs) { hljs.highlightAll(); }</script>
-    <script src="//www.yupiik.io/fusion/js/minisite.js?v=1.0.4-SNAPSHOT"></script>
+    <script src="//www.yupiik.io/fusion/js/minisite.js?v=1.0.8-SNAPSHOT"></script>
     <script>$('.page-content-body').generatedNavMenu();</script>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fuse.js/6.4.3/fuse.min.js" integrity="sha512-neoBxVNv0UMXjoilAYGxfWrSsW6iAVclx7vQKdPJ9Peet1bM5YQjU0aIB8LtH8iNPa+pAyMZprBBw2ZQ/Q1LjQ==" crossorigin="anonymous"></script>
