@@ -64,7 +64,7 @@ public class APIOperator extends Operator.Base<APIResource> { //  <1>
     private final KubernetesClient kubernetes;
     private final JsonMapper jsonMapper;
 
-    public SampleOperator(
+    public APIOperator(
             // <2>
             final KubernetesClient client, final JsonMapper jsonMapper) {
         super(
