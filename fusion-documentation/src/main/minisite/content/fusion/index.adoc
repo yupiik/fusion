@@ -234,3 +234,4 @@ See xref:setup.adoc[setup] page to see how to get your project started.
 * xref:observability.adoc[Observability]
 * xref:handlebars.adoc[Handlebars]
 * xref:persistence.adoc[Persistence]
+* xref:kubernetes-operator.adoc[Kubernetes Operator Base]

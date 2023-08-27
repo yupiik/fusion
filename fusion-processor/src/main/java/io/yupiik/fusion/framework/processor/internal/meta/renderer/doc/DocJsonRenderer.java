@@ -58,7 +58,10 @@ public class DocJsonRenderer implements Supplier<String> {
                                         .collect(joining(",")) +
                                 "]")
                         .collect(joining(",")) +
-                "}}";
+                "}," +
+                "\"roots\":" +
+                docs.stream().filter(Docs.ClassDoc::root).map(Docs.ClassDoc::name).map(JsonStrings::escape).collect(joining(",", "[", "]")) +
+                "}";
     }
 
     private String jsonDefaultValue(final String value) {
@@ -72,7 +75,12 @@ public class DocJsonRenderer implements Supplier<String> {
             }
         }
         try {
-            return String.valueOf(Double.parseDouble(value));
+            final var dbl = Double.parseDouble(value);
+            final var asInt = (int) dbl;
+            if ((double) asInt == dbl) { // avoid 1234.0 when 1234 is sufficient
+                return Integer.toString(asInt);
+            }
+            return String.valueOf(dbl);
         } catch (final NumberFormatException e) {
             //no-op
         }

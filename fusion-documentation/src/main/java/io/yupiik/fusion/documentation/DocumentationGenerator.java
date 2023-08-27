@@ -25,10 +25,12 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Stream;
 
-import static java.util.Comparator.comparing;
+import static java.util.Objects.requireNonNull;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.joining;
+import static java.util.stream.Collectors.toMap;
 
 public class DocumentationGenerator implements Runnable {
     private final Path sourceBase;
@@ -44,33 +46,37 @@ public class DocumentationGenerator implements Runnable {
             final var docs = Thread.currentThread().getContextClassLoader().getResources("META-INF/fusion/configuration/documentation.json");
             while (docs.hasMoreElements()) {
                 final var url = docs.nextElement();
-                System.out.println(url.getFile());
                 try (final var in = url.openStream()) {
                     final var doc = (Map<String, Object>) json.fromBytes(Object.class, in.readAllBytes());
                     if (doc.get("classes") instanceof Map<?, ?> classes) {
+                        final var roots = ofNullable((List<String>) doc.get("roots")).orElse(List.of());
+
                         var file = url.getFile().replace("!/META-INF/fusion/configuration/documentation.json", "");
                         file = file.substring(Math.max(file.lastIndexOf('/'), file.lastIndexOf(File.separator)) + 1);
-                        final var module = file.split("-")[1]; // fusion-$module-$version.jar
+                        final var module = file.substring(file.indexOf('-') + 1, file.indexOf("-1")); // fusion-$module-$version.jar
                         final var adoc = sourceBase.resolve("content/_partials/generated/documentation." + module + ".adoc");
                         Files.createDirectories(adoc.getParent());
                         Files.writeString(adoc, "= " + module + "\n" +
                                 "\n" +
                                 "== Configuration\n" +
                                 "\n" +
-                                classes.values().stream()
-                                        .map(it -> (Collection<?>) it)
-                                        .flatMap(Collection::stream)
-                                        .map(it -> (Map<String, Object>) it)
-                                        .sorted(comparing(m -> m.get("name").toString()))
-                                        .map(it -> {
-                                            final var name = it.get("name").toString();
-                                            return "* `" + name.substring(name.indexOf('.') + 1) + "`" +
-                                                    (Boolean.TRUE.equals(it.get("required")) ? "*" : "") +
-                                                    ofNullable(it.get("defaultValue"))
-                                                            .map(v -> " (default: `" + v + "`)")
-                                                            .orElse("") + ": " +
-                                                    it.getOrDefault("documentation", "-") + ".";
+                                roots.stream()
+                                        .flatMap(rootName -> {
+                                            final var root = (Collection<?>) requireNonNull(classes.get(rootName), () -> "Missing configuration '" + rootName + "'");
+                                            return root.stream()
+                                                    .map(it -> (Map<String, Object>) it)
+                                                    .flatMap(item -> flatten(classes, item))
+                                                    .map(it -> {
+                                                        final var name = it.get("name").toString();
+                                                        return "* `" + name + "`" +
+                                                                (Boolean.TRUE.equals(it.get("required")) ? "*" : "") +
+                                                                ofNullable(it.get("defaultValue"))
+                                                                        .map(v -> " (default: `" + v + "`)")
+                                                                        .orElse("") + ": " +
+                                                                it.getOrDefault("documentation", "-") + ".";
+                                                    });
                                         })
+                                        .sorted()
                                         .collect(joining("\n")));
                     }
                 }
@@ -78,5 +84,23 @@ public class DocumentationGenerator implements Runnable {
         } catch (final IOException e) {
             throw new IllegalStateException(e);
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Stream<Map<String, Object>> flatten(final Map<?, ?> classes, final Map<String, Object> item) {
+        final var ref = item.get("ref");
+        if (ref == null) {
+            return Stream.of(item);
+        }
+
+        final var prefix = item.getOrDefault("name", "").toString();
+        final var nested = (Collection<Map<String, Object>>) requireNonNull(classes.get(ref), () -> "Missing configuration '" + ref + "'");
+        return nested.stream() // add prefix to nested configs
+                .map(it -> Stream.concat(
+                                Stream.of(Map.entry("name", prefix + "." + it.getOrDefault("name", "").toString())),
+                                it.entrySet().stream().filter(i -> !"name".equals(i.getKey())))
+                        .collect(toMap(Map.Entry::getKey, Map.Entry::getValue)))
+                .map(it -> (Map<String, Object>) it)
+                .flatMap(it -> flatten(classes, it));
     }
 }

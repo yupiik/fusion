@@ -13,27 +13,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package io.yupiik.fusion.framework.processor.internal.meta;
+package io.yupiik.kubernetes.operator.base.impl;
 
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
-public record Docs(List<ClassDoc> docs) {
-    @Override
-    public int hashCode() {
-        return 0; // don't be dependent of docs size
-    }
+public class OperatorState<T> {
+    private final List<T> items = new CopyOnWriteArrayList<>();
 
-    public record DocItem(String name, String doc, boolean required, String ref, String defaultValue) {
-        @Override
-        public int hashCode() {
-            return name.hashCode();
-        }
-    }
-
-    public record ClassDoc(boolean root, String name, List<DocItem> items) {
-        @Override
-        public int hashCode() {
-            return name.hashCode();  // don't be dependent of items size
-        }
+    public List<T> items() {
+        return items;
     }
 }

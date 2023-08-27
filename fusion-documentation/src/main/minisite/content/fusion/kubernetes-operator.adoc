@@ -1,0 +1,477 @@
+= Fusion Kubernetes Operator Base
+:partialsdir: /opt/rmannibucau/dev/fusion/fusion-documentation/src/main/minisite/content/_partials
+
+[abstract]
+Fusion Kubernetes operator base module provides a simple backbone to build a custom operator.
+
+== What an operator is
+
+An operator is generally a process handling _Custom Resource Definition_ (CRD).
+In other words, it is a process handling custom descriptor types.
+
+A common example is to handle an `API` kind of descriptor instead of creating a `ConfigMap` plus a `Deployemnt` plus an `Ingress` plus a `LoadBalancer`:
+
+[source,yaml]
+----
+apiVersion: custom.company.com/v1
+kind: MyAPI
+metadata:
+  name: my-api
+  namespace: my-apps
+spec:
+  path: /api/my
+  image: company/my-api:1.0
+----
+
+NOTE: as for Yupiik Bundlebee, we prefer to use descriptors in JSON since it is easier to work with and less error prone.
+
+Once deployed, the operator will be responsible to convert the `spec` in Kubernetes default objects (`Deployment`, ...).
+On the user side you can manage your API with any Kubernetes API client, including `kubectl`: `kubectl get -n my-apps my-apis`.
+
+== Dependency
+
+[source,xml]
+----
+<dependency>
+<groupId>io.yupiik.fusion</groupId>
+<artifactId>fusion-kubernetes-operator-base</artifactId>
+<version>${fusion.version}</artifactId>
+</dependency>
+----
+
+== Configuration
+
+The operator default runtime has these default configuration keys:
+
+include::{partialsdir}/generated/documentation.kubernetes-operator-base.adoc[lines=4..-1]
+
+== Build a custom operator
+
+As soon as you imported `fusion-kubernetes-operator-base` module (and as any Fusion application you can use `fusion-api` and build dependencies `fusion-processor` and `fusion-build-api`) you have to implement the `Operator` API and define your custom resource model (`spec`).
+
+This API enables you to get current state of the descriptors (it starts by a "find all") and listen for any change (add, modify, delete hooks).
+
+TIP: these is an `Operator.Base` class which enables to ease the configuration and a `BulkingOperator` which gives you events by bulk instead of one by one to bulk changes and reduce the work you do with the API when needed.
+
+Here is an operator just logging custom resource events - the other actions are generally custom:
+
+[source,java]
+----
+@ApplicationScoped
+public class APIOperator extends Operator.Base<APIResource> { //  <1>
+    private final Logger logger = Logger.getLogger(getClass().getName());
+
+    private final KubernetesClient kubernetes;
+    private final JsonMapper jsonMapper;
+
+    public SampleOperator(
+            // <2>
+            final KubernetesClient client, final JsonMapper jsonMapper) {
+        super(
+                APIResource.class, // <3>
+                // <4>
+                new DefaultOperatorConfiguration(true, List.of("default"), "api", "company.com/v1"));
+        this.kubernetes = client;
+        this.jsonMapper = jsonMapper;
+    }
+
+    @Override
+    public CompletionStage<?> onStart() { // <5>
+        logger.info(() -> "Starting operator " + getClass().getName());
+        return super.onStart();
+    }
+
+    @Override // <6>
+    public void onAdd(final APIResource object) {
+        logger.info(() -> "[ADD] " + object);
+    }
+
+    @Override // <6>
+    public void onDelete(final APIResource object) {
+        logger.info(() -> "[DELETE] " + object);
+    }
+
+    @Override // <6>
+    public void onModify(final APIResource object) {
+        logger.info(() -> "[MODIFY] " + object);
+    }
+}
+----
+<.> We inherit from `Operator.Base` to simplify the implementation (fully optional),
+<.> We inject the kubernetes client (generally to do the `Deployement` or other resources creation),
+<.> We define our custom model type for our resource/CRD,
+<.> We define the name we register for our CRD (see later),
+<.> On startup we have a callback before watching events giving us the opportunity to query the same of the mapping between the CRD and actual instance (the deployment behind an API for example) to be able to update it easily later on,
+<.> Finally we listen for CRD changes and adjust our actual runtime on it.
+
+=== Creating a container for our operator
+
+You can create the image of your container as you want but the easiest is to use `jib` or Geronimo Arthur maven plugins.
+
+Here is how with JIB I can convert my module to a container:
+
+[source,xml]
+.In plugins section of my pom.xml
+----
+<plugin>
+  <groupId>com.google.cloud.tools</groupId>
+  <artifactId>jib-maven-plugin</artifactId>
+  <version>3.3.2</version>
+  <configuration>
+    <containerizingMode>packaged</containerizingMode>
+    <from>
+      <image>ossyupiik/java:17.0.7@sha256:1a08a09ea4374243f28a48ec5331061d53abcdac70e51c1812b32ac4055a7deb</image>
+    </from>
+    <to>
+      <image>company/operator-api:latest</image>
+    </to>
+    <container>
+      <mainClass>io.yupiik.fusion.framework.api.main.Launcher</mainClass>
+      <appRoot>/opt/company/api-controller</appRoot>
+      <workingDirectory>/opt/company/api-controller</workingDirectory>
+      <jvmFlags>
+        <jvmFlag>-XX:+ExitOnOutOfMemoryError</jvmFlag>
+      </jvmFlags>
+    </container>
+  </configuration>
+</plugin>
+----
+
+--
+TIP: it is recommended to add the following dependency to your pom:
+
+[source,xml]
+----
+<dependency>
+  <groupId>io.yupiik.logging</groupId>
+  <artifactId>yupiik-logging-jul</artifactId>
+  <version>${yupiik-logging.version}</version>
+  <scope>runtime</scope>
+</dependency>
+----
+
+and then in your `jvmFlags` add (to get logs in JSON):
+
+[source,xml]
+----
+<jvmFlag>-Djava.util.logging.manager=io.yupiik.logging.jul.YupiikLogManager</jvmFlag>
+<jvmFlag>-Dio.yupiik.logging.jul.handler.StandardHandler.formatter=json</jvmFlag>
+----
+--
+
+Once done, you can run `mvn package jib:build` to push the image to the remote registry if set or `mvn package jib:dockerBuild` to push it to your docker daemon.
+
+=== Deploy your operator
+
+Before deploying your operator, you need to define your CRD, this is done in a yaml or JSON file and defines the API your operator will support.
+
+TIP: for a full reference, refer to Kubernetes documentation.
+
+Here is an example for the API CRD we took as an example:
+
+[source,json]
+.crd.json
+----
+{
+  "apiVersion": "apiextensions.k8s.io/v1",
+  "kind": "CustomResourceDefinition",
+  "metadata": {
+    "name": "apis.company.com"
+  },
+  "spec": {
+    "group": "company.com",
+    "versions": [
+      {
+        "name": "v1",
+        "served": true,
+        "storage": true,
+        "schema": {
+          "openAPIV3Schema": {
+            "type": "object",
+            "properties": {
+              "spec": {
+                "type": "object",
+                "properties": {
+                  "image": {
+                    "type": "string"
+                  },
+                  "path": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "additionalPrinterColumns": [
+          {
+            "name": "Path",
+            "type": "string",
+            "description": "Path of the endpoint",
+            "jsonPath": ".spec.path"
+          },
+          {
+            "name": "Image",
+            "type": "string",
+            "description": "Image of the main container containing the API",
+            "jsonPath": ".spec.image"
+          },
+          {
+            "name": "Age",
+            "type": "date",
+            "jsonPath": ".metadata.creationTimestamp"
+          }
+        ]
+      }
+    ],
+    "scope": "Namespaced",
+    "names": {
+      "plural": "apis",
+      "singular": "api",
+      "kind": "API"
+    }
+  }
+}
+----
+
+Once this descriptor applied (using `mvn bundlebee:apply` or `kubectl apply`), you can deploy the operator itself.
+The operator needs a service account with the needed roles of what the operator uses from the Kubernetes API.
+It is at least the permissions to `get`, `list`, `watch` the custom resources we just defined but it is also generally the permissions to create/update/delete a deployment/configmap/....
+
+TIP: you can use `ClusterRole` but it is good to ensure it is namespaces to avoid the operator to break something in other namespaces - at least while testing or until your operator is cluster wide (like an observability one for ex).
+
+==== Creating the service account
+
+NOTE: this part is mainly to give you an entry point but it will need customization depending your case.
+
+The service account part will be composed of:
+
+* A service account we will use in the controller,
+* A role (list of roles actually) giving the permission to the kubernetes client to do what is needed,
+* A role binding to associate the role to the service account.
+
+Here is the service account:
+
+[source,json]
+.serviceaccount.json
+----
+{
+  "apiVersion":"v1",
+  "kind":"ServiceAccount",
+  "metadata":{
+    "name":"api-controller",
+    "namespace":"default",
+    "labels":{
+      "app":"api-controller"
+    }
+  }
+}
+----
+
+IMPORTANT: you can need to create one per namespace you target - or let your operator doing it using another service account but this is out of scope of this part.
+
+The role will require at minimum the list and watch permissions on your custom resource:
+
+[source,json]
+.role.json
+----
+{
+  "apiVersion": "rbac.authorization.k8s.io/v1",
+  "kind": "Role",
+  "metadata": {
+    "name": "api-controller",
+    "namespace": "default",
+    "labels": {
+      "app": "api-controller"
+    }
+  },
+  "rules": [
+    {
+      "apiGroups": [
+        "company.com"
+      ],
+      "resources": [
+        "apis"
+      ],
+      "verbs": [
+        "list",
+        "watch"
+      ]
+    }
+  ]
+}
+----
+
+Finally, the role binding associates both:
+
+[source,json]
+.rolebinding.json
+----
+{
+  "apiVersion": "rbac.authorization.k8s.io/v1",
+  "kind": "RoleBinding",
+  "metadata": {
+    "name":"api-controller",
+    "namespace":"default",
+    "labels":{
+      "app":"api-controller"
+    }
+  },
+  "subjects": [
+    {
+      "kind": "ServiceAccount",
+      "name": "api-controller"
+    }
+  ],
+  "roleRef": {
+    "kind": "Role",
+    "name": "api-controller",
+    "apiGroup": "rbac.authorization.k8s.io"
+  }
+}
+----
+
+==== Deployment for the controller
+
+The controller can be a deployment or statefulset if you need to store some state:
+
+[source,json]
+.deployment.json
+----
+{
+  "apiVersion": "apps/v1",
+  "kind": "Deployment",
+  "metadata": {
+    "name": "api-controller",
+    "namespace": "default",
+    "labels": {
+      "app": "api-controller"
+    }
+  },
+  "spec": {
+    "selector": {
+      "matchLabels": {
+        "app": "api-controller"
+      }
+    },
+    "template": {
+      "metadata": {
+        "labels": {
+          "app": "api-controller"
+        }
+      },
+      "spec": {
+        "serviceAccountName": "api-controller", <1>
+        "automountServiceAccountToken": true,
+        "containers": [
+          {
+            "name": "operator-controller",
+            "image": "company/operator-api",
+            "readinessProbe": { <2>
+              "initialDelaySeconds": 4,
+              "periodSeconds": 30,
+              "failureThreshold": 10,
+              "timeoutSeconds": 20,
+              "httpGet": {
+                "path": "/health",
+                "port": 8081
+              }
+            },
+            "livenessProbe": { <2>
+              "initialDelaySeconds": 5,
+              "periodSeconds": 30,
+              "failureThreshold": 10,
+              "timeoutSeconds": 30,
+              "httpGet": {
+                "path": "/health",
+                "port": 8081
+              }
+            }
+          }
+        ]
+      }
+    },
+    "replicas": 1 <3>
+  }
+}
+----
+<.> Don't forget to mount the service account which has the right roles for the controller/operator,
+<.> If you didn't disable the operator probes, you can setup health checks - optional since in case of error the operator should crash,
+<.> By default there is no leader election so a single instance is needed but if you handle it you can scale - but generally it is not needed since scalability is in the instances you create, not there until you are a cloud provider.
+
+==== Bonus: deploy with bundlebee
+
+If you want to deploy this CRD with bundlebee, we recommend you to create:
+
+* An alveolus (deployable) for the CRD itseld,
+* An alveolus for the controller stack (with service account),
+* An alveolus for both.
+
+Here is what it can look like in your manifest.json assuming you have previous resources named as the snippets and put in `kubernetes` folder:
+
+[source,json]
+.manifest.json
+----
+{
+  "$schema": "https://raw.githubusercontent.com/yupiik/bundlebee/gh-pages/generated/jsonschema/manifest.descriptor.json",
+  "interpolateAlveoli": true,
+  "alveoli": [
+    {
+      "//": "CRD only, no controller",
+      "name": "api-crd-only",
+      "descriptors": [
+        {
+          "name": "crd.json",
+          "await": true,
+          "awaitConditions": [
+            {
+              "command": "apply",
+              "conditions": [
+                {
+                  "type": "STATUS_CONDITION",
+                  "conditionType": "Established",
+                  "value": "True"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "//": "CRD controller only registration",
+      "name": "api-crd-controller",
+      "descriptors": [
+        {
+          "name": "serviceaccount.json"
+        },
+        {
+          "name": "role.json"
+        },
+        {
+          "name": "rolebinding.json"
+        },
+        {
+          "name": "deployment.json"
+        }
+      ]
+    },
+    {
+      "//": "full stack alveolus",
+      "name": "api-crd",
+      "dependencies": [
+        {
+          "name": "api-crd-only"
+        },
+        {
+          "name": "api-crd-controller"
+        }
+      ]
+    }
+  ]
+}
+----
+
+== TIP
+
+You can disable, in the configuration, the probes, this is to ease to embed the operator stack in a custom `fusion-http-server` based module which will implement the probes itself.

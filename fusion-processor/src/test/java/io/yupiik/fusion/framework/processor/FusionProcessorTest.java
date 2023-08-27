@@ -480,7 +480,7 @@ class FusionProcessorTest {
                                         "      {\n" +
                                         "        \"name\": \"value\",\n" +
                                         "        \"documentation\": \"Some int.\",\n" +
-                                        "        \"defaultValue\": 0.0,\n" +
+                                        "        \"defaultValue\": 0,\n" +
                                         "        \"required\": false\n" +
                                         "      }\n" +
                                         "    ],\n" +
@@ -488,7 +488,7 @@ class FusionProcessorTest {
                                         "      {\n" +
                                         "        \"name\": \"app.age\",\n" +
                                         "        \"documentation\": \"\",\n" +
-                                        "        \"defaultValue\": 0.0,\n" +
+                                        "        \"defaultValue\": 0,\n" +
                                         "        \"required\": false\n" +
                                         "      },\n" +
                                         "      {\n" +
@@ -506,7 +506,7 @@ class FusionProcessorTest {
                                         "      {\n" +
                                         "        \"name\": \"app.intWithDefault\",\n" +
                                         "        \"documentation\": \"\",\n" +
-                                        "        \"defaultValue\": 100.0,\n" +
+                                        "        \"defaultValue\": 100,\n" +
                                         "        \"required\": false\n" +
                                         "      },\n" +
                                         "      {\n" +
@@ -542,7 +542,7 @@ class FusionProcessorTest {
                                         "      {\n" +
                                         "        \"name\": \"app.number\",\n" +
                                         "        \"documentation\": \"\",\n" +
-                                        "        \"defaultValue\": 0.0,\n" +
+                                        "        \"defaultValue\": 0,\n" +
                                         "        \"required\": false\n" +
                                         "      },\n" +
                                         "      {\n" +
@@ -564,7 +564,10 @@ class FusionProcessorTest {
                                         "        \"required\": false\n" +
                                         "      }\n" +
                                         "    ]\n" +
-                                        "  }\n" +
+                                        "  },\n" +
+                                        "  \"roots\": [\n" +
+                                        "    \"test.p.RecordConfiguration\"\n" +
+                                        "  ]\n" +
                                         "}",
                                 new SimplePrettyFormatter(new JsonMapperImpl(java.util.List.of(), key -> Optional.empty())).apply(new String(in.readAllBytes(), UTF_8)));
                     } catch (final IOException e) {

@@ -13,27 +13,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package io.yupiik.fusion.framework.processor.internal.meta;
+package io.yupiik.kubernetes.operator.base.test.sample;
 
-import java.util.List;
+import io.yupiik.fusion.framework.build.api.json.JsonModel;
+import io.yupiik.kubernetes.operator.base.impl.MetadataLike;
+import io.yupiik.kubernetes.operator.base.impl.ObjectLike;
 
-public record Docs(List<ClassDoc> docs) {
-    @Override
-    public int hashCode() {
-        return 0; // don't be dependent of docs size
+import java.util.Map;
+
+@JsonModel
+public record SampleResource(Metadata metadata, Spec spec) implements ObjectLike {
+    @JsonModel
+    public record Metadata(String uid,
+                           String name, String namespace,
+                           Map<String, String> labels, Map<String, Object> annotations) implements MetadataLike {
     }
 
-    public record DocItem(String name, String doc, boolean required, String ref, String defaultValue) {
-        @Override
-        public int hashCode() {
-            return name.hashCode();
-        }
-    }
-
-    public record ClassDoc(boolean root, String name, List<DocItem> items) {
-        @Override
-        public int hashCode() {
-            return name.hashCode();  // don't be dependent of items size
-        }
+    @JsonModel
+    public record Spec(String message) {
     }
 }

@@ -64,7 +64,7 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
         this.element = element;
         this.enumValueOfCache = enumValueOfCache;
 
-        final var doc = new Docs.ClassDoc((packageName.isBlank() ? "" : (packageName + '.')) + className, new ArrayList<>());
+        final var doc = new Docs.ClassDoc(true, (packageName.isBlank() ? "" : (packageName + '.')) + className, new ArrayList<>());
         this.docs.add(doc);
         this.docStack.add(doc);
     }
@@ -112,7 +112,7 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
 
     private String generateNestedClass(final TypeElement element, final String typeName, final String docPrefix, final Map<String, String> nested) {
         final var name = nestedFactory(typeName);
-        final var doc = new Docs.ClassDoc(typeName, new ArrayList<>());
+        final var doc = new Docs.ClassDoc(element.getAnnotation(RootConfiguration.class) != null, typeName, new ArrayList<>());
         docStack.add(doc);
         docs.add(doc);
         try {

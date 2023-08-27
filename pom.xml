@@ -53,6 +53,7 @@
     <module>fusion-documentation</module>
     <module>fusion-handlebars</module>
     <module>fusion-jwt</module>
+    <module>fusion-kubernetes-operator-base</module>
   </modules>
 
   <dependencies>

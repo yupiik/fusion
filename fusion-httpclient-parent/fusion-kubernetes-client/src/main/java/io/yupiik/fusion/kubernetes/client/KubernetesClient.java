@@ -80,10 +80,10 @@ public class KubernetesClient extends HttpClient implements AutoCloseable {
 
     public KubernetesClient(final KubernetesClientConfiguration configuration) {
         final var ns = fillFromKubeConfig(configuration.getKubeconfig(), configuration);
+        this.base = URI.create(configuration.getMaster());
         this.delegate = ofNullable(configuration.getClient())
                 .orElseGet(() -> ofNullable(configuration.getClientWrapper()).orElseGet(Function::identity).apply(createClient(configuration)));
-        this.token = configuration.getToken() == null ? null : Paths.get(configuration.getToken());
-        this.base = URI.create(configuration.getMaster());
+        this.token = configuration.getToken() == null || "none".equals(configuration.getToken()) ? null : Paths.get(configuration.getToken());
 
         if (ns != null) {
             this.namespace = of(ns);
@@ -91,7 +91,7 @@ public class KubernetesClient extends HttpClient implements AutoCloseable {
             final var namespaceFile = Paths.get("/var/run/secrets/kubernetes.io/serviceaccount/namespace");
             if (Files.exists(namespaceFile)) {
                 try {
-                    this.namespace = ofNullable(Files.readString(namespaceFile, StandardCharsets.UTF_8).strip());
+                    this.namespace = of(Files.readString(namespaceFile, StandardCharsets.UTF_8).strip());
                 } catch (final IOException e) {
                     throw new IllegalStateException(e);
                 }
@@ -117,10 +117,12 @@ public class KubernetesClient extends HttpClient implements AutoCloseable {
     }
 
     private HttpClient createClient(final KubernetesClientConfiguration configuration) {
-        final var builder = HttpClient.newBuilder()
-                .sslContext(createSSLContext(
-                        configuration.isSkipTls(), configuration.getCertificates(),
-                        configuration.getPrivateKey(), configuration.getPrivateKeyCertificate()));
+        final var builder = HttpClient.newBuilder();
+        if (!"http".equals(base.getScheme())) {
+            builder.sslContext(createSSLContext(
+                    configuration.isSkipTls(), configuration.getCertificates(),
+                    configuration.getPrivateKey(), configuration.getPrivateKeyCertificate()));
+        }
         if (configuration.getClientCustomizer() != null) {
             configuration.getClientCustomizer().accept(builder);
         }
