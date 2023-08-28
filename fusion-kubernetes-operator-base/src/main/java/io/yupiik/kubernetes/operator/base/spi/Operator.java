@@ -37,6 +37,14 @@ public interface Operator<T extends ObjectLike> {
         // no-op
     }
 
+    default void onError(final String error) {
+        // no-op, already logged by the orchestrator
+    }
+
+    default void onBookmark(final String resourceVersion) {
+        // no-op, already handled by the orchestrator
+    }
+
     default CompletionStage<?> onStart() {
         return completedFuture(true);
     }

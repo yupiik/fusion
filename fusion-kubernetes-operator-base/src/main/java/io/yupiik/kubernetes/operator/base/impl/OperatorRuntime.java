@@ -105,9 +105,34 @@ public class OperatorRuntime<T extends ObjectLike> extends SimpleController<T> i
                 }));
     }
 
+    @Override
+    protected void onBookmark(final String resourceVersion) {
+        final var current = lastResource;
+        if (current != null && isHigher(current, resourceVersion)) {
+            return;
+        }
+        lock.lock();
+        try {
+            lastResource = resourceVersion;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    private boolean isHigher(final String current, final String resourceVersion) {
+        try {
+            return Long.parseLong(current) > Long.parseLong(resourceVersion);
+        } catch (final NumberFormatException nfe) {
+            return false;
+        }
+    }
+
     private void watch(final URI uri) {
         final var usedLastResource = lastResource;
-        final var watchUri = URI.create(uri.toASCIIString() + "?watch=true" + (usedLastResource != null ? "&resourceVersion=" + usedLastResource : ""));
+        final var watchUri = URI.create(uri.toASCIIString() + "?" +
+                "watch=true" +
+                (configuration.useBookmarks() ? "&allowWatchBookmarks=true" : "") +
+                (usedLastResource != null ? "&resourceVersion=" + usedLastResource : ""));
         logger.info(() -> "Starting to watch '" + watchUri + "'");
         get(watchUri, fromLineSubscriber(new Flow.Subscriber<>() {
             private Flow.Subscription subscription;
@@ -167,12 +192,7 @@ public class OperatorRuntime<T extends ObjectLike> extends SimpleController<T> i
                     if (meta == null) {
                         return null;
                     }
-                    lock.lock();
-                    try {
-                        lastResource = ofNullable(meta.get("resourceVersion")).map(String::valueOf).orElse(null);
-                    } finally {
-                        lock.unlock();
-                    }
+                    onBookmark(ofNullable(meta.get("resourceVersion")).map(String::valueOf).orElse(null));
                     return ofNullable(simpleModel.get("items"))
                             .filter(Collection.class::isInstance)
                             .map(it -> ((Collection<Object>) it).stream()

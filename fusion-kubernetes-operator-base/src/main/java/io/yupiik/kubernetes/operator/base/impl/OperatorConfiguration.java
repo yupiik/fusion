@@ -25,6 +25,10 @@ public record OperatorConfiguration(
         @Property(documentation = "Kubernetes client configuration.")
         Kubernetes kubernetes,
 
+        @Property(value = "use-bookmarks", defaultValue = "true",
+                documentation = "If `true`, `BOOKMARK` events are enabled.")
+        boolean useBookmarks,
+
         @Property(value = "event-thread-count", defaultValue = "1",
                 documentation = "How many threads are handling events, take care that more than one require a specific concurrency handling.")
         int eventThreadCount,

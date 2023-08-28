@@ -85,6 +85,7 @@ public abstract class SimpleController<T extends ObjectLike> {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private void handleEvent(final String line) {
         final var data = jsonMapper.fromString(Event.class, line);
         if (data.type() == null || data.object() == null) {
@@ -92,12 +93,32 @@ public abstract class SimpleController<T extends ObjectLike> {
             return;
         }
         switch (data.type()) {
-            case "error", "ERROR" -> logger.severe(line);
+            case "ERROR" -> {
+                logger.severe(line);
+                operator.onError(line);
+            }
+            case "BOOKMARK" -> {
+                final var bookmark = (Map<String, Object>) jsonMapper.fromString(Object.class, line);
+                if (bookmark != null) {
+                    final var metadata = (Map<String, Object>) bookmark.get("metadata");
+                    if (metadata != null) {
+                        final var resourceVersion = (String) metadata.get("resourceVersion");
+                        if (resourceVersion != null && !resourceVersion.isBlank()) {
+                            operator.onBookmark(resourceVersion);
+                            onBookmark(resourceVersion);
+                        }
+                    }
+                }
+            }
             case "ADDED" -> internalOnAdd(asObject(data.object()));
             case "MODIFIED" -> internalOnModified(asObject(data.object()));
             case "DELETED" -> internalOnDelete(asObject(data.object()));
             default -> logger.warning(() -> "Ignoring event: " + data);
         }
+    }
+
+    protected void onBookmark(final String resourceVersion) {
+        // no-op
     }
 
     private T asObject(final Map<String, Object> object) {
