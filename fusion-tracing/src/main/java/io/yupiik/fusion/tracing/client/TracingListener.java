@@ -68,7 +68,7 @@ public class TracingListener implements RequestListener<TracingListener.State> {
         tags.putIfAbsent("http.url", request.uri().toASCIIString());
         tags.putIfAbsent("http.method", request.method());
         tags.putIfAbsent("peer.hostname", request.uri().getHost());
-        tags.putIfAbsent("peer.port", request.uri().getPort());
+        tags.putIfAbsent("peer.port", Integer.toString(request.uri().getPort()));
         tags.putIfAbsent("span.kind", "CLIENT");
 
         final var endpoint = ip.contains("::") ?
@@ -105,10 +105,10 @@ public class TracingListener implements RequestListener<TracingListener.State> {
         final var end = clock.instant();
         final var span = state.span.apply(TimeUnit.MILLISECONDS.toMicros(end.minusMillis(state.start.toEpochMilli()).toEpochMilli()));
         if (response != null) {
-            span.tags().putIfAbsent("http.status_code", response.statusCode());
+            span.tags().putIfAbsent("http.status_code", Integer.toString(response.statusCode()));
         }
         if (error != null) {
-            span.tags().put("error", true);
+            span.tags().put("error", "true");
             span.tags().put("error.message", requireNonNullElseGet(error.getMessage(), () -> error.getClass().getName()));
         }
         collectSpan(span);

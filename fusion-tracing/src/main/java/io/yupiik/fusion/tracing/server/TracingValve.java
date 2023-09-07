@@ -149,7 +149,7 @@ public class TracingValve extends ValveBase {
     protected Span finish(final HttpServletResponse response, final LongFunction<Span> spanFn, final Instant start) {
         final var end = clock.instant();
         final var span = spanFn.apply(TimeUnit.MILLISECONDS.toMicros(end.minusMillis(start.toEpochMilli()).toEpochMilli()));
-        span.tags().putIfAbsent("http.status", response.getStatus());
+        span.tags().putIfAbsent("http.status", Integer.toString(response.getStatus()));
         return span;
     }
 
