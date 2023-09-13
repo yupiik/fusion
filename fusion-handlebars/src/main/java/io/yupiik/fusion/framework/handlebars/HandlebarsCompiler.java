@@ -16,6 +16,7 @@
 package io.yupiik.fusion.framework.handlebars;
 
 import io.yupiik.fusion.framework.handlebars.compiler.accessor.ByNameAccessor;
+import io.yupiik.fusion.framework.handlebars.compiler.accessor.ChainedAccessor;
 import io.yupiik.fusion.framework.handlebars.compiler.accessor.MapAccessor;
 import io.yupiik.fusion.framework.handlebars.compiler.accessor.PrecomputedChainAccessor;
 import io.yupiik.fusion.framework.handlebars.compiler.part.BlockHelperPart;
@@ -290,9 +291,12 @@ public class HandlebarsCompiler {
         if (part instanceof EachVariablePart p) {
             final var accessor = p.accessor();
             if (!(accessor instanceof PrecomputedChainAccessor ca)) {
-                return a -> new EachVariablePart(p.name(), p.itemPartFactory(), a);
+                return a -> new EachVariablePart(p.name(), p.itemPartFactory(), a, a);
             }
-            return acc -> new EachVariablePart(p.name(), p.itemPartFactory(), new ByNameAccessor(Map.of(ca.getSupportedName(), ca), acc));
+            return acc -> {
+                final var nameAccessor = new ByNameAccessor(Map.of(ca.getSupportedName(), ca), acc);
+                return new EachVariablePart(p.name(), p.itemPartFactory(), nameAccessor, nameAccessor);
+            };
         }
         if (part instanceof PartListPart p) {
             if (p.delegates().stream().allMatch(it -> it instanceof EmptyPart ||
@@ -414,7 +418,11 @@ public class HandlebarsCompiler {
                 }
                 final var eachContent = stripSurroundingEol(content.substring(nextIndex, endBlock)).stripTrailing();
                 final var itemPart = doCompile(eachContent, helpers, partials);
-                out.add(new EachVariablePart(value, toPartFactory(itemPart), toAccessor(value)));
+                final var accessor = toAccessor(value);
+                out.add(new EachVariablePart(
+                        value, toPartFactory(itemPart), accessor,
+                        accessor instanceof PrecomputedChainAccessor pca ?
+                                new ChainedAccessor(accessor, pca.getDelegating()) : accessor));
                 yield endBlock + "{{/each}}".length();
             }
             case "if" -> {

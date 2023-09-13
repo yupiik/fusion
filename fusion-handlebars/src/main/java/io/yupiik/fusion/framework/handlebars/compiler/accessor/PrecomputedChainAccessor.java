@@ -30,6 +30,10 @@ public class PrecomputedChainAccessor implements Accessor {
         this.next = next;
     }
 
+    public Accessor getDelegating() {
+        return delegating;
+    }
+
     public String getSupportedName() {
         return supportedName;
     }

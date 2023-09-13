@@ -28,7 +28,7 @@ import java.util.function.Function;
 import static java.util.function.Function.identity;
 
 public record EachVariablePart(String name, Function<Accessor, Part> itemPartFactory,
-                               Accessor accessor) implements Part {
+                               Accessor accessor, Accessor itemDefaultAccessor) implements Part {
     @Override
     public String apply(final RenderContext context, final Object currentData) {
         final var value = ".".equals(name) || "this".equals(name) ? currentData : accessor.find(currentData, name);
@@ -54,10 +54,10 @@ public record EachVariablePart(String name, Function<Accessor, Part> itemPartFac
                            final Function<Accessor, Accessor> partsAccessor,
                            final Object root) {
         final var iterator = collection.iterator();
-        final var iterableDataVariablesAccessor = new IterableDataVariablesAccessor(iterator, accessor);
+        final var iterableDataVariablesAccessor = new IterableDataVariablesAccessor(iterator, itemDefaultAccessor);
         final var dataVariableAccessor = new ChainedAccessor(
                 iterableDataVariablesAccessor,
-                new DataAwareAccessor(root, accessor));
+                new DataAwareAccessor(root, itemDefaultAccessor));
         final var item = itemPartFactory.apply(partsAccessor.apply(dataVariableAccessor));
         final var out = new StringBuilder();
         while (iterableDataVariablesAccessor.hasNext()) {

@@ -310,6 +310,21 @@ class HandlebarsTest {
     }
 
     @Test
+    void eachComplex() {
+        assertRender(
+                "{{#each foo.bar}}{{{dummy.id}}}{{/each}}",
+                Map.of(
+                        "foo", Map.of(
+                                "bar", List.of(
+                                        Map.of("dummy", Map.of("id", "1")),
+                                        Map.of("dummy", Map.of("id", "2"))
+                                ))),
+                """
+                        1
+                        2""");
+    }
+
+    @Test
     void parentAccessor() {
         assertRender(
                 "{{#each items}}{{#each spec.ports}}{{{metadata.name}}} ({{#if name}}{{{name}}}{{/if}}{{#unless name}}{{@index}}{{/unless}}): {{{nodePort}}}{{/each}}{{/each}}",
