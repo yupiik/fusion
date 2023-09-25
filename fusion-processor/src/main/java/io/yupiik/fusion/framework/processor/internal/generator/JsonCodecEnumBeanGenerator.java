@@ -35,6 +35,7 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 import static java.util.stream.Collectors.joining;
+import static javax.lang.model.element.ElementKind.ENUM_CONSTANT;
 
 public class JsonCodecEnumBeanGenerator extends BaseGenerator implements Supplier<BaseGenerator.GeneratedClass> {
     private final String packageName;
@@ -62,6 +63,7 @@ public class JsonCodecEnumBeanGenerator extends BaseGenerator implements Supplie
                 .isEmpty() ?
                 "name()" : "toJsonString()";
         final var values = ElementFilter.fieldsIn(elements).stream()
+                .filter(variableElement -> variableElement.getKind() == ENUM_CONSTANT)
                 .map(VariableElement::getSimpleName)
                 .map(Name::toString)
                 .sorted()

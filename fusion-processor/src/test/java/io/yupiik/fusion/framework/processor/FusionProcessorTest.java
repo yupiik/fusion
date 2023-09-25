@@ -433,7 +433,7 @@ class FusionProcessorTest {
 
     @Test
     void configuration(@TempDir final Path work) throws IOException {
-        new Compiler(work, "RecordConfiguration", "NestedConf", "TestConf", "EnumType")
+        new Compiler(work, "RecordConfiguration", "NestedConf", "TestConf", "EnumType", "EnumTypeWithFields")
                 .compileAndAssertsInstance((container, instance) -> {
                     assertEquals(
                             "RecordConfiguration[" +
