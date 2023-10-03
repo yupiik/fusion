@@ -2,58 +2,58 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
     <url>
         <loc>//www.yupiik.io/fusion/fusion/cli.html</loc>
-        <lastmod>2023-08-27</lastmod>
+        <lastmod>2023-10-03</lastmod>
     </url>
     <url>
         <loc>//www.yupiik.io/fusion/fusion/handlebars.html</loc>
-        <lastmod>2023-08-27</lastmod>
+        <lastmod>2023-10-03</lastmod>
     </url>
     <url>
         <loc>//www.yupiik.io/fusion/fusion/json.html</loc>
-        <lastmod>2023-08-27</lastmod>
+        <lastmod>2023-10-03</lastmod>
     </url>
     <url>
         <loc>//www.yupiik.io/fusion/fusion/kubernetes-operator.html</loc>
-        <lastmod>2023-08-27</lastmod>
+        <lastmod>2023-10-03</lastmod>
     </url>
     <url>
         <loc>//www.yupiik.io/fusion/fusion/index.html</loc>
-        <lastmod>2023-08-27</lastmod>
+        <lastmod>2023-10-03</lastmod>
     </url>
     <url>
         <loc>//www.yupiik.io/fusion/fusion/testing.html</loc>
-        <lastmod>2023-08-27</lastmod>
+        <lastmod>2023-10-03</lastmod>
     </url>
     <url>
         <loc>//www.yupiik.io/fusion/fusion/examples.html</loc>
-        <lastmod>2023-08-27</lastmod>
+        <lastmod>2023-10-03</lastmod>
     </url>
     <url>
         <loc>//www.yupiik.io/fusion/fusion/setup.html</loc>
-        <lastmod>2023-08-27</lastmod>
+        <lastmod>2023-10-03</lastmod>
     </url>
     <url>
         <loc>//www.yupiik.io/fusion/fusion/http-client.html</loc>
-        <lastmod>2023-08-27</lastmod>
+        <lastmod>2023-10-03</lastmod>
     </url>
     <url>
         <loc>//www.yupiik.io/fusion/fusion/http-server.html</loc>
-        <lastmod>2023-08-27</lastmod>
+        <lastmod>2023-10-03</lastmod>
     </url>
     <url>
         <loc>//www.yupiik.io/fusion/fusion/jwt.html</loc>
-        <lastmod>2023-08-27</lastmod>
+        <lastmod>2023-10-03</lastmod>
     </url>
     <url>
         <loc>//www.yupiik.io/fusion/fusion/observability.html</loc>
-        <lastmod>2023-08-27</lastmod>
+        <lastmod>2023-10-03</lastmod>
     </url>
     <url>
         <loc>//www.yupiik.io/fusion/fusion/persistence.html</loc>
-        <lastmod>2023-08-27</lastmod>
+        <lastmod>2023-10-03</lastmod>
     </url>
     <url>
         <loc>//www.yupiik.io/fusion/fusion/graalvm.html</loc>
-        <lastmod>2023-08-27</lastmod>
+        <lastmod>2023-10-03</lastmod>
     </url>
 </urlset>
