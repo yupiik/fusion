@@ -19,14 +19,19 @@ import io.yupiik.fusion.json.internal.JsonMapperImpl;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collection;
+import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 
+import static java.util.Collections.enumeration;
 import static java.util.Objects.requireNonNull;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.joining;
@@ -34,16 +39,18 @@ import static java.util.stream.Collectors.toMap;
 
 public class DocumentationGenerator implements Runnable {
     private final Path sourceBase;
+    private final Map<String, String> configuration;
 
-    public DocumentationGenerator(final Path sourceBase) {
+    public DocumentationGenerator(final Path sourceBase, final Map<String, String> configuration) {
         this.sourceBase = sourceBase;
+        this.configuration = configuration == null ? Map.of() : configuration;
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public void run() {
         try (final var json = new JsonMapperImpl(List.of(), c -> Optional.empty())) {
-            final var docs = Thread.currentThread().getContextClassLoader().getResources("META-INF/fusion/configuration/documentation.json");
+            final var docs = findUrls();
             while (docs.hasMoreElements()) {
                 final var url = docs.nextElement();
                 try (final var in = url.openStream()) {
@@ -53,7 +60,9 @@ public class DocumentationGenerator implements Runnable {
 
                         var file = url.getFile().replace("!/META-INF/fusion/configuration/documentation.json", "");
                         file = file.substring(Math.max(file.lastIndexOf('/'), file.lastIndexOf(File.separator)) + 1);
-                        final var module = file.substring(file.indexOf('-') + 1, file.indexOf("-1")); // fusion-$module-$version.jar
+
+                        final var fileRef = file;
+                        final var module = ofNullable(configuration.get("module")).orElseGet(() -> fileRef.substring(fileRef.indexOf('-') + 1, fileRef.indexOf("-1"))); // fusion-$module-$version.jar
                         final var adoc = sourceBase.resolve("content/_partials/generated/documentation." + module + ".adoc");
                         Files.createDirectories(adoc.getParent());
                         Files.writeString(adoc, "= " + module + "\n" +
@@ -86,6 +95,24 @@ public class DocumentationGenerator implements Runnable {
         }
     }
 
+    private Enumeration<URL> findUrls() throws IOException {
+        final var paths = configuration.get("urls");
+        if (paths != null) {
+            return enumeration(Stream.of(paths.split(","))
+                    .map(String::strip)
+                    .filter(Predicate.not(String::isBlank))
+                    .map(it -> {
+                        try {
+                            return new URL(it);
+                        } catch (final MalformedURLException e) {
+                            throw new IllegalStateException(e);
+                        }
+                    })
+                    .toList());
+        }
+        return Thread.currentThread().getContextClassLoader().getResources("META-INF/fusion/configuration/documentation.json");
+    }
+
     @SuppressWarnings("unchecked")
     private Stream<Map<String, Object>> flatten(final Map<?, ?> classes, final Map<String, Object> item) {
         final var ref = item.get("ref");
@@ -99,8 +126,7 @@ public class DocumentationGenerator implements Runnable {
                 .map(it -> Stream.concat(
                                 Stream.of(Map.entry("name", prefix + "." + it.getOrDefault("name", "").toString())),
                                 it.entrySet().stream().filter(i -> !"name".equals(i.getKey())))
-                        .collect(toMap(Map.Entry::getKey, Map.Entry::getValue)))
-                .map(it -> (Map<String, Object>) it)
+                        .collect(toMap(Map.Entry::getKey, i -> i.getValue() == null ? Map.of() : i.getValue())))
                 .flatMap(it -> flatten(classes, it));
     }
 }
