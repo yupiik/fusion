@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Predicate;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import static java.util.Collections.enumeration;
@@ -49,6 +50,9 @@ public class DocumentationGenerator implements Runnable {
     @Override
     @SuppressWarnings("unchecked")
     public void run() {
+        final boolean includeEnv = Boolean.parseBoolean(configuration.get("includeEnvironmentNames"));
+        final var envPattern = includeEnv ? Pattern.compile("[^A-Za-z0-9]") : null;
+
         try (final var json = new JsonMapperImpl(List.of(), c -> Optional.empty())) {
             final var docs = findUrls();
             while (docs.hasMoreElements()) {
@@ -78,6 +82,7 @@ public class DocumentationGenerator implements Runnable {
                                                     .map(it -> {
                                                         final var name = it.get("name").toString();
                                                         return "* `" + name + "`" +
+                                                                (includeEnv ? " (`" + envPattern.matcher(name).replaceAll("_") + "`)" : "") +
                                                                 (Boolean.TRUE.equals(it.get("required")) ? "*" : "") +
                                                                 ofNullable(it.get("defaultValue"))
                                                                         .map(v -> " (default: `" + v + "`)")
