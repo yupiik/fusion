@@ -115,3 +115,20 @@ public enum MyEnum {
 ----
 <.> `toJsonString` is an instance method with no parameter used to replace `.name()` call during serialization,
 <.> `fromJsonString` is a static method with a `String` parameter used to replace `.valueOf(String)` call during deserialization.
+
+== JSON-Pointer and JSON-Patch
+
+JSON-Pointer (https://datatracker.ietf.org/doc/html/rfc6901) and JSON-Patch (https://www.rfc-editor.org/rfc/rfc6902.html) are available for generic types today (ie you type as `Object` the serialized/deserialized instances to use `Map<String, Object>` and `List<Object>` as JSON-Object/JSON-Array).
+
+To use them, rely on `GenericJsonPointer` and `GenericJsonPatch` classes:
+
+[source,java]
+----
+// is reusable
+final var patch = new GenericJsonPatch(List.of(new JsonPatchOperation(add, "/baz", null, "qux")));
+
+// "runtime"
+final var object = Map.of("foo", "bar");
+final var patched = patch.apply(object);
+// patched={"foo":"bar","baz":"qux"}
+----

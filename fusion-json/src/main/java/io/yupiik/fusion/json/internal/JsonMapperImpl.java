@@ -22,6 +22,7 @@ import io.yupiik.fusion.json.internal.codec.BigDecimalJsonCodec;
 import io.yupiik.fusion.json.internal.codec.BooleanJsonCodec;
 import io.yupiik.fusion.json.internal.codec.CollectionJsonCodec;
 import io.yupiik.fusion.json.internal.codec.DoubleJsonCodec;
+import io.yupiik.fusion.json.internal.codec.EnumJsonCodec;
 import io.yupiik.fusion.json.internal.codec.IntegerJsonCodec;
 import io.yupiik.fusion.json.internal.codec.LocalDateJsonCodec;
 import io.yupiik.fusion.json.internal.codec.LocalDateTimeJsonCodec;
@@ -34,6 +35,7 @@ import io.yupiik.fusion.json.internal.codec.ZonedDateTimeJsonCodec;
 import io.yupiik.fusion.json.internal.io.FastStringWriter;
 import io.yupiik.fusion.json.internal.parser.BufferProvider;
 import io.yupiik.fusion.json.internal.parser.JsonParser;
+import io.yupiik.fusion.json.patch.JsonPatchOperation;
 import io.yupiik.fusion.json.serialization.ExtendedWriter;
 import io.yupiik.fusion.json.serialization.JsonCodec;
 import io.yupiik.fusion.json.spi.Parser;
@@ -99,7 +101,9 @@ public class JsonMapperImpl implements JsonMapper {
                 new LocalDateTimeJsonCodec(),
                 new ZonedDateTimeJsonCodec(),
                 new OffsetDateTimeJsonCodec(),
-                new ObjectJsonCodec());
+                new ObjectJsonCodec(),
+                new EnumJsonCodec<>(JsonPatchOperation.Operation.class, List.of(JsonPatchOperation.Operation.add, JsonPatchOperation.Operation.copy, JsonPatchOperation.Operation.move, JsonPatchOperation.Operation.remove, JsonPatchOperation.Operation.replace, JsonPatchOperation.Operation.test), Enum::name),
+                new JsonPatchOperation.Codec());
     }
 
     @Override
@@ -160,40 +164,7 @@ public class JsonMapperImpl implements JsonMapper {
             }
 
             if (instance instanceof Collection<?> collection) {
-                if (collection.isEmpty()) {
-                    writer.write("[]");
-                    return;
-                }
-
-                final var firstItem = collection.stream().filter(Objects::nonNull).findFirst().orElse(null);
-                if (firstItem != null) {
-                    if (firstItem instanceof Map<?, ?>) { // consider it is just an object
-                        final JsonCodec jsonCodec = codecs.get(Object.class);
-                        jsonCodec.write(collection, new JsonCodec.SerializationContext(wrap(writer), this::codecLookup));
-                        return;
-                    }
-
-                    final var itemClass = firstItem.getClass();
-
-                    final var key = new Types.ParameterizedTypeImpl(Collection.class, itemClass);
-                    final JsonCodec existing = codecs.get(key);
-                    if (existing != null) {
-                        existing.write(collection, new JsonCodec.SerializationContext(wrap(writer), this::codecLookup));
-                        return;
-                    }
-
-                    final var itemCodec = (JsonCodec<?>) codecs.get(itemClass);
-                    if (itemCodec == null) {
-                        throw missingCodecException(itemClass);
-                    }
-
-                    final var wrapper = new CollectionJsonCodec<>(itemCodec, List.class, () -> (Collection) new ArrayList<>());
-                    codecs.putIfAbsent(key, wrapper);
-                    wrapper.write(collection, new JsonCodec.SerializationContext(wrap(writer), this::codecLookup));
-                    return;
-                }
-
-                writer.write(collection.stream().map(it -> "null").collect(joining(",", "[", "]")));
+                doWriteCollection(writer, collection);
                 return;
             }
 
@@ -229,9 +200,27 @@ public class JsonMapperImpl implements JsonMapper {
                         return;
                     }
 
-                    final var itemCodec = (JsonCodec<?>) codecs.get(itemClass);
+                    var itemCodec = (JsonCodec<?>) codecs.get(itemClass);
                     if (itemCodec == null) {
-                        throw missingCodecException(itemClass);
+                        if (entry.getValue() instanceof Collection<?> coll) {
+                            if (coll.isEmpty()) {
+                                itemCodec = new CollectionJsonCodec<>(codecs.get(Object.class), Object.class, ArrayList::new);
+                            } else {
+                                final var type = coll.iterator().next();
+                                if (type == null) {
+                                    itemCodec = new CollectionJsonCodec<>(codecs.get(Object.class), Object.class, ArrayList::new);
+                                } else {
+                                    final var clazz = type.getClass();
+                                    final JsonCodec<?> nestedCodec = codecs.get(clazz);
+                                    if (nestedCodec == null) {
+                                        throw missingCodecException(clazz);
+                                    }
+                                    itemCodec = new CollectionJsonCodec<>(nestedCodec, clazz, ArrayList::new);
+                                }
+                            }
+                        } else {
+                            throw missingCodecException(itemClass);
+                        }
                     }
                     final var wrapper = new MapJsonCodec<>(itemCodec);
                     codecs.putIfAbsent(key, wrapper);
@@ -269,6 +258,43 @@ public class JsonMapperImpl implements JsonMapper {
         } catch (final IOException ioe) {
             throw new IllegalStateException(ioe);
         }
+    }
+
+    private void doWriteCollection(final Writer writer, final Collection<?> collection) throws IOException {
+        if (collection.isEmpty()) {
+            writer.write("[]");
+            return;
+        }
+
+        final var firstItem = collection.stream().filter(Objects::nonNull).findFirst().orElse(null);
+        if (firstItem != null) {
+            if (firstItem instanceof Map<?, ?>) { // consider it is just an object
+                final JsonCodec jsonCodec = codecs.get(Object.class);
+                jsonCodec.write(collection, new JsonCodec.SerializationContext(wrap(writer), this::codecLookup));
+                return;
+            }
+
+            final var itemClass = firstItem.getClass();
+
+            final var key = new Types.ParameterizedTypeImpl(Collection.class, itemClass);
+            final JsonCodec existing = codecs.get(key);
+            if (existing != null) {
+                existing.write(collection, new JsonCodec.SerializationContext(wrap(writer), this::codecLookup));
+                return;
+            }
+
+            final var itemCodec = (JsonCodec<?>) codecs.get(itemClass);
+            if (itemCodec == null) {
+                throw missingCodecException(itemClass);
+            }
+
+            final var wrapper = new CollectionJsonCodec<>(itemCodec, List.class, () -> (Collection) new ArrayList<>());
+            codecs.putIfAbsent(key, wrapper);
+            wrapper.write(collection, new JsonCodec.SerializationContext(wrap(writer), this::codecLookup));
+            return;
+        }
+
+        writer.write(collection.stream().map(it -> "null").collect(joining(",", "[", "]")));
     }
 
     @Override
