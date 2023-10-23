@@ -17,9 +17,11 @@ package io.yupiik.fusion.json.patch;
 
 import io.yupiik.fusion.framework.api.container.Generation;
 import io.yupiik.fusion.json.internal.codec.BaseJsonCodec;
+import io.yupiik.fusion.json.internal.codec.CollectionJsonCodec;
 import io.yupiik.fusion.json.spi.Parser;
 
 import java.io.IOException;
+import java.util.ArrayList;
 
 import static io.yupiik.fusion.json.spi.Parser.Event.START_OBJECT;
 
@@ -71,6 +73,9 @@ public record JsonPatchOperation(Operation op, String path, String from, Object 
                             case "from":
                                 from = parser.getString();
                                 break;
+                            case "value":
+                                value = parser.getString();
+                                break;
                             default: // ignore
                         }
                         key = null;
@@ -89,12 +94,46 @@ public record JsonPatchOperation(Operation op, String path, String from, Object 
                         break;
                     case END_OBJECT:
                         return new JsonPatchOperation(param__op, path, from, value);
-                    case VALUE_NULL, VALUE_NUMBER, VALUE_TRUE, VALUE_FALSE:
+                    case VALUE_NUMBER:
+                        switch (key) {
+                            case "value":
+                                value = parser.getBigDecimal();
+                                break;
+                            default:
+                        }
+                        key = null;
+                        break;
+                    case VALUE_TRUE:
+                        switch (key) {
+                            case "value":
+                                value = true;
+                                break;
+                            default:
+                        }
+                        key = null;
+                        break;
+                    case VALUE_FALSE:
+                        switch (key) {
+                            case "value":
+                                value = false;
+                                break;
+                            default:
+                        }
+                        key = null;
+                        break;
+                    case VALUE_NULL:
                         key = null;
                         break;
                     case START_ARRAY:
-                        parser.skipArray();
-                        key = null;
+                        switch (key) {
+                            case "value":
+                                context.parser().rewind(event);
+                                value = new CollectionJsonCodec<>(context.codec(Object.class), Object.class, ArrayList::new).read(context);
+                                break;
+                            default:
+                                parser.skipArray();
+                                key = null;
+                        }
                         break;
                     // case END_ARRAY: fallthrough
                     default:
