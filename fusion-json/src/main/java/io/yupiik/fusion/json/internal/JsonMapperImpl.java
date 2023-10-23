@@ -260,6 +260,7 @@ public class JsonMapperImpl implements JsonMapper {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private void doWriteCollection(final Writer writer, final Collection<?> collection) throws IOException {
         if (collection.isEmpty()) {
             writer.write("[]");

@@ -35,6 +35,7 @@ import io.yupiik.fusion.http.server.api.Request;
 import io.yupiik.fusion.http.server.impl.flow.BytesPublisher;
 import io.yupiik.fusion.http.server.impl.io.RequestBodyAggregator;
 import io.yupiik.fusion.http.server.spi.Endpoint;
+import io.yupiik.fusion.json.JsonMapper;
 import io.yupiik.fusion.json.internal.JsonMapperImpl;
 import io.yupiik.fusion.json.internal.codec.ObjectJsonCodec;
 import io.yupiik.fusion.json.internal.formatter.SimplePrettyFormatter;
@@ -52,6 +53,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Field;
+import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -1033,6 +1035,42 @@ class FusionProcessorTest {
                                 fail(e);
                             }
                         });
+    }
+
+    @Test
+    void jsonObjectMapping(@TempDir final Path work) throws IOException {
+        new Compiler(work, "json.GenericlyTyped").compileAndAsserts((loader, container) -> {
+            final var recordType = loader.apply("test.p.json.GenericlyTyped");
+            try {
+                final var constructor = recordType.getConstructor(String.class, Object.class);
+                try (final var jsonMapperInstance = container.lookup(JsonMapper.class)) {
+                    final var mapper = jsonMapperInstance.instance();
+
+                    // test instances, they are records or jvm types so we can use equals
+                    final var number = constructor.newInstance("number", BigDecimal.ONE);
+                    final var string = constructor.newInstance("string", "hello");
+                    final var bool = constructor.newInstance("boolean", true);
+                    final var object = constructor.newInstance("object", Map.of("foo", "bar"));
+                    final var array = constructor.newInstance("array", List.of("foo", "bar"));
+
+                    // serialization
+                    assertEquals("{\"name\":\"number\",\"value\":1}", mapper.toString(number));
+                    assertEquals("{\"name\":\"string\",\"value\":\"hello\"}", mapper.toString(string));
+                    assertEquals("{\"name\":\"boolean\",\"value\":true}", mapper.toString(bool));
+                    assertEquals("{\"name\":\"object\",\"value\":{\"foo\":\"bar\"}}", mapper.toString(object));
+                    assertEquals("{\"name\":\"array\",\"value\":[\"foo\",\"bar\"]}", mapper.toString(array));
+
+                    // deserialization
+                    assertEquals(number, mapper.fromString(recordType, "{\"name\":\"number\",\"value\":1}"));
+                    assertEquals(string, mapper.fromString(recordType, "{\"name\":\"string\",\"value\":\"hello\"}"));
+                    assertEquals(bool, mapper.fromString(recordType, "{\"name\":\"boolean\",\"value\":true}"));
+                    assertEquals(object, mapper.fromString(recordType, "{\"name\":\"object\",\"value\":{\"foo\":\"bar\"}}"));
+                    assertEquals(array, mapper.fromString(recordType, "{\"name\":\"array\",\"value\":[\"foo\",\"bar\"]}"));
+                }
+            } catch (final Exception e) {
+                fail(e);
+            }
+        });
     }
 
     @Test

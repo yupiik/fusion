@@ -48,6 +48,7 @@ class ContainerTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     void beanMapper() {
         try (final var container = ConfiguringContainer.of()
                 .register(new FusionModule() {

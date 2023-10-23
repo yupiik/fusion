@@ -223,7 +223,7 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
         out.append("      event = parser.next();\n");
         out.append("      switch (event) {\n");
         out.append("        case KEY_NAME: key = parser.getString(); break;\n");
-        if (!strings.isEmpty() || !dates.isEmpty() || !fallbacks.isEmpty()) {
+        if (!strings.isEmpty() || !dates.isEmpty() || !fallbacks.isEmpty() || !genericObjects.isEmpty()) {
             out.append("        case VALUE_STRING:\n");
             out.append("          switch (key) {\n");
             out.append(strings.stream()
@@ -258,6 +258,12 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
                             } + ".class).read(context);\n" +
                             "              break;\n")
                     .collect(joining()));
+            out.append(genericObjects.stream()
+                    .map(it -> "" +
+                            "            case \"" + it.stringEscapedJsonName() + "\":\n" +
+                            "              param__" + it.javaName() + " = parser.getString();\n" +
+                            "              break;\n")
+                    .collect(joining()));
             if (fallbacks.isEmpty()) {
                 out.append("            default: // ignore\n");
             } else {
@@ -269,7 +275,7 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
             out.append("          key = null;\n");
             out.append("          break;\n");
         }
-        if (!numbers.isEmpty() || !fallbacks.isEmpty()) {
+        if (!numbers.isEmpty() || !fallbacks.isEmpty() || !genericObjects.isEmpty()) {
             out.append("        case VALUE_NUMBER:\n");
             out.append("          switch (key) {\n");
             out.append(numbers.stream()
@@ -286,6 +292,12 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
                             } + "();\n" +
                             "              break;\n")
                     .collect(joining()));
+            out.append(genericObjects.stream()
+                    .map(it -> "" +
+                            "            case \"" + it.stringEscapedJsonName() + "\":\n" +
+                            "              param__" + it.javaName() + " = parser.getBigDecimal();\n" +
+                            "              break;\n")
+                    .collect(joining()));
             if (fallbacks.isEmpty()) {
                 out.append("            default: // ignore\n");
             } else {
@@ -297,11 +309,11 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
             out.append("          key = null;\n");
             out.append("          break;\n");
         }
-        if (!booleans.isEmpty() || !fallbacks.isEmpty()) {
+        if (!booleans.isEmpty() || !fallbacks.isEmpty() || !genericObjects.isEmpty()) {
             out.append("        case VALUE_TRUE:\n");
             out.append("        case VALUE_FALSE:\n");
             out.append("          switch (key) {\n");
-            out.append(booleans.stream()
+            out.append(Stream.concat(booleans.stream(), genericObjects.stream())
                     .map(it -> "" +
                             "            case \"" + it.stringEscapedJsonName() + "\":\n" +
                             "              param__" + it.javaName() + " = " + Parser.class.getName() + ".Event.VALUE_TRUE.equals(event);\n" +
@@ -357,7 +369,7 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
             out.append("          key = null;\n");
             out.append("          break;\n");
         }
-        if (!collections.isEmpty() || !fallbacks.isEmpty()) {
+        if (!collections.isEmpty() || !fallbacks.isEmpty() || !genericObjects.isEmpty()) {
             out.append("        case START_ARRAY:\n");
             out.append("          switch (key) {\n");
             out.append(collections.stream()
@@ -382,6 +394,16 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
                             } +
                             "              break;\n")
                     .collect(joining()));
+            out.append(genericObjects.stream()
+                    .map(it -> "" +
+                            "            case \"" + it.stringEscapedJsonName() + "\":\n" +
+                            "              parser.rewind(event);\n" +
+                            "              param__" + it.javaName() + " = new " + CollectionJsonCodec.class.getName() + "<>(" +
+                            "context.codec(java.lang.Object.class), " +
+                            List.class.getName() + ".class, " +
+                            ArrayList.class.getName() + "::new).read(context);\n" +
+                            "              break;\n")
+                    .collect(joining()));
             if (fallbacks.isEmpty()) {
                 out.append("            default:\n              parser.skipArray();\n              break;\n");
             } else {
@@ -401,10 +423,10 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
         out.append("        case ")
                 .append(Stream.of(
                                 "VALUE_NULL",
-                                strings.isEmpty() && dates.isEmpty() && fallbacks.isEmpty() ? "VALUE_STRING" : null,
-                                numbers.isEmpty() && fallbacks.isEmpty() ? "VALUE_NUMBER" : null,
-                                booleans.isEmpty() && fallbacks.isEmpty() ? "VALUE_TRUE" : null,
-                                booleans.isEmpty() && fallbacks.isEmpty() ? "VALUE_FALSE" : null)
+                                strings.isEmpty() && dates.isEmpty() && fallbacks.isEmpty() && genericObjects.isEmpty() ? "VALUE_STRING" : null,
+                                numbers.isEmpty() && fallbacks.isEmpty() && genericObjects.isEmpty() ? "VALUE_NUMBER" : null,
+                                booleans.isEmpty() && fallbacks.isEmpty() && genericObjects.isEmpty() ? "VALUE_TRUE" : null,
+                                booleans.isEmpty() && fallbacks.isEmpty() && genericObjects.isEmpty() ? "VALUE_FALSE" : null)
                         .filter(Objects::nonNull)
                         .collect(joining(", ")))
                 .append(":\n");
@@ -421,7 +443,7 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
             }
             out.append("          key = null;\n          break;\n");
         }
-        if (collections.isEmpty()) {
+        if (collections.isEmpty() && genericObjects.isEmpty()) {
             out.append("        case START_ARRAY:\n");
             if (fallbacks.isEmpty()) {
                 out.append("          parser.skipArray();\n");
