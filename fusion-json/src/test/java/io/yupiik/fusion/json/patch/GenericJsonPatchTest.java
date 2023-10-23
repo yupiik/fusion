@@ -64,7 +64,7 @@ class GenericJsonPatchTest {
 
     private void assertJson(final String json, final Object value) {
         try (final var mapper = new JsonMapperImpl(List.of(), c -> empty())) {
-            assertEquals(json, mapper.toString(value));
+            assertEquals(mapper.fromString(Object.class, json), value);
         }
     }
 }

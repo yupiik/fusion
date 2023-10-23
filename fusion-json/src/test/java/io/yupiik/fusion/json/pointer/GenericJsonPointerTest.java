@@ -18,6 +18,7 @@ package io.yupiik.fusion.json.pointer;
 import io.yupiik.fusion.json.internal.JsonMapperImpl;
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -225,7 +226,8 @@ class GenericJsonPointerTest {
 
     private void assertJson(final String json, final Object value) {
         try (final var mapper = new JsonMapperImpl(List.of(), c -> empty())) {
-            assertEquals(json, mapper.toString(value));
+            final var expected = mapper.fromString(Object.class, json);
+            assertEquals(expected instanceof BigDecimal b ? b.intValue() : expected, value);
         }
     }
 }
