@@ -55,6 +55,7 @@ import io.yupiik.fusion.framework.processor.internal.generator.MethodBeanGenerat
 import io.yupiik.fusion.framework.processor.internal.generator.ModuleGenerator;
 import io.yupiik.fusion.framework.processor.internal.generator.PersistenceEntityGenerator;
 import io.yupiik.fusion.framework.processor.internal.generator.SubclassGenerator;
+import io.yupiik.fusion.framework.processor.internal.json.JsonMapperFacade;
 import io.yupiik.fusion.framework.processor.internal.json.JsonStrings;
 import io.yupiik.fusion.framework.processor.internal.meta.Docs;
 import io.yupiik.fusion.framework.processor.internal.meta.JsonSchema;
@@ -99,6 +100,7 @@ import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.time.Clock.systemUTC;
 import static java.util.Collections.list;
 import static java.util.Comparator.comparing;
@@ -298,7 +300,6 @@ public class InternalFusionProcessor extends AbstractProcessor {
                                         .map(it -> it.type().getTypeName())
                                         .filter(it -> it.endsWith(JsonCodecGenerator.SUFFIX))
                                         .map(name -> name.substring(0, name.length() - JsonCodecGenerator.SUFFIX.length())))
-                        .distinct()
                         .collect(toSet());
 
         if (jsonSchemaLocation != null) {
@@ -326,6 +327,30 @@ public class InternalFusionProcessor extends AbstractProcessor {
                         processingEnv.getMessager().printMessage(WARNING, e.getMessage());
                     }
                 }
+            }
+
+            try {
+                final var loader = Thread.currentThread().getContextClassLoader();
+                final var resource = loader.getResources(jsonSchemaLocation);
+                final JsonMapperFacade lightMapper = new JsonMapperFacade();
+                while (resource.hasMoreElements()) {
+                    final var url = resource.nextElement();
+                    try (final var in = url.openStream()) {
+                        final var schemas = lightMapper.read(new String(in.readAllBytes(), UTF_8)).get("schemas");
+                        if (schemas instanceof Map<?, ?> map) {
+                            map.forEach((k, v) -> allJsonSchemas.put(k.toString(), new GeneratedJsonSchema(null, lightMapper.write(v))));
+                        }
+                    } catch (final IOException | RuntimeException e) {
+                        processingEnv.getMessager().printMessage(
+                                NOTE,
+                                "Ignoring json schema loading from '" + url + "' (" + e.getClass().getSimpleName() + "): " + e.getMessage());
+                    }
+                }
+            } catch (final IOException e) {
+                processingEnv.getMessager().printMessage(
+                        NOTE, "Ignoring json schema loading (" + e.getClass().getSimpleName() + "): " + e.getMessage());
+            } catch (final NoClassDefFoundError cnfe) {
+                // no-op, no json so no need to load json schemas
             }
         }
         if (openrpcLocation != null) {
