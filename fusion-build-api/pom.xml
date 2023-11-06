@@ -20,7 +20,7 @@
   <parent>
     <artifactId>fusion</artifactId>
     <groupId>io.yupiik.fusion</groupId>
-    <version>1.0.11-SNAPSHOT</version>
+    <version>1.0.11</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
 

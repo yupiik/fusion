@@ -21,7 +21,7 @@
 
   <groupId>io.yupiik.fusion</groupId>
   <artifactId>fusion</artifactId>
-  <version>1.0.11-SNAPSHOT</version>
+  <version>1.0.11</version>
   <packaging>pom</packaging>
   <name>Fusion</name>
   <description>Reflectionless and selfcontained framework (no business code dependency on jakarta/spring/guice).</description>
@@ -316,7 +316,7 @@ under the License.
     <connection>scm:git:https://github.com/yupiik/fusion.git</connection>
     <developerConnection>scm:git:https://github.com/yupiik/fusion.git</developerConnection>
     <url>https://github.com/yupiik/fusion.git</url>
-    <tag>HEAD</tag>
+    <tag>fusion-1.0.11</tag>
   </scm>
 
   <organization>
