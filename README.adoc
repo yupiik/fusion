@@ -18,6 +18,10 @@ For cloud applications, being the most reactive possible is a key criteria so Fu
 
 See https://www.yupiik.io/fusion for the full documentation.
 
+== Examples
+
+Some examples projects can be found here https://github.com/yupiik/fusion-examples
+
 == Build
 
 Pre-requisite: Maven >= 3.8 and Java >= 17.
