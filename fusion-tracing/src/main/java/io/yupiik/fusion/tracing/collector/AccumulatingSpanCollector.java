@@ -85,11 +85,15 @@ public class AccumulatingSpanCollector implements Consumer<Span>, AutoCloseable 
 
     public void flush() {
         if (onFlush != null) {
+            final Collection<Span> spans;
             lock.lock();
             try {
-                onFlush.accept(buffer.drain());
+                spans = buffer.drain();
             } finally {
                 lock.unlock();
+            }
+            if (!spans.isEmpty()) {
+                onFlush.accept(spans);
             }
         }
     }
