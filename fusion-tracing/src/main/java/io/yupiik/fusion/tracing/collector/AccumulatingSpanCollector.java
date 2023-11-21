@@ -19,11 +19,8 @@ import io.yupiik.fusion.tracing.span.Span;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
-
-import static java.util.stream.Collectors.toList;
 
 /**
  * Creates a collector of span which triggers a flush when the buffer reaches its max size.
@@ -32,10 +29,11 @@ import static java.util.stream.Collectors.toList;
  * You will generally set a {@code onFlush} callback to actually push somewhere the spans - by default nothing is done.
  */
 public class AccumulatingSpanCollector implements Consumer<Span>, AutoCloseable {
-    private final Map<Span, Span> buffer = new ConcurrentHashMap<>();
+    private final Buffer<Span> buffer = new Buffer<>();
     private final int bufferSize;
     private Consumer<Collection<Span>> onFlush;
     private volatile boolean closed = true;
+    private final ReentrantLock lock = new ReentrantLock();
 
     public AccumulatingSpanCollector() {
         this(4096);
@@ -65,34 +63,49 @@ public class AccumulatingSpanCollector implements Consumer<Span>, AutoCloseable 
             return;
         }
 
-        buffer.put(span, span);
+        buffer.add(span);
 
         // prefer to flush after to ensure we flush on event to not have a pattern encouraging to have staled entries
         // note: it can lead to not strictly respecting the buffer size, it is fine
         if (buffer.size() > bufferSize) {
-            synchronized (this) {
+            Collection<Span> spans = List.of();
+            lock.lock();
+            try {
                 if (buffer.size() > bufferSize) {
-                    flush();
+                    spans = buffer.drain();
                 }
+            } finally {
+                lock.unlock();
+            }
+            if (!spans.isEmpty()) {
+                onFlush.accept(buffer.drain());
             }
         }
     }
 
-    public synchronized void flush() {
-        if (onFlush == null) {
-            return;
+    public void flush() {
+        if (onFlush != null) {
+            lock.lock();
+            try {
+                onFlush.accept(buffer.drain());
+            } finally {
+                lock.unlock();
+            }
         }
-
-        final var spans = buffer.keySet().stream().limit(bufferSize).collect(toList());
-        onFlush.accept(spans);
-        spans.forEach(buffer::remove);
     }
 
     @Override
     public void close() {
         closed = true;
-        while (!buffer.isEmpty()) {
-            flush();
+        if (onFlush != null) {
+            lock.lock();
+            try {
+                while (buffer.size() > 0) {
+                    onFlush.accept(buffer.drain());
+                }
+            } finally {
+                lock.unlock();
+            }
         }
     }
 }
