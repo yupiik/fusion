@@ -19,8 +19,17 @@ import io.yupiik.fusion.tracing.span.Span;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
+import java.util.logging.Logger;
+
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.MINUTES;
 
 /**
  * Creates a collector of span which triggers a flush when the buffer reaches its max size.
@@ -31,6 +40,9 @@ import java.util.function.Consumer;
 public class AccumulatingSpanCollector implements Consumer<Span>, AutoCloseable {
     private final Buffer<Span> buffer = new Buffer<>();
     private final int bufferSize;
+    private final ScheduledExecutorService scheduler;
+    private final ScheduledFuture<?> flushTask;
+    private final boolean async;
     private Consumer<Collection<Span>> onFlush;
     private volatile boolean closed = true;
     private final ReentrantLock lock = new ReentrantLock();
@@ -43,7 +55,38 @@ public class AccumulatingSpanCollector implements Consumer<Span>, AutoCloseable 
      * @param bufferSize max size before forcing a flush of spans.
      */
     public AccumulatingSpanCollector(final int bufferSize) {
-        this.bufferSize = bufferSize;
+        this(new Configuration().setBufferSize(bufferSize));
+    }
+
+    /**
+     * @param configuration collector configuration.
+     */
+    public AccumulatingSpanCollector(final Configuration configuration) {
+        this.bufferSize = configuration.bufferSize;
+        this.async = configuration.asyncThreads > 0;
+        if (configuration.flushInterval > 0 || configuration.asyncThreads > 0) {
+            scheduler = Executors.newScheduledThreadPool(
+                    // we need 1 for flushing and rest is for async sending to zipkin
+                    1 + Math.max(configuration.asyncThreads, 0),
+                    new ThreadFactory() {
+                        private final AtomicInteger counter = new AtomicInteger();
+
+                        @Override
+                        public Thread newThread(final Runnable r) {
+                            final var thread = new Thread(r, AccumulatingSpanCollector.class.getName() + "-" + counter.incrementAndGet());
+                            thread.setContextClassLoader(AccumulatingSpanCollector.class.getClassLoader());
+                            return thread;
+                        }
+                    });
+            if (configuration.flushInterval > 0) {
+                flushTask = scheduler.scheduleAtFixedRate(this::flush, configuration.flushInterval, configuration.flushInterval, MILLISECONDS);
+            } else {
+                flushTask = null;
+            }
+        } else {
+            scheduler = null;
+            flushTask = null;
+        }
     }
 
     public AccumulatingSpanCollector setOnFlush(final Consumer<Collection<Span>> onFlush) {
@@ -59,7 +102,7 @@ public class AccumulatingSpanCollector implements Consumer<Span>, AutoCloseable 
         }
 
         if (bufferSize <= 0) {
-            onFlush.accept(List.of(span));
+            doFlush(List.of(span));
             return;
         }
 
@@ -78,8 +121,16 @@ public class AccumulatingSpanCollector implements Consumer<Span>, AutoCloseable 
                 lock.unlock();
             }
             if (!spans.isEmpty()) {
-                onFlush.accept(spans);
+                doFlush(spans);
             }
+        }
+    }
+
+    private void doFlush(final Collection<Span> spans) {
+        if (async && !scheduler.isShutdown()) {
+            scheduler.execute(() -> onFlush.accept(spans));
+        } else {
+            onFlush.accept(spans);
         }
     }
 
@@ -93,7 +144,7 @@ public class AccumulatingSpanCollector implements Consumer<Span>, AutoCloseable 
                 lock.unlock();
             }
             if (!spans.isEmpty()) {
-                onFlush.accept(spans);
+                doFlush(spans);
             }
         }
     }
@@ -101,15 +152,70 @@ public class AccumulatingSpanCollector implements Consumer<Span>, AutoCloseable 
     @Override
     public void close() {
         closed = true;
+        if (flushTask != null) {
+            flushTask.cancel(false);
+            scheduler.shutdown();
+            try {
+                if (!scheduler.awaitTermination(1, MINUTES)) {
+                    Logger.getLogger(AccumulatingSpanCollector.class.getName()).warning(() -> "Can't flush spans in 1mn, giving up");
+                }
+            } catch (final InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
         if (onFlush != null) {
             lock.lock();
             try {
                 while (buffer.size() > 0) {
-                    onFlush.accept(buffer.drain());
+                    doFlush(buffer.drain());
                 }
             } finally {
                 lock.unlock();
             }
+        }
+    }
+
+    public static class Configuration {
+        /**
+         * How many threads can send spans, if negative it will use the caller thread to call the {@code onFlush} callback.
+         * This is mainly for synchronous flushers case.
+         */
+        private int asyncThreads = 8;
+
+        /**
+         * How many spans can be kept in memory max.
+         */
+        private int bufferSize = 4096;
+
+        /**
+         * How long to force a flush of the buffer if no new span are appended (max duration without zipking seeing the spans for ex).
+         */
+        private long flushInterval = 30_000L;
+
+        public Configuration setAsyncThreads(final int asyncThreads) {
+            this.asyncThreads = asyncThreads;
+            return this;
+        }
+
+        public Configuration setBufferSize(final int bufferSize) {
+            this.bufferSize = bufferSize;
+            return this;
+        }
+
+        public Configuration setFlushInterval(final long flushInterval) {
+            this.flushInterval = flushInterval;
+            return this;
+        }
+    }
+
+    public static class Noop extends AccumulatingSpanCollector {
+        public Noop() {
+            super(new Configuration().setBufferSize(-1).setAsyncThreads(-1).setFlushInterval(-1));
+        }
+
+        @Override
+        public void accept(final Span span) {
+            // no-op
         }
     }
 }
