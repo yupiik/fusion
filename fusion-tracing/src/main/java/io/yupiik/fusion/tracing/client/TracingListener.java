@@ -120,7 +120,7 @@ public class TracingListener implements RequestListener<TracingListener.State> {
 
         return new RequestListener.State<>(new UnlockedHttpRequest(
                 request.bodyPublisher(), request.method(), request.timeout(), request.expectContinue(), request.uri(), request.version(),
-                HttpHeaders.of(customizeHeaders(request, traceId, id, traceId), (a, b) -> true)),
+                HttpHeaders.of(customizeHeaders(request, traceId, id, parentId), (a, b) -> true)),
                 new State(start, duration -> new Span(
                         traceId, parentId, id, configuration.getOperation(), "CLIENT",
                         timestamp, duration, null, endpoint, tags,
