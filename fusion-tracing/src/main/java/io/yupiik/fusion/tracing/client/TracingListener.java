@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.function.LongFunction;
 import java.util.function.Supplier;
 
@@ -43,14 +44,30 @@ public class TracingListener implements RequestListener<TracingListener.State> {
     private final ClientTracingConfiguration configuration;
     private final AccumulatingSpanCollector collector;
     private final Supplier<Object> idGenerator;
-    private final Supplier<PendingSpan> contextAttributeEvaluator;
+    private final Function<HttpRequest, PendingSpan> contextAttributeEvaluator;
     private final Clock clock;
     private final Map<String, String> ips = new ConcurrentHashMap<>();
 
+    // backward compat
     public TracingListener(final ClientTracingConfiguration configuration,
                            final AccumulatingSpanCollector collector,
                            final Supplier<Object> idGenerator,
                            final Supplier<PendingSpan> contextAttributeEvaluator,
+                           final Clock clock) {
+        this(configuration, collector, idGenerator, r -> contextAttributeEvaluator.get(), clock);
+    }
+
+    /**
+     * @param configuration             the tracing configuration.
+     * @param collector                 where to send spans to when finished.
+     * @param idGenerator               how to create an identifier for a span.
+     * @param contextAttributeEvaluator the way to lookup parent span.
+     * @param clock                     clock to measure span duration.
+     */
+    public TracingListener(final ClientTracingConfiguration configuration,
+                           final AccumulatingSpanCollector collector,
+                           final Supplier<Object> idGenerator,
+                           final Function<HttpRequest, PendingSpan> contextAttributeEvaluator,
                            final Clock clock) {
         this.configuration = requireNonNull(configuration, "configuration can't be null");
         this.collector = requireNonNull(collector, "collector can't be null");
@@ -75,7 +92,7 @@ public class TracingListener implements RequestListener<TracingListener.State> {
                 new Span.Endpoint(configuration.getServiceName(), null, ip, request.uri().getPort()) :
                 new Span.Endpoint(configuration.getServiceName(), ip, null, request.uri().getPort());
 
-        final var parent = contextAttributeEvaluator.get();
+        final var parent = contextAttributeEvaluator.apply(request);
         final var timestamp = TimeUnit.MILLISECONDS.toMicros(start.toEpochMilli());
         final var id = idGenerator.get();
         final var traceId = parent != null ? parent.traceId() : idGenerator.get();
