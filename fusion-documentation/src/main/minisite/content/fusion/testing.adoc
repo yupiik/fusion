@@ -49,6 +49,8 @@ Then simply replace fusion annotation by `MyAppSupport`.
 Alternatively you can register a test `ConfigurationSource` bean if you prefer but this extension option enables to also start global services like dependencies mock or a database.
 --
 
+Note that if you need to exclude some module from the discovery (which uses `ServiceLoader`), mono extension reads`yupiik.fusion.mono.modules.discovery.excluded` system property which takes a comma separated list of fully qualified names.
+
 == Testing a Launcher application
 
 Particularly for CLI applications (using an `Launcher` and an `Awaiter` getting `Args` injected for example), you can use `@FusionCLITest` as a replacement of `@Test`.

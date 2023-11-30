@@ -17,8 +17,12 @@ package io.yupiik.fusion.testing.impl;
 
 import io.yupiik.fusion.framework.api.ConfiguringContainer;
 import io.yupiik.fusion.framework.api.RuntimeContainer;
+import io.yupiik.fusion.framework.api.container.FusionModule;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
+
+import java.util.function.Predicate;
+import java.util.stream.Stream;
 
 public class FusionMonoLifecycle extends FusionParameterResolver implements BeforeAllCallback {
     private static volatile RuntimeContainer INSTANCE;
@@ -28,7 +32,23 @@ public class FusionMonoLifecycle extends FusionParameterResolver implements Befo
         if (INSTANCE == null) {
             synchronized (FusionMonoLifecycle.class) {
                 if (INSTANCE == null) {
-                    INSTANCE = ConfiguringContainer.of().start();
+                    final var container = ConfiguringContainer.of();
+                    final var excludedModules = System.getProperty("yupiik.fusion.mono.modules.discovery.excluded");
+                    if (excludedModules != null) {
+                        final var loader = Thread.currentThread().getContextClassLoader();
+                        Stream.of(excludedModules.split(","))
+                                .map(String::strip)
+                                .filter(Predicate.not(String::isBlank))
+                                .<Class<? extends FusionModule>>map(it -> {
+                                    try {
+                                        return loader.loadClass(it).asSubclass(FusionModule.class);
+                                    } catch (final ClassNotFoundException e) {
+                                        throw new IllegalArgumentException("Can't load module '" + it + "'", e);
+                                    }
+                                })
+                                .forEach(container::disableModule);
+                    }
+                    INSTANCE = container.start();
                     Runtime.getRuntime().addShutdownHook(new Thread(INSTANCE::close, getClass().getName() + "-shutdown"));
                 }
             }
