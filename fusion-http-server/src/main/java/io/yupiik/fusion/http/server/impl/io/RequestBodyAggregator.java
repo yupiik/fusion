@@ -23,6 +23,8 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Flow;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -30,6 +32,7 @@ public class RequestBodyAggregator implements Flow.Subscriber<ByteBuffer> {
     private final List<ByteBuffer> aggregated = new ArrayList<>();
     private final CompletableFuture<char[]> future = new CompletableFuture<>();
     private final Charset charset;
+    private final Lock lock = new ReentrantLock();
 
     public RequestBodyAggregator(final Flow.Publisher<ByteBuffer> publisher) { // backward compatibility
         this(publisher, UTF_8);
@@ -52,8 +55,11 @@ public class RequestBodyAggregator implements Flow.Subscriber<ByteBuffer> {
 
     @Override
     public void onNext(final ByteBuffer item) {
-        synchronized (aggregated) {
+        lock.lock();
+        try {
             aggregated.add(item);
+        } finally {
+            lock.unlock();
         }
     }
 
@@ -65,7 +71,8 @@ public class RequestBodyAggregator implements Flow.Subscriber<ByteBuffer> {
     @Override
     public void onComplete() {
         final byte[] res;
-        synchronized (aggregated) {
+        lock.lock();
+        try {
             res = new byte[aggregated.stream().mapToInt(ByteBuffer::remaining).sum()];
             int start = 0;
             for (final var array : aggregated) {
@@ -73,6 +80,8 @@ public class RequestBodyAggregator implements Flow.Subscriber<ByteBuffer> {
                 array.get(res, start, remaining);
                 start += remaining;
             }
+        } finally {
+            lock.unlock();
         }
         var decoded = charset.decode(ByteBuffer.wrap(res)).compact();
         if (decoded.limit() != decoded.capacity()) {

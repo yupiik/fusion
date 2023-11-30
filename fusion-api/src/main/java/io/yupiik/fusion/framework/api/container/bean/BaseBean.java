@@ -22,6 +22,8 @@ import io.yupiik.fusion.framework.api.container.FusionBean;
 import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 
 // intended to host utilities for generation if needed (to reduce generated code source size)
@@ -30,12 +32,17 @@ public abstract class BaseBean<A> implements FusionBean<A> {
     private final Class<?> scope;
     private final int priority;
     private final Map<String, Object> data;
+    private final Lock lock = new ReentrantLock();
 
     protected BaseBean(final Type type, final Class<?> scope, final int priority, final Map<String, Object> data) {
         this.type = type;
         this.scope = scope;
         this.priority = priority;
         this.data = data;
+    }
+
+    public Lock getLock() {
+        return lock;
     }
 
     @Override

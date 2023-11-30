@@ -27,6 +27,8 @@ import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import static java.util.stream.Collectors.toMap;
 
@@ -64,6 +66,7 @@ public abstract class FusionBaseDatabaseBean<T> extends BaseBean<T> {
         private final RuntimeContainer container;
         private final List<Instance<?>> dependents;
         private final AtomicBoolean closed;
+        private final Lock lock = new ReentrantLock();
         private volatile Instance<Map<Type, Object>> entities;
 
         private LazyEntitiesInstance(final RuntimeContainer container, final List<Instance<?>> dependents, final AtomicBoolean closed) {
@@ -92,24 +95,24 @@ public abstract class FusionBaseDatabaseBean<T> extends BaseBean<T> {
             if (closed.get()) {
                 return Map.of();
             }
-            synchronized (this) {
+            lock.lock();
+            try {
                 if (entities != null) {
                     return entities.instance();
                 }
                 if (closed.get()) {
                     return Map.of();
                 }
-                synchronized (this) {
-                    if (entities == null) {
-                        entities = container.lookups(
-                                Entity.class,
-                                i -> i.stream().collect(toMap(
-                                        it -> it.instance().getRootType(),
-                                        Instance::instance)));
-                        dependents.add(entities);
-                    }
-                }
+
+                entities = container.lookups(
+                        Entity.class,
+                        i -> i.stream().collect(toMap(
+                                it -> it.instance().getRootType(),
+                                Instance::instance)));
+                dependents.add(entities);
                 return entities.instance();
+            } finally {
+                lock.unlock();
             }
         }
     }

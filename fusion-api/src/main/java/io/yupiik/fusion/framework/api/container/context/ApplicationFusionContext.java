@@ -18,6 +18,7 @@ package io.yupiik.fusion.framework.api.container.context;
 import io.yupiik.fusion.framework.api.Instance;
 import io.yupiik.fusion.framework.api.RuntimeContainer;
 import io.yupiik.fusion.framework.api.container.FusionBean;
+import io.yupiik.fusion.framework.api.container.bean.BaseBean;
 import io.yupiik.fusion.framework.api.container.context.subclass.DelegatingContext;
 import io.yupiik.fusion.framework.api.container.context.subclass.SupplierDelegatingContext;
 import io.yupiik.fusion.framework.api.scope.ApplicationScoped;
@@ -26,6 +27,8 @@ import io.yupiik.fusion.framework.api.spi.FusionContext;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -45,18 +48,32 @@ public class ApplicationFusionContext extends DefaultFusionContext implements Fu
             return (Instance<T>) fastExisting;
         }
 
-        synchronized (bean) { // beans are singleton for a container so we can lock on them securely, in particular there in app ctx
-            final var existing = instances.get(bean);
-            if (existing != null) {
-                return (Instance<T>) existing;
+        if (bean instanceof BaseBean<T> bb) {
+            bb.getLock().lock();
+            try {
+                return doGetOrCreateInstance(container, bean);
+            } finally {
+                bb.getLock().unlock();
             }
-
-            // don't create the instance directly, ensure it is created lazily at need
-            final var subclass = (Function<DelegatingContext<T>, T>) bean.data().get("fusion.framework.subclasses.delegate");
-            final var created = new ApplicationInstance<>(subclass, () -> super.getOrCreate(container, bean), bean);
-            instances.put(bean, created);
-            return created;
         }
+
+        // else we have to synchronized and potentially break virtual threads - unlikely
+        synchronized (bean) { // beans are singleton for a container so we can lock on them securely, in particular there in app ctx
+            return doGetOrCreateInstance(container, bean);
+        }
+    }
+
+    private <T> Instance<T> doGetOrCreateInstance(final RuntimeContainer container, final FusionBean<T> bean) {
+        final var existing = instances.get(bean);
+        if (existing != null) {
+            return (Instance<T>) existing;
+        }
+
+        // don't create the instance directly, ensure it is created lazily at need
+        final var subclass = (Function<DelegatingContext<T>, T>) bean.data().get("fusion.framework.subclasses.delegate");
+        final var created = new ApplicationInstance<>(subclass, () -> super.getOrCreate(container, bean), bean);
+        instances.put(bean, created);
+        return created;
     }
 
     @Override
@@ -78,6 +95,7 @@ public class ApplicationFusionContext extends DefaultFusionContext implements Fu
     private static class ApplicationInstance<T> implements Instance<T> {
         private final Supplier<Instance<T>> factory;
         private final FusionBean<T> bean;
+        private final Lock lock = new ReentrantLock();
         private final T proxy;
         private volatile Instance<T> real;
 
@@ -96,10 +114,13 @@ public class ApplicationFusionContext extends DefaultFusionContext implements Fu
             if (real != null) {
                 return real;
             }
-            synchronized (factory) {
+            lock.lock();
+            try {
                 if (real == null) {
                     real = factory.get();
                 }
+            } finally {
+                lock.unlock();
             }
             return real;
         }

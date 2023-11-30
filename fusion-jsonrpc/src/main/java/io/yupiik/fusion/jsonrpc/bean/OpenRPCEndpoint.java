@@ -184,12 +184,8 @@ public class OpenRPCEndpoint extends BaseBean<OpenRPCEndpoint.Impl> implements F
 
         @Override
         public CompletionStage<?> invoke(final Context context) {
-            if (precomputed == null) {
-                synchronized (this) {
-                    if (precomputed == null) {
-                        precomputed = factory.get();
-                    }
-                }
+            if (precomputed == null) { // not a big deal to compute it twice under load, shouldn't occur and worse case will serve the same thing
+                precomputed = factory.get();
             }
             return precomputed;
         }

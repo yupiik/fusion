@@ -60,6 +60,8 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
@@ -75,6 +77,7 @@ public class KubernetesClient extends HttpClient implements AutoCloseable {
     private final URI base;
     private final Clock clock = Clock.systemUTC(); // todo: enable to replace it through the config?
     private final Optional<String> namespace;
+    private final Lock lock = new ReentrantLock();
     private volatile Instant lastRefresh;
     private volatile String authorization;
 
@@ -225,11 +228,14 @@ public class KubernetesClient extends HttpClient implements AutoCloseable {
     private String authorization() {
         final var now = clock.instant();
         if (isExpired(now)) {
-            synchronized (this) {
+            lock.lock();
+            try {
                 if (isExpired(now)) {
                     init();
                     this.lastRefresh = now;
                 }
+            } finally {
+                lock.unlock();
             }
         }
         return authorization;

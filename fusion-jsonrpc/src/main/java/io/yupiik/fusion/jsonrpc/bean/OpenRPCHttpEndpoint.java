@@ -55,18 +55,14 @@ public class OpenRPCHttpEndpoint implements Endpoint {
 
     @Override
     public CompletionStage<Response> handle(final Request request) {
-        if (response == null) {
-            synchronized (this) {
-                if (response == null) {
-                    try (final var reg = container.lookup(JsonRpcRegistry.class)) {
-                        final var openrpc = reg.instance().methods().get("openrpc");
-                        if (openrpc == null) {
-                            throw new IllegalStateException("No method 'openrpc' in JsonRpcRegistry, ensure to register OpenRPCEndpoint");
-                        }
-                        try (final var jsonMapper = container.lookup(JsonMapper.class)) {
-                            response = openrpc.invoke(null).thenApply(jsonMapper.instance()::toString);
-                        }
-                    }
+        if (response == null) { // no lock, if computed twice originally it is fine (unlikely but not an issue too)
+            try (final var reg = container.lookup(JsonRpcRegistry.class)) {
+                final var openrpc = reg.instance().methods().get("openrpc");
+                if (openrpc == null) {
+                    throw new IllegalStateException("No method 'openrpc' in JsonRpcRegistry, ensure to register OpenRPCEndpoint");
+                }
+                try (final var jsonMapper = container.lookup(JsonMapper.class)) {
+                    response = openrpc.invoke(null).thenApply(jsonMapper.instance()::toString);
                 }
             }
         }

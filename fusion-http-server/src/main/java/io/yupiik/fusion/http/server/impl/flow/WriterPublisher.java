@@ -25,6 +25,7 @@ import java.nio.charset.Charset;
 import java.util.LinkedList;
 import java.util.concurrent.Flow;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -49,9 +50,10 @@ public class WriterPublisher implements Flow.Publisher<ByteBuffer> {
             private Writer writer;
             private final AtomicLong requested = new AtomicLong();
             private final LinkedList<ByteBuffer> available = new LinkedList<>();
+            private final ReentrantLock simpleLock = new ReentrantLock();
 
             @Override
-            public synchronized void request(final long n) {
+            public void request(final long n) {
                 if (n <= 0) {
                     throw new IllegalArgumentException("Invalid request count: " + n + ", should be > 0");
                 }
@@ -61,66 +63,72 @@ public class WriterPublisher implements Flow.Publisher<ByteBuffer> {
 
                 requested.addAndGet(n);
 
-                serveRequested();
+                simpleLock.lock();
+                try {
+                    serveRequested();
 
-                if (requested.get() == 0) {
-                    return;
-                }
+                    if (requested.get() == 0) {
+                        return;
+                    }
 
-                if (writer == null) {
-                    final var self = this;
-                    writer = new Writer() {
-                        private final Charset converter = UTF_8;
+                    if (writer == null) {
+                        writer = new Writer() {
+                            private final Charset converter = UTF_8;
 
-                        @Override
-                        public void write(final char[] cbuf, final int off, final int len) {
-                            if (len == 0) {
-                                return;
-                            }
-
-                            try {
-                                synchronized (self) {
-                                    available.add(converter.encode(CharBuffer.wrap(cbuf, off, len)));
-                                    serveRequested();
-                                }
-                            } catch (final RuntimeException re) {
-                                log(re);
-                                subscriber.onError(re);
-                                synchronized (self) {
-                                    doClose();
-                                }
-                            }
-                        }
-
-                        @Override
-                        public void flush() {
-                            // no-op
-                        }
-
-                        @Override
-                        public void close() {
-                            synchronized (self) {
-                                if (cancelled) {
+                            @Override
+                            public void write(final char[] cbuf, final int off, final int len) {
+                                if (len == 0) {
                                     return;
                                 }
+
+                                simpleLock.lock();
                                 try {
+                                    available.add(converter.encode(CharBuffer.wrap(cbuf, off, len)));
                                     serveRequested();
-                                    subscriber.onComplete();
                                 } catch (final RuntimeException re) {
                                     log(re);
                                     subscriber.onError(re);
+                                    doClose();
+                                } finally {
+                                    simpleLock.unlock();
                                 }
-                                doClose();
                             }
+
+                            @Override
+                            public void flush() {
+                                // no-op
+                            }
+
+                            @Override
+                            public void close() {
+                                simpleLock.lock();
+                                try {
+                                    if (cancelled) {
+                                        return;
+                                    }
+                                    try {
+                                        serveRequested();
+                                        subscriber.onComplete();
+                                    } catch (final RuntimeException re) {
+                                        log(re);
+                                        subscriber.onError(re);
+                                    }
+                                    doClose();
+                                } finally {
+                                    simpleLock.unlock();
+                                }
+                            }
+                        };
+                        try {
+                            delegate.accept(writer);
+                        } catch (final IOException | RuntimeException e) {
+                            log(e);
+                            subscriber.onError(e);
+                            doClose();
                         }
-                    };
-                    try {
-                        delegate.accept(writer);
-                    } catch (final IOException | RuntimeException e) {
-                        log(e);
-                        subscriber.onError(e);
-                        doClose();
                     }
+                } finally {
+                    simpleLock.unlock();
                 }
             }
 
@@ -139,8 +147,13 @@ public class WriterPublisher implements Flow.Publisher<ByteBuffer> {
             }
 
             @Override
-            public synchronized void cancel() {
-                doClose();
+            public void cancel() {
+                simpleLock.lock();
+                try {
+                    doClose();
+                } finally {
+                    simpleLock.unlock();
+                }
             }
 
             private void doClose() {
