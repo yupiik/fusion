@@ -58,6 +58,26 @@ public class TracingListener implements RequestListener<TracingListener.State> {
     }
 
     /**
+     * Same as the full constructor but implicitly reads the parent span from the configured trace and parent span headers.
+     */
+    public TracingListener(final ClientTracingConfiguration configuration,
+                           final AccumulatingSpanCollector collector,
+                           final Supplier<Object> idGenerator,
+                           final Clock clock) {
+        this(
+                configuration, collector, idGenerator,
+                req -> {
+                    final var trace = req.headers().firstValue(configuration.getTraceHeader());
+                    final var span = req.headers().firstValue(configuration.getParentHeader());
+                    if (trace.isPresent() || span.isPresent()) {
+                        return new PendingSpan(trace.orElse(null), span.orElse(null));
+                    }
+                    return null;
+                },
+                clock);
+    }
+
+    /**
      * @param configuration             the tracing configuration.
      * @param collector                 where to send spans to when finished.
      * @param idGenerator               how to create an identifier for a span.
