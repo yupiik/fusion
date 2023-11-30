@@ -29,9 +29,11 @@ import io.yupiik.fusion.framework.api.spi.FusionContext;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.ServiceLoader;
+import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
 import java.util.stream.Stream;
@@ -43,8 +45,15 @@ public class ConfiguringContainerImpl implements ConfiguringContainer {
     private final Contexts contexts = new Contexts();
     private final Listeners listeners = new Listeners();
     private final Collection<FusionModule> modules = new ArrayList<>();
+    private final Set<Class<? extends FusionModule>> disabledModules = new HashSet<>();
     private boolean disableAutoDiscovery = false;
     private ClassLoader loader = Thread.currentThread().getContextClassLoader();
+
+    @Override
+    public ConfiguringContainer disableModule(final Class<? extends FusionModule> type) {
+        disabledModules.add(type);
+        return this;
+    }
 
     @Override
     public RuntimeContainer start() {
@@ -141,9 +150,17 @@ public class ConfiguringContainerImpl implements ConfiguringContainer {
     }
 
     protected Stream<FusionModule> loadModules() {
-        return ServiceLoader
-                .load(FusionModule.class, loader).stream()
+        return discoverModules()
+                .filter(it -> !isModuleDisabled(it.type()))
                 .map(ServiceLoader.Provider::get);
+    }
+
+    protected Stream<ServiceLoader.Provider<FusionModule>> discoverModules() {
+        return ServiceLoader.load(FusionModule.class, loader).stream();
+    }
+
+    protected boolean isModuleDisabled(final Class<? extends FusionModule> type) {
+        return disabledModules.contains(type);
     }
 
     protected Stream<FusionBean<?>> defaultBeans(final RuntimeContainer runtimeContainer) {

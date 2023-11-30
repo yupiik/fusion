@@ -15,11 +15,13 @@
  */
 package io.yupiik.fusion.framework.api;
 
-import io.yupiik.fusion.framework.api.container.FusionModule;
-import io.yupiik.fusion.framework.api.container.Generation;
+import io.yupiik.fusion.framework.api.container.ConfiguringContainerImpl;
 import io.yupiik.fusion.framework.api.container.FusionBean;
 import io.yupiik.fusion.framework.api.container.FusionListener;
+import io.yupiik.fusion.framework.api.container.FusionModule;
+import io.yupiik.fusion.framework.api.container.Generation;
 import io.yupiik.fusion.framework.api.container.bean.DelegatingBean;
+import io.yupiik.fusion.framework.api.exception.NoMatchingBeanException;
 import io.yupiik.fusion.framework.api.lifecycle.Start;
 import io.yupiik.fusion.framework.api.lifecycle.Stop;
 import io.yupiik.fusion.framework.api.scope.DefaultScoped;
@@ -29,11 +31,13 @@ import org.junit.jupiter.api.Test;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.ServiceLoader;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ContainerTest {
@@ -44,6 +48,28 @@ class ContainerTest {
                 .start();
              final var lookup = container.lookup(Bean1.class)) {
             assertEquals("bean1[bean2[]]", lookup.instance().toString());
+        }
+    }
+
+    @Test
+    void disableModule() {
+        try (final var container = new ConfiguringContainerImpl() {
+            @Override
+            protected Stream<ServiceLoader.Provider<FusionModule>> discoverModules() {
+                return Stream.of(new ServiceLoader.Provider<>() {
+                    @Override
+                    public Class<? extends FusionModule> type() {
+                        return SimpleModule.class;
+                    }
+
+                    @Override
+                    public FusionModule get() {
+                        return new SimpleModule();
+                    }
+                });
+            }
+        }.disableModule(SimpleModule.class).start()) {
+            assertThrows(NoMatchingBeanException.class, () -> container.lookup(Bean1.class));
         }
     }
 
@@ -193,6 +219,13 @@ class ContainerTest {
         @Override
         public Bean2 create(final RuntimeContainer container, final List<Instance<?>> dependents) {
             return new Bean2();
+        }
+    }
+
+    public static class SimpleModule implements FusionModule {
+        @Override
+        public Stream<FusionBean<?>> beans() {
+            return Stream.of(new Bean1$FusionBean(), new Bean2$FusionBean());
         }
     }
 }

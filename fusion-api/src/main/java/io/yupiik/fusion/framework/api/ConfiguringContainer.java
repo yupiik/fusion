@@ -26,6 +26,12 @@ public interface ConfiguringContainer {
         return new ConfiguringContainerImpl();
     }
 
+    /**
+     * @param type type of a fusion module.
+     * @return the type of the module to ignore using {@code ServiceLoader} discovery.
+     */
+    ConfiguringContainer disableModule(Class<? extends FusionModule> type);
+
     RuntimeContainer start();
 
     ConfiguringContainer disableAutoDiscovery(boolean disableAutoDiscovery);
