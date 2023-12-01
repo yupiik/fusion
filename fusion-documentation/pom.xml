@@ -21,7 +21,7 @@
   <parent>
     <groupId>io.yupiik.fusion</groupId>
     <artifactId>fusion</artifactId>
-    <version>1.0.12</version>
+    <version>1.0.13-SNAPSHOT</version>
   </parent>
 
   <artifactId>fusion-documentation</artifactId>
