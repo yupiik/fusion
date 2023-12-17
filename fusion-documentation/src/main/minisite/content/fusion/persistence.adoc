@@ -111,7 +111,7 @@ Some hooks are available and can be added in the entity record directly:
 
     @OnUpdate
     private CustomerEntity onUpdate() {
-        // no-op
+        return this;
     }
 
     @OnDelete
