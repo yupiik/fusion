@@ -110,7 +110,7 @@ Some hooks are available and can be added in the entity record directly:
     }
 
     @OnUpdate
-    private void onUpdate() {
+    private CustomerEntity onUpdate() {
         // no-op
     }
 
@@ -159,7 +159,7 @@ public class CustomerDao {
 
     public void updateCustomer(CustomerEntity entity) {
         try {
-            dataSource.write(() -> database.insert(entity));
+            dataSource.write(() -> database.update(entity));
         } catch (Error error) {
             // error, rollback is managed by datasource, no need to manage it by hand
         }
@@ -167,7 +167,7 @@ public class CustomerDao {
 
     public void deleteCustomer(CustomerEntity entity) {
         try {
-            dataSource.write(() -> database.insert(entity));
+            dataSource.write(() -> database.delete(entity));
         } catch (Error error) {
             // error, rollback is managed by datasource, no need to manage it by hand
         }
@@ -295,4 +295,3 @@ public class MyPersistingService {
     }
 }
 ----
-
