@@ -41,6 +41,61 @@ TIP: if can be sane to compile your project with maven (`mvn compile` or `mvn pr
 This is indeed a general rule but, in this case, will enable to avoid the pitfalls of a fake incremental compilation (compiling only a few source files using the precompiled project output).
 This last case can lead to missing bean, you can obviously delete the `target` folder of your project to force your IDE to recompile but it is saner to just rely on a properly compile phase.
 
+=== Java >=21
+
+Java 21 starts to warn when you use annotation processors autodiscovery.
+Future java versions will even disable it by default.
+
+For such version, you must explicitly enable the annotation processing.
+One option to do that is to use this `maven-compiler-plugin` configuration:
+
+[source,xml]
+----
+<plugin>
+  <groupId>org.apache.maven.plugins</groupId>
+  <artifactId>maven-compiler-plugin</artifactId>
+  <version>3.11.0</version>
+  <executions>
+    <execution>
+      <id>default-process-annotations</id>
+      <phase>generate-sources</phase>
+      <goals>
+        <goal>compile</goal>
+      </goals>
+      <configuration>
+        <proc>only</proc>
+        <useIncrementalCompilation>true</useIncrementalCompilation>
+      </configuration>
+    </execution>
+    <execution>
+      <id>test-process-annotations</id>
+      <phase>generate-test-sources</phase>
+      <goals>
+        <goal>testCompile</goal>
+      </goals>
+      <configuration>
+        <proc>only</proc>
+        <useIncrementalCompilation>true</useIncrementalCompilation>
+      </configuration>
+    </execution>
+  </executions>
+  <configuration>
+    <proc>none</proc>
+    <source>21</source>
+    <target>21</target>
+    <release>21</release>
+    <encoding>UTF-8</encoding>
+    <useIncrementalCompilation>false</useIncrementalCompilation>
+    <compilerArgs>
+      <compilerArg>-parameters</compilerArg>
+    </compilerArgs>
+    <annotationProcessors>
+      <annotationProcessor>io.yupiik.fusion.framework.processor.FusionProcessor</annotationProcessor>
+    </annotationProcessors>
+  </configuration>
+</plugin>
+----
+
 === IDE/Jetbrains Idea
 
 Until you configure IDEA to use maven to compile, it can happen it compiles a single source (at least not the whole module properly like Maven by default) so the output can miss some beans.
