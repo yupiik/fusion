@@ -90,7 +90,7 @@ public class OpenRPCEndpoint extends BaseBean<OpenRPCEndpoint.Impl> implements F
         return new Impl(container, methodName, openrpcVersion, info, servers, globalErrors);
     }
 
-    protected static class Impl implements JsonRpcMethod {
+    public static class Impl implements JsonRpcMethod {
         private volatile CompletableFuture<Map<String, Object>> precomputed;
         private final String name;
         private final Supplier<CompletableFuture<Map<String, Object>>> factory;
