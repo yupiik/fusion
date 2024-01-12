@@ -188,7 +188,8 @@ public abstract class BaseHARDumperListener implements RequestListener<BaseHARDu
                     .map(contentType -> new Body(
                             body.length,
                             List.of("application/octet-stream", "multipart/form-data").contains(contentType) ||
-                                    contentType.startsWith("application/vnd.openxmlformats-officedocument") ?
+                                    contentType.startsWith("application/vnd.openxmlformats-officedocument") ||
+                                    response.headers().firstValue("content-encoding").isPresent() ?
                                     new Har.Content(body.length, 0, contentType, Base64.getEncoder().encodeToString(body), "base64", "") :
                                     new Har.Content(body.length, 0, contentType, new String(body, StandardCharsets.UTF_8), null, "")))
                     .orElseGet(() -> new Body(body.length, null));
