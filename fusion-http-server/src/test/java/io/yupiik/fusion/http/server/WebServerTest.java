@@ -23,6 +23,7 @@ import io.yupiik.fusion.http.server.impl.tomcat.TomcatWebServerConfiguration;
 import io.yupiik.fusion.http.server.spi.MonitoringEndpoint;
 import jakarta.servlet.http.HttpServlet;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInfo;
 
 import java.io.IOException;
 import java.net.URI;
@@ -31,7 +32,10 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ExecutionException;
+import java.util.stream.Stream;
 
 import static java.lang.Thread.sleep;
 import static java.util.concurrent.CompletableFuture.completedStage;
@@ -80,43 +84,56 @@ class WebServerTest {
     }
 
     @Test
-    void stopOnFailure() {
-        final var configuration = WebServer.Configuration.of().port(0);
-        configuration.unwrap(TomcatWebServerConfiguration.class).setInitializers(List.of((set, servletContext) -> {
-            final var servlet = servletContext.addServlet("test", new HttpServlet() {
-                @Override
-                public void init() {
-                    throw new IllegalArgumentException("intended error for tests");
-                }
-            });
-            servlet.setLoadOnStartup(1);
-            servlet.addMapping("/test");
-        }));
-        final var threadsBefore = listThreads();
-        assertThrows(IllegalStateException.class, () -> WebServer.of(configuration));
-
-        final var maxRetries = 3;
-        for (int i = 0; i < maxRetries; i++) { // support a small retry for the CI
+    void stopOnFailure(final TestInfo testInfo) throws InterruptedException, ExecutionException {
+        final var tg = new ThreadGroup(testInfo.getTestClass().orElseThrow().getName() + "#" + testInfo.getTestMethod().orElseThrow().getName());
+        final var result = new CompletableFuture<Void>();
+        final var thread = new Thread(tg, () -> {
             try {
-                assertEquals(Set.of(threadsBefore), Set.of(listThreads()));
-                break;
-            } catch (final AssertionError ae) {
-                if (i + 1 == maxRetries) {
-                    throw ae;
+                final var configuration = WebServer.Configuration.of().port(0);
+                configuration.unwrap(TomcatWebServerConfiguration.class).setInitializers(List.of((set, servletContext) -> {
+                    final var servlet = servletContext.addServlet("test", new HttpServlet() {
+                        @Override
+                        public void init() {
+                            throw new IllegalArgumentException("intended error for tests");
+                        }
+                    });
+                    servlet.setLoadOnStartup(1);
+                    servlet.addMapping("/test");
+                }));
+                final var threadsBefore = listThreads(tg);
+                assertThrows(IllegalStateException.class, () -> WebServer.of(configuration));
+
+                final var maxRetries = 3;
+                for (int i = 0; i < maxRetries; i++) { // support a small retry for the CI
+                    try {
+                        final var current = Set.of(listThreads(tg));
+                        assertEquals(Set.of(threadsBefore), current);
+                        break;
+                    } catch (final AssertionError ae) {
+                        if (i + 1 == maxRetries) {
+                            throw ae;
+                        }
+                        try {
+                            sleep(100);
+                        } catch (final InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            throw new IllegalStateException(e);
+                        }
+                    }
                 }
-                try {
-                    sleep(100);
-                } catch (final InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    throw new IllegalStateException(e);
-                }
+                result.complete(null);
+            } catch (final RuntimeException | Error e) {
+                result.completeExceptionally(e);
             }
-        }
+        }, tg.getName());
+        thread.start();
+        thread.join();
+        result.get();
     }
 
-    private Thread[] listThreads() {
+    private Thread[] listThreads(final ThreadGroup group) {
         final var threads = new Thread[Thread.activeCount()];
         Thread.enumerate(threads);
-        return threads;
+        return Stream.of(threads).filter(i -> i.getThreadGroup() == group).toArray(Thread[]::new);
     }
 }

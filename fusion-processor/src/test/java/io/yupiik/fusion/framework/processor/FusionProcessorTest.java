@@ -48,6 +48,7 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
+import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
@@ -65,6 +66,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Flow;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -1152,511 +1155,512 @@ class FusionProcessorTest {
         final var endpointInstance = container.lookup(JsonRpcEndpoint.class);
         final var instance = endpointInstance.instance();
 
+        final var lockForConcurrency = new Semaphore(1); // cause we run the test suite in parallel
+        final var counter = new AtomicInteger(12);
+        final Runnable release = () -> {
+            endpointInstance.close();
+            container.close();
+            loader.close();
+        };
         return Stream.of(
-                        dynamicTest("jsonRpc_generatedMethods", () -> assertEquals(
-                                List.of(
-                                        "test.p.JsonRpcEndpoints$arg$FusionJsonRpcMethod",
-                                        "test.p.JsonRpcEndpoints$asynResult$FusionJsonRpcMethod",
-                                        "test.p.JsonRpcEndpoints$fail$FusionJsonRpcMethod",
-                                        "test.p.JsonRpcEndpoints$offsetDateTime$FusionJsonRpcMethod",
-                                        "test.p.JsonRpcEndpoints$paramTypes$FusionJsonRpcMethod",
-                                        "test.p.JsonRpcEndpoints$req$FusionJsonRpcMethod",
-                                        "test.p.JsonRpcEndpoints$result$FusionJsonRpcMethod"),
-                                container.getBeans().getBeans().keySet().stream()
-                                        .filter(Class.class::isInstance)
-                                        .map(Class.class::cast)
-                                        .map(Class::getName)
-                                        .filter(it -> it.endsWith("$FusionJsonRpcMethod"))
-                                        .sorted()
-                                        .toList())),
-                        dynamicTest("jsonRpc_offsetDateTime", () -> assertJsonRpc(instance,
-                                "{\"jsonrpc\":\"2.0\",\"method\":\"offsetDateTime\",\"params\":{\"date\":\"2023-07-31T15:06:37Z\"}}",
-                                "{\"jsonrpc\":\"2.0\",\"result\":{\"name\":\"2023-07-31T15:06:37Z\"}}")),
-                        dynamicTest("jsonRpc_unknownMethod", () -> assertJsonRpc(instance,
-                                "{\"jsonrpc\":\"2.0\",\"method\":\"unknown\"}",
-                                "{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32601,\"message\":\"Unknown method (unknown)\"}}")),
-                        dynamicTest("jsonRpc_sync_outputOnly", () -> assertJsonRpc(instance,
-                                "{\"jsonrpc\":\"2.0\",\"method\":\"test1\"}",
-                                "{\"jsonrpc\":\"2.0\",\"result\":{\"name\":\"test1\"}}")),
-                        dynamicTest("jsonRpc_async_outputOnly", () -> assertJsonRpc(instance,
-                                "{\"jsonrpc\":\"2.0\",\"method\":\"test2\"}",
-                                "{\"jsonrpc\":\"2.0\",\"result\":{\"name\":\"test2\"}}")),
-                        dynamicTest("jsonRpc_singleParam", () -> assertJsonRpc(instance,
-                                "{\"jsonrpc\":\"2.0\",\"method\":\"arg\",\"params\":{\"wrapper\":{\"name\":\"noisuf\"}}}",
-                                "{\"jsonrpc\":\"2.0\",\"result\":{\"name\":\"fusion\"}}")),
-                        dynamicTest("jsonRpc_singleParam+request", () -> assertJsonRpc(instance,
-                                "{\"jsonrpc\":\"2.0\",\"method\":\"req\",\"params\":{\"input\":{\"name\":\"fusion\"}}}",
-                                "{\"jsonrpc\":\"2.0\",\"result\":{\"name\":\"fusion (/jsonrpc)\"}}")),
-                        dynamicTest("jsonRpc_sync_failure", () -> assertJsonRpc(instance,
-                                "{\"jsonrpc\":\"2.0\",\"method\":\"fail\",\"params\":{\"direct\":true}}",
-                                "{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-2,\"message\":\"oops for test\"}}")),
-                        dynamicTest("jsonRpc_async_failure", () -> assertJsonRpc(instance,
-                                "{\"jsonrpc\":\"2.0\",\"method\":\"fail\"}",
-                                "{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-2,\"message\":\"oops for test [promise]\"}}")),
-                        dynamicTest("jsonRpc_paramTypes_defaults", () -> assertJsonRpc(instance,
-                                "{\"jsonrpc\":\"2.0\",\"method\":\"paramTypes\",\"params\":{}}",
-                                "{\"jsonrpc\":\"2.0\",\"result\":\"" +
-                                        "null\\n" +
-                                        "false\\n" +
-                                        "null\\n" +
-                                        "0\\n" +
-                                        "null\\n" +
-                                        "0\\n" +
-                                        "null\\n" +
-                                        "null\\n" +
-                                        "null\\n" +
-                                        "null\\n" +
-                                        "null\\n" +
-                                        "null\\n" +
-                                        "null\\n" +
-                                        "null\\n" +
-                                        "null\\n" +
-                                        "null\\n" +
-                                        "null\\n" +
-                                        "null\\n" +
-                                        "null\\n" +
-                                        "null\\n" +
-                                        "null\"}")),
-                        dynamicTest("jsonRpc_paramTypes", () -> assertJsonRpc(instance,
-                                "{\"jsonrpc\":\"2.0\",\"method\":\"paramTypes\",\"params\":{" +
-                                        "\"object\": {\"whatever\":\"works\"}," +
-                                        "\"bool\": true," +
-                                        "\"boolWrapper\": true," +
-                                        "\"integer\": 1," +
-                                        "\"intWrapper\": 2," +
-                                        "\"longNumber\": 3," +
-                                        "\"longWrapper\": 4," +
-                                        "\"string\": \"something\"," +
-                                        "\"model\": {\"name\":\"fusion\"}," +
-                                        "\"objectList\": [{\"idx\":1},{\"idx\":2}]," +
-                                        "\"boolWrapperList\": [true, false]," +
-                                        "\"intWrapperList\": [10, 20]," +
-                                        "\"longWrapperList\": [30, 40]," +
-                                        "\"stringList\": [\"simple\", \"hard\"]," +
-                                        "\"modelList\": [ {\"name\":\"fusion in list\"} ]," +
-                                        "\"objectMap\": {\"k1\":{\"obj\":true}}," +
-                                        "\"boolWrapperMap\": {\"kb\":true}," +
-                                        "\"intWrapperMap\":{\"ki\":100}," +
-                                        "\"longWrapperMap\":{\"kl\":200}," +
-                                        "\"stringMap\":{\"ks\":\"val\"}," +
-                                        "\"modelMap\":{\"km\": {\"name\":\"fusion in map\"}}" +
-                                        "}}",
-                                "{\"jsonrpc\":\"2.0\",\"result\":\"" +
-                                        "{whatever=works}\\n" +
-                                        "true\\n" +
-                                        "true\\n" +
-                                        "1\\n" +
-                                        "2\\n" +
-                                        "3\\n" +
-                                        "4\\n" +
-                                        "something\\n" +
-                                        "MyInput[name=fusion]\\n" +
-                                        "[{idx=1}, {idx=2}]\\n" +
-                                        "[true, false]\\n" +
-                                        "[10, 20]\\n" +
-                                        "[30, 40]\\n" +
-                                        "[simple, hard]\\n" +
-                                        "[MyInput[name=fusion in list]]\\n" +
-                                        "{k1={obj=true}}\\n" +
-                                        "{kb=true}\\n" +
-                                        "{ki=100}\\n" +
-                                        "{kl=200}\\n" +
-                                        "{ks=val}\\n" +
-                                        "{km=MyInput[name=fusion in map]}" +
-                                        "\"}")),
-                        dynamicTest("jsonRpc_openrpc", () -> {
-                            try (final var in = requireNonNull(Thread.currentThread().getContextClassLoader()
-                                    .getResourceAsStream("META-INF/fusion/jsonrpc/openrpc.json"))) {
-                                assertEquals("""
+                lockedDynamicTest(lockForConcurrency, counter, "jsonRpc_generatedMethods", () -> assertEquals(
+                        List.of(
+                                "test.p.JsonRpcEndpoints$arg$FusionJsonRpcMethod",
+                                "test.p.JsonRpcEndpoints$asynResult$FusionJsonRpcMethod",
+                                "test.p.JsonRpcEndpoints$fail$FusionJsonRpcMethod",
+                                "test.p.JsonRpcEndpoints$offsetDateTime$FusionJsonRpcMethod",
+                                "test.p.JsonRpcEndpoints$paramTypes$FusionJsonRpcMethod",
+                                "test.p.JsonRpcEndpoints$req$FusionJsonRpcMethod",
+                                "test.p.JsonRpcEndpoints$result$FusionJsonRpcMethod"),
+                        container.getBeans().getBeans().keySet().stream()
+                                .filter(Class.class::isInstance)
+                                .map(Class.class::cast)
+                                .map(Class::getName)
+                                .filter(it -> it.endsWith("$FusionJsonRpcMethod"))
+                                .sorted()
+                                .toList()), release),
+                lockedDynamicTest(lockForConcurrency, counter, "jsonRpc_offsetDateTime", () -> assertJsonRpc(instance,
+                        "{\"jsonrpc\":\"2.0\",\"method\":\"offsetDateTime\",\"params\":{\"date\":\"2023-07-31T15:06:37Z\"}}",
+                        "{\"jsonrpc\":\"2.0\",\"result\":{\"name\":\"2023-07-31T15:06:37Z\"}}"), release),
+                lockedDynamicTest(lockForConcurrency, counter, "jsonRpc_unknownMethod", () -> assertJsonRpc(instance,
+                        "{\"jsonrpc\":\"2.0\",\"method\":\"unknown\"}",
+                        "{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32601,\"message\":\"Unknown method (unknown)\"}}"), release),
+                lockedDynamicTest(lockForConcurrency, counter, "jsonRpc_sync_outputOnly", () -> assertJsonRpc(instance,
+                        "{\"jsonrpc\":\"2.0\",\"method\":\"test1\"}",
+                        "{\"jsonrpc\":\"2.0\",\"result\":{\"name\":\"test1\"}}"), release),
+                lockedDynamicTest(lockForConcurrency, counter, "jsonRpc_async_outputOnly", () -> assertJsonRpc(instance,
+                        "{\"jsonrpc\":\"2.0\",\"method\":\"test2\"}",
+                        "{\"jsonrpc\":\"2.0\",\"result\":{\"name\":\"test2\"}}"), release),
+                lockedDynamicTest(lockForConcurrency, counter, "jsonRpc_singleParam", () -> assertJsonRpc(instance,
+                        "{\"jsonrpc\":\"2.0\",\"method\":\"arg\",\"params\":{\"wrapper\":{\"name\":\"noisuf\"}}}",
+                        "{\"jsonrpc\":\"2.0\",\"result\":{\"name\":\"fusion\"}}"), release),
+                lockedDynamicTest(lockForConcurrency, counter, "jsonRpc_singleParam+request", () -> assertJsonRpc(instance,
+                        "{\"jsonrpc\":\"2.0\",\"method\":\"req\",\"params\":{\"input\":{\"name\":\"fusion\"}}}",
+                        "{\"jsonrpc\":\"2.0\",\"result\":{\"name\":\"fusion (/jsonrpc)\"}}"), release),
+                lockedDynamicTest(lockForConcurrency, counter, "jsonRpc_sync_failure", () -> assertJsonRpc(instance,
+                        "{\"jsonrpc\":\"2.0\",\"method\":\"fail\",\"params\":{\"direct\":true}}",
+                        "{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-2,\"message\":\"oops for test\"}}"), release),
+                lockedDynamicTest(lockForConcurrency, counter, "jsonRpc_async_failure", () -> assertJsonRpc(instance,
+                        "{\"jsonrpc\":\"2.0\",\"method\":\"fail\"}",
+                        "{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-2,\"message\":\"oops for test [promise]\"}}"), release),
+                lockedDynamicTest(lockForConcurrency, counter, "jsonRpc_paramTypes_defaults", () -> assertJsonRpc(instance,
+                        "{\"jsonrpc\":\"2.0\",\"method\":\"paramTypes\",\"params\":{}}",
+                        "{\"jsonrpc\":\"2.0\",\"result\":\"" +
+                                "null\\n" +
+                                "false\\n" +
+                                "null\\n" +
+                                "0\\n" +
+                                "null\\n" +
+                                "0\\n" +
+                                "null\\n" +
+                                "null\\n" +
+                                "null\\n" +
+                                "null\\n" +
+                                "null\\n" +
+                                "null\\n" +
+                                "null\\n" +
+                                "null\\n" +
+                                "null\\n" +
+                                "null\\n" +
+                                "null\\n" +
+                                "null\\n" +
+                                "null\\n" +
+                                "null\\n" +
+                                "null\"}"), release),
+                lockedDynamicTest(lockForConcurrency, counter, "jsonRpc_paramTypes", () -> assertJsonRpc(instance,
+                        "{\"jsonrpc\":\"2.0\",\"method\":\"paramTypes\",\"params\":{" +
+                                "\"object\": {\"whatever\":\"works\"}," +
+                                "\"bool\": true," +
+                                "\"boolWrapper\": true," +
+                                "\"integer\": 1," +
+                                "\"intWrapper\": 2," +
+                                "\"longNumber\": 3," +
+                                "\"longWrapper\": 4," +
+                                "\"string\": \"something\"," +
+                                "\"model\": {\"name\":\"fusion\"}," +
+                                "\"objectList\": [{\"idx\":1},{\"idx\":2}]," +
+                                "\"boolWrapperList\": [true, false]," +
+                                "\"intWrapperList\": [10, 20]," +
+                                "\"longWrapperList\": [30, 40]," +
+                                "\"stringList\": [\"simple\", \"hard\"]," +
+                                "\"modelList\": [ {\"name\":\"fusion in list\"} ]," +
+                                "\"objectMap\": {\"k1\":{\"obj\":true}}," +
+                                "\"boolWrapperMap\": {\"kb\":true}," +
+                                "\"intWrapperMap\":{\"ki\":100}," +
+                                "\"longWrapperMap\":{\"kl\":200}," +
+                                "\"stringMap\":{\"ks\":\"val\"}," +
+                                "\"modelMap\":{\"km\": {\"name\":\"fusion in map\"}}" +
+                                "}}",
+                        "{\"jsonrpc\":\"2.0\",\"result\":\"" +
+                                "{whatever=works}\\n" +
+                                "true\\n" +
+                                "true\\n" +
+                                "1\\n" +
+                                "2\\n" +
+                                "3\\n" +
+                                "4\\n" +
+                                "something\\n" +
+                                "MyInput[name=fusion]\\n" +
+                                "[{idx=1}, {idx=2}]\\n" +
+                                "[true, false]\\n" +
+                                "[10, 20]\\n" +
+                                "[30, 40]\\n" +
+                                "[simple, hard]\\n" +
+                                "[MyInput[name=fusion in list]]\\n" +
+                                "{k1={obj=true}}\\n" +
+                                "{kb=true}\\n" +
+                                "{ki=100}\\n" +
+                                "{kl=200}\\n" +
+                                "{ks=val}\\n" +
+                                "{km=MyInput[name=fusion in map]}" +
+                                "\"}"), release),
+                lockedDynamicTest(lockForConcurrency, counter, "jsonRpc_openrpc", () -> {
+                    try (final var in = requireNonNull(Files.newInputStream(compiler.getClasses().resolve("META-INF/fusion/jsonrpc/openrpc.json")))) {
+                        assertEquals("""
+                                        {
+                                          "schemas": {
+                                            "test.p.JsonRpcEndpoints.MyInput": {
+                                              "title": "MyInput",
+                                              "type": "object",
+                                              "properties": {
+                                                "name": {
+                                                  "nullable": true,
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "$id": "test.p.JsonRpcEndpoints.MyInput"
+                                            },
+                                            "test.p.JsonRpcEndpoints.MyResult": {
+                                              "title": "MyResult",
+                                              "type": "object",
+                                              "properties": {
+                                                "name": {
+                                                  "nullable": true,
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "$id": "test.p.JsonRpcEndpoints.MyResult"
+                                            }
+                                          },
+                                          "methods": {
+                                            "arg": {
+                                              "description": "",
+                                              "errors": [],
+                                              "name": "arg",
+                                              "paramStructure": "either",
+                                              "params": [
                                                 {
-                                                  "schemas": {
-                                                    "test.p.JsonRpcEndpoints.MyInput": {
-                                                      "title": "MyInput",
-                                                      "type": "object",
-                                                      "properties": {
-                                                        "name": {
-                                                          "nullable": true,
-                                                          "type": "string"
-                                                        }
-                                                      },
-                                                      "$id": "test.p.JsonRpcEndpoints.MyInput"
-                                                    },
-                                                    "test.p.JsonRpcEndpoints.MyResult": {
-                                                      "title": "MyResult",
-                                                      "type": "object",
-                                                      "properties": {
-                                                        "name": {
-                                                          "nullable": true,
-                                                          "type": "string"
-                                                        }
-                                                      },
-                                                      "$id": "test.p.JsonRpcEndpoints.MyResult"
-                                                    }
+                                                  "name": "wrapper",
+                                                  "schema": {
+                                                    "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyInput"
+                                                  }
+                                                }
+                                              ],
+                                              "result": {
+                                                "name": "result",
+                                                "schema": {
+                                                  "nullable": true,
+                                                  "additionalProperties": {
+                                                    "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyResult"
                                                   },
-                                                  "methods": {
-                                                    "arg": {
-                                                      "description": "",
-                                                      "errors": [],
-                                                      "name": "arg",
-                                                      "paramStructure": "either",
-                                                      "params": [
-                                                        {
-                                                          "name": "wrapper",
-                                                          "schema": {
-                                                            "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyInput"
-                                                          }
-                                                        }
-                                                      ],
-                                                      "result": {
-                                                        "name": "result",
-                                                        "schema": {
-                                                          "nullable": true,
-                                                          "additionalProperties": {
-                                                            "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyResult"
-                                                          },
-                                                          "type": "object"
-                                                        }
-                                                      },
-                                                      "summary": ""
-                                                    },
-                                                    "fail": {
-                                                      "description": "",
-                                                      "errors": [],
-                                                      "name": "fail",
-                                                      "paramStructure": "either",
-                                                      "params": [
-                                                        {
-                                                          "name": "direct",
-                                                          "schema": {
-                                                            "nullable": false,
-                                                            "type": "boolean"
-                                                          }
-                                                        }
-                                                      ],
-                                                      "result": {
-                                                        "name": "result",
-                                                        "schema": {
-                                                          "nullable": true,
-                                                          "additionalProperties": {
-                                                            "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyResult"
-                                                          },
-                                                          "type": "object"
-                                                        }
-                                                      },
-                                                      "summary": ""
-                                                    },
-                                                    "offsetDateTime": {
-                                                      "description": "",
-                                                      "errors": [],
-                                                      "name": "offsetDateTime",
-                                                      "paramStructure": "either",
-                                                      "params": [
-                                                        {
-                                                          "name": "date",
-                                                          "schema": {
-                                                            "nullable": true,
-                                                            "format": "date-time",
-                                                            "type": "string"
-                                                          }
-                                                        }
-                                                      ],
-                                                      "result": {
-                                                        "name": "result",
-                                                        "schema": {
-                                                          "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyResult"
-                                                        }
-                                                      },
-                                                      "summary": ""
-                                                    },
-                                                    "paramTypes": {
-                                                      "description": "",
-                                                      "errors": [],
-                                                      "name": "paramTypes",
-                                                      "paramStructure": "either",
-                                                      "params": [
-                                                        {
-                                                          "name": "object",
-                                                          "schema": {
-                                                            "nullable": true,
-                                                            "additionalProperties": true,
-                                                            "type": "object"
-                                                          }
-                                                        },
-                                                        {
-                                                          "name": "bool",
-                                                          "schema": {
-                                                            "nullable": false,
-                                                            "type": "boolean"
-                                                          }
-                                                        },
-                                                        {
-                                                          "name": "boolWrapper",
-                                                          "schema": {
-                                                            "nullable": true,
-                                                            "type": "boolean"
-                                                          }
-                                                        },
-                                                        {
-                                                          "name": "integer",
-                                                          "schema": {
-                                                            "nullable": false,
-                                                            "format": "int32",
-                                                            "type": "integer"
-                                                          }
-                                                        },
-                                                        {
-                                                          "name": "intWrapper",
-                                                          "schema": {
-                                                            "nullable": true,
-                                                            "format": "int32",
-                                                            "type": "integer"
-                                                          }
-                                                        },
-                                                        {
-                                                          "name": "longNumber",
-                                                          "schema": {
-                                                            "nullable": false,
-                                                            "format": "int64",
-                                                            "type": "integer"
-                                                          }
-                                                        },
-                                                        {
-                                                          "name": "longWrapper",
-                                                          "schema": {
-                                                            "nullable": true,
-                                                            "format": "int64",
-                                                            "type": "integer"
-                                                          }
-                                                        },
-                                                        {
-                                                          "name": "string",
-                                                          "schema": {
-                                                            "nullable": true,
-                                                            "type": "string"
-                                                          }
-                                                        },
-                                                        {
-                                                          "name": "model",
-                                                          "schema": {
-                                                            "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyInput"
-                                                          }
-                                                        },
-                                                        {
-                                                          "name": "objectList",
-                                                          "schema": {
-                                                            "nullable": true,
-                                                            "type": "array",
-                                                            "items": {
-                                                              "nullable": true,
-                                                              "additionalProperties": true,
-                                                              "type": "object"
-                                                            }
-                                                          }
-                                                        },
-                                                        {
-                                                          "name": "boolWrapperList",
-                                                          "schema": {
-                                                            "nullable": true,
-                                                            "type": "array",
-                                                            "items": {
-                                                              "nullable": true,
-                                                              "type": "boolean"
-                                                            }
-                                                          }
-                                                        },
-                                                        {
-                                                          "name": "intWrapperList",
-                                                          "schema": {
-                                                            "nullable": true,
-                                                            "type": "array",
-                                                            "items": {
-                                                              "nullable": true,
-                                                              "format": "int32",
-                                                              "type": "integer"
-                                                            }
-                                                          }
-                                                        },
-                                                        {
-                                                          "name": "longWrapperList",
-                                                          "schema": {
-                                                            "nullable": true,
-                                                            "type": "array",
-                                                            "items": {
-                                                              "nullable": true,
-                                                              "format": "int64",
-                                                              "type": "integer"
-                                                            }
-                                                          }
-                                                        },
-                                                        {
-                                                          "name": "stringList",
-                                                          "schema": {
-                                                            "nullable": true,
-                                                            "type": "array",
-                                                            "items": {
-                                                              "nullable": true,
-                                                              "type": "string"
-                                                            }
-                                                          }
-                                                        },
-                                                        {
-                                                          "name": "modelList",
-                                                          "schema": {
-                                                            "nullable": true,
-                                                            "type": "array",
-                                                            "items": {
-                                                              "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyInput"
-                                                            }
-                                                          }
-                                                        },
-                                                        {
-                                                          "name": "objectMap",
-                                                          "schema": {
-                                                            "nullable": true,
-                                                            "additionalProperties": {
-                                                              "nullable": true,
-                                                              "additionalProperties": true,
-                                                              "type": "object"
-                                                            },
-                                                            "type": "object"
-                                                          }
-                                                        },
-                                                        {
-                                                          "name": "boolWrapperMap",
-                                                          "schema": {
-                                                            "nullable": true,
-                                                            "additionalProperties": {
-                                                              "nullable": true,
-                                                              "type": "boolean"
-                                                            },
-                                                            "type": "object"
-                                                          }
-                                                        },
-                                                        {
-                                                          "name": "intWrapperMap",
-                                                          "schema": {
-                                                            "nullable": true,
-                                                            "additionalProperties": {
-                                                              "nullable": true,
-                                                              "format": "int32",
-                                                              "type": "integer"
-                                                            },
-                                                            "type": "object"
-                                                          }
-                                                        },
-                                                        {
-                                                          "name": "longWrapperMap",
-                                                          "schema": {
-                                                            "nullable": true,
-                                                            "additionalProperties": {
-                                                              "nullable": true,
-                                                              "format": "int64",
-                                                              "type": "integer"
-                                                            },
-                                                            "type": "object"
-                                                          }
-                                                        },
-                                                        {
-                                                          "name": "stringMap",
-                                                          "schema": {
-                                                            "nullable": true,
-                                                            "additionalProperties": {
-                                                              "nullable": true,
-                                                              "type": "string"
-                                                            },
-                                                            "type": "object"
-                                                          }
-                                                        },
-                                                        {
-                                                          "name": "modelMap",
-                                                          "schema": {
-                                                            "nullable": true,
-                                                            "additionalProperties": {
-                                                              "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyInput"
-                                                            },
-                                                            "type": "object"
-                                                          }
-                                                        }
-                                                      ],
-                                                      "result": {
-                                                        "name": "result",
-                                                        "schema": {
-                                                          "nullable": true,
-                                                          "type": "string"
-                                                        }
-                                                      },
-                                                      "summary": ""
-                                                    },
-                                                    "req": {
-                                                      "description": "",
-                                                      "errors": [],
-                                                      "name": "req",
-                                                      "paramStructure": "either",
-                                                      "params": [
-                                                        {
-                                                          "name": "input",
-                                                          "schema": {
-                                                            "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyInput"
-                                                          }
-                                                        }
-                                                      ],
-                                                      "result": {
-                                                        "name": "result",
-                                                        "schema": {
-                                                          "nullable": true,
-                                                          "additionalProperties": {
-                                                            "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyResult"
-                                                          },
-                                                          "type": "object"
-                                                        }
-                                                      },
-                                                      "summary": ""
-                                                    },
-                                                    "test1": {
-                                                      "description": "",
-                                                      "errors": [],
-                                                      "name": "test1",
-                                                      "paramStructure": "either",
-                                                      "params": [],
-                                                      "result": {
-                                                        "name": "result",
-                                                        "schema": {
-                                                          "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyResult"
-                                                        }
-                                                      },
-                                                      "summary": ""
-                                                    },
-                                                    "test2": {
-                                                      "description": "",
-                                                      "errors": [],
-                                                      "name": "test2",
-                                                      "paramStructure": "either",
-                                                      "params": [],
-                                                      "result": {
-                                                        "name": "result",
-                                                        "schema": {
-                                                          "nullable": true,
-                                                          "additionalProperties": {
-                                                            "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyResult"
-                                                          },
-                                                          "type": "object"
-                                                        }
-                                                      },
-                                                      "summary": ""
+                                                  "type": "object"
+                                                }
+                                              },
+                                              "summary": ""
+                                            },
+                                            "fail": {
+                                              "description": "",
+                                              "errors": [],
+                                              "name": "fail",
+                                              "paramStructure": "either",
+                                              "params": [
+                                                {
+                                                  "name": "direct",
+                                                  "schema": {
+                                                    "nullable": false,
+                                                    "type": "boolean"
+                                                  }
+                                                }
+                                              ],
+                                              "result": {
+                                                "name": "result",
+                                                "schema": {
+                                                  "nullable": true,
+                                                  "additionalProperties": {
+                                                    "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyResult"
+                                                  },
+                                                  "type": "object"
+                                                }
+                                              },
+                                              "summary": ""
+                                            },
+                                            "offsetDateTime": {
+                                              "description": "",
+                                              "errors": [],
+                                              "name": "offsetDateTime",
+                                              "paramStructure": "either",
+                                              "params": [
+                                                {
+                                                  "name": "date",
+                                                  "schema": {
+                                                    "nullable": true,
+                                                    "format": "date-time",
+                                                    "type": "string"
+                                                  }
+                                                }
+                                              ],
+                                              "result": {
+                                                "name": "result",
+                                                "schema": {
+                                                  "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyResult"
+                                                }
+                                              },
+                                              "summary": ""
+                                            },
+                                            "paramTypes": {
+                                              "description": "",
+                                              "errors": [],
+                                              "name": "paramTypes",
+                                              "paramStructure": "either",
+                                              "params": [
+                                                {
+                                                  "name": "object",
+                                                  "schema": {
+                                                    "nullable": true,
+                                                    "additionalProperties": true,
+                                                    "type": "object"
+                                                  }
+                                                },
+                                                {
+                                                  "name": "bool",
+                                                  "schema": {
+                                                    "nullable": false,
+                                                    "type": "boolean"
+                                                  }
+                                                },
+                                                {
+                                                  "name": "boolWrapper",
+                                                  "schema": {
+                                                    "nullable": true,
+                                                    "type": "boolean"
+                                                  }
+                                                },
+                                                {
+                                                  "name": "integer",
+                                                  "schema": {
+                                                    "nullable": false,
+                                                    "format": "int32",
+                                                    "type": "integer"
+                                                  }
+                                                },
+                                                {
+                                                  "name": "intWrapper",
+                                                  "schema": {
+                                                    "nullable": true,
+                                                    "format": "int32",
+                                                    "type": "integer"
+                                                  }
+                                                },
+                                                {
+                                                  "name": "longNumber",
+                                                  "schema": {
+                                                    "nullable": false,
+                                                    "format": "int64",
+                                                    "type": "integer"
+                                                  }
+                                                },
+                                                {
+                                                  "name": "longWrapper",
+                                                  "schema": {
+                                                    "nullable": true,
+                                                    "format": "int64",
+                                                    "type": "integer"
+                                                  }
+                                                },
+                                                {
+                                                  "name": "string",
+                                                  "schema": {
+                                                    "nullable": true,
+                                                    "type": "string"
+                                                  }
+                                                },
+                                                {
+                                                  "name": "model",
+                                                  "schema": {
+                                                    "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyInput"
+                                                  }
+                                                },
+                                                {
+                                                  "name": "objectList",
+                                                  "schema": {
+                                                    "nullable": true,
+                                                    "type": "array",
+                                                    "items": {
+                                                      "nullable": true,
+                                                      "additionalProperties": true,
+                                                      "type": "object"
                                                     }
                                                   }
-                                                }""",
-                                        new SimplePrettyFormatter(new JsonMapperImpl(List.of(new ObjectJsonCodec()), c -> empty()))
-                                                .apply(new String(in.readAllBytes(), UTF_8)));
-                            } catch (final IOException e) {
-                                fail(e);
-                            }
-                        }))
-                .onClose(() -> {
-                    endpointInstance.close();
-                    container.close();
-                    loader.close();
-                });
+                                                },
+                                                {
+                                                  "name": "boolWrapperList",
+                                                  "schema": {
+                                                    "nullable": true,
+                                                    "type": "array",
+                                                    "items": {
+                                                      "nullable": true,
+                                                      "type": "boolean"
+                                                    }
+                                                  }
+                                                },
+                                                {
+                                                  "name": "intWrapperList",
+                                                  "schema": {
+                                                    "nullable": true,
+                                                    "type": "array",
+                                                    "items": {
+                                                      "nullable": true,
+                                                      "format": "int32",
+                                                      "type": "integer"
+                                                    }
+                                                  }
+                                                },
+                                                {
+                                                  "name": "longWrapperList",
+                                                  "schema": {
+                                                    "nullable": true,
+                                                    "type": "array",
+                                                    "items": {
+                                                      "nullable": true,
+                                                      "format": "int64",
+                                                      "type": "integer"
+                                                    }
+                                                  }
+                                                },
+                                                {
+                                                  "name": "stringList",
+                                                  "schema": {
+                                                    "nullable": true,
+                                                    "type": "array",
+                                                    "items": {
+                                                      "nullable": true,
+                                                      "type": "string"
+                                                    }
+                                                  }
+                                                },
+                                                {
+                                                  "name": "modelList",
+                                                  "schema": {
+                                                    "nullable": true,
+                                                    "type": "array",
+                                                    "items": {
+                                                      "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyInput"
+                                                    }
+                                                  }
+                                                },
+                                                {
+                                                  "name": "objectMap",
+                                                  "schema": {
+                                                    "nullable": true,
+                                                    "additionalProperties": {
+                                                      "nullable": true,
+                                                      "additionalProperties": true,
+                                                      "type": "object"
+                                                    },
+                                                    "type": "object"
+                                                  }
+                                                },
+                                                {
+                                                  "name": "boolWrapperMap",
+                                                  "schema": {
+                                                    "nullable": true,
+                                                    "additionalProperties": {
+                                                      "nullable": true,
+                                                      "type": "boolean"
+                                                    },
+                                                    "type": "object"
+                                                  }
+                                                },
+                                                {
+                                                  "name": "intWrapperMap",
+                                                  "schema": {
+                                                    "nullable": true,
+                                                    "additionalProperties": {
+                                                      "nullable": true,
+                                                      "format": "int32",
+                                                      "type": "integer"
+                                                    },
+                                                    "type": "object"
+                                                  }
+                                                },
+                                                {
+                                                  "name": "longWrapperMap",
+                                                  "schema": {
+                                                    "nullable": true,
+                                                    "additionalProperties": {
+                                                      "nullable": true,
+                                                      "format": "int64",
+                                                      "type": "integer"
+                                                    },
+                                                    "type": "object"
+                                                  }
+                                                },
+                                                {
+                                                  "name": "stringMap",
+                                                  "schema": {
+                                                    "nullable": true,
+                                                    "additionalProperties": {
+                                                      "nullable": true,
+                                                      "type": "string"
+                                                    },
+                                                    "type": "object"
+                                                  }
+                                                },
+                                                {
+                                                  "name": "modelMap",
+                                                  "schema": {
+                                                    "nullable": true,
+                                                    "additionalProperties": {
+                                                      "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyInput"
+                                                    },
+                                                    "type": "object"
+                                                  }
+                                                }
+                                              ],
+                                              "result": {
+                                                "name": "result",
+                                                "schema": {
+                                                  "nullable": true,
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "summary": ""
+                                            },
+                                            "req": {
+                                              "description": "",
+                                              "errors": [],
+                                              "name": "req",
+                                              "paramStructure": "either",
+                                              "params": [
+                                                {
+                                                  "name": "input",
+                                                  "schema": {
+                                                    "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyInput"
+                                                  }
+                                                }
+                                              ],
+                                              "result": {
+                                                "name": "result",
+                                                "schema": {
+                                                  "nullable": true,
+                                                  "additionalProperties": {
+                                                    "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyResult"
+                                                  },
+                                                  "type": "object"
+                                                }
+                                              },
+                                              "summary": ""
+                                            },
+                                            "test1": {
+                                              "description": "",
+                                              "errors": [],
+                                              "name": "test1",
+                                              "paramStructure": "either",
+                                              "params": [],
+                                              "result": {
+                                                "name": "result",
+                                                "schema": {
+                                                  "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyResult"
+                                                }
+                                              },
+                                              "summary": ""
+                                            },
+                                            "test2": {
+                                              "description": "",
+                                              "errors": [],
+                                              "name": "test2",
+                                              "paramStructure": "either",
+                                              "params": [],
+                                              "result": {
+                                                "name": "result",
+                                                "schema": {
+                                                  "nullable": true,
+                                                  "additionalProperties": {
+                                                    "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyResult"
+                                                  },
+                                                  "type": "object"
+                                                }
+                                              },
+                                              "summary": ""
+                                            }
+                                          }
+                                        }""",
+                                new SimplePrettyFormatter(new JsonMapperImpl(List.of(new ObjectJsonCodec()), c -> empty()))
+                                        .apply(new String(in.readAllBytes(), UTF_8)));
+                    } catch (final IOException e) {
+                        fail(e);
+                    }
+                }, release));
     }
 
     @Test
@@ -2026,6 +2030,21 @@ class FusionProcessorTest {
             assertEquals(200, response.status());
             assertEquals(Map.of("content-type", List.of("application/json;charset=utf-8")), response.headers());
             assertEquals("{\"message\":\"Hello fusion!\"}", assertDoesNotThrow(() -> new String(new RequestBodyAggregator(response.body(), UTF_8).promise().toCompletableFuture().get())));
+        });
+    }
+
+    private DynamicTest lockedDynamicTest(final Semaphore semaphore, final AtomicInteger counter,
+                                          final String name, final Executable test, final Runnable release) {
+        return dynamicTest(name, () -> {
+            semaphore.acquire();
+            try {
+                test.execute();
+            } finally {
+                semaphore.release();
+                if (counter.decrementAndGet() == 0) {
+                    release.run();
+                }
+            }
         });
     }
 

@@ -111,6 +111,13 @@
             <java.util.logging.manager>io.yupiik.logging.jul.YupiikLogManager</java.util.logging.manager>
             <java.net.preferIPv4Stack>true</java.net.preferIPv4Stack>
           </systemPropertyVariables>
+          <properties>
+            <configurationParameters>
+              junit.jupiter.execution.parallel.enabled = true
+              junit.jupiter.execution.parallel.mode.default = concurrent
+              junit.jupiter.execution.parallel.mode.classes.default = concurrent
+            </configurationParameters>
+          </properties>
         </configuration>
       </plugin>
       <plugin>
