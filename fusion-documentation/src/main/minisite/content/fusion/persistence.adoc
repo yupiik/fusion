@@ -182,14 +182,14 @@ For advanced queries you can use a virtual table (it is a plain table but the `@
 [source,java]
 ----
 final var sql = "SELECT DISTINCT " + String.join(", ",
-        entty1.concatenateColumns(new Entity.ColumnsConcatenationRequest()
+        entity1.concatenateColumns(new Entity.ColumnsConcatenationRequest()
                 .setPrefix("e1.").setAliasPrefix("")),
         entity2.concatenateColumns(new Entity.ColumnsConcatenationRequest()
                 .setPrefix("e2.").setAliasPrefix("e2").setIgnored(Set.of("e1_id")))) + " " +
         "FROM ENTITY1 e1" +
         " LEFT JOIN ENTITY2 admin on e2.e1_id = e1.id " +
         "WHERE e1.id = ?";
-final var lines = final var lines = database.query(
+final var lines = database.query(
         JoinModel.class, sql, b -> b.bind("the-id"));
 ----
 
