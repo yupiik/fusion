@@ -167,6 +167,7 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
                     return paramType == ParamType.SET || paramType == ParamType.LIST;
                 })
                 .toList();
+        final var mapLists = params.stream().filter(it -> it.types().paramType() == ParamType.MAP_LIST).toList();
         final var maps = params.stream().filter(it -> it.types().paramType() == ParamType.MAP && !it.others()).toList();
         final var fallbacks = params.stream().filter(Param::others).toList();
 
@@ -331,7 +332,7 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
             out.append("          key = null;\n");
             out.append("          break;\n");
         }
-        if (!models.isEmpty() || !genericObjects.isEmpty() || !maps.isEmpty() || !fallbacks.isEmpty()) {
+        if (!models.isEmpty() || !genericObjects.isEmpty() || !maps.isEmpty() || !mapLists.isEmpty() || !fallbacks.isEmpty()) {
             out.append("        case START_OBJECT:\n");
             out.append("          switch (key) {\n");
             out.append(models.stream()
@@ -354,6 +355,18 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
                             "              parser.rewind(event);\n" +
                             "              param__" + it.javaName() + " = new " + MapJsonCodec.class.getName() + "<>(context.codec(" +
                             it.types().argTypeIfNotValue() + ".class)).read(context);\n" +
+                            "              break;\n")
+                    .collect(joining()));
+            out.append(mapLists.stream()
+                    .map(it -> "" +
+                            "            case \"" + it.stringEscapedJsonName() + "\":\n" +
+                            "              parser.rewind(event);\n" +
+                            "              param__" + it.javaName() + " = new " + MapJsonCodec.class.getName() + "<>(" +
+                            "new " + CollectionJsonCodec.class.getName() + "<" +
+                            it.types().argTypeIfNotValue() + "," + List.class.getName() + '<' + it.types().argTypeIfNotValue() + '>' +
+                            ">(context.codec(" + it.types().argTypeIfNotValue() + ".class), " +
+                            List.class.getName() + ".class, " + ArrayList.class.getName() + "::new))" +
+                            ".read(context);\n" +
                             "              break;\n")
                     .collect(joining()));
             if (fallbacks.isEmpty()) {
@@ -431,7 +444,7 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
                         .collect(joining(", ")))
                 .append(":\n");
         out.append("          key = null;\n          break;\n");
-        if (models.isEmpty() && genericObjects.isEmpty() && maps.isEmpty()) {
+        if (models.isEmpty() && genericObjects.isEmpty() && maps.isEmpty() && mapLists.isEmpty()) {
             out.append("        case START_OBJECT:\n");
             if (fallbacks.isEmpty()) {
                 out.append("          parser.skipObject();\n");
@@ -616,6 +629,60 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
                             structure.append("    }\n");
                             yield structure.toString();
                         }
+                        case MAP_LIST -> { // todo: ensure to cache the parameterized type there, this is not a great design anyway so for now okish
+                            final var structure = new StringBuilder();
+                            structure.append("    if (instance.").append(param.javaName()).append("() != null) {\n");
+                            if (paramPosition > 0) {
+                                structure.append(commaAppender);
+                            } else {
+                                structure.append(firstCommaHandler);
+                            }
+                            structure.append("      writer.write(").append(param.javaName()).append("__CHAR_ARRAY);\n");
+                            structure.append("      writer.write('{');\n");
+                            structure.append("      final var it = instance.").append(param.javaName()).append("().entrySet().iterator();\n");
+                            if (needsCodec(paramTypeDef)) {
+                                structure.append("      final var itemCodec = context.codec(").append(param.types().argTypeIfNotValue()).append(".class);\n");
+                            } else if (paramTypeDef == ParamTypeDef.GENERIC_OBJECT) {
+                                structure.append("      final var itemCodec = context.codec(").append(Object.class.getName()).append(".class);\n");
+                            }
+                            structure.append("      while (it.hasNext()) {\n");
+                            structure.append("        final var next = it.next();\n");
+                            structure.append("        final var rawNextValue = next.getValue();\n");
+                            structure.append("        if (rawNextValue == null) {\n"); // unlikely but possible
+                            structure.append("          continue;\n");
+                            structure.append("        }\n");
+                            structure.append("        writer.write(")
+                                    .append(JsonStrings.class.getName()).append(".escapeChars(next.getKey()));\n");
+                            structure.append("        writer.write(\":[\");\n");
+                            structure.append("        final var nextValue = rawNextValue.iterator();\n");
+                            structure.append("        while (nextValue.hasNext()) {\n");
+                            structure.append("          final var value = nextValue.next();\n");
+                            structure.append((switch (paramTypeDef) {
+                                case INTEGER, LONG, DOUBLE, BOOLEAN ->
+                                        "          writer.write(String.valueOf(value));\n";
+                                case STRING -> "          writer.write(next == null ? \"null\" : " +
+                                        JsonStrings.class.getName() + ".escapeChars(value));\n";
+                                default -> """
+                                        if (value == null) {
+                                          writer.write(NULL);
+                                        } else {
+                                          itemCodec.write(value, context);
+                                        }
+                                        """;
+                            }).indent(10));
+                            structure.append("          if (nextValue.hasNext()) {\n");
+                            structure.append("            writer.write(',');\n");
+                            structure.append("          }\n");
+                            structure.append("        }\n");
+                            structure.append("        writer.write(']');\n");
+                            structure.append("        if (it.hasNext()) {\n");
+                            structure.append("          writer.write(',');\n");
+                            structure.append("        }\n");
+                            structure.append("      }\n");
+                            structure.append("      writer.write('}');\n");
+                            structure.append("    }\n");
+                            yield structure.toString();
+                        }
                     };
                 })
                 .collect(joining()));
@@ -659,8 +726,15 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
         }
         if (typeString.startsWith(Map.class.getName() + "<" + String.class.getName() + ",") && typeString.endsWith(">")) {
             final var arg = ((DeclaredType) raw).getTypeArguments().get(1);
+            final var nestedType = typeString.substring((Map.class.getName() + "<" + String.class.getName() + ",").length(), typeString.length() - ">".length()).strip();
+            if (nestedType.contains("<")) {
+                final var nested = typeOf(nestedType, arg);
+                if (nested.paramType() == ParamType.LIST) {
+                    return new ParamTypes(ParamType.MAP_LIST, nested.paramTypeDef(), nested.argTypeIfNotValue());
+                }
+            }
             return new ParamTypes(ParamType.MAP, ParamTypeDef.of(
-                    typeString.substring((Map.class.getName() + "<" + String.class.getName() + ",").length(), typeString.length() - ">".length()).strip(),
+                    nestedType,
                     processingEnv.getTypeUtils().asElement(arg),
                     models), arg);
         }
@@ -678,7 +752,7 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
                     case BOOLEAN -> isWrapper() ? "null" : "false";
                     default -> "null";
                 };
-                case MAP, LIST, SET -> "null";
+                case MAP, LIST, SET, MAP_LIST -> "null";
             };
         }
 
@@ -707,6 +781,11 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
                 case LIST, SET -> new JsonSchema(
                         null, null, "array", null, null, null,
                         null, null, valueSchema());
+                case MAP_LIST -> new JsonSchema(
+                        null, null, "object", true, null, null,
+                        new JsonSchema(
+                                null, null, "array", null, null, null,
+                                null, null, valueSchema()).asMap(), null, null);
             };
         }
 
@@ -757,7 +836,8 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
         VALUE,
         LIST,
         SET,
-        MAP
+        MAP,
+        MAP_LIST // tolerated
     }
 
     private enum ParamTypeDef { // a codec exists

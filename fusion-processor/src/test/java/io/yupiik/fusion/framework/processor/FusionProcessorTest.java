@@ -64,6 +64,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Flow;
 import java.util.concurrent.Semaphore;
@@ -1069,6 +1070,30 @@ class FusionProcessorTest {
                     assertEquals(bool, mapper.fromString(recordType, "{\"name\":\"boolean\",\"value\":true}"));
                     assertEquals(object, mapper.fromString(recordType, "{\"name\":\"object\",\"value\":{\"foo\":\"bar\"}}"));
                     assertEquals(array, mapper.fromString(recordType, "{\"name\":\"array\",\"value\":[\"foo\",\"bar\"]}"));
+                }
+            } catch (final Exception e) {
+                fail(e);
+            }
+        });
+    }
+
+    @Test
+    void jsonMapListModel(@TempDir final Path work) throws IOException {
+        new Compiler(work, "json.MapListModel", "json.Foo").compileAndAsserts((loader, container) -> {
+            final var recordType = loader.apply("test.p.json.MapListModel");
+            final var fooType = loader.apply("test.p.json.Foo");
+            try {
+                final var constructor = recordType.getConstructor(Map.class);
+                final var fooConstructor = fooType.getConstructor(int.class);
+                try (final var jsonMapperInstance = container.lookup(JsonMapper.class)) {
+                    final var mapper = jsonMapperInstance.instance();
+                    final var sorted = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+                    sorted.putAll(Map.of(
+                            "a", List.of(fooConstructor.newInstance(1)),
+                            "b", List.of(fooConstructor.newInstance(2), fooConstructor.newInstance(3))));
+                    final var instance = constructor.newInstance(sorted);
+                    assertEquals("{\"items\":{\"a\":[{\"value\":1}],\"b\":[{\"value\":2},{\"value\":3}]}}", mapper.toString(instance));
+                    assertEquals(instance, mapper.fromString(recordType, "{\"items\":{\"a\":[{\"value\":1}],\"b\":[{\"value\":2},{\"value\":3}]}}"));
                 }
             } catch (final Exception e) {
                 fail(e);

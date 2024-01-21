@@ -58,10 +58,13 @@ public class Types {
     public static class ParameterizedTypeImpl implements ParameterizedType {
         private final Type raw;
         private final Type[] args;
+        private final int hash;
 
         public ParameterizedTypeImpl(final Type raw, final Type... args) {
             this.raw = raw;
             this.args = args;
+
+            this.hash = Arrays.hashCode(args) ^ Objects.hashCode(raw);
         }
 
         @Override
@@ -95,7 +98,7 @@ public class Types {
 
         @Override
         public int hashCode() {
-            return Arrays.hashCode(args) ^ Objects.hashCode(raw);
+            return hash;
         }
 
         @Override
