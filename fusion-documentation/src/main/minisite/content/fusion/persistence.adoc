@@ -175,22 +175,39 @@ public class CustomerDao {
 }
 ----
 
+=== Custom queries
+
+You can use custom SQL queries by using the entity model from the database helper:
+
+[source,java]
+----
+final var customer = database.entity(Customer.class);
+
+final var sql = "SELECT " + String.join(", ",
+        customer.concatenateColumns(new Entity.ColumnsConcatenationRequest())) +
+        "FROM " + customer.getTable() +
+        "WHERE name = ?";
+final var lines = database.query(Customer.class, sql, b -> b.bind("the-name"));
+----
+
 === Advanced queries
 
 For advanced queries you can use a virtual table (it is a plain table but the `@Table` annotation is ignored) which would be used as project based on query aliases:
 
 [source,java]
 ----
+final var entity1 = database.entity(Entity1.class);
+final var entity2 = database.entity(Entity2.class);
+
 final var sql = "SELECT DISTINCT " + String.join(", ",
         entity1.concatenateColumns(new Entity.ColumnsConcatenationRequest()
                 .setPrefix("e1.").setAliasPrefix("")),
         entity2.concatenateColumns(new Entity.ColumnsConcatenationRequest()
                 .setPrefix("e2.").setAliasPrefix("e2").setIgnored(Set.of("e1_id")))) + " " +
-        "FROM ENTITY1 e1" +
-        " LEFT JOIN ENTITY2 admin on e2.e1_id = e1.id " +
+        "FROM " + entity1.getTable() + " e1 " +
+        "LEFT JOIN ENTITY2 admin on e2.e1_id = e1.id " +
         "WHERE e1.id = ?";
-final var lines = database.query(
-        JoinModel.class, sql, b -> b.bind("the-id"));
+final var lines = database.query(JoinModel.class, sql, b -> b.bind("the-id"));
 ----
 
 with `JoinModel` being something like:
