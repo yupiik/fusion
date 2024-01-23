@@ -17,7 +17,7 @@
     <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/asciidoctor.js/1.5.5-5/css/asciidoctor.min.css" integrity="sha512-kI7tn5cuEg16kMeXnYmg8rEJPxbxzEM7Gsr191iQdLDevFBLXPCSU9aZWSVuP61tMZWU3nBAR1cJ7SmXnOGLZw==" crossorigin="anonymous" />
     <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.3/css/bootstrap.min.css" integrity="sha512-oc9+XSs1H243/FRN9Rw62Fn8EtxjEYWHXRvjS43YtueEewbS6ObfXcJNyohjHqVKFPoXXUxwc+q1K7Dee6vv9g==" crossorigin="anonymous" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/styles/vs2015.min.css" integrity="sha512-w8aclkBlN3Ha08SMwFKXFJqhSUx2qlvTBFLLelF8sm4xQnlg64qmGB/A6pBIKy0W8Bo51yDMDtQiPLNRq1WMcQ==" crossorigin="anonymous" />
-    <link id="theme-style" rel="stylesheet" href="//www.yupiik.io/fusion/css/theme.css?v=1.0.13-SNAPSHOT">
+    <link id="theme-style" rel="stylesheet" href="//www.yupiik.io/fusion/css/theme.css?v=1.0.14-SNAPSHOT">
     
 </head>
 <body>
@@ -58,12 +58,12 @@
                         <i class="fas fa-building"></i>Setup
                     </a>
                 </li>                <li>
-                    <a title="Fusion CLI" href="//www.yupiik.io/fusion/fusion/cli.html">
-                        <i class="fas fa-terminal"></i>CLI
-                    </a>
-                </li>                <li>
                     <a title="Fusion JSON support" href="//www.yupiik.io/fusion/fusion/json.html">
                         <i class="fas fa-wifi"></i>JSON
+                    </a>
+                </li>                <li>
+                    <a title="Fusion CLI" href="//www.yupiik.io/fusion/fusion/cli.html">
+                        <i class="fas fa-terminal"></i>CLI
                     </a>
                 </li>                <li>
                     <a title="framework and GraalVM (native-image)" href="//www.yupiik.io/fusion/fusion/graalvm.html">
@@ -151,6 +151,64 @@ This last case can lead to missing bean, you can obviously delete the <code>targ
 </td>
 </tr>
 </table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_java_21">Java &gt;=21</h3>
+<div class="paragraph">
+<p>Java 21 starts to warn when you use annotation processors autodiscovery.
+Future java versions will even disable it by default.</p>
+</div>
+<div class="paragraph">
+<p>For such version, you must explicitly enable the annotation processing.
+One option to do that is to use this <code>maven-compiler-plugin</code> configuration:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-xml hljs" data-lang="xml">&lt;plugin&gt;
+  &lt;groupId&gt;org.apache.maven.plugins&lt;/groupId&gt;
+  &lt;artifactId&gt;maven-compiler-plugin&lt;/artifactId&gt;
+  &lt;version&gt;3.11.0&lt;/version&gt;
+  &lt;executions&gt;
+    &lt;execution&gt;
+      &lt;id&gt;default-process-annotations&lt;/id&gt;
+      &lt;phase&gt;generate-sources&lt;/phase&gt;
+      &lt;goals&gt;
+        &lt;goal&gt;compile&lt;/goal&gt;
+      &lt;/goals&gt;
+      &lt;configuration&gt;
+        &lt;proc&gt;only&lt;/proc&gt;
+        &lt;useIncrementalCompilation&gt;true&lt;/useIncrementalCompilation&gt;
+      &lt;/configuration&gt;
+    &lt;/execution&gt;
+    &lt;execution&gt;
+      &lt;id&gt;test-process-annotations&lt;/id&gt;
+      &lt;phase&gt;generate-test-sources&lt;/phase&gt;
+      &lt;goals&gt;
+        &lt;goal&gt;testCompile&lt;/goal&gt;
+      &lt;/goals&gt;
+      &lt;configuration&gt;
+        &lt;proc&gt;only&lt;/proc&gt;
+        &lt;useIncrementalCompilation&gt;true&lt;/useIncrementalCompilation&gt;
+      &lt;/configuration&gt;
+    &lt;/execution&gt;
+  &lt;/executions&gt;
+  &lt;configuration&gt;
+    &lt;proc&gt;none&lt;/proc&gt;
+    &lt;source&gt;21&lt;/source&gt;
+    &lt;target&gt;21&lt;/target&gt;
+    &lt;release&gt;21&lt;/release&gt;
+    &lt;encoding&gt;UTF-8&lt;/encoding&gt;
+    &lt;useIncrementalCompilation&gt;false&lt;/useIncrementalCompilation&gt;
+    &lt;compilerArgs&gt;
+      &lt;compilerArg&gt;-parameters&lt;/compilerArg&gt;
+    &lt;/compilerArgs&gt;
+    &lt;annotationProcessors&gt;
+      &lt;annotationProcessor&gt;io.yupiik.fusion.framework.processor.FusionProcessor&lt;/annotationProcessor&gt;
+    &lt;/annotationProcessors&gt;
+  &lt;/configuration&gt;
+&lt;/plugin&gt;</code></pre>
+</div>
 </div>
 </div>
 <div class="sect2">
@@ -309,7 +367,7 @@ So a better option can be to stick to previous dependencies only option (by defa
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/languages/json.min.js" integrity="sha512-37sW1XqaJmseHAGNg4N4Y01u6g2do6LZL8tsziiL5CMXGy04Th65OXROw2jeDeXLo5+4Fsx7pmhEJJw77htBFg==" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/languages/dockerfile.min.js" integrity="sha512-eRNl3ty7GOJPBN53nxLgtSSj2rkYj5/W0Vg0MFQBw8xAoILeT6byOogENHHCRRvHil4pKQ/HbgeJ5DOwQK3SJA==" crossorigin="anonymous"></script>
     <script>if (!(window.minisite || {}).skipHighlightJs) { hljs.highlightAll(); }</script>
-    <script src="//www.yupiik.io/fusion/js/minisite.js?v=1.0.13-SNAPSHOT"></script>
+    <script src="//www.yupiik.io/fusion/js/minisite.js?v=1.0.14-SNAPSHOT"></script>
     <script>$('.page-content-body').generatedNavMenu();</script>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fuse.js/6.4.3/fuse.min.js" integrity="sha512-neoBxVNv0UMXjoilAYGxfWrSsW6iAVclx7vQKdPJ9Peet1bM5YQjU0aIB8LtH8iNPa+pAyMZprBBw2ZQ/Q1LjQ==" crossorigin="anonymous"></script>
