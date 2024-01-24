@@ -63,6 +63,7 @@ public class ApplicationFusionContext extends DefaultFusionContext implements Fu
         }
     }
 
+    @SuppressWarnings("unchecked")
     private <T> Instance<T> doGetOrCreateInstance(final RuntimeContainer container, final FusionBean<T> bean) {
         final var existing = instances.get(bean);
         if (existing != null) {
