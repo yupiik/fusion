@@ -18,11 +18,7 @@ package io.yupiik.fusion.persistence.impl.bean;
 import io.yupiik.fusion.persistence.api.ContextLessDatabase;
 import io.yupiik.fusion.persistence.impl.DatabaseConfiguration;
 
-import java.util.concurrent.atomic.AtomicBoolean;
-
 public class FusionContextLessDatabaseBean extends FusionBaseDatabaseBean<ContextLessDatabase> {
-    private final AtomicBoolean closed = new AtomicBoolean();
-
     public FusionContextLessDatabaseBean() {
         super(ContextLessDatabase.class);
     }
