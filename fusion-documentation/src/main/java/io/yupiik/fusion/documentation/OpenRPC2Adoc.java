@@ -15,49 +15,27 @@
  */
 package io.yupiik.fusion.documentation;
 
-import io.yupiik.fusion.json.internal.JsonMapperImpl;
+import io.yupiik.fusion.json.JsonMapper;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
 import static java.util.Map.entry;
-import static java.util.Objects.requireNonNull;
-import static java.util.Optional.empty;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.joining;
 
-public class OpenRPC2Adoc implements Runnable {
-    private final Map<String, String> configuration;
-
+/**
+ * Converts a partial fusion openrpc to an asciidoctor content.
+ */
+public class OpenRPC2Adoc extends BaseOpenRPCConverter {
     public OpenRPC2Adoc(final Map<String, String> configuration) {
-        this.configuration = configuration;
+        super(configuration);
     }
 
     @Override
-    public void run() {
-        final var input = Path.of(requireNonNull(configuration.get("input"), "No 'input'"));
-        final var output = Path.of(requireNonNull(configuration.get("output"), "No 'output'"));
-        if (Files.notExists(input)) {
-            throw new IllegalArgumentException("Input does not exist '" + input + "'");
-        }
-        try (final var mapper = new JsonMapperImpl(List.of(), c -> empty())) {
-            final var openrpc = asObject(mapper.fromString(Object.class, Files.readString(input)));
-            final var adoc = toAdoc(openrpc);
-            if (output.getParent() != null) {
-                Files.createDirectories(output.getParent());
-            }
-            Files.writeString(output, adoc);
-        } catch (final IOException ioe) {
-            throw new IllegalStateException(ioe);
-        }
-    }
-
-    private String toAdoc(final Map<String, Object> openrpc) {
+    public String convert(final Map<String, Object> openrpc, final JsonMapper ignored) {
         final var methods = openrpc.get("methods");
         if (!(methods instanceof Map<?, ?> mtd)) {
             return "";
@@ -138,10 +116,5 @@ public class OpenRPC2Adoc implements Runnable {
             case "object" -> "object of type ``";
             default -> type;
         };
-    }
-
-    @SuppressWarnings("unchecked")
-    private Map<String, Object> asObject(final Object o) {
-        return (Map<String, Object>) o;
     }
 }
