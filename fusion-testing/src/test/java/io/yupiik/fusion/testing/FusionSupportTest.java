@@ -17,10 +17,13 @@ package io.yupiik.fusion.testing;
 
 import io.yupiik.fusion.framework.api.event.Emitter;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 @FusionSupport
+@TestInstance(PER_CLASS)
 class FusionSupportTest {
     @Fusion
     private Emitter field;

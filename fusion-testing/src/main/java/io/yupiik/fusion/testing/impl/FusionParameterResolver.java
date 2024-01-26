@@ -20,12 +20,14 @@ import io.yupiik.fusion.framework.api.RuntimeContainer;
 import io.yupiik.fusion.testing.Fusion;
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.AfterEachCallback;
+import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.ParameterContext;
 import org.junit.jupiter.api.extension.ParameterResolutionException;
 import org.junit.jupiter.api.extension.ParameterResolver;
 import org.junit.jupiter.api.extension.TestInstancePostProcessor;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.List;
@@ -33,7 +35,7 @@ import java.util.stream.Stream;
 
 import static java.util.Optional.ofNullable;
 
-public class FusionParameterResolver implements ParameterResolver, AfterEachCallback, TestInstancePostProcessor, AfterAllCallback {
+public class FusionParameterResolver implements ParameterResolver, BeforeEachCallback, AfterEachCallback, TestInstancePostProcessor, AfterAllCallback {
     static final ExtensionContext.Namespace NAMESPACE = ExtensionContext.Namespace.create(FusionParameterResolver.class);
 
     @Override
@@ -55,6 +57,18 @@ public class FusionParameterResolver implements ParameterResolver, AfterEachCall
                 .getOrComputeIfAbsent(MethodCleanBag.class, k -> new MethodCleanBag(), MethodCleanBag.class)
                 .instances.add(lookup);
         return lookup.instance();
+    }
+
+    @Override
+    public void beforeEach(final ExtensionContext extensionContext) {
+        extensionContext.getParent().ifPresent(ctx -> {
+            final var store = ctx.getStore(NAMESPACE);
+            final var lazyTasks = store.get(LazyTasks.class, LazyTasks.class);
+            if (lazyTasks != null) {
+                lazyTasks.instances.forEach(Runnable::run);
+                store.remove(LazyTasks.class, LazyTasks.class);
+            }
+        });
     }
 
     @Override
@@ -88,11 +102,20 @@ public class FusionParameterResolver implements ParameterResolver, AfterEachCall
                 .peek(it -> it.setAccessible(true))
                 .forEach(it -> {
                     try {
-                        final var lookup = getContainer(context).lookup(it.getGenericType());
-                        context.getStore(NAMESPACE)
-                                .getOrComputeIfAbsent(CleanBag.class, k -> new CleanBag(), CleanBag.class)
-                                .instances.add(lookup);
-                        it.set(Modifier.isStatic(it.getModifiers()) ? null : testInstance, lookup.instance());
+                        final var container = getContainer(context);
+                        if (container == null) { // lazy injection
+                            context.getStore(NAMESPACE)
+                                    .getOrComputeIfAbsent(LazyTasks.class)
+                                    .instances.add(() -> {
+                                        try {
+                                            processInstance(testInstance, context, it, getContainer(context));
+                                        } catch (final IllegalAccessException e) {
+                                            throw new IllegalStateException(e);
+                                        }
+                                    });
+                        } else {
+                            processInstance(testInstance, context, it, container);
+                        }
                     } catch (final IllegalAccessException e) {
                         throw new IllegalStateException(e);
                     }
@@ -100,9 +123,22 @@ public class FusionParameterResolver implements ParameterResolver, AfterEachCall
         doInject(testInstance, aClass.getSuperclass(), context);
     }
 
+    private void processInstance(final Object testInstance, final ExtensionContext context,
+                                 final Field it, final RuntimeContainer container) throws IllegalAccessException {
+        final var lookup = container.lookup(it.getGenericType());
+        context.getStore(NAMESPACE)
+                .getOrComputeIfAbsent(CleanBag.class, k -> new CleanBag(), CleanBag.class)
+                .instances.add(lookup);
+        it.set(Modifier.isStatic(it.getModifiers()) ? null : testInstance, lookup.instance());
+    }
+
     private void destroyCleanBag(final ExtensionContext context, final Class<? extends CleanBag> type) {
         ofNullable(context.getStore(NAMESPACE).get(type, type))
                 .ifPresent(c -> c.instances.forEach(Instance::close));
+    }
+
+    private static class LazyTasks {
+        protected final List<Runnable> instances = new ArrayList<>();
     }
 
     private static class CleanBag {
