@@ -1,1 +1,4 @@
-[{"name" : "org.apache.coyote.AbstractProtocol", "allPublicMethods" : true}]
+[
+  {"name" : "org.apache.coyote.AbstractProtocol", "allPublicMethods" : true},
+  {"name": "org.apache.tomcat.websocket.server.WsHttpUpgradeHandler", "allPublicConstructors": true, "condition" : { "typeReachable" : "org.apache.tomcat.websocket.server.WsHttpUpgradeHandler" }}
+]
