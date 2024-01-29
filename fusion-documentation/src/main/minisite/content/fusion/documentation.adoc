@@ -41,7 +41,7 @@ Configuration:
 |===
 | Name | Description
 | input | the location of the input file (json), often it will be `target/classes/META-INF/fusion/jsonrpc/openrpc.json`.
-| output | the location of the output file (asciidoc).
+| output | the location of the output file (json).
 | *.url | define a server URL, `*` is a prefix used to match the description (you can define multiple servers while prefix is unique).
 | *.description | define a server description, `*` is a prefix used to match the url.
 | info.* | define `info` block of OpenAPI. Ensure to define `info.title`, `info.version` and `info.description` at least.
@@ -65,3 +65,18 @@ SwaggerUIBundle({
   },
 });
 ----
+
+== JSON-RPC/OpenRPC to Postman
+
+The class `io.yupiik.fusion.documentation.OpenRPC2Postman` enables to convert the partial OpenRPC metadata (`META-INF/fusion/jsonrpc/openrpc.json`) to a Postman collection.
+
+Configuration:
+
+[opts="header",cols="^,^"]
+|===
+| Name | Description
+| input | the location of the input file (json), often it will be `target/classes/META-INF/fusion/jsonrpc/openrpc.json`.
+| output | the location of the output file (json).
+| info.* | define `info` block of collection. Ensure to define `info.title`, `info.version`.
+| server.url | define a server URL to use.
+|===

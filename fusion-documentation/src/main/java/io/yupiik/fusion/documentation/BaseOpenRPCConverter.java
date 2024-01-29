@@ -24,6 +24,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 import static java.util.Objects.requireNonNull;
 import static java.util.Optional.empty;
@@ -63,5 +64,11 @@ public abstract class BaseOpenRPCConverter implements Runnable {
     @SuppressWarnings("unchecked")
     protected Map<String, Object> asObject(final Object o) {
         return (Map<String, Object>) o;
+    }
+
+    protected Map<String, Object> sortedMap(final Map<String, Object> data) {
+        final var out = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        out.putAll(data);
+        return out;
     }
 }
