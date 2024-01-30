@@ -100,7 +100,7 @@ public class ExchangeLogger implements RequestListener<ExchangeLogger.Data> {
                             return "\nPayload:\n" + out.toString(UTF_8);
                         })
                         .orElse("") : "") +
-                "Response: " + (error != null ? "[ERROR] " + error.getMessage() : ("HTTP " + response.statusCode())) +
+                "\nResponse: " + (error != null ? "[ERROR] " + error.getMessage() : ("HTTP " + response.statusCode())) +
                 (logPayload ? "\nPayload:\n" + (response == null ? "-" : response.body()) : "");
     }
 
