@@ -23,6 +23,7 @@ import io.yupiik.fusion.framework.api.container.FusionListener;
 import io.yupiik.fusion.framework.api.container.FusionModule;
 import io.yupiik.fusion.framework.api.container.Types;
 import io.yupiik.fusion.framework.api.container.bean.BaseBean;
+import io.yupiik.fusion.framework.api.container.bean.ProvidedInstanceBean;
 import io.yupiik.fusion.framework.api.container.context.subclass.DelegatingContext;
 import io.yupiik.fusion.framework.api.container.context.subclass.SupplierDelegatingContext;
 import io.yupiik.fusion.framework.api.main.Args;
@@ -1752,6 +1753,26 @@ class FusionProcessorTest {
                         "--c1-list", "first,second"));
             }
         });
+    }
+
+    @Test
+    void commandNoArg(@TempDir final Path work) throws IOException {
+        final var compiler = new Compiler(work, "NoArgCommand");
+        compiler.compileAndAsserts((loader, container) -> {
+            assertEquals(
+                    List.of("test.p.NoArgCommand$FusionCliCommand"),
+                    container.getBeans().getBeans().keySet().stream()
+                            .filter(Class.class::isInstance)
+                            .map(Class.class::cast)
+                            .map(Class::getName)
+                            .filter(it -> it.endsWith("$FusionCliCommand"))
+                            .sorted()
+                            .toList());
+
+            System.clearProperty("test.p.NoArgCommand");
+            withInstance(container, loader, "io.yupiik.fusion.cli.CliAwaiter", CliAwaiter.class, CliAwaiter::await);
+            assertEquals("true", System.clearProperty("test.p.NoArgCommand"));
+        }, new ProvidedInstanceBean<>(DefaultScoped.class, Args.class, () -> new Args(List.of("c"))));
     }
 
     @Test

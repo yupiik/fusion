@@ -71,7 +71,6 @@ public class CliCommandGenerator extends BaseGenerator implements Supplier<CliCo
         final var packageLine = packagePrefix.isBlank() ? "" : ("package " + packageName + ";\n\n");
         final var commandClassName = className + SUFFIX;
         final var constructorParameters = findConstructors(type)
-                .filter(e -> e.getParameters().size() >= 1)
                 .max(comparing(e -> {
                     if (e.getModifiers().contains(PUBLIC)) {
                         return 1000;
@@ -86,8 +85,8 @@ public class CliCommandGenerator extends BaseGenerator implements Supplier<CliCo
                 }))
                 .orElseThrow(() -> new IllegalArgumentException("@Command classes must have at least one argument constructor with a @RootConfiguration parameter: " + packagePrefix + className))
                 .getParameters();
-        final var configurationElt = constructorParameters.get(0);
-        final var configurationType = toFqnName(processingEnv.getTypeUtils().asElement(configurationElt.asType()));
+        final var configurationElt = !constructorParameters.isEmpty() ? constructorParameters.get(0) : null;
+        final var configurationType = configurationElt != null ? toFqnName(processingEnv.getTypeUtils().asElement(configurationElt.asType())) : null;
 
         if (constructorParameters.size() > 1 && !beanForCliCommands) {
             throw new IllegalArgumentException("@Command classes can only get injections if using a bean so ensure to set -Afusion.generateBeanForCliCommands in your compiler: " + packagePrefix + className);
@@ -99,17 +98,18 @@ public class CliCommandGenerator extends BaseGenerator implements Supplier<CliCo
                 new GeneratedClass(packagePrefix + commandClassName, packageLine +
                         generationVersion() +
                         "public class " + commandClassName + " extends " + BaseCliCommand.class.getName() + (hasInjections ? ".ContainerBaseCliCommand" : "") +
-                        "<" + configurationType.replace('$', '.') + ", " + className.replace('$', '.') + "> {\n" +
+                        "<" + (configurationType == null ? Void.class.getName() : configurationType.replace('$', '.')) + ", " + className.replace('$', '.') + "> {\n" +
                         "  public " + commandClassName + "(" + (hasInjections ? "final " + RuntimeContainer.class.getName() + " container" : "") + ") {\n" +
                         "    super(\n" +
                         "      \"" + command.name() + "\",\n" +
                         "      \"" + command.description().replace("\"", "\\\"").replace("\n", "\\n") + "\",\n" +
-                        "      c -> new " + configurationType + ConfigurationFactoryGenerator.SUFFIX + "(c).get(),\n" +
-                        "      (c, deps) -> new " + className.replace('$', '.') + "(c" +
+                        "      c -> " + (constructorParameters.isEmpty() ? "null" : "new " + configurationType + ConfigurationFactoryGenerator.SUFFIX + "(c).get()") + ",\n" +
+                        "      (c, deps) -> new " + className.replace('$', '.') + "(" +
+                        (configurationType == null ? "" : "c") +
                         (hasInjections ? constructorParameters.stream()
                                 .skip(1) // configuration by convention
                                 .map(param -> "lookup(container, " + toFqnName(processingEnv.getTypeUtils().asElement(param.asType())) + ".class, deps)")
-                                .collect(joining(", ", ", ", "")) : "") + ")," +
+                                .collect(joining(", ", configurationType == null ? "" : ", ", "")) : "") + ")," +
                         "      " + List.class.getName() + ".of(" + parameters(configurationType, null) + "));\n" +
                         "  }\n" +
                         "}\n" +
