@@ -39,6 +39,10 @@ public class DelegatingHttpClient extends HttpClient implements AutoCloseable {
         this.delegate = delegate;
     }
 
+    public HttpClient delegate() {
+        return delegate;
+    }
+
     @Override
     public Optional<CookieHandler> cookieHandler() {
         return delegate.cookieHandler();
