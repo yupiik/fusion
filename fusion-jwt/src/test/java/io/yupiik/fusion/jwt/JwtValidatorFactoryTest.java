@@ -37,6 +37,7 @@ import static java.time.Clock.fixed;
 import static java.util.Optional.empty;
 import static java.util.Optional.of;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
@@ -59,6 +60,23 @@ class JwtValidatorFactoryTest {
                         "-----END PUBLIC KEY-----\n",
                         "RS256",
                         "http://yupiik.test/oauth2/"));
+    }
+
+    @Test
+    void rsaJwkSet() {
+        final var validator = new JwtValidatorFactory(
+                of(new JsonMapperImpl(List.of(), k -> empty())),
+                of(clock))
+                .newValidator(new JwtValidatorConfiguration("" +
+                        null,
+                        null,
+                        "http://yupiik.test/oauth2/",
+                        30L, true, false, false,
+                        List.of(new JwtValidatorConfiguration.JwkKey(
+                                "k1", "RSA", "RS256", "sig",
+                                "yNEeNeDjLGT9De4kaG5cEmACZgilNXbPbkJ5vNG_kYTTTtOAEN7iyY8VdYlyflD1DYyWiYij0PRlEfJ7rC54I8E_7l95BqGD1RX8fUip3c8DSxnMvarFGABjGUy7KjRi6G8GuqaNOkyhb6yO4-fq0XOlMoUMXzXXQvxEkUogFZU1HLOOvgDXntA2PCu1_UrTq7ZPlOXi1jcdlV3ybpSZ4qJBue3NpnjGCb1h13HtE-jjG1_X3tmeSKPy9cFgRbnye7EB79E5O5uEAyE-BmIDiLL8HXM6cj3OWy2i01up6PlODh-S3mw2NxSCVspNHTho_wJtErD_j1V12y880Z42hw",
+                                "AQAB", null, null, null, null))));
+        assertNotNull(validator); // ensure we loaded the key
     }
 
     @Test
