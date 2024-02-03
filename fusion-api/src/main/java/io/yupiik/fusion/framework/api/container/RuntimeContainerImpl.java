@@ -28,12 +28,14 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
+import static java.util.Comparator.comparing;
 import static java.util.Optional.empty;
 import static java.util.stream.Collectors.joining;
 
@@ -136,6 +138,7 @@ public class RuntimeContainerImpl implements RuntimeContainer {
                     .filter(it -> types.isAssignable(it.getKey(), type))
                     .map(Map.Entry::getValue)
                     .flatMap(Collection::stream)
+                    .sorted(Comparator.<FusionBean<?>, Integer>comparing(FusionBean::priority).thenComparing(it -> it.type().getTypeName()))
                     .toList();
             listMatchings.putIfAbsent(type, matching);
         }
