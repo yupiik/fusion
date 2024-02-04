@@ -108,7 +108,7 @@ public class CliCommandGenerator extends BaseGenerator implements Supplier<CliCo
                         (configurationType == null ? "" : "c") +
                         (hasInjections ? constructorParameters.stream()
                                 .skip(1) // configuration by convention
-                                .map(param -> "lookup(container, " + toFqnName(processingEnv.getTypeUtils().asElement(param.asType())) + ".class, deps)")
+                                .map(param -> "lookup(container, " + toFqnName(processingEnv.getTypeUtils().asElement(param.asType())).replace('$', '.') + ".class, deps)")
                                 .collect(joining(", ", configurationType == null ? "" : ", ", "")) : "") + ")," +
                         "      " + List.class.getName() + ".of(" + (configurationType == null ? "" : parameters(configurationType, null)) + "));\n" +
                         "  }\n" +
