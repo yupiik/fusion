@@ -96,7 +96,7 @@ public class CliAwaiter implements Awaiter {
     }
 
     // todo: reflow (max 100 chars of width?)
-    private String usage() {
+    public String usage() {
         return commands.values().stream()
                 .sorted(comparing(CliCommand::name))
                 .map(c -> "" +
