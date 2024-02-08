@@ -16,16 +16,70 @@
 package io.yupiik.fusion.json.internal.parser;
 
 import io.yupiik.fusion.json.deserialization.AvailableCharArrayReader;
+import io.yupiik.fusion.json.internal.JsonMapperImpl;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.io.StringReader;
+import java.io.StringWriter;
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import static java.util.stream.Collectors.joining;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class JsonParserTest {
+    @Test
+    void bigString() throws IOException {
+        final var len = 5 * 1024 * 1024 + 1;
+        final var w = new StringWriter();
+        try (final var out = w) {
+            out.write("{\"data\":\"");
+            IntStream.range(0, len).forEach(i -> {
+                out.write('a' + (i % 26));
+            });
+            out.write("\"}");
+        }
+        final var expected = w.toString();
+        try (final var mapper = new JsonMapperImpl(List.of(), c -> Optional.empty())) {
+            final var res = (Map<String, Object>) mapper.read(Object.class, new StringReader(expected));
+            final var actual = res.get("data").toString();
+            assertEquals(len, actual.length());
+            assertEquals((char) (((len - 1) % 26 + 'a')), actual.charAt(actual.length() - 1));
+        }
+    }
+
+    @Test
+    void bigStringThenOtherData() throws IOException {
+        final var len = 1024 * 1024 + 7;
+        final var longString = IntStream.range(0, len)
+                .mapToObj(i -> Character.toString('a' + (i % 26))).collect(joining()) + "$ù^*°~²~#é♨\uFE0Fjava";
+        final var w = new StringWriter();
+        try (final var out = w) {
+            out.write("{\"first\":true,\"firstString\":\"something\",\"data\":\"");
+            out.write(longString);
+            out.write("\",\"number\":1234,\"otherstring\":\"simple\",");
+            out.write("\"copy\":\""+longString+"\"");
+            out.write('}');
+        }
+        final var expected = w.toString();
+        try (final var mapper = new JsonMapperImpl(List.of(), c -> Optional.empty())) {
+            final var res = (Map<String, Object>) mapper.read(Object.class, new StringReader(expected));
+            assertEquals(longString, res.get("data"));
+            assertEquals(longString, res.get("copy"));
+            assertEquals(Boolean.TRUE, res.get("first"));
+            assertEquals("something", res.get("firstString"));
+            assertEquals(BigDecimal.valueOf(1234L), res.get("number"));
+            assertEquals("simple", res.get("otherstring"));
+        }
+    }
+
     @Test
     void nullValue() {
         Stream.of(true, false).forEach(b -> {
