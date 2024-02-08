@@ -446,31 +446,31 @@ public class InternalFusionProcessor extends AbstractProcessor {
         // generate beans, listeners, ...
         final var startConf = debugStart();
         configurations.forEach(this::generateConfigurationFactory);
-        debugEnd("  generateConf", processingEnv, startConf);
+        debugEnd("  generateConf (#" + configurations.size() + ")", processingEnv, startConf);
 
         final var startJsonModel = debugStart();
         jsonModels.forEach(this::generateJsonCodec);
-        debugEnd("  generateJsonModel", processingEnv, startJsonModel);
+        debugEnd("  generateJsonCodec (#" + jsonModels.size() + ")", processingEnv, startJsonModel);
 
         final var startCli = debugStart();
         cliCommands.forEach(this::generateCliCommand);
-        debugEnd("  generateCli", processingEnv, startCli);
+        debugEnd("  generateCli (#" + cliCommands.size() + ")", processingEnv, startCli);
 
         final var startHttp = debugStart();
         httpEndpoints.forEach(this::generateHttpEndpoint);
-        debugEnd("  generateHttp", processingEnv, startHttp);
+        debugEnd("  generateHttp (#" + httpEndpoints.size() + ")", processingEnv, startHttp);
 
         final var startJsonRpc = debugStart();
         jsonRpcEndpoints.forEach(this::generateJsonRpcEndpoint); // after json models to get schemas
-        debugEnd("  generateJsonRpc", processingEnv, startJsonRpc);
+        debugEnd("  generateJsonRpc (#" + jsonRpcEndpoints.size() + ")", processingEnv, startJsonRpc);
 
         final var startEntity = debugStart();
         persistenceEntities.forEach(this::generatePersistenceEntity);
-        debugEnd("  generateEntity", processingEnv, startEntity);
+        debugEnd("  generateEntity (#" + persistenceEntities.size() + ")", processingEnv, startEntity);
 
         final var startBean = debugStart();
         beans.forEach(this::generateBean);
-        debugEnd("  generateBean", processingEnv, startBean);
+        debugEnd("  generateBean (#" + beans.size() + ")", processingEnv, startBean);
 
         final var startProducer = debugStart();
         explicitBeans.stream()
@@ -482,13 +482,13 @@ public class InternalFusionProcessor extends AbstractProcessor {
                     }
                 })
                 .forEach(this::generateProducerBean);
-        debugEnd("  generateProducerBean", processingEnv, startProducer);
+        debugEnd("  generateProducerBean (#" + explicitBeans.size() + ")", processingEnv, startProducer);
 
         final var startListener = debugStart();
         listeners.stream()
                 .map(it -> (ExecutableElement) it.getEnclosingElement())
                 .forEach(this::generateListener);
-        debugEnd("  generateListener", processingEnv, startListener);
+        debugEnd("  generateListener (#" + listeners.size() + ")", processingEnv, startListener);
 
         debugEnd("generate", processingEnv, startGenerate);
     }
@@ -687,8 +687,10 @@ public class InternalFusionProcessor extends AbstractProcessor {
                     .filter(e -> Objects.equals(e.getKey().name(), name))
                     .findFirst();
             if (found.isEmpty()) {
-                processingEnv.getMessager().printMessage(
-                        NOTE, "Parent '" + name + "' not found for '" + te.getQualifiedName().toString() + "', injections can be missing.");
+                // means it has no field with @Injection so no need to check it further
+                // important: limitation there would be A < B < C with B not having anything injection
+                //            and not propagating super() to A injections, then A injections would be null,
+                //            but better to have a clean build than warn about this corner case (we prefer construction injections anyway)
                 continue;
             }
 
