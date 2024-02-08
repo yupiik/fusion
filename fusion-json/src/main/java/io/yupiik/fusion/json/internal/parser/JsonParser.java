@@ -582,13 +582,7 @@ public class JsonParser implements Parser {
     @Override
     public String getString() {
         if (previousEvent == KEY_NAME.ordinal() || previousEvent == VALUE_STRING.ordinal() || previousEvent == VALUE_NUMBER.ordinal()) {
-            final var endValue = fallBackCopyBufferLength > 0 ?
-                    new String(fallBackCopyBuffer, 0, fallBackCopyBufferLength) :
-                    (endOfValueInBuffer - startOfValueInBuffer == 0 ? "" : new String(buffer, startOfValueInBuffer, endOfValueInBuffer - startOfValueInBuffer));
-            if (buffers == null) {
-                return endValue;
-            }
-            return buffers.stream().map(it -> new String(it.value(), 0, it.end())).collect(joining()) + endValue;
+            return getInternalString();
         }
         throw new IllegalStateException(EVT_MAP[previousEvent] + " doesn't support getString()");
     }
@@ -596,9 +590,11 @@ public class JsonParser implements Parser {
     @Override
     public CharBuffer getChars() {
         if (previousEvent == KEY_NAME.ordinal() || previousEvent == VALUE_STRING.ordinal() || previousEvent == VALUE_NUMBER.ordinal()) {
-            return fallBackCopyBufferLength > 0 ?
-                    CharBuffer.wrap(fallBackCopyBuffer, 0, fallBackCopyBufferLength) :
-                    CharBuffer.wrap(buffer, startOfValueInBuffer, endOfValueInBuffer - startOfValueInBuffer);
+            return buffers == null ?
+                    (fallBackCopyBufferLength > 0 ?
+                            CharBuffer.wrap(fallBackCopyBuffer, 0, fallBackCopyBufferLength) :
+                            CharBuffer.wrap(buffer, startOfValueInBuffer, endOfValueInBuffer - startOfValueInBuffer)) :
+                    CharBuffer.wrap(getInternalString()) /* unlikely */;
         }
         throw new IllegalStateException(EVT_MAP[previousEvent] + " doesn't support getString()");
     }
@@ -636,6 +632,16 @@ public class JsonParser implements Parser {
         if (isInArray()) {
             skip(START_ARRAY, END_ARRAY);
         }
+    }
+
+    private String getInternalString() {
+        final var endValue = fallBackCopyBufferLength > 0 ?
+                new String(fallBackCopyBuffer, 0, fallBackCopyBufferLength) :
+                (endOfValueInBuffer - startOfValueInBuffer == 0 ? "" : new String(buffer, startOfValueInBuffer, endOfValueInBuffer - startOfValueInBuffer));
+        if (buffers == null) {
+            return endValue;
+        }
+        return buffers.stream().map(it -> new String(it.value(), 0, it.end())).collect(joining()) + endValue;
     }
 
     private void skip(final Event start, final Event end) {
@@ -709,9 +715,7 @@ public class JsonParser implements Parser {
         if (isCurrentNumberIntegral && currentIntegralNumber != Integer.MIN_VALUE) {
             return new BigDecimal(currentIntegralNumber);
         }
-        return fallBackCopyBufferLength > 0 ?
-                new BigDecimal(fallBackCopyBuffer, 0, fallBackCopyBufferLength) :
-                new BigDecimal(buffer, startOfValueInBuffer, (endOfValueInBuffer - startOfValueInBuffer));
+        return new BigDecimal(getInternalString());
     }
 
     @Override
@@ -722,9 +726,7 @@ public class JsonParser implements Parser {
         if (isCurrentNumberIntegral && currentIntegralNumber != Integer.MIN_VALUE) {
             return currentIntegralNumber;
         }
-        return fallBackCopyBufferLength > 0 ?
-                Double.parseDouble(new String(fallBackCopyBuffer, 0, fallBackCopyBufferLength)) :
-                Double.parseDouble(new String(buffer, startOfValueInBuffer, (endOfValueInBuffer - startOfValueInBuffer)));
+        return Double.parseDouble(getInternalString()); // todo: optimize for all the interger or just dotted forms 'fast parser'
     }
 
     @Override
