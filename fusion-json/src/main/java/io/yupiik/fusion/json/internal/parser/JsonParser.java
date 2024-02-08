@@ -22,6 +22,7 @@ import io.yupiik.fusion.json.spi.Parser;
 import java.io.IOException;
 import java.io.Reader;
 import java.math.BigDecimal;
+import java.math.MathContext;
 import java.nio.CharBuffer;
 import java.util.ArrayList;
 import java.util.List;
@@ -715,18 +716,24 @@ public class JsonParser implements Parser {
         if (isCurrentNumberIntegral && currentIntegralNumber != Integer.MIN_VALUE) {
             return new BigDecimal(currentIntegralNumber);
         }
+        if (buffers == null) {
+            return (fallBackCopyBufferLength > 0 ?
+                    new BigDecimal(fallBackCopyBuffer, 0, fallBackCopyBufferLength, MathContext.UNLIMITED) :
+                    new BigDecimal(buffer, startOfValueInBuffer, endOfValueInBuffer - startOfValueInBuffer, MathContext.UNLIMITED));
+        }
+        // unlikely
         return new BigDecimal(getInternalString());
     }
 
     @Override
-    public double getDouble() { // todo: optim
+    public double getDouble() {
         if (previousEvent != VALUE_NUMBER.ordinal()) {
             throw new IllegalStateException(EVT_MAP[previousEvent] + " doesn't support getDouble()");
         }
         if (isCurrentNumberIntegral && currentIntegralNumber != Integer.MIN_VALUE) {
             return currentIntegralNumber;
         }
-        return Double.parseDouble(getInternalString()); // todo: optimize for all the interger or just dotted forms 'fast parser'
+        return Double.parseDouble(getInternalString()); // todo: optimize for all the integer or just dotted forms 'fast parser'
     }
 
     @Override
