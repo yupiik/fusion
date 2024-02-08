@@ -753,6 +753,7 @@ public class JsonParser implements Parser {
     private void releaseBuffers() {
         if (buffers != null) {
             buffers.stream().map(Buffer::value).forEach(bufferProvider::release);
+            buffers = null;
         }
     }
 
