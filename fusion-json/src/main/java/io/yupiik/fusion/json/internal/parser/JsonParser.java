@@ -23,6 +23,8 @@ import java.io.IOException;
 import java.io.Reader;
 import java.math.BigDecimal;
 import java.nio.CharBuffer;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.NoSuchElementException;
 
 import static io.yupiik.fusion.json.spi.Parser.Event.END_ARRAY;
@@ -35,6 +37,7 @@ import static io.yupiik.fusion.json.spi.Parser.Event.VALUE_NULL;
 import static io.yupiik.fusion.json.spi.Parser.Event.VALUE_NUMBER;
 import static io.yupiik.fusion.json.spi.Parser.Event.VALUE_STRING;
 import static io.yupiik.fusion.json.spi.Parser.Event.VALUE_TRUE;
+import static java.util.stream.Collectors.joining;
 
 // forked from Apache johnzon
 public class JsonParser implements Parser {
@@ -68,7 +71,8 @@ public class JsonParser implements Parser {
     private StructureElement currentStructureElement = null;
 
     private boolean closed;
-    private boolean releaseBuffer;
+    private final boolean releaseBuffer;
+    private List<Buffer> buffers = null;
 
     // for wrappers mainly
     private Event rewindedEvent;
@@ -101,7 +105,7 @@ public class JsonParser implements Parser {
         fallBackCopyBuffer[fallBackCopyBufferLength++] = c;
     }
 
-    //copy content between "start" and "end" from buffer to value buffer 
+    //copy content between "start" and "end" from buffer to value buffer
     private void copyCurrentValue() {
         final int length = endOfValueInBuffer - startOfValueInBuffer;
         if (length > 0) {
@@ -121,21 +125,17 @@ public class JsonParser implements Parser {
             throw new ArrayIndexOutOfBoundsException("Buffer too small for such a long string");
         }
 
-        final char[] newArray = new char[fallBackCopyBuffer.length + Math.max(getBufferExtends(fallBackCopyBuffer.length), length)];
-        // TODO: log to adjust size once?
-        System.arraycopy(fallBackCopyBuffer, 0, newArray, 0, fallBackCopyBufferLength);
+        if (buffers == null) {
+            buffers = new ArrayList<>(2);
+        }
+        final var current = new Buffer(fallBackCopyBuffer, fallBackCopyBufferLength);
+        buffers.add(current);
+        fallBackCopyBufferLength = 0;
+        fallBackCopyBuffer = bufferProvider.newBuffer();
+        System.arraycopy(current.value(), 0, fallBackCopyBuffer, 0, fallBackCopyBufferLength);
         if (startOfValueInBuffer != -1) {
-            System.arraycopy(buffer, startOfValueInBuffer, newArray, fallBackCopyBufferLength, length);
+            System.arraycopy(buffer, startOfValueInBuffer, fallBackCopyBuffer, fallBackCopyBufferLength, length);
         }
-        if (releaseFallBackCopyBufferLength) {
-            bufferProvider.release(fallBackCopyBuffer);
-            releaseFallBackCopyBufferLength = false;
-        }
-        fallBackCopyBuffer = newArray;
-    }
-
-    protected int getBufferExtends(final int currentLength) {
-        return Math.min(1024, currentLength / 4);
     }
 
     @Override
@@ -259,6 +259,8 @@ public class JsonParser implements Parser {
             rewindedEvent = null;
             return event;
         }
+
+        releaseBuffers(); // if first string was huge - and ignored in the mapping maybe - just drop it from the mem asap
 
         if (!hasNext()) {
             final char c = readNextChar();
@@ -580,9 +582,13 @@ public class JsonParser implements Parser {
     @Override
     public String getString() {
         if (previousEvent == KEY_NAME.ordinal() || previousEvent == VALUE_STRING.ordinal() || previousEvent == VALUE_NUMBER.ordinal()) {
-            return fallBackCopyBufferLength > 0 ?
+            final var endValue = fallBackCopyBufferLength > 0 ?
                     new String(fallBackCopyBuffer, 0, fallBackCopyBufferLength) :
-                    new String(buffer, startOfValueInBuffer, endOfValueInBuffer - startOfValueInBuffer);
+                    (endOfValueInBuffer - startOfValueInBuffer == 0 ? "" : new String(buffer, startOfValueInBuffer, endOfValueInBuffer - startOfValueInBuffer));
+            if (buffers == null) {
+                return endValue;
+            }
+            return buffers.stream().map(it -> new String(it.value(), 0, it.end())).collect(joining()) + endValue;
         }
         throw new IllegalStateException(EVT_MAP[previousEvent] + " doesn't support getString()");
     }
@@ -733,6 +739,7 @@ public class JsonParser implements Parser {
         if (releaseFallBackCopyBufferLength && fallBackCopyBuffer != null) {
             bufferProvider.release(fallBackCopyBuffer);
         }
+        releaseBuffers();
 
         try {
             in.close();
@@ -740,6 +747,12 @@ public class JsonParser implements Parser {
             throw new IllegalStateException("Unexpected IO exception " + e.getMessage(), e);
         } finally {
             closed = true;
+        }
+    }
+
+    private void releaseBuffers() {
+        if (buffers != null) {
+            buffers.stream().map(Buffer::value).forEach(bufferProvider::release);
         }
     }
 
@@ -776,5 +789,9 @@ public class JsonParser implements Parser {
     }
 
     private record StructureElement(JsonParser.StructureElement previous, boolean isArray) {
+    }
+
+    private record Buffer(char[] value, int end) {
+
     }
 }
