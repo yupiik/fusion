@@ -15,9 +15,9 @@
  */
 package io.yupiik.fusion.persistence.impl;
 
+import io.yupiik.fusion.persistence.api.ContextLessDatabase;
 import io.yupiik.fusion.persistence.api.Database;
 import io.yupiik.fusion.persistence.api.Entity;
-import io.yupiik.fusion.persistence.api.ContextLessDatabase;
 import io.yupiik.fusion.persistence.api.PersistenceException;
 import io.yupiik.fusion.persistence.api.ResultSetWrapper;
 import io.yupiik.fusion.persistence.api.StatementBinder;
@@ -28,6 +28,7 @@ import io.yupiik.fusion.persistence.impl.query.StatementBinderImpl;
 import io.yupiik.fusion.persistence.spi.DatabaseTranslation;
 
 import javax.sql.DataSource;
+import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -516,6 +517,8 @@ public class DatabaseImpl extends DefaultBaseDatabase implements Database, Conte
             statement.setNull(idx, Types.TIMESTAMP_WITH_TIMEZONE);
         } else if (LocalTime.class == type) {
             statement.setNull(idx, Types.TIME);
+        } else if (BigDecimal.class == type) {
+            statement.setNull(idx, Types.DECIMAL);
         } else {
             statement.setNull(idx, Types.OTHER);
         }
