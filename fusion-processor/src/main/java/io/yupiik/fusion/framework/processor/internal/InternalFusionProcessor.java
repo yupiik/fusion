@@ -849,18 +849,12 @@ public class InternalFusionProcessor extends AbstractProcessor {
             final var generation = new JsonRpcEndpointGenerator(
                     processingEnv, elements, beanForJsonRpcEndpoints,
                     names.packageName(), names.className() + "$" + method.getSimpleName(), method,
-                    Stream.of(
-                                    knownJsonModels.stream(),
-                                    allJsonSchemas.keySet().stream(),
-                                    jsonModels.keySet().stream())
-                            .flatMap(identity())
-                            .collect(toSet()),
-                    partialOpenRPC,
+                    this::isJsonModelKnown, partialOpenRPC,
                     allJsonSchemas.entrySet().stream()
                             .filter(it -> it.getValue().raw() != null || it.getValue().content().id() != null)
                             .collect(toMap(
                                     it -> it.getValue().raw() != null ? it.getKey() : it.getValue().content().id(),
-                                    it -> it.getValue())))
+                                    Map.Entry::getValue)))
                     .get();
             writeGeneratedClass(method, generation.endpoint());
 
@@ -912,12 +906,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
             final var generation = new HttpEndpointGenerator(
                     processingEnv, elements, beanForHttpEndpoints,
                     names.packageName(), names.className() + "$" + method.getSimpleName(), method,
-                    Stream.of(
-                                    knownJsonModels.stream(),
-                                    allJsonSchemas.keySet().stream(),
-                                    jsonModels.keySet().stream())
-                            .flatMap(identity())
-                            .collect(toSet())).get();
+                    this::isJsonModelKnown).get();
             writeGeneratedClass(method, generation.endpoint());
             // todo: openapi?
 
@@ -1025,6 +1014,17 @@ public class InternalFusionProcessor extends AbstractProcessor {
         } catch (final IOException | RuntimeException e) {
             processingEnv.getMessager().printMessage(ERROR, e.getMessage());
         }
+    }
+
+    private boolean isJsonModelKnown(final String name) {
+        return Stream.of(
+                        knownJsonModels.stream(),
+                        allJsonSchemas.keySet().stream(),
+                        jsonModels.keySet().stream())
+                .flatMap(identity())
+                .distinct()
+                // often we'll test contains(nameWithoutDollarForNestedClassses) so make it passing
+                .anyMatch(n -> Objects.equals(n, name) || n.contains("$") && Objects.equals(n.replace('$', '.'), name));
     }
 
     private String findOrCreateModuleName() {

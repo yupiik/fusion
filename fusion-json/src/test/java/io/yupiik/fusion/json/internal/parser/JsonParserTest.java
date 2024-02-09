@@ -48,6 +48,7 @@ class JsonParserTest {
         }
         final var expected = w.toString();
         try (final var mapper = new JsonMapperImpl(List.of(), c -> Optional.empty())) {
+            @SuppressWarnings("unchecked")
             final var res = (Map<String, Object>) mapper.read(Object.class, new StringReader(expected));
             final var actual = res.get("data").toString();
             assertEquals(len, actual.length());
@@ -70,6 +71,7 @@ class JsonParserTest {
         }
         final var expected = w.toString();
         try (final var mapper = new JsonMapperImpl(List.of(), c -> Optional.empty())) {
+            @SuppressWarnings("unchecked")
             final var res = (Map<String, Object>) mapper.read(Object.class, new StringReader(expected));
             assertEquals(longString, res.get("data"));
             assertEquals(longString, res.get("copy"));

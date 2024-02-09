@@ -46,8 +46,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -66,7 +66,7 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
 
     public JsonRpcEndpointGenerator(final ProcessingEnvironment processingEnv, final Elements elements,
                                     final boolean beanForJsonRpcEndpoints, final String packageName, final String className,
-                                    final ExecutableElement method, final Set<String> knownJsonModels,
+                                    final ExecutableElement method, final Predicate<String> knownJsonModels,
                                     final PartialOpenRPC openRPC, final Map<String, GeneratedJsonSchema> allJsonSchemas) {
         super(processingEnv, elements, beanForJsonRpcEndpoints, packageName, className, method, knownJsonModels);
         this.openRPC = openRPC;
@@ -193,7 +193,7 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
     // and assume openrpc spec generation is only enabled if json one is
     @SuppressWarnings("unchecked")
     private JsonSchema generateFullJsonSchema(final String name) {
-        if (!knownJsonModels.contains(name)) {
+        if (!knownJsonModels.test(name)) {
             throw new IllegalArgumentException("Missing JSON schema for '" + name + "', check you enabled its generation, known: " + knownJsonModels);
         }
 

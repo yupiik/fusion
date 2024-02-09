@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
@@ -46,7 +47,7 @@ public class HttpEndpointGenerator extends BaseHttpEndpointGenerator implements 
 
     public HttpEndpointGenerator(final ProcessingEnvironment processingEnv, final Elements elements,
                                  final boolean generateBean, final String packageName, final String className,
-                                 final ExecutableElement method, final Set<String> knownJsonModels) {
+                                 final ExecutableElement method, final Predicate<String> knownJsonModels) {
         super(processingEnv, elements, generateBean, packageName, className, method, knownJsonModels);
     }
 

@@ -34,10 +34,10 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.joining;
@@ -47,11 +47,11 @@ public abstract class BaseHttpEndpointGenerator extends BaseGenerator {
     protected final ExecutableElement method;
     protected final String packageName;
     protected final String className;
-    protected final Set<String> knownJsonModels;
+    protected final Predicate<String> knownJsonModels;
 
     public BaseHttpEndpointGenerator(final ProcessingEnvironment processingEnv, final Elements elements,
                                      final boolean generateBean, final String packageName, final String className,
-                                     final ExecutableElement method, final Set<String> knownJsonModels) {
+                                     final ExecutableElement method, final Predicate<String> knownJsonModels) {
         super(processingEnv, elements);
         this.generateBean = generateBean;
         this.method = method;
@@ -153,7 +153,7 @@ public abstract class BaseHttpEndpointGenerator extends BaseGenerator {
 
     protected boolean isJson(final ParsedType param) {
         return switch (param.type()) {
-            case CLASS -> knownJsonModels.contains(param.className()) ||
+            case CLASS -> knownJsonModels.test(param.className()) ||
                     int.class.getName().equals(param.className()) ||
                     long.class.getName().equals(param.className()) ||
                     boolean.class.getName().equals(param.className()) ||
