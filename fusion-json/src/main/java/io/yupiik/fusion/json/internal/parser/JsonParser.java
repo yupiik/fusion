@@ -38,7 +38,6 @@ import static io.yupiik.fusion.json.spi.Parser.Event.VALUE_NULL;
 import static io.yupiik.fusion.json.spi.Parser.Event.VALUE_NUMBER;
 import static io.yupiik.fusion.json.spi.Parser.Event.VALUE_STRING;
 import static io.yupiik.fusion.json.spi.Parser.Event.VALUE_TRUE;
-import static java.util.stream.Collectors.joining;
 
 // forked from Apache johnzon
 public class JsonParser implements Parser {
@@ -73,6 +72,7 @@ public class JsonParser implements Parser {
 
     private boolean closed;
     private final boolean releaseBuffer;
+    private String cachedInternalString;
     private List<Buffer> buffers = null;
 
     // for wrappers mainly
@@ -636,13 +636,28 @@ public class JsonParser implements Parser {
     }
 
     private String getInternalString() {
-        final var endValue = fallBackCopyBufferLength > 0 ?
-                new String(fallBackCopyBuffer, 0, fallBackCopyBufferLength) :
-                (endOfValueInBuffer - startOfValueInBuffer == 0 ? "" : new String(buffer, startOfValueInBuffer, endOfValueInBuffer - startOfValueInBuffer));
-        if (buffers == null) {
-            return endValue;
+        if (cachedInternalString != null) {
+            return cachedInternalString;
         }
-        return buffers.stream().map(it -> new String(it.value(), 0, it.end())).collect(joining()) + endValue;
+
+        final var out = new char[
+                (fallBackCopyBufferLength > 0 ? fallBackCopyBufferLength : endOfValueInBuffer - startOfValueInBuffer) +
+                        (buffers == null ? 0 : buffers.stream().mapToInt(Buffer::end).sum())];
+        int offset = 0;
+        if (buffers != null) {
+            for (final var b : buffers) {
+                System.arraycopy(b.value(), 0, out, offset, b.end());
+                offset += b.end();
+            }
+        }
+        if (fallBackCopyBufferLength > 0) {
+            System.arraycopy(fallBackCopyBuffer, 0, out, offset, fallBackCopyBufferLength);
+        } else if (endOfValueInBuffer != startOfValueInBuffer) {
+            System.arraycopy(buffer, startOfValueInBuffer, out, offset, endOfValueInBuffer - startOfValueInBuffer);
+        }
+
+        cachedInternalString = new String(out);
+        return cachedInternalString;
     }
 
     private void skip(final Event start, final Event end) {
@@ -764,6 +779,7 @@ public class JsonParser implements Parser {
             buffers.stream().map(Buffer::value).forEach(bufferProvider::release);
             buffers = null;
         }
+        cachedInternalString = null;
     }
 
     private static Long parseLongFromChars(final char[] chars, final int start, final int end) {
