@@ -98,6 +98,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -111,6 +112,7 @@ import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.mapping;
+import static java.util.stream.Collectors.toCollection;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 import static java.util.stream.Collectors.toSet;
@@ -205,7 +207,12 @@ public class InternalFusionProcessor extends AbstractProcessor {
 
     private Elements elements;
 
-    private final Map<String, Element> jsonModels = new HashMap<>();
+    private final Map<String, Element> jsonModels = new HashMap<>() {
+        @Override
+        public boolean containsKey(final Object key) {
+            return containsInnerClass(super::containsKey, key);
+        }
+    };
 
     // for now we don't use it but if we need entities for a downstream impl (proxies) can help
     // see uship @Operation for ex
@@ -300,10 +307,20 @@ public class InternalFusionProcessor extends AbstractProcessor {
                                         .map(it -> it.type().getTypeName())
                                         .filter(it -> it.endsWith(JsonCodecGenerator.SUFFIX))
                                         .map(name -> name.substring(0, name.length() - JsonCodecGenerator.SUFFIX.length())))
-                        .collect(toSet());
+                        .collect(toCollection(() -> new HashSet<>() {
+                            @Override
+                            public boolean contains(final Object key) {
+                                return containsInnerClass(super::contains, key);
+                            }
+                        }));
 
         if (jsonSchemaLocation != null) {
-            allJsonSchemas = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+            allJsonSchemas = new TreeMap<>(String.CASE_INSENSITIVE_ORDER) {
+                @Override
+                public boolean containsKey(final Object key) {
+                    return containsInnerClass(super::containsKey, key);
+                }
+            };
 
             if (workdir != null) {
                 final var base = workdir.resolve("json_schema");
@@ -1016,15 +1033,14 @@ public class InternalFusionProcessor extends AbstractProcessor {
         }
     }
 
-    private boolean isJsonModelKnown(final String name) {
-        return Stream.of(
-                        knownJsonModels.stream(),
-                        allJsonSchemas.keySet().stream(),
-                        jsonModels.keySet().stream())
-                .flatMap(identity())
-                .distinct()
-                // often we'll test contains(nameWithoutDollarForNestedClassses) so make it passing
-                .anyMatch(n -> Objects.equals(n, name) || n.contains("$") && Objects.equals(n.replace('$', '.'), name));
+    private boolean containsInnerClass(final Predicate<Object> test, final Object key) {
+        return test.test(key) ||
+                ((key instanceof String s) && s.contains("$") && test.test(s.replace('$', '.')));
+    }
+
+    private boolean isJsonModelKnown(final String name) { // works thanks containsInnerClass() wiring
+        return Stream.of(knownJsonModels, allJsonSchemas.keySet(), jsonModels.keySet())
+                .anyMatch(set -> set.contains(name));
     }
 
     private String findOrCreateModuleName() {
