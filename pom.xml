@@ -31,6 +31,7 @@
     <maven.compiler.release>17</maven.compiler.release>
 
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <project.build.outputTimestamp>2024-02-11T10:52:01Z</project.build.outputTimestamp>
 
     <tomcat.version>10.1.18</tomcat.version>
     <yupiik-logging.version>1.0.7</yupiik-logging.version>
