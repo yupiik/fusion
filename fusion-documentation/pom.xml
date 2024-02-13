@@ -111,6 +111,12 @@
         <version>1.1.8</version>
         <configuration>
           <siteBase>//www.yupiik.io/fusion</siteBase>
+          <title>Fusion documentation</title>
+          <description>Fusion framework aims at providing a very light java framework and graal native.</description>
+          <indexText>Fusion documentation</indexText>
+          <indexSubTitle>Fusion framework aims at providing a very light java framework and graal native.</indexSubTitle>
+          <logoText>Fusion</logoText>
+          <logoSideText>Documentation</logoSideText>
           <attributes>
             <partialsdir>${project.basedir}/src/main/minisite/content/_partials</partialsdir>
           </attributes>
