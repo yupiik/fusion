@@ -27,6 +27,10 @@
   <artifactId>fusion-documentation</artifactId>
   <name>Fusion :: Documentation</name>
 
+  <properties>
+    <yupiik-tools.version>1.2.1-SNAPSHOT</yupiik-tools.version>
+  </properties>
+
   <dependencies>
     <dependency>
       <groupId>${project.groupId}</groupId>
@@ -108,8 +112,9 @@
       <plugin>
         <groupId>io.yupiik.maven</groupId>
         <artifactId>yupiik-tools-maven-plugin</artifactId>
-        <version>1.1.8</version>
+        <version>${yupiik-tools.version}</version>
         <configuration>
+          <preferYupiikAsciidoc>true</preferYupiikAsciidoc>
           <siteBase>//www.yupiik.io/fusion</siteBase>
           <title>Fusion documentation</title>
           <description>Fusion framework aims at providing a very light java framework and graal native.</description>
@@ -126,6 +131,13 @@
             </preAction>
           </preActions>
         </configuration>
+        <dependencies>
+          <dependency>
+            <groupId>io.yupiik.maven</groupId>
+            <artifactId>asciidoc-java</artifactId>
+            <version>${yupiik-tools.version}</version>
+          </dependency>
+        </dependencies>
       </plugin>
     </plugins>
   </build>

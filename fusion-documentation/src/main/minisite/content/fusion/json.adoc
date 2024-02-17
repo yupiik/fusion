@@ -11,7 +11,7 @@ Here the supported features list:
 * Models must be records or `List<X>` of a supported type, or a `Map<String, X>` of a supported type
 * Supported primitives are
 ** `String`
-** `String`, `BigDecimal` (represented as `string` in JSON but incoming data can be a number), `{b,B}oolean`, `{d,D}ouble`, `int`/`Integer`, `{l,L}ouble`, `OffsetDateTime`, `ZonedDateTime`, `LocalDate`, `LocalDateTime`
+** `String`, `BigDecimal` (represented as `string` in JSON but incoming data can be a number), `{b,B}oolean`, `{d,D}ouble`, `int`/`Integer`, `{l,L}ong`, `OffsetDateTime`, `ZonedDateTime`, `LocalDate`, `LocalDateTime`
 * Generic mapper is supported, it will bind `Object` as a `Map<String, Object>` values being `String` for JSON strings, `BigDecimal` for JSON numbers, another `Map<String, Object>` for JSON objects and `List<Object>` for JSON lists,
 * A simple post processor prettifier (takes a JSON as input and formats it). It is used decorating the default `JsonMapper`: `io.yupiik.fusion.json.pretty.PrettyJsonMapper`,
 * The Fusion annotation processor will generate the JSON "codecs" from the code when a record is marked with `@JsonModel`, the codec will be reflection free,

@@ -80,3 +80,32 @@ Configuration:
 | info.* | define `info` block of collection. Ensure to define `info.title`, `info.version`.
 | server.url | define a server URL to use.
 |===
+
+== Format documentation in Asciidoc
+
+`io.yupiik.fusion.documentation.DocumentationGenerator` enables to format the documentation in asciidoc.
+
+If you use Yupiik tools minisite, configuration will often look like:
+
+[source,xml]
+----
+<preActions>
+  <preAction>
+    <type>io.yupiik.fusion.documentation.DocumentationGenerator</type>
+  </preAction>
+</preActions>
+----
+
+Configuration:
+
+[opts="header",cols="^,^"]
+|===
+| Name | Description
+| includeEnvironmentNames | Should environment names of the keys be shown or ignored. Default `false`.
+| module | Title name for `list` formatter.
+| output | When to generate the asciidoc file, by default - when not set - it uses `$source/content/_partials/generated/documentation.$module.adoc`.
+| formatter | Can be `list` for a plain asciidoc list (with h1/h2 titles), `table` for a table and `definitionlist` for a definition list. Data are globally the same but depending your confguration it can be easier to read in one style or another.
+| urls | If not set `META-INF/fusion/configuration/documentation.json` is loaded from the classpath else the url to convert to asciidoc (same format).
+| roots | If you don't want to generate the configuration for all classes, the root classes to include from the JSON file (urls).
+|===
+
