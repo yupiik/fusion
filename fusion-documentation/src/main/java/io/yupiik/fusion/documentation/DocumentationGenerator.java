@@ -102,7 +102,7 @@ public class DocumentationGenerator implements Runnable {
                                         documentation != null && !documentation.endsWith(".") ? documentation + '.' : documentation,
                                         it.get("defaultValue"),
                                         Boolean.TRUE.equals(it.get("required")),
-                                        envPattern.matcher(name).replaceAll("_"));
+                                        envPattern.matcher(name).replaceAll("_").toUpperCase(ROOT));
                             });
                 })
                 .sorted(comparing(Parameter::name))
