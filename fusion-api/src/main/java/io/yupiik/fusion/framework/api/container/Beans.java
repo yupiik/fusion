@@ -22,9 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
-import static java.util.stream.Collectors.collectingAndThen;
 import static java.util.stream.Collectors.groupingBy;
-import static java.util.stream.Collectors.toList;
 
 public class Beans {
     private final Map<Type, List<FusionBean<?>>> beans = new HashMap<>();
@@ -34,11 +32,10 @@ public class Beans {
     }
 
     public void doRegister(final FusionBean<?>... beans) {
-        this.beans.putAll(Stream.of(beans)
-                .collect(groupingBy(
-                        FusionBean::type,
-                        collectingAndThen(toList(), l -> l.stream()
-                                .sorted(Comparator.<FusionBean<?>, Integer>comparing(FusionBean::priority).reversed())
-                                .toList()))));
+        Stream.of(beans)
+                .collect(groupingBy(FusionBean::type))
+                .forEach((key, list) -> this.beans.compute(key, (k, previous) -> previous == null ? list : Stream.concat(previous.stream(), list.stream())
+                        .sorted(Comparator.<FusionBean<?>, Integer>comparing(FusionBean::priority).reversed())
+                        .toList()));
     }
 }
