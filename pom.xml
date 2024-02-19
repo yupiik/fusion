@@ -32,7 +32,7 @@
 
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-    <tomcat.version>10.1.18</tomcat.version>
+    <tomcat.version>10.1.19</tomcat.version>
     <yupiik-logging.version>1.0.7</yupiik-logging.version>
     <junit-jupiter.version>5.10.0-RC1</junit-jupiter.version>
   </properties>
