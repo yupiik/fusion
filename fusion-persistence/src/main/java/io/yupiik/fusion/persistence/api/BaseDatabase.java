@@ -17,11 +17,17 @@ package io.yupiik.fusion.persistence.api;
 
 import java.sql.ResultSet;
 import java.util.List;
+import java.util.function.Function;
 
 /**
- * Connection idependent operations (mainly around the mapping and model).
+ * Connection independent operations (mainly around the mapping and model).
  */
 public interface BaseDatabase {
+    /**
+     * Enable to be used for "count" queries and extract more easily the first result as a long.
+     */
+    Function<ResultSetWrapper, Long> FIRST_LONG = r -> r.hasNext() ? r.map(it -> it.getLong(1)) : 0L;
+
     <T, ID> Entity<T, ID> entity(Class<T> type);
 
     /**
