@@ -99,10 +99,11 @@ public class DocumentationGenerator implements Runnable {
                                 final var documentation = (String) it.get("documentation");
                                 return new Parameter(
                                         name,
-                                        documentation != null && !documentation.endsWith(".") ? documentation + '.' : documentation,
+                                        documentation != null && !documentation.isBlank() && !documentation.endsWith(".") ?
+                                                documentation + '.' : documentation,
                                         it.get("defaultValue"),
                                         Boolean.TRUE.equals(it.get("required")),
-                                        envPattern.matcher(name).replaceAll("_").toUpperCase(ROOT));
+                                        envPattern.matcher(name.replace("$index", "INDEX")).replaceAll("_").toUpperCase(ROOT));
                             });
                 })
                 .sorted(comparing(Parameter::name))
@@ -136,17 +137,20 @@ public class DocumentationGenerator implements Runnable {
                                 ofNullable(it.defaultValue())
                                         .map(v -> " (default: `" + v + "`)")
                                         .orElse("") + ": " +
-                                (it.documentation() == null ? "-" : it.documentation()) + ".")
+                                (it.documentation() == null || it.documentation().isBlank() ? "-." : it.documentation()))
                         .sorted()
                         .collect(joining("\n"));
     }
 
     protected String definitionList(final List<Parameter> parameters, final boolean includeEnv) {
         return parameters.stream()
-                .map(e -> e.name() + (includeEnv ? " (env: `" + e.envName() + "`)" : "") + "::\n" +
-                        e.documentation() +
-                        (e.defaultValue() != null ? " Default: " + defaultFor(e.defaultValue()) + "." : "") +
-                        "\n")
+                .map(e -> {
+                    final var defaultValue = defaultFor(e.defaultValue());
+                    return e.name() + (includeEnv ? " (env: `" + e.envName() + "`)" : "") + "::\n" +
+                            e.documentation() +
+                            (e.defaultValue() != null ? " Default: " + defaultValue + (!defaultValue.contains("\n") ? "." : "") : "") +
+                            "\n";
+                })
                 .collect(joining());
     }
 
@@ -220,19 +224,20 @@ public class DocumentationGenerator implements Runnable {
     }
 
     @SuppressWarnings("unchecked")
-    private Stream<Map<String, Object>> flatten(final Map<?, ?> classes, final Map<String, Object> item) {
+    private Stream<Map<String, ?>> flatten(final Map<?, ?> classes, final Map<String, ?> item) {
         final var ref = item.get("ref");
         if (ref == null) {
             return Stream.of(item);
         }
 
-        final var prefix = item.getOrDefault("name", "").toString();
+        final var prefix = ofNullable(item.get("name")).map(Object::toString).orElse("");
         final var nested = (Collection<Map<String, Object>>) requireNonNull(classes.get(ref), () -> "Missing configuration '" + ref + "'");
         return nested.stream() // add prefix to nested configs
                 .map(it -> Stream.concat(
                                 Stream.of(Map.entry("name", prefix + "." + it.getOrDefault("name", "").toString())),
                                 it.entrySet().stream().filter(i -> !"name".equals(i.getKey())))
-                        .collect(toMap(Map.Entry::getKey, i -> i.getValue() == null ? Map.of() : i.getValue())))
+                        .filter(Predicate.not(e -> e.getValue() == null))
+                        .collect(toMap(Map.Entry::getKey, Map.Entry::getValue)))
                 .flatMap(it -> flatten(classes, it));
     }
 

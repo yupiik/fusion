@@ -21,7 +21,6 @@ import java.io.StringReader;
 import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
-import java.security.spec.EncodedKeySpec;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
@@ -29,6 +28,8 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Stream;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class PublicKeyLoader {
     public PublicKey loadPublicKey(final String pem, final String rawAlgo) {
@@ -38,8 +39,8 @@ public class PublicKeyLoader {
                     .map(it -> {
                         if (rawAlgo.startsWith("RS")) {
                             try {
-                                final KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-                                final EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(it.derBytes());
+                                final var keyFactory = KeyFactory.getInstance("RSA");
+                                final var publicKeySpec = new X509EncodedKeySpec(it.derBytes());
                                 return keyFactory.generatePublic(publicKeySpec);
                             } catch (final NoSuchAlgorithmException | InvalidKeySpecException e) {
                                 throw new IllegalStateException(e);
@@ -56,7 +57,16 @@ public class PublicKeyLoader {
                     })
                     .filter(Objects::nonNull)
                     .findFirst()
-                    .orElseThrow(() -> new IllegalArgumentException("Invalid key: " + pem));
+                    .orElseGet(() -> {
+                        try { // give a try directly if the x509 was inlined
+                            final var keyFactory = KeyFactory.getInstance("RSA");
+                            return keyFactory.generatePublic(new X509EncodedKeySpec(pem.getBytes(UTF_8)));
+                        } catch (final NoSuchAlgorithmException | InvalidKeySpecException ex) {
+                            final var illegalArgumentException = new IllegalArgumentException("Invalid key: " + pem);
+                            illegalArgumentException.addSuppressed(ex);
+                            throw illegalArgumentException;
+                        }
+                    });
         } catch (final IOException e) {
             throw new IllegalStateException("Invalid signing", e);
         }

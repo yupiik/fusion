@@ -249,8 +249,8 @@ public class JwtValidatorFactory {
 
     @SuppressWarnings("unchecked")
     protected Jwt toJwt(final JwtValidatorConfiguration configuration,
-                      final Map<String, Predicate<SigningStringAndSignature>> keyValidators,
-                      final SigningStringAndSignature signingStringAndSignature) {
+                        final Map<String, Predicate<SigningStringAndSignature>> keyValidators,
+                        final SigningStringAndSignature signingStringAndSignature) {
         final var signingString = signingStringAndSignature.signingString();
         final int sep = signingString.indexOf('.');
         if (sep < 0 || signingString.indexOf('.', sep + 1) >= 0) {
@@ -277,6 +277,10 @@ public class JwtValidatorFactory {
         final var iss = payloadData.get("iss");
         if (configuration.issuer() != null && !Objects.equals(iss, configuration.issuer())) {
             throw new IllegalArgumentException("Invalid JWT iss: '" + iss + "'");
+        }
+
+        if (configuration.jtiRequired() && payloadData.get("jti") == null) {
+            throw new IllegalArgumentException("Missing jti in JWT");
         }
 
         long now = -1;
@@ -330,7 +334,7 @@ public class JwtValidatorFactory {
     }
 
     protected boolean verifySignature(final String algo, final PublicKey key, final String signingString, final byte[] expected,
-                                    final Consumer<Signature> customizer) {
+                                      final Consumer<Signature> customizer) {
         try {
             final var signature = Signature.getInstance(algo);
             if (customizer != null) {

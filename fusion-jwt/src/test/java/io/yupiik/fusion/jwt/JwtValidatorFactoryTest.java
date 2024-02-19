@@ -71,7 +71,7 @@ class JwtValidatorFactoryTest {
                         null,
                         null,
                         "http://yupiik.test/oauth2/",
-                        30L, true, false, false,
+                        30L, true, true, false, false,
                         List.of(new JwtValidatorConfiguration.JwkKey(
                                 "k1", "RSA", "RS256", "sig",
                                 "yNEeNeDjLGT9De4kaG5cEmACZgilNXbPbkJ5vNG_kYTTTtOAEN7iyY8VdYlyflD1DYyWiYij0PRlEfJ7rC54I8E_7l95BqGD1RX8fUip3c8DSxnMvarFGABjGUy7KjRi6G8GuqaNOkyhb6yO4-fq0XOlMoUMXzXXQvxEkUogFZU1HLOOvgDXntA2PCu1_UrTq7ZPlOXi1jcdlV3ybpSZ4qJBue3NpnjGCb1h13HtE-jjG1_X3tmeSKPy9cFgRbnye7EB79E5O5uEAyE-BmIDiLL8HXM6cj3OWy2i01up6PlODh-S3mw2NxSCVspNHTho_wJtErD_j1V12y880Z42hw",
@@ -100,7 +100,7 @@ class JwtValidatorFactoryTest {
     void invalidIss() {
         final var now = clock.instant().getEpochSecond();
         final var header = validHeader();
-        final var payload = "{\"test\":true,\"iss\":\"http://yupiik.test/oauth2\",\"sub\":\"yupiik\",\"iat\":" + (now - 1) + ",\"exp\":" + (now + 10) + "}";
+        final var payload = "{\"jti\":\"1\",\"test\":true,\"iss\":\"http://yupiik.test/oauth2\",\"sub\":\"yupiik\",\"iat\":" + (now - 1) + ",\"exp\":" + (now + 10) + "}";
         assertThrows(IllegalArgumentException.class, () -> validate(header, payload));
     }
 
@@ -108,7 +108,7 @@ class JwtValidatorFactoryTest {
     void invalidExp() {
         final var now = clock.instant().getEpochSecond();
         final var header = validHeader();
-        final var payload = "{\"test\":true,\"iss\":\"http://yupiik.test/oauth2/\",\"sub\":\"yupiik\",\"iat\":" + (now - 32) + ",\"exp\":" + (now - 31) + "}";
+        final var payload = "{\"jti\":\"1\",\"test\":true,\"iss\":\"http://yupiik.test/oauth2/\",\"sub\":\"yupiik\",\"iat\":" + (now - 32) + ",\"exp\":" + (now - 31) + "}";
         assertThrows(IllegalArgumentException.class, () -> validate(header, payload));
     }
 
@@ -116,7 +116,7 @@ class JwtValidatorFactoryTest {
     void invalidIat() {
         final var now = clock.instant().getEpochSecond();
         final var header = validHeader();
-        final var payload = "{\"test\":true,\"iss\":\"http://yupiik.test/oauth2/\",\"sub\":\"yupiik\",\"iat\":" + (now + 32) + ",\"exp\":" + (now + 35) + "}";
+        final var payload = "{\"jti\":\"1\",\"test\":true,\"iss\":\"http://yupiik.test/oauth2/\",\"sub\":\"yupiik\",\"iat\":" + (now + 32) + ",\"exp\":" + (now + 35) + "}";
         assertThrows(IllegalArgumentException.class, () -> validate(header, payload));
     }
 
@@ -124,7 +124,7 @@ class JwtValidatorFactoryTest {
     void invalidNbf() {
         final var now = clock.instant().getEpochSecond();
         final var header = validHeader();
-        final var payload = "{\"test\":true,\"iss\":\"http://yupiik.test/oauth2/\",\"sub\":\"yupiik\",\"nbf\":" + (now + 32) + ",\"exp\":" + (now + 35) + "}";
+        final var payload = "{\"jti\":\"1\",\"test\":true,\"iss\":\"http://yupiik.test/oauth2/\",\"sub\":\"yupiik\",\"nbf\":" + (now + 32) + ",\"exp\":" + (now + 35) + "}";
         assertThrows(IllegalArgumentException.class, () -> validate(header, payload));
     }
 
@@ -133,7 +133,7 @@ class JwtValidatorFactoryTest {
     }
 
     private String validPayload(final long now) {
-        return "{\"test\":true,\"iss\":\"http://yupiik.test/oauth2/\",\"sub\":\"yupiik\",\"iat\":" + (now - 1) + ",\"exp\":" + (now + 1) + "}";
+        return "{\"jti\":\"1\",\"test\":true,\"iss\":\"http://yupiik.test/oauth2/\",\"sub\":\"yupiik\",\"iat\":" + (now - 1) + ",\"exp\":" + (now + 1) + "}";
     }
 
     private Jwt validate(final String header, final String payload) throws NoSuchAlgorithmException, InvalidKeyException, SignatureException {

@@ -36,12 +36,13 @@ public record JwtValidatorConfiguration(
         @Property(documentation = "Tolerance for date validation (in seconds).", defaultValue = "30L") long tolerance,
 
         // are exp/iat/nbf required or their absence can be ignored
-        @Property(documentation = "Are `exp` (expiry) validation required of can it be skipped if claim is missing.", defaultValue = "true") boolean expRequired,
-        @Property(documentation = "Are `iat` (issued at) validation required of can it be skipped if claim is missing.", defaultValue = "false") boolean iatRequired,
-        @Property(documentation = "Are `nbf` (not before) validation required of can it be skipped if claim is missing.", defaultValue = "false") boolean nbfRequired,
+        @Property(documentation = "Is `jta` (expiry) validation required of can it be skipped if claim is missing.", defaultValue = "true") boolean jtiRequired,
+        @Property(documentation = "Is `exp` (expiry) validation required of can it be skipped if claim is missing.", defaultValue = "true") boolean expRequired,
+        @Property(documentation = "Is `iat` (issued at) validation required of can it be skipped if claim is missing.", defaultValue = "false") boolean iatRequired,
+        @Property(documentation = "Is `nbf` (not before) validation required of can it be skipped if claim is missing.", defaultValue = "false") boolean nbfRequired,
 
         // if data come from a jwks_uri (openid connect)
-        @Property(documentation = "List of known kids.", defaultValue = "java.util.List.of()") List<JwkKey> keys
+        @Property(documentation = "List of known keys (JWKS).", defaultValue = "java.util.List.of()") List<JwkKey> keys
 ) {
     public JwtValidatorConfiguration {
         // no-op
@@ -49,11 +50,11 @@ public record JwtValidatorConfiguration(
 
     public JwtValidatorConfiguration(final String key, final String algo, final String issuer,
                                      final long tolerance, final boolean expRequired, final boolean iatRequired, final boolean nbfRequired) {
-        this(key, algo, issuer, tolerance, expRequired, iatRequired, nbfRequired, List.of());
+        this(key, algo, issuer, tolerance, false, expRequired, iatRequired, nbfRequired, List.of());
     }
 
     public JwtValidatorConfiguration(final String key, final String algo, final String issuer) {
-        this(key, algo, issuer, 30, true, false, false, List.of());
+        this(key, algo, issuer, 30, false, true, false, false, List.of());
     }
 
     @JsonModel

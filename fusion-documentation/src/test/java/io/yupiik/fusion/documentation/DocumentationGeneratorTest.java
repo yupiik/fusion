@@ -42,8 +42,8 @@ class DocumentationGeneratorTest {
                                 
                 == Configuration
                                 
-                * `jwt.algo` (`JWT_ALGO`) (default: `"RS256"`): JWT `alg` value..
-                * `jwt.expRequired` (`JWT_EXPREQUIRED`) (default: `true`): Are `exp` (expiry) validation required of can it be skipped if claim is missing..""", Files.readString(output));
+                * `jwt.algo` (`JWT_ALGO`) (default: `"RS256"`): JWT `alg` value.
+                * `jwt.expRequired` (`JWT_EXPREQUIRED`) (default: `true`): Are `exp` (expiry) validation required of can it be skipped if claim is missing.""", Files.readString(output));
     }
 
     @Test
