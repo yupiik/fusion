@@ -17,10 +17,13 @@ package io.yupiik.fusion.http.server.impl.flow;
 
 import java.util.Iterator;
 import java.util.concurrent.Flow;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class IteratorSubscription<S> implements Flow.Subscription {
     private final Flow.Subscriber<? super S> subscriber;
     private final Iterator<S> remaining;
+    private final Lock lock = new ReentrantLock();
 
     private volatile boolean cancelled;
 
@@ -30,7 +33,7 @@ public class IteratorSubscription<S> implements Flow.Subscription {
     }
 
     @Override
-    public synchronized void request(final long n) {
+    public void request(final long n) {
         if (n <= 0) {
             throw new IllegalArgumentException("Invalid request: " + n + ", should be > 0");
         }
@@ -38,6 +41,7 @@ public class IteratorSubscription<S> implements Flow.Subscription {
             return;
         }
 
+        lock.lock();
         try {
             long loop = n;
             while (loop > 0 && remaining.hasNext()) {
@@ -49,11 +53,13 @@ public class IteratorSubscription<S> implements Flow.Subscription {
             }
         } catch (final RuntimeException re) {
             subscriber.onError(re);
+        } finally {
+            lock.unlock();
         }
     }
 
     @Override
-    public synchronized void cancel() {
+    public void cancel() {
         cancelled = true;
     }
 }

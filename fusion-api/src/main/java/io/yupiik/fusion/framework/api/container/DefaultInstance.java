@@ -19,11 +19,13 @@ import io.yupiik.fusion.framework.api.Instance;
 import io.yupiik.fusion.framework.api.RuntimeContainer;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class DefaultInstance<T> implements Instance<T> {
     private final FusionBean<T> bean;
     private final RuntimeContainer container;
     private final T instance;
+    private final AtomicBoolean closed = new AtomicBoolean();
     private final List<io.yupiik.fusion.framework.api.Instance<?>> dependencies;
 
     public DefaultInstance(final FusionBean<T> bean, final RuntimeContainer container,
@@ -45,7 +47,10 @@ public class DefaultInstance<T> implements Instance<T> {
     }
 
     @Override
-    public synchronized void close() {
+    public void close() {
+        if (!closed.compareAndSet(false, true)) {
+            return;
+        }
         if (bean != null) {
             bean.destroy(container, instance);
         }

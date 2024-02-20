@@ -164,7 +164,7 @@ public class FusionServlet extends HttpServlet {
                     final var channel = Channels.newChannel(stream);
                     body.subscribe(new Flow.Subscriber<>() {
                         private Flow.Subscription subscription;
-                        private boolean closed = false;
+                        private volatile boolean closed = false;
 
                         @Override
                         public void onSubscribe(final Flow.Subscription subscription) {
@@ -199,16 +199,16 @@ public class FusionServlet extends HttpServlet {
                             doClose();
                         }
 
-                        private synchronized void doClose() {
+                        private void doClose() {
                             if (closed) {
                                 return;
                             }
+                            closed = true;
                             try {
                                 channel.close();
                             } catch (final IOException e) {
                                 logger.log(SEVERE, e, e::getMessage);
                             }
-                            closed = true;
                         }
                     });
                 }

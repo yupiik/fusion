@@ -23,6 +23,8 @@ import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.util.concurrent.Flow;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -34,6 +36,7 @@ public class ServletInputStreamSubscription implements Flow.Subscription, ReadLi
     private final ServletInputStream inputStream;
     private final ReadableByteChannel channel;
     private final Flow.Subscriber<? super ByteBuffer> downstream;
+    private final Lock lock = new ReentrantLock();
 
     private volatile boolean cancelled = false;
     private volatile long requested = 0;
@@ -73,44 +76,64 @@ public class ServletInputStreamSubscription implements Flow.Subscription, ReadLi
     }
 
     @Override
-    public synchronized void onDataAvailable() {
-        readIfPossible();
+    public void onDataAvailable() {
+        lock.lock();
+        try {
+            readIfPossible();
+        } finally {
+            lock.unlock();
+        }
     }
 
     @Override
-    public synchronized void onAllDataRead() {
+    public void onAllDataRead() {
         if (cancelled) {
             return;
         }
-
-        readIfPossible();
-        if (!cancelled) {
-            downstream.onComplete();
-            doClose();
+        lock.lock();
+        try {
+            readIfPossible();
+            if (!cancelled) {
+                downstream.onComplete();
+                doClose();
+            }
+        } finally {
+            lock.unlock();
         }
     }
 
     @Override
-    public synchronized void request(final long n) {
+    public void request(final long n) {
         if (n <= 0) {
             throw new IllegalArgumentException("Invalid request: " + n + ", should be > 0");
         }
         if (cancelled) {
             return;
         }
-        requested += n;
-        readIfPossible();
+        lock.lock();
+        try {
+            requested += n;
+            readIfPossible();
+        } finally {
+            lock.unlock();
+        }
     }
 
     @Override
-    public synchronized void onError(final Throwable throwable) {
+    public void onError(final Throwable throwable) {
         LOGGER.log(Level.SEVERE, throwable, throwable::getMessage);
         if (cancelled) {
             return;
         }
-        doClose();
-        downstream.onError(throwable);
-        cancelled = true;
+
+        lock.lock();
+        try {
+            doClose();
+            downstream.onError(throwable);
+            cancelled = true;
+        } finally {
+            lock.unlock();
+        }
     }
 
     private void doClose() {
@@ -124,7 +147,7 @@ public class ServletInputStreamSubscription implements Flow.Subscription, ReadLi
     }
 
     @Override
-    public synchronized void cancel() {
+    public void cancel() {
         cancelled = true;
     }
 }
