@@ -87,18 +87,30 @@ public class RuntimeContainerImpl implements RuntimeContainer {
             optional = false;
         }
 
-        final var existing = beans.getBeans().get(type);
+        var existing = beans.getBeans().get(type);
         if (existing == null) {
             final var found = slowLookupMatchings.get(type);
             if (found == null) { // slower but wider matching
-                final var matching = beans.getBeans().keySet().stream()
-                        .filter(it -> types.isAssignable(it, type))
+                final var matching = beans.getBeans().entrySet().stream()
+                        .filter(it -> types.isAssignable(it.getKey(), type))
                         .toList();
                 if (matching.size() == 1) {
                     final var exactMatching = matching.get(0);
-                    slowLookupMatchings.put(type, exactMatching);
-                    final var lookup = lookup(exactMatching);
+                    slowLookupMatchings.put(type, exactMatching.getKey());
+                    final var lookup = lookup(exactMatching.getKey());
                     return wrapIfNeeded(optional, lookup);
+                }
+                if (matching.size() > 1) {
+                    existing = matching.stream()
+                            .map(Map.Entry::getValue)
+                            .flatMap(Collection::stream)
+                            .sorted(Comparator.<FusionBean<?>, Integer>comparing(FusionBean::priority).reversed())
+                            .toList();
+                    if (existing.get(1).priority() < existing.get(0).priority()) { // use first bean
+                        final var exactMatching = existing.get(0);
+                        slowLookupMatchings.put(type, exactMatching.type());
+                        return wrapIfNeeded(optional, doGetInstance(optional, (FusionBean<T>) existing.get(0)));
+                    }
                 }
             } else {
                 final var lookup = lookup(found);
