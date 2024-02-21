@@ -18,11 +18,15 @@ package io.yupiik.fusion.cli.internal;
 import io.yupiik.fusion.framework.api.Instance;
 import io.yupiik.fusion.framework.api.RuntimeContainer;
 import io.yupiik.fusion.framework.api.configuration.Configuration;
+import io.yupiik.fusion.framework.api.configuration.MissingRequiredParameterException;
 import io.yupiik.fusion.framework.api.container.DefaultInstance;
 
 import java.util.List;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+
+import static java.util.Comparator.comparing;
+import static java.util.stream.Collectors.joining;
 
 public class BaseCliCommand<CF, C extends Runnable> implements CliCommand<C> {
     private final String name;
@@ -59,10 +63,26 @@ public class BaseCliCommand<CF, C extends Runnable> implements CliCommand<C> {
 
     @Override
     public Instance<C> create(final Configuration configuration, final List<Instance<?>> dependents) {
-        return new DefaultInstance<>(
-                null, null,
-                constructor.apply(configurationProvider.apply(configuration), dependents),
-                dependents);
+        final C conf;
+        try {
+            conf = constructor.apply(configurationProvider.apply(configuration), dependents);
+        } catch (final
+        MissingRequiredParameterException missingRequiredParameterException) { // "No value for 'xxx.xxx'"
+            final var rewritten = new MissingRequiredParameterException(
+                    // format as an option and not a config/system prop
+                    missingRequiredParameterException.getMessage().replace(" '", " '--").replace('.', '-') +
+                            formatLightHelp());
+            rewritten.setStackTrace(new StackTraceElement[0]);
+            throw rewritten;
+        }
+        return new DefaultInstance<>(null, null, conf, dependents);
+    }
+
+    private String formatLightHelp() {
+        return parameters.isEmpty() ? "" : ('\n' + parameters.stream()
+                .sorted(comparing(Parameter::cliName))
+                .map(p -> p.cliName() + ": " + p.description())
+                .collect(joining("\n", "Available parameters:\n", "\n")));
     }
 
     public static class ContainerBaseCliCommand<CF, C extends Runnable> extends BaseCliCommand<CF, C> {
