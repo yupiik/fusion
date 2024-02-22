@@ -22,6 +22,7 @@ import io.yupiik.fusion.framework.api.container.context.subclass.DelegatingConte
 import io.yupiik.fusion.framework.api.scope.ApplicationScoped;
 import io.yupiik.fusion.framework.api.scope.DefaultScoped;
 import io.yupiik.fusion.framework.build.api.cli.Command;
+import io.yupiik.fusion.framework.build.api.configuration.Property;
 import io.yupiik.fusion.framework.build.api.configuration.RootConfiguration;
 import io.yupiik.fusion.framework.build.api.container.LazyContext;
 import io.yupiik.fusion.framework.build.api.event.OnEvent;
@@ -118,6 +119,7 @@ import static java.util.stream.Collectors.toMap;
 import static java.util.stream.Collectors.toSet;
 import static javax.lang.model.element.ElementKind.CLASS;
 import static javax.lang.model.element.ElementKind.ENUM;
+import static javax.lang.model.element.ElementKind.ENUM_CONSTANT;
 import static javax.lang.model.element.ElementKind.METHOD;
 import static javax.lang.model.element.ElementKind.PACKAGE;
 import static javax.lang.model.element.ElementKind.RECORD;
@@ -793,12 +795,23 @@ public class InternalFusionProcessor extends AbstractProcessor {
                         processingEnv, elements, names.packageName(), names.className(), element.asType()).get();
                 writeGeneratedClass(element, generation);
                 allBeans.add(generation.name());
-                allJsonSchemas.put(names.packageName() + '.' + names.className(),
+
+                final var descriptions = element.getEnclosedElements().stream()
+                        .filter(e -> e.getKind() == ENUM_CONSTANT)
+                        .map(it -> ofNullable(it.getAnnotation(Property.class))
+                                .map(Property::documentation)
+                                .filter(Predicate.not(String::isBlank))
+                                .map(d -> "`" + it.getSimpleName().toString() + "`: " + d)
+                                .orElse(null))
+                        .filter(Objects::nonNull)
+                        .collect(joining(", "));
+                allJsonSchemas.put(names.packageName() + '.' + names.className().replace('$', '.'),
                         new GeneratedJsonSchema(
                                 new JsonSchema(
                                         null, null,
                                         "string", true,
-                                        null, null, null, null, null, null, null,
+                                        null, null, null, null, null, null,
+                                        descriptions.isBlank() ? null : descriptions,
                                         ParsedType.of(element.asType()).enumValues()),
                                 null));
                 return;

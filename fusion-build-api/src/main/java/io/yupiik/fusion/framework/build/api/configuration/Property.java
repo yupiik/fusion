@@ -18,13 +18,17 @@ package io.yupiik.fusion.framework.build.api.configuration;
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 
+import static java.lang.annotation.ElementType.FIELD;
 import static java.lang.annotation.ElementType.PARAMETER;
 import static java.lang.annotation.RetentionPolicy.SOURCE;
 
 /**
  * Customize a configuration class.
  */
-@Target(PARAMETER)
+@Target({
+        PARAMETER, // records, standard case
+        FIELD // for enums only
+})
 @Retention(SOURCE)
 public @interface Property {
     String NO_VALUE = "io.yupiik.fusion.framework.build.api.configuration.Property.NO_VALUE";

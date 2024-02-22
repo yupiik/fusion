@@ -34,7 +34,8 @@ public class Beans {
     public void doRegister(final FusionBean<?>... beans) {
         Stream.of(beans)
                 .collect(groupingBy(FusionBean::type))
-                .forEach((key, list) -> this.beans.compute(key, (k, previous) -> previous == null ? list : Stream.concat(previous.stream(), list.stream())
+                .forEach((key, list) -> this.beans.compute(key, (k, previous) -> (previous == null ?
+                        list.stream() : Stream.concat(previous.stream(), list.stream()))
                         .sorted(Comparator.<FusionBean<?>, Integer>comparing(FusionBean::priority).reversed())
                         .toList()));
     }
