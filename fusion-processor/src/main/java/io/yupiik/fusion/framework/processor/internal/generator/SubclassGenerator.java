@@ -123,7 +123,10 @@ public class SubclassGenerator extends BaseGenerator implements Supplier<BaseGen
                             !modifiers.contains(ABSTRACT) &&
                             !modifiers.contains(DEFAULT) /*more for later for interfaces*/ &&
                             // other methods can't be subclasses/overriden like this
-                            (modifiers.contains(PUBLIC) || modifiers.contains(PROTECTED));
+                            (modifiers.contains(PUBLIC) ||
+                                    (modifiers.contains(PROTECTED) &&
+                                            m.getEnclosingElement() instanceof TypeElement te &&
+                                            te.getQualifiedName().contentEquals(typeElement.getQualifiedName())));
                 })
                 .map(m -> {
                     // note: if we start supporting interceptors,
