@@ -18,6 +18,7 @@ package io.yupiik.fusion.json.schema.validation;
 import io.yupiik.fusion.json.schema.validation.spi.ValidationContext;
 import io.yupiik.fusion.json.schema.validation.spi.ValidationExtension;
 import io.yupiik.fusion.json.schema.validation.spi.builtin.ContainsValidation;
+import io.yupiik.fusion.json.schema.validation.spi.builtin.DateTimeFormatValidation;
 import io.yupiik.fusion.json.schema.validation.spi.builtin.EnumValidation;
 import io.yupiik.fusion.json.schema.validation.spi.builtin.ExclusiveMaximumValidation;
 import io.yupiik.fusion.json.schema.validation.spi.builtin.ExclusiveMinimumValidation;
@@ -102,7 +103,8 @@ public class JsonSchemaValidatorFactory implements AutoCloseable {
                 new UniqueItemsValidation(),
                 new ContainsValidation(this),
                 new MaxPropertiesValidation(),
-                new MinPropertiesValidation()
+                new MinPropertiesValidation(),
+                new DateTimeFormatValidation()
                 // TODO: dependencies, propertyNames, if/then/else, allOf/anyOf/oneOf/not,
                 //       format validations
         );

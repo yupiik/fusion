@@ -725,6 +725,35 @@ class JsonSchemaValidatorFactoryTest {
         validator.close();
     }
 
+    @Test
+    void dateTimeFormatValues() {
+        final var validator = FACTORY.newInstance(INSTANCE_FACTORY.createObjectBuilder()
+                .add("type", "object")
+                .add("properties", INSTANCE_FACTORY.createObjectBuilder()
+                        .add("name", INSTANCE_FACTORY.createObjectBuilder()
+                                .add("type", "string")
+                                .add("format", "date-time")
+                                .build())
+                        .build())
+                .build());
+
+        final var success_with_tz = validator.apply(INSTANCE_FACTORY.createObjectBuilder().add("name", "2007-12-03T10:15:30.00Z").build());
+        assertTrue(success_with_tz.isSuccess(), success_with_tz.errors()::toString);
+
+        final var success_with_offset = validator.apply(INSTANCE_FACTORY.createObjectBuilder().add("name", "2018-11-13T20:20:39+00:00").build());
+        assertTrue(success_with_offset.isSuccess(), success_with_offset.errors()::toString);
+
+        final var failure = validator.apply(INSTANCE_FACTORY.createObjectBuilder().add("name", "a").build());
+        assertFalse(failure.isSuccess());
+        final var errors = failure.errors();
+        assertEquals(1, errors.size());
+        final var error = errors.iterator().next();
+        assertEquals("/name", error.field());
+        assertEquals("a is not a DateTime format", error.message());
+
+        validator.close();
+    }
+
     private static class Factory { // bridge to not rewrite all johnzon's tests
         private MapBuilder createObjectBuilder() {
             return new MapBuilder();
