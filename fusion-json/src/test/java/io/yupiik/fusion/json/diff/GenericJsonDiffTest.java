@@ -20,6 +20,8 @@ import io.yupiik.fusion.json.patch.JsonPatchOperation;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -28,8 +30,22 @@ import static io.yupiik.fusion.json.patch.JsonPatchOperation.Operation.add;
 import static io.yupiik.fusion.json.patch.JsonPatchOperation.Operation.remove;
 import static io.yupiik.fusion.json.patch.JsonPatchOperation.Operation.replace;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 
 class GenericJsonDiffTest {
+    @Test
+    public void nullDiff() {
+        final var list = new ArrayList<>();
+        list.add(null);
+        final var patch = List.of(new JsonPatchOperation(add, "/testEmpty/0", null, null));
+        final var target = Map.of("testEmpty", list);
+        final var from = Map.of("testEmpty", List.of());
+        assertDiff(from, target, patch);
+        final var patched = new GenericJsonPatch(patch).apply(from);
+        assertEquals(target, patched);
+        assertNotSame(patched, target);
+    }
+
     @Test
     public void fromEmptyArray() {
         assertDiff(

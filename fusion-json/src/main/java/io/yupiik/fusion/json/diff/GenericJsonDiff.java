@@ -20,6 +20,7 @@ import io.yupiik.fusion.json.patch.JsonPatchOperation;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Stream;
 
 import static io.yupiik.fusion.json.patch.JsonPatchOperation.Operation.add;
@@ -54,7 +55,7 @@ public class GenericJsonDiff {
             diffJsonObjects(patchBuilder, basePath + "/", (Map<String, ?>) src, (Map<String, ?>) tg);
         } else if (source instanceof List<?> l1 && target instanceof List<?> l2) {
             diffJsonArray(patchBuilder, basePath + "/", l1, l2);
-        } else if (!source.equals(target)) {
+        } else if (!Objects.equals(source, target)) {
             patchBuilder.add(new JsonPatchOperation(replace, basePath, null, target));
         }
     }
