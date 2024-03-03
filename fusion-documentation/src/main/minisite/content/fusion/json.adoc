@@ -156,15 +156,16 @@ public class MyService {
                           ...
                         }
                       """); <1>
-        final JsonSchemaValidatorFactory factory = new JsonSchemaValidatorFactory();
-        final JsonSchemaValidator validator = factory.newInstance((Map<String, Object>) schema); <2>
-        final var result = validator.apply(myModel); <3>
+        final JsonSchemaValidatorFactory factory = new JsonSchemaValidatorFactory(); <2>
+        final JsonSchemaValidator validator = factory.newInstance((Map<String, Object>) schema); <3>
+        final var result = validator.apply(myModel); <4>
         validator.close();
-        return result.isSuccess(); <4>
+        return result.isSuccess(); <5>
     }
 }
 ----
 <.> use the `jsonMapper` to load the json schema you want to use,
+<.> the factory instance can be reuse and is thread safe,
 <.> create a validator from the json schema loaded,
 <.> apply the validator to the input model object,
 <.> result of the validation.
