@@ -21,6 +21,7 @@ import io.yupiik.fusion.tracing.span.Span;
 import jakarta.servlet.AsyncEvent;
 import jakarta.servlet.AsyncListener;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.catalina.LifecycleException;
 import org.apache.catalina.connector.Request;
@@ -33,7 +34,7 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.function.LongFunction;
+import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
 import static java.util.Objects.requireNonNull;
@@ -94,10 +95,7 @@ public class TracingValve extends ValveBase {
 
         final var id = idGenerator.get();
         final var traceId = traceTrace != null ? traceTrace : idGenerator.get();
-        final LongFunction<Span> spanFn = duration -> new Span(
-                traceId, spanTrace, id, configuration.getOperation(), "SERVER",
-                TimeUnit.MILLISECONDS.toMicros(start.toEpochMilli()),
-                duration, localEndpoint, null, tags, null, null, null);
+        final BiFunction<HttpServletRequest, Long, Span> spanFn = (req, duration) -> toSpan(req, traceId, spanTrace, id, start, duration, localEndpoint, tags);
 
         request.setAttribute(PendingSpan.class.getName(), new PendingSpan(traceId, id));
         try {
@@ -109,7 +107,7 @@ public class TracingValve extends ValveBase {
             if (request.isAsyncStarted()) {
                 request.getAsyncContext().addListener(new AsyncListener() {
                     private void status(final AsyncEvent event) {
-                        collectSpan(finish((HttpServletResponse) event.getSuppliedResponse(), spanFn, start));
+                        collectSpan(finish((HttpServletRequest) event.getSuppliedRequest(), (HttpServletResponse) event.getSuppliedResponse(), spanFn, start));
                     }
 
                     @Override
@@ -135,9 +133,19 @@ public class TracingValve extends ValveBase {
                     }
                 });
             } else {
-                collectSpan(finish(response, spanFn, start));
+                collectSpan(finish(request, response, spanFn, start));
             }
         }
+    }
+
+    protected Span toSpan(final HttpServletRequest request,
+                          final Object traceId, final String spanTrace, final Object id,
+                          final Instant start, final long duration,
+                          final Span.Endpoint localEndpoint, final Map<String, Object> tags) {
+        return new Span(
+                traceId, spanTrace, id, configuration.getOperation(), "SERVER",
+                TimeUnit.MILLISECONDS.toMicros(start.toEpochMilli()),
+                duration, localEndpoint, null, tags, null, null, null);
     }
 
     protected void addErrorTag(final Map<String, Object> tags, final Throwable throwable) {
@@ -146,9 +154,10 @@ public class TracingValve extends ValveBase {
                 (throwable.getMessage() == null ? throwable.getClass().getName() : throwable.getMessage()));
     }
 
-    protected Span finish(final HttpServletResponse response, final LongFunction<Span> spanFn, final Instant start) {
+    protected Span finish(final HttpServletRequest request, final HttpServletResponse response,
+                          final BiFunction<HttpServletRequest, Long, Span> spanFn, final Instant start) {
         final var end = clock.instant();
-        final var span = spanFn.apply(TimeUnit.MILLISECONDS.toMicros(end.minusMillis(start.toEpochMilli()).toEpochMilli()));
+        final var span = spanFn.apply(request, TimeUnit.MILLISECONDS.toMicros(end.minusMillis(start.toEpochMilli()).toEpochMilli()));
         span.tags().putIfAbsent("http.status", Integer.toString(response.getStatus()));
         return span;
     }
