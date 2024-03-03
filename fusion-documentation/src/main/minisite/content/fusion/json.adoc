@@ -132,3 +132,49 @@ final var object = Map.of("foo", "bar");
 final var patched = patch.apply(object);
 // patched={"foo":"bar","baz":"qux"}
 ----
+
+== Json Schema Validator
+
+The Json Schema Validator can be used to validate a json content according to a json-schema (https://json-schema.org/understanding-json-schema/reference).
+
+[source,java]
+----
+@Bean
+public class MyService {
+
+    @Injection
+    JsonMapper mapper;
+
+    public boolean validate(final MyModel myModel) throws IOException {
+        final var schema = jsonMapper.fromString(Object.class,
+                """
+                        {
+                          "$id": "https://spec.openapis.org/oas/3.1/schema/2022-10-07",
+                          "$schema": "https://json-schema.org/draft/2020-12/schema",
+                          "description": "The description of OpenAPI v3.1.x documents without schema validation, as defined by https://spec.openapis.org/oas/v3.1.0",
+                          "type": "object"
+                          ...
+                        }
+                      """); <1>
+        final JsonSchemaValidatorFactory factory = new JsonSchemaValidatorFactory(); <2>
+        final JsonSchemaValidator validator = factory.newInstance((Map<String, Object>) schema); <3>
+        final var result = validator.apply(myModel); <4>
+        validator.close();
+        return result.isSuccess(); <5>
+    }
+}
+----
+<.> use the `jsonMapper` to load the json schema you want to use,
+<.> the factory instance can be reuse and is thread safe,
+<.> create a validator from the json schema loaded,
+<.> apply the validator to the input model object,
+<.> result of the validation.
+
+If the validation failed, the result object of the apply method will contain a list of the messages for each validation check:
+
+[source,java]
+----
+final var result = validator.apply(myModel);
+final var error = result.errors().iterator().next();
+logger.info("Error on field '" + error.field() + "' " + error.message());
+----
