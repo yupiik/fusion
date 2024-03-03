@@ -20,17 +20,18 @@ import io.yupiik.fusion.json.schema.validation.spi.ValidationContext;
 import io.yupiik.fusion.json.schema.validation.spi.ValidationExtension;
 import io.yupiik.fusion.json.schema.validation.spi.builtin.type.TypeFilter;
 
-import java.time.OffsetDateTime;
+import java.time.OffsetTime;
 import java.time.format.DateTimeParseException;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-public class DateTimeFormatValidation implements ValidationExtension {
+public class JsonPointerFormatValidation implements ValidationExtension {
+
     @Override
     public Optional<Function<Object, Stream<ValidationResult.ValidationError>>> create(final ValidationContext model) {
-        if ("string".equals(model.schema().get("type")) && "date-time".equals(model.schema().get("format"))) {
-            return Optional.of(new DateTimeFormatValidation.Impl(model.toPointer(), model.valueProvider()));
+        if ("string".equals(model.schema().get("type")) && "json-pointer".equals(model.schema().get("format"))) {
+            return Optional.of(new JsonPointerFormatValidation.Impl(model.toPointer(), model.valueProvider()));
         }
         return Optional.empty();
     }
@@ -43,17 +44,21 @@ public class DateTimeFormatValidation implements ValidationExtension {
 
         @Override
         protected Stream<ValidationResult.ValidationError> onString(final String value) {
-            try {
-                OffsetDateTime.parse(value);
-                return Stream.empty();
-            } catch (DateTimeParseException exception) {
-                return Stream.of(new ValidationResult.ValidationError(pointer, value + " is not a DateTime format"));
+            if (!value.isEmpty() && value.charAt(0) != '/') {
+                return Stream.of(new ValidationResult.ValidationError(pointer, value + " is not a JsonPointer format"));
             }
+            int index = 0;
+            while ((index = value.indexOf('~')) > 0) {
+                if (index == value.length() - 1 || !(value.charAt(index+1) == '0' || value.charAt(index + 1) == '1')) {
+                    return Stream.of(new ValidationResult.ValidationError(pointer, value + " is not a JsonPointer format"));
+                }
+            }
+            return Stream.empty();
         }
 
         @Override
         public String toString() {
-            return "DateTimeFormat{" +
+            return "JsonPointerFormat{" +
                     "pointer='" + pointer + '\'' +
                     '}';
         }

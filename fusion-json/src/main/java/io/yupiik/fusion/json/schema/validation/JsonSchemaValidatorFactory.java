@@ -18,12 +18,19 @@ package io.yupiik.fusion.json.schema.validation;
 import io.yupiik.fusion.json.schema.validation.spi.ValidationContext;
 import io.yupiik.fusion.json.schema.validation.spi.ValidationExtension;
 import io.yupiik.fusion.json.schema.validation.spi.builtin.ContainsValidation;
+import io.yupiik.fusion.json.schema.validation.spi.builtin.DateFormatValidation;
 import io.yupiik.fusion.json.schema.validation.spi.builtin.DateTimeFormatValidation;
+import io.yupiik.fusion.json.schema.validation.spi.builtin.DurationFormatValidation;
+import io.yupiik.fusion.json.schema.validation.spi.builtin.EmailFormatValidation;
 import io.yupiik.fusion.json.schema.validation.spi.builtin.EnumValidation;
 import io.yupiik.fusion.json.schema.validation.spi.builtin.ExclusiveMaximumValidation;
 import io.yupiik.fusion.json.schema.validation.spi.builtin.ExclusiveMinimumValidation;
+import io.yupiik.fusion.json.schema.validation.spi.builtin.HostnameFormatValidation;
+import io.yupiik.fusion.json.schema.validation.spi.builtin.IPv4FormatValidation;
+import io.yupiik.fusion.json.schema.validation.spi.builtin.IPv6FormatValidation;
 import io.yupiik.fusion.json.schema.validation.spi.builtin.IntegerValidation;
 import io.yupiik.fusion.json.schema.validation.spi.builtin.ItemsValidation;
+import io.yupiik.fusion.json.schema.validation.spi.builtin.JsonPointerFormatValidation;
 import io.yupiik.fusion.json.schema.validation.spi.builtin.MaxItemsValidation;
 import io.yupiik.fusion.json.schema.validation.spi.builtin.MaxLengthValidation;
 import io.yupiik.fusion.json.schema.validation.spi.builtin.MaxPropertiesValidation;
@@ -34,9 +41,13 @@ import io.yupiik.fusion.json.schema.validation.spi.builtin.MinPropertiesValidati
 import io.yupiik.fusion.json.schema.validation.spi.builtin.MinimumValidation;
 import io.yupiik.fusion.json.schema.validation.spi.builtin.MultipleOfValidation;
 import io.yupiik.fusion.json.schema.validation.spi.builtin.PatternValidation;
+import io.yupiik.fusion.json.schema.validation.spi.builtin.RegexFormatValidation;
 import io.yupiik.fusion.json.schema.validation.spi.builtin.RequiredValidation;
+import io.yupiik.fusion.json.schema.validation.spi.builtin.TimeFormatValidation;
 import io.yupiik.fusion.json.schema.validation.spi.builtin.TypeValidation;
+import io.yupiik.fusion.json.schema.validation.spi.builtin.UUIDFormatValidation;
 import io.yupiik.fusion.json.schema.validation.spi.builtin.UniqueItemsValidation;
+import io.yupiik.fusion.json.schema.validation.spi.builtin.UriFormatValidation;
 import io.yupiik.fusion.json.schema.validation.spi.builtin.regex.JavaRegex;
 import io.yupiik.fusion.json.schema.validation.spi.builtin.type.TypeFilter;
 
@@ -104,7 +115,18 @@ public class JsonSchemaValidatorFactory implements AutoCloseable {
                 new ContainsValidation(this),
                 new MaxPropertiesValidation(),
                 new MinPropertiesValidation(),
-                new DateTimeFormatValidation()
+                new DateTimeFormatValidation(),
+                new DateFormatValidation(),
+                new TimeFormatValidation(),
+                new DurationFormatValidation(),
+                new EmailFormatValidation(regexFactory.get()),
+                new HostnameFormatValidation(regexFactory.get()),
+                new IPv4FormatValidation(),
+                new IPv6FormatValidation(),
+                new UUIDFormatValidation(),
+                new UriFormatValidation(regexFactory.get()),
+                new RegexFormatValidation(),
+                new JsonPointerFormatValidation()
                 // TODO: dependencies, propertyNames, if/then/else, allOf/anyOf/oneOf/not,
                 //       format validations
         );

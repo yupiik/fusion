@@ -20,17 +20,18 @@ import io.yupiik.fusion.json.schema.validation.spi.ValidationContext;
 import io.yupiik.fusion.json.schema.validation.spi.ValidationExtension;
 import io.yupiik.fusion.json.schema.validation.spi.builtin.type.TypeFilter;
 
-import java.time.OffsetDateTime;
-import java.time.format.DateTimeParseException;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 import java.util.stream.Stream;
 
-public class DateTimeFormatValidation implements ValidationExtension {
+public class RegexFormatValidation implements ValidationExtension {
+
     @Override
     public Optional<Function<Object, Stream<ValidationResult.ValidationError>>> create(final ValidationContext model) {
-        if ("string".equals(model.schema().get("type")) && "date-time".equals(model.schema().get("format"))) {
-            return Optional.of(new DateTimeFormatValidation.Impl(model.toPointer(), model.valueProvider()));
+        if ("string".equals(model.schema().get("type")) && "regex".equals(model.schema().get("format"))) {
+            return Optional.of(new RegexFormatValidation.Impl(model.toPointer(), model.valueProvider()));
         }
         return Optional.empty();
     }
@@ -44,16 +45,16 @@ public class DateTimeFormatValidation implements ValidationExtension {
         @Override
         protected Stream<ValidationResult.ValidationError> onString(final String value) {
             try {
-                OffsetDateTime.parse(value);
+                Pattern.compile(value);
                 return Stream.empty();
-            } catch (DateTimeParseException exception) {
-                return Stream.of(new ValidationResult.ValidationError(pointer, value + " is not a DateTime format"));
+            } catch (PatternSyntaxException exception) {
+                return Stream.of(new ValidationResult.ValidationError(pointer, value + " is not a Regex format"));
             }
         }
 
         @Override
         public String toString() {
-            return "DateTimeFormat{" +
+            return "RegexFormat{" +
                     "pointer='" + pointer + '\'' +
                     '}';
         }

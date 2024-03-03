@@ -15,8 +15,12 @@
  */
 package io.yupiik.fusion.json.schema.validation;
 
+import io.yupiik.fusion.json.JsonMapper;
+import io.yupiik.fusion.json.internal.JsonMapperImpl;
+import io.yupiik.fusion.json.pretty.PrettyJsonMapper;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
@@ -753,6 +757,357 @@ class JsonSchemaValidatorFactoryTest {
 
         validator.close();
     }
+
+    @Test
+    void dateFormatValues() {
+        final var validator = FACTORY.newInstance(INSTANCE_FACTORY.createObjectBuilder()
+                .add("type", "object")
+                .add("properties", INSTANCE_FACTORY.createObjectBuilder()
+                        .add("name", INSTANCE_FACTORY.createObjectBuilder()
+                                .add("type", "string")
+                                .add("format", "date")
+                                .build())
+                        .build())
+                .build());
+
+        final var success = validator.apply(INSTANCE_FACTORY.createObjectBuilder().add("name", "2023-01-26").build());
+        assertTrue(success.isSuccess(), success.errors()::toString);
+
+        final var failure = validator.apply(INSTANCE_FACTORY.createObjectBuilder().add("name", "a").build());
+        assertFalse(failure.isSuccess());
+        final var errors = failure.errors();
+        assertEquals(1, errors.size());
+        final var error = errors.iterator().next();
+        assertEquals("/name", error.field());
+        assertEquals("a is not a Date format", error.message());
+
+        validator.close();
+    }
+
+    @Test
+    void timeFormatValues() {
+        final var validator = FACTORY.newInstance(INSTANCE_FACTORY.createObjectBuilder()
+                .add("type", "object")
+                .add("properties", INSTANCE_FACTORY.createObjectBuilder()
+                        .add("name", INSTANCE_FACTORY.createObjectBuilder()
+                                .add("type", "string")
+                                .add("format", "time")
+                                .build())
+                        .build())
+                .build());
+
+        final var success = validator.apply(INSTANCE_FACTORY.createObjectBuilder().add("name", "20:20:39+00:00").build());
+        assertTrue(success.isSuccess(), success.errors()::toString);
+
+        final var failure = validator.apply(INSTANCE_FACTORY.createObjectBuilder().add("name", "a").build());
+        assertFalse(failure.isSuccess());
+        final var errors = failure.errors();
+        assertEquals(1, errors.size());
+        final var error = errors.iterator().next();
+        assertEquals("/name", error.field());
+        assertEquals("a is not a Time format", error.message());
+
+        validator.close();
+    }
+
+    @Test
+    void durationFormatValues() {
+        final var validator = FACTORY.newInstance(INSTANCE_FACTORY.createObjectBuilder()
+                .add("type", "object")
+                .add("properties", INSTANCE_FACTORY.createObjectBuilder()
+                        .add("name", INSTANCE_FACTORY.createObjectBuilder()
+                                .add("type", "string")
+                                .add("format", "duration")
+                                .build())
+                        .build())
+                .build());
+
+        final var success = validator.apply(INSTANCE_FACTORY.createObjectBuilder().add("name", "P3D").build());
+        assertTrue(success.isSuccess(), success.errors()::toString);
+
+        final var failure = validator.apply(INSTANCE_FACTORY.createObjectBuilder().add("name", "a").build());
+        assertFalse(failure.isSuccess());
+        final var errors = failure.errors();
+        assertEquals(1, errors.size());
+        final var error = errors.iterator().next();
+        assertEquals("/name", error.field());
+        assertEquals("a is not a Duration format", error.message());
+
+        validator.close();
+    }
+
+    @Test
+    void emailFormatValues() {
+        final var validator = FACTORY.newInstance(INSTANCE_FACTORY.createObjectBuilder()
+                .add("type", "object")
+                .add("properties", INSTANCE_FACTORY.createObjectBuilder()
+                        .add("name", INSTANCE_FACTORY.createObjectBuilder()
+                                .add("type", "string")
+                                .add("format", "email")
+                                .build())
+                        .build())
+                .build());
+
+        final var success = validator.apply(INSTANCE_FACTORY.createObjectBuilder().add("name", "obiwan.kenobi@jedi.org").build());
+        assertTrue(success.isSuccess(), success.errors()::toString);
+
+        final var failure = validator.apply(INSTANCE_FACTORY.createObjectBuilder().add("name", "a.org").build());
+        assertFalse(failure.isSuccess());
+        final var errors = failure.errors();
+        assertEquals(1, errors.size());
+        final var error = errors.iterator().next();
+        assertEquals("/name", error.field());
+        assertEquals("a.org is not an Email format", error.message());
+
+        final var failure2 = validator.apply(INSTANCE_FACTORY.createObjectBuilder().add("name", "a@test").build());
+        assertFalse(failure2.isSuccess());
+        final var errors2 = failure2.errors();
+        assertEquals(1, errors2.size());
+        final var error2 = errors2.iterator().next();
+        assertEquals("/name", error2.field());
+        assertEquals("a@test is not an Email format", error2.message());
+
+        validator.close();
+    }
+
+    @Test
+    void hostnameFormatValues() {
+        final var validator = FACTORY.newInstance(INSTANCE_FACTORY.createObjectBuilder()
+                .add("type", "object")
+                .add("properties", INSTANCE_FACTORY.createObjectBuilder()
+                        .add("name", INSTANCE_FACTORY.createObjectBuilder()
+                                .add("type", "string")
+                                .add("format", "hostname")
+                                .build())
+                        .build())
+                .build());
+
+        Stream.of(
+                "www.yupiik.io",
+                "oss.yupiik.io").forEach(
+                hostname -> {
+                    final var success = validator.apply(INSTANCE_FACTORY.createObjectBuilder().add("name", hostname).build());
+                    assertTrue(success.isSuccess(), success.errors()::toString);
+                }
+        );
+
+        Stream.of(
+                ".org",
+                "#@$test .tst.not").forEach(
+                hostname -> {
+                    final var failure = validator.apply(INSTANCE_FACTORY.createObjectBuilder().add("name", ".org").build());
+                    assertFalse(failure.isSuccess());
+                    final var errors = failure.errors();
+                    assertEquals(1, errors.size());
+                    final var error = errors.iterator().next();
+                    assertEquals("/name", error.field());
+                    assertEquals(".org is not a Hostname format", error.message());
+                }
+        );
+
+
+
+        final var failure2 = validator.apply(INSTANCE_FACTORY.createObjectBuilder().add("name", "#@$test .tst.not").build());
+        assertFalse(failure2.isSuccess());
+        final var errors2 = failure2.errors();
+        assertEquals(1, errors2.size());
+        final var error2 = errors2.iterator().next();
+        assertEquals("/name", error2.field());
+        assertEquals("#@$test .tst.not is not a Hostname format", error2.message());
+
+        validator.close();
+    }
+
+    @Test
+    void ipv4FormatValues() {
+        final var validator = FACTORY.newInstance(INSTANCE_FACTORY.createObjectBuilder()
+                .add("type", "object")
+                .add("properties", INSTANCE_FACTORY.createObjectBuilder()
+                        .add("name", INSTANCE_FACTORY.createObjectBuilder()
+                                .add("type", "string")
+                                .add("format", "ipv4")
+                                .build())
+                        .build())
+                .build());
+
+        final var success = validator.apply(INSTANCE_FACTORY.createObjectBuilder().add("name", "127.0.0.1").build());
+        assertTrue(success.isSuccess(), success.errors()::toString);
+
+        final var failure = validator.apply(INSTANCE_FACTORY.createObjectBuilder().add("name", "a").build());
+        assertFalse(failure.isSuccess());
+        final var errors = failure.errors();
+        assertEquals(1, errors.size());
+        final var error = errors.iterator().next();
+        assertEquals("/name", error.field());
+        assertEquals("a is not a IPv4 format", error.message());
+
+        validator.close();
+    }
+
+    @Test
+    void ipv6FormatValues() {
+        final var validator = FACTORY.newInstance(INSTANCE_FACTORY.createObjectBuilder()
+                .add("type", "object")
+                .add("properties", INSTANCE_FACTORY.createObjectBuilder()
+                        .add("name", INSTANCE_FACTORY.createObjectBuilder()
+                                .add("type", "string")
+                                .add("format", "ipv6")
+                                .build())
+                        .build())
+                .build());
+
+        final var success = validator.apply(INSTANCE_FACTORY.createObjectBuilder().add("name", "001:0db8:0000:85a3:0000:0000:ac1f:8001").build());
+        assertTrue(success.isSuccess(), success.errors()::toString);
+
+        final var failure = validator.apply(INSTANCE_FACTORY.createObjectBuilder().add("name", "a").build());
+        assertFalse(failure.isSuccess());
+        final var errors = failure.errors();
+        assertEquals(1, errors.size());
+        final var error = errors.iterator().next();
+        assertEquals("/name", error.field());
+        assertEquals("a is not a IPv6 format", error.message());
+
+        validator.close();
+    }
+
+    @Test
+    void uuidFormatValues() {
+        final var validator = FACTORY.newInstance(INSTANCE_FACTORY.createObjectBuilder()
+                .add("type", "object")
+                .add("properties", INSTANCE_FACTORY.createObjectBuilder()
+                        .add("name", INSTANCE_FACTORY.createObjectBuilder()
+                                .add("type", "string")
+                                .add("format", "uuid")
+                                .build())
+                        .build())
+                .build());
+
+        final var success = validator.apply(INSTANCE_FACTORY.createObjectBuilder().add("name", "3e4666bf-d5e5-4aa7-b8ce-cefe41c7568a").build());
+        assertTrue(success.isSuccess(), success.errors()::toString);
+
+        final var failure = validator.apply(INSTANCE_FACTORY.createObjectBuilder().add("name", "a").build());
+        assertFalse(failure.isSuccess());
+        final var errors = failure.errors();
+        assertEquals(1, errors.size());
+        final var error = errors.iterator().next();
+        assertEquals("/name", error.field());
+        assertEquals("a is not a UUID format", error.message());
+
+        validator.close();
+    }
+
+    @Test
+    void uriFormatValues() {
+        final var validator = FACTORY.newInstance(INSTANCE_FACTORY.createObjectBuilder()
+                .add("type", "object")
+                .add("properties", INSTANCE_FACTORY.createObjectBuilder()
+                        .add("name", INSTANCE_FACTORY.createObjectBuilder()
+                                .add("type", "string")
+                                .add("format", "uri")
+                                .build())
+                        .build())
+                .build());
+
+        Stream.of(
+                "http://www.yupiik.io/fusion/",
+                "https://www.yupiik.io/fusion/",
+                "https://user:password@www.yupiik.io/fusion/index.html#anchor",
+                "ftp://user:password@www.yupiik.io/fusion/",
+                "sftp://www.yupiik.io/fusion/",
+                "file://fusion").forEach(
+                        uri -> {
+                            final var success = validator.apply(INSTANCE_FACTORY.createObjectBuilder().add("name", uri).build());
+                            assertTrue(success.isSuccess(), success.errors()::toString);
+                        }
+        );
+
+        final var failure = validator.apply(INSTANCE_FACTORY.createObjectBuilder().add("name", "http:context/nowhere.com").build());
+        assertFalse(failure.isSuccess());
+        final var errors = failure.errors();
+        assertEquals(1, errors.size());
+        final var error = errors.iterator().next();
+        assertEquals("/name", error.field());
+        assertEquals("http:context/nowhere.com is not a Uri format", error.message());
+
+        validator.close();
+    }
+
+    @Test
+    void regexFormatValues() {
+        final var validator = FACTORY.newInstance(INSTANCE_FACTORY.createObjectBuilder()
+                .add("type", "object")
+                .add("properties", INSTANCE_FACTORY.createObjectBuilder()
+                        .add("name", INSTANCE_FACTORY.createObjectBuilder()
+                                .add("type", "string")
+                                .add("format", "regex")
+                                .build())
+                        .build())
+                .build());
+
+        final var success = validator.apply(INSTANCE_FACTORY.createObjectBuilder().add("name", "^(\\([0-9]{3}\\))?[0-9]{3}-[0-9]{4}$").build());
+        assertTrue(success.isSuccess(), success.errors()::toString);
+
+        final var failure = validator.apply(INSTANCE_FACTORY.createObjectBuilder().add("name", "^(a$").build());
+        assertFalse(failure.isSuccess());
+        final var errors = failure.errors();
+        assertEquals(1, errors.size());
+        final var error = errors.iterator().next();
+        assertEquals("/name", error.field());
+        assertEquals("^(a$ is not a Regex format", error.message());
+
+        validator.close();
+    }
+
+    @Test
+    void jsonPointerFormatValues() {
+        final var validator = FACTORY.newInstance(INSTANCE_FACTORY.createObjectBuilder()
+                .add("type", "object")
+                .add("properties", INSTANCE_FACTORY.createObjectBuilder()
+                        .add("name", INSTANCE_FACTORY.createObjectBuilder()
+                                .add("type", "string")
+                                .add("format", "json-pointer")
+                                .build())
+                        .build())
+                .build());
+
+        final var success = validator.apply(INSTANCE_FACTORY.createObjectBuilder().add("name", "/customer.id").build());
+        assertTrue(success.isSuccess(), success.errors()::toString);
+
+        final var failure = validator.apply(INSTANCE_FACTORY.createObjectBuilder().add("name", "a").build());
+        assertFalse(failure.isSuccess());
+        final var errors = failure.errors();
+        assertEquals(1, errors.size());
+        final var error = errors.iterator().next();
+        assertEquals("/name", error.field());
+        assertEquals("a is not a JsonPointer format", error.message());
+
+        validator.close();
+    }
+
+    /*
+    @Test
+    void validateFile() {
+        @Injection
+        JsonMapper jsonMapper;
+
+        final var schema = jsonMapper.fromString(Object.class,
+                """
+                        {
+                          "$id": "https://spec.openapis.org/oas/3.1/schema/2022-10-07",
+                          "$schema": "https://json-schema.org/draft/2020-12/schema",
+                          "description": "The description of OpenAPI v3.1.x documents without schema validation, as defined by https://spec.openapis.org/oas/v3.1.0",
+                          "type": "object"
+                          ...
+                        }
+                      """);
+        final JsonSchemaValidatorFactory factory = new JsonSchemaValidatorFactory();
+        final JsonSchemaValidator validator = factory.newInstance((Map<String, Object>) schema);
+        validator.apply();
+
+        validator.close();
+    }
+    */
+
 
     private static class Factory { // bridge to not rewrite all johnzon's tests
         private MapBuilder createObjectBuilder() {

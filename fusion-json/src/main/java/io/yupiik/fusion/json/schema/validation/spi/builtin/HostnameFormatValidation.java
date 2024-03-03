@@ -20,40 +20,49 @@ import io.yupiik.fusion.json.schema.validation.spi.ValidationContext;
 import io.yupiik.fusion.json.schema.validation.spi.ValidationExtension;
 import io.yupiik.fusion.json.schema.validation.spi.builtin.type.TypeFilter;
 
-import java.time.OffsetDateTime;
-import java.time.format.DateTimeParseException;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 
-public class DateTimeFormatValidation implements ValidationExtension {
+public class HostnameFormatValidation implements ValidationExtension {
+
+    private final Function<String, Predicate<CharSequence>> predicateFactory;
+
+    private final static String pattern = "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9])$";
+
+    public HostnameFormatValidation(Function<String, Predicate<CharSequence>> predicateFactory) {
+        this.predicateFactory = predicateFactory;
+    }
+
     @Override
     public Optional<Function<Object, Stream<ValidationResult.ValidationError>>> create(final ValidationContext model) {
-        if ("string".equals(model.schema().get("type")) && "date-time".equals(model.schema().get("format"))) {
-            return Optional.of(new DateTimeFormatValidation.Impl(model.toPointer(), model.valueProvider()));
+        if ("string".equals(model.schema().get("type")) && "hostname".equals(model.schema().get("format"))) {
+            return Optional.of(new HostnameFormatValidation.Impl(model.toPointer(), model.valueProvider(), predicateFactory.apply(pattern)));
         }
         return Optional.empty();
     }
 
     static class Impl extends BaseValidation {
 
-        public Impl(final String pointer, final Function<Object, Object> extractor) {
+        private final Predicate<CharSequence> matcher;
+
+        public Impl(final String pointer, final Function<Object, Object> extractor, final Predicate<CharSequence> matcher) {
             super(pointer, extractor, TypeFilter.STRING);
+            this.matcher = matcher;
         }
 
         @Override
         protected Stream<ValidationResult.ValidationError> onString(final String value) {
-            try {
-                OffsetDateTime.parse(value);
-                return Stream.empty();
-            } catch (DateTimeParseException exception) {
-                return Stream.of(new ValidationResult.ValidationError(pointer, value + " is not a DateTime format"));
+            if (!matcher.test(value)) {
+                return Stream.of(new ValidationResult.ValidationError(pointer, value + " is not a Hostname format"));
             }
+            return Stream.empty();
         }
 
         @Override
         public String toString() {
-            return "DateTimeFormat{" +
+            return "HostnameFormat{" +
                     "pointer='" + pointer + '\'' +
                     '}';
         }

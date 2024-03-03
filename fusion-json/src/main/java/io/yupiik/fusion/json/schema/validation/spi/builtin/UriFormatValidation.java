@@ -20,40 +20,50 @@ import io.yupiik.fusion.json.schema.validation.spi.ValidationContext;
 import io.yupiik.fusion.json.schema.validation.spi.ValidationExtension;
 import io.yupiik.fusion.json.schema.validation.spi.builtin.type.TypeFilter;
 
-import java.time.OffsetDateTime;
-import java.time.format.DateTimeParseException;
+import java.net.URI;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 
-public class DateTimeFormatValidation implements ValidationExtension {
+public class UriFormatValidation implements ValidationExtension {
+
+    private final Function<String, Predicate<CharSequence>> predicateFactory;
+
+    private final static String pattern = "(?<protocol>(?:[^:]+)s?)?:\\/\\/(?:(?<user>[^:\\n\\r]+):(?<pass>[^@\\n\\r]+)@)?(?<host>(?:www\\.)?(?:[^:\\/\\n\\r]+))(?::(?<port>\\d+))?\\/?(?<request>[^?#\\n\\r]+)?\\??(?<query>[^#\\n\\r]*)?\\#?(?<anchor>[^\\n\\r]*)?";
+
+    public UriFormatValidation(Function<String, Predicate<CharSequence>> predicateFactory) {
+        this.predicateFactory = predicateFactory;
+    }
+
     @Override
     public Optional<Function<Object, Stream<ValidationResult.ValidationError>>> create(final ValidationContext model) {
-        if ("string".equals(model.schema().get("type")) && "date-time".equals(model.schema().get("format"))) {
-            return Optional.of(new DateTimeFormatValidation.Impl(model.toPointer(), model.valueProvider()));
+        if ("string".equals(model.schema().get("type")) && "uri".equals(model.schema().get("format"))) {
+            return Optional.of(new UriFormatValidation.Impl(model.toPointer(), model.valueProvider(), predicateFactory.apply(pattern)));
         }
         return Optional.empty();
     }
 
     static class Impl extends BaseValidation {
 
-        public Impl(final String pointer, final Function<Object, Object> extractor) {
+        private final Predicate<CharSequence> matcher;
+
+        public Impl(final String pointer, final Function<Object, Object> extractor, final Predicate<CharSequence> matcher) {
             super(pointer, extractor, TypeFilter.STRING);
+            this.matcher = matcher;
         }
 
         @Override
         protected Stream<ValidationResult.ValidationError> onString(final String value) {
-            try {
-                OffsetDateTime.parse(value);
-                return Stream.empty();
-            } catch (DateTimeParseException exception) {
-                return Stream.of(new ValidationResult.ValidationError(pointer, value + " is not a DateTime format"));
+            if (!matcher.test(value)) {
+                return Stream.of(new ValidationResult.ValidationError(pointer, value + " is not a Uri format"));
             }
+            return Stream.empty();
         }
 
         @Override
         public String toString() {
-            return "DateTimeFormat{" +
+            return "UriFormat{" +
                     "pointer='" + pointer + '\'' +
                     '}';
         }
