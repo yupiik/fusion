@@ -268,8 +268,8 @@ public abstract class BaseGenerator {
             return "main__container.lookups(" + injection.type() + ".class, " + Collectors.class.getName() + "toSet())";
         }
         if (injection.optional()) { // only supports classes - todo: cache type
-            return "(Instance<" + instanceTypeOf(injection) + ">) " +
-                    "main__container.lookup(container, new " + Types.ParameterizedTypeImpl.class.getName().replace('$', '.') + "(" +
+            return "(" + Instance.class.getName() + "<" + instanceTypeOf(injection) + ">) " +
+                    "main__container.lookup(main__container, new " + Types.ParameterizedTypeImpl.class.getName().replace('$', '.') + "(" +
                     Optional.class.getName() + ".class, " + injection.type() + ".class))";
         }
 
