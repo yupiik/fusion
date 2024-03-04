@@ -48,7 +48,10 @@ public class ArgsConfigSource implements ConfigurationSource {
 
     @Override
     public String get(final String key) {
-        final var strings = args.get(key);
+        var strings = args.get(key);
+        if (strings == null || strings.isEmpty()) { // tolerate cli like config even when not a CLI option
+            strings = args.get(key.replace('.', '-'));
+        }
         return strings == null || strings.isEmpty() ? null : String.join(",", strings);
     }
 
