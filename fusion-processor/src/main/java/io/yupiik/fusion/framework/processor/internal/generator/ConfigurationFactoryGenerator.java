@@ -285,7 +285,7 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
                 mapper +
                 (required ?
                         ".orElseThrow(() -> { final var name = " + name + "; return new io.yupiik.fusion.framework.api.configuration.MissingRequiredParameterException(" +
-                                "\"No value for '\" + name.substring(1, name.length() - 1) + \"'\"); })" :
+                                "\"No value for '\" + " + (name.startsWith("prefix + ") ? "name" : "name.substring(1, name.length() - 1)") + " + \"'\"); })" :
                         ".orElse(" + defaultValue + ")");
     }
 
