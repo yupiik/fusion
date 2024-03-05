@@ -72,25 +72,29 @@ public class CliAwaiter implements Awaiter {
         final var keyMapping = command.parameters().stream()
                 // todo: list?
                 .collect(toMap(CliCommand.Parameter::configName, CliCommand.Parameter::cliName, (a, b) -> a));
-        try (final var instance = command.create(key -> findConfigInArgs(keyMapping, key), new ArrayList<>())) {
+        try (final var instance = command.create(key -> findConfigInArgs(cmdName, keyMapping, key), new ArrayList<>())) {
             instance.instance().run();
         }
     }
 
-    private Optional<String> findConfigInArgs(final Map<String, String> keyMapping, final String key) {
+    private Optional<String> findConfigInArgs(final String cmd, final Map<String, String> keyMapping, final String key) {
         final var value = keyMapping.get(key);
         if (value == null) {
             // can be a list, if so just reformat the keys lazily
             final var formattedKey = (key.startsWith("-.") ? "" : "--") + key.replace('.', '-');
-            return doFindConf(formattedKey);
+            return doFindConf(cmd, formattedKey);
         }
-        return doFindConf(value);
+        return doFindConf(cmd, value);
     }
 
-    private Optional<String> doFindConf(final String key) {
+    private Optional<String> doFindConf(final String cmd, final String key) {
         final var idx = args.args().indexOf(key);
         if (idx >= 0 && args.args().size() > idx) {
             return Optional.of(args.args().get(idx + 1));
+        }
+        // try short name
+        if (cmd != null && key.startsWith("--" + cmd + '-') && key.length() > cmd.length() + 4) {
+            return doFindConf(null, "--" + key.substring(cmd.length() + 3));
         }
         return empty();
     }
