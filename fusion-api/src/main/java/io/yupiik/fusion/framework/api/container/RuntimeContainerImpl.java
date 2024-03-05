@@ -54,6 +54,11 @@ public class RuntimeContainerImpl implements RuntimeContainer {
         this.listeners = listeners;
     }
 
+    public void clearLookupCaches() {
+        slowLookupMatchings.clear();
+        listMatchings.clear();
+    }
+
     @Override
     public Beans getBeans() {
         return beans;

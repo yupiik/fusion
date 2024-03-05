@@ -40,6 +40,13 @@ public class ApplicationFusionContext extends DefaultFusionContext implements Fu
         return ApplicationScoped.class;
     }
 
+    public void clean(final FusionBean<?> bean) {
+        final ApplicationInstance<?> instance = instances.remove(bean);
+        if (instance != null) {
+            instance.close();
+        }
+    }
+
     @Override
     @SuppressWarnings("unchecked")
     public <T> Instance<T> getOrCreate(final RuntimeContainer container, final FusionBean<T> bean) {
