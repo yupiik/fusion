@@ -146,7 +146,7 @@ public class DocumentationGenerator implements Runnable {
         return parameters.stream()
                 .map(e -> {
                     final var defaultValue = defaultFor(e.defaultValue());
-                    return e.name() + (includeEnv ? " (env: `" + e.envName() + "`)" : "") + "::\n" +
+                    return '`' + e.name() + '`' + (includeEnv ? " (env: `" + e.envName() + "`)" : "") + "::\n" +
                             e.documentation() +
                             (e.defaultValue() != null ? " Default: " + defaultValue + (!defaultValue.contains("\n") ? "." : "") : "") +
                             "\n";

@@ -87,9 +87,9 @@ class DocumentationGeneratorTest {
                 "output", output.toString()))
                 .run();
         assertEquals("""
-                jwt.algo (env: `JWT_ALGO`)::
+                `jwt.algo` (env: `JWT_ALGO`)::
                 JWT `alg` value. Default: `RS256`.
-                jwt.expRequired (env: `JWT_EXPREQUIRED`)::
+                `jwt.expRequired` (env: `JWT_EXPREQUIRED`)::
                 Are `exp` (expiry) validation required of can it be skipped if claim is missing. Default: `true`.
                 """, Files.readString(output));
     }
