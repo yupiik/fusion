@@ -93,13 +93,14 @@ class OpenRPC2AdocTest {
                                 
                 === Greeting (org.example.application.jsonrpc.Greeting) schema
                                 
-                [cols="m,1a,m"]
+                [cols="m,1a,m,3a"]
                 |===
-                |Name|Type|Nullable
+                |Name|Type|Nullable|Description
                                 
                 |message
                 |`string`
                 |true
+                |-
                 |===
                                 
                 """, Files.readString(out));

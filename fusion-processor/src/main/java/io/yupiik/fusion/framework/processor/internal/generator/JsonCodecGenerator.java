@@ -777,15 +777,16 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
                 case VALUE -> valueSchema();
                 case MAP -> new JsonSchema(
                         null, null, "object", true, null, null,
-                        valueSchema().asMap(), null, null);
+                        valueSchema().asMap(), null, null, null, description(), null);
                 case LIST, SET -> new JsonSchema(
                         null, null, "array", null, null, null,
-                        null, null, valueSchema());
+                        null, null, valueSchema(), null, description(), null);
                 case MAP_LIST -> new JsonSchema(
                         null, null, "object", true, null, null,
                         new JsonSchema(
                                 null, null, "array", null, null, null,
-                                null, null, valueSchema()).asMap(), null, null);
+                                null, null, valueSchema()).asMap(), null, null,
+                        null, description(), null);
             };
         }
 
