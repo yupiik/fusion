@@ -21,6 +21,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
 
 import static java.util.Map.entry;
 import static java.util.Optional.ofNullable;
@@ -53,16 +54,26 @@ public class OpenRPC2Adoc extends BaseOpenRPCConverter {
                 "\n" +
                 schemas.entrySet().stream()
                         .map(it -> toSchemaAdoc(schemas, it.getKey(), asObject(it.getValue())))
+                        .filter(Predicate.not(String::isBlank))
                         .collect(joining("\n\n", "", "\n\n"));
     }
 
     private String toSchemaAdoc(final Map<String, Object> schemas, final String name, final Map<String, Object> schema) {
+        if (schema.getOrDefault("type", "").equals("string") && schemas.containsKey("enum")) {
+            return "";
+        }
+
+        final var properties = asObject(schema.getOrDefault("properties", Map.of()));
+        if (properties.isEmpty()) {
+            return "";
+        }
+
         return "=== " + schema.getOrDefault("title", name) + " (" + name + ") schema\n" +
                 "\n" +
                 "[cols=\"m,1a,m,3a\"]\n" +
                 "|===\n" +
                 "|Name|Type|Nullable|Description\n" +
-                asObject(schema.getOrDefault("properties", Map.of())).entrySet().stream()
+                properties.entrySet().stream()
                         .map(e -> {
                             final var model = asObject(e.getValue());
                             return "\n" +
