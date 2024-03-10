@@ -59,7 +59,7 @@ public class OpenRPC2Adoc extends BaseOpenRPCConverter {
     private String toSchemaAdoc(final Map<String, Object> schemas, final String name, final Map<String, Object> schema) {
         return "=== " + schema.getOrDefault("title", name) + " (" + name + ") schema\n" +
                 "\n" +
-                "[cols=\"1,1,1\"]\n" +
+                "[cols=\"m,1a,m\"]\n" +
                 "|===\n" +
                 "|Name|Type|Nullable\n" +
                 asObject(schema.getOrDefault("properties", Map.of())).entrySet().stream()

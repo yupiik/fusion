@@ -93,7 +93,7 @@ class OpenRPC2AdocTest {
                                 
                 === Greeting (org.example.application.jsonrpc.Greeting) schema
                                 
-                [cols="1,1,1"]
+                [cols="m,1a,m"]
                 |===
                 |Name|Type|Nullable
                                 
