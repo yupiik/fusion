@@ -28,7 +28,7 @@
   <name>Fusion :: Documentation</name>
 
   <properties>
-    <yupiik-tools.version>1.2.0</yupiik-tools.version> <!-- when moving to 1.2.1 enable yupiik asciidoc -->
+    <yupiik-tools.version>1.2.1</yupiik-tools.version>
   </properties>
 
   <dependencies>
@@ -134,7 +134,6 @@
             </preAction>
           </preActions>
         </configuration>
-        <!-- TODO with 1.2.1
         <dependencies>
           <dependency>
             <groupId>io.yupiik.maven</groupId>
@@ -142,7 +141,6 @@
             <version>${yupiik-tools.version}</version>
           </dependency>
         </dependencies>
-        -->
       </plugin>
     </plugins>
   </build>
