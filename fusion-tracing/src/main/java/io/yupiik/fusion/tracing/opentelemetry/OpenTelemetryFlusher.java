@@ -286,7 +286,7 @@ public class OpenTelemetryFlusher implements Consumer<Collection<Span>> {
         }
         return map(
                 "key", key,
-                "value", mi("stringValue", value.toString()));
+                "value", Map.of("stringValue", value.toString()));
     }
 
     private Map<String, Object> map(final String key1, final Object v1, final String key2, final Object v2) {
