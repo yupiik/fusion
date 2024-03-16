@@ -99,7 +99,7 @@ final var client = new ExtendedHttpClient(configuration);
 <.> The clock enables to timestamp the span and compute its duration,
 <.> Finally, add the listener to your http client configuration and create your client.
 
-IMPORTANT: the accumulator should generally be closed if you reuse `AccumulatingSpanCollector`. You can combine it with `ZipkinFlusher` to flush to a zipkin collector v2.
+IMPORTANT: the accumulator should generally be closed if you reuse `AccumulatingSpanCollector`. You can combine it with `ZipkinFlusher` or `OpenTelemetryFlusher` to flush to a zipkin collector v2.
 
 == Kubernetes client
 

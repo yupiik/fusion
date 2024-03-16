@@ -16,6 +16,7 @@
 package io.yupiik.fusion.tracing.server;
 
 import io.yupiik.fusion.tracing.collector.AccumulatingSpanCollector;
+import io.yupiik.fusion.tracing.id.IdGenerator;
 import io.yupiik.fusion.tracing.request.PendingSpan;
 import io.yupiik.fusion.tracing.span.Span;
 import jakarta.servlet.AsyncEvent;
@@ -45,6 +46,7 @@ public class TracingValve extends ValveBase {
     private final Supplier<Object> idGenerator;
     private final Clock clock;
     private final boolean closeCollector;
+    private final boolean isHex;
 
     public TracingValve(final ServerTracingConfiguration configuration,
                         final AccumulatingSpanCollector collector,
@@ -64,6 +66,7 @@ public class TracingValve extends ValveBase {
         this.idGenerator = requireNonNull(idGenerator, "idGenerator must be not null");
         this.clock = requireNonNull(clock, "clock must be not null");
         this.closeCollector = closeCollector;
+        this.isHex = idGenerator instanceof IdGenerator idg &&idg.getType() == IdGenerator.Type.HEX;
     }
 
     @Override
@@ -94,7 +97,7 @@ public class TracingValve extends ValveBase {
         final var spanTrace = request.getHeader(configuration.getSpanHeader());
 
         final var id = idGenerator.get();
-        final var traceId = traceTrace != null ? traceTrace : idGenerator.get();
+        final var traceId = traceTrace != null ? traceTrace : newTraceId();
         final BiFunction<HttpServletRequest, Long, Span> spanFn = (req, duration) -> toSpan(req, traceId, spanTrace, id, start, duration, localEndpoint, tags);
 
         request.setAttribute(PendingSpan.class.getName(), new PendingSpan(traceId, id));
@@ -136,6 +139,14 @@ public class TracingValve extends ValveBase {
                 collectSpan(finish(request, response, spanFn, start));
             }
         }
+    }
+
+    private Object newTraceId() {
+        final var value = idGenerator.get();
+        if (isHex && value.toString().length() == 16) { // 32 is opentelemetry standard but out id generator does 16 by default
+            return value + idGenerator.get().toString();
+        }
+        return value;
     }
 
     protected Span toSpan(final HttpServletRequest request,

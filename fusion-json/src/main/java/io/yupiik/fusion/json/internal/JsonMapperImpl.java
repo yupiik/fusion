@@ -210,7 +210,10 @@ public class JsonMapperImpl implements JsonMapper {
                                 if (type == null) {
                                     itemCodec = new CollectionJsonCodec<>(codecs.get(Object.class), Object.class, ArrayList::new);
                                 } else {
-                                    final var clazz = type.getClass();
+                                    var clazz = type.getClass();
+                                    if (clazz.getName().startsWith("java.util.ImmutableCollections$")) {
+                                        clazz = Object.class;
+                                    }
                                     final JsonCodec<?> nestedCodec = codecs.get(clazz);
                                     if (nestedCodec == null) {
                                         throw missingCodecException(clazz);

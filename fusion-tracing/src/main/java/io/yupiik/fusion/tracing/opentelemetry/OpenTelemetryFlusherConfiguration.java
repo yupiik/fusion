@@ -13,16 +13,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package io.yupiik.fusion.tracing.zipkin;
+package io.yupiik.fusion.tracing.opentelemetry;
 
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 
-public class ZipkinFlusherConfiguration {
+public class OpenTelemetryFlusherConfiguration {
+    /**
+     * Should the spans be gzipped.
+     */
+    private boolean gzip;
+
     /**
      * URLs to tests of remote HTTP collector.
+     * Default path is generally something like {@code /v1/traces}.
+     * For example for {@code docker run -p 4318:4318 -p 55679:55679 otel/opentelemetry-collector-contrib:0.96.0}
+     * it is {@code http://localhost:4318/v1/traces}.
      */
     private List<String> urls = List.of();
 
@@ -36,11 +44,20 @@ public class ZipkinFlusherConfiguration {
      */
     private Duration timeout = Duration.of(30, ChronoUnit.SECONDS);
 
+    public boolean isGzip() {
+        return gzip;
+    }
+
+    public OpenTelemetryFlusherConfiguration setGzip(final boolean gzip) {
+        this.gzip = gzip;
+        return this;
+    }
+
     public List<String> getUrls() {
         return urls;
     }
 
-    public ZipkinFlusherConfiguration setUrls(final List<String> urls) {
+    public OpenTelemetryFlusherConfiguration setUrls(final List<String> urls) {
         this.urls = urls;
         return this;
     }
@@ -49,7 +66,7 @@ public class ZipkinFlusherConfiguration {
         return headers;
     }
 
-    public ZipkinFlusherConfiguration setHeaders(final Map<String, String> headers) {
+    public OpenTelemetryFlusherConfiguration setHeaders(final Map<String, String> headers) {
         this.headers = headers;
         return this;
     }
@@ -58,7 +75,7 @@ public class ZipkinFlusherConfiguration {
         return timeout;
     }
 
-    public ZipkinFlusherConfiguration setTimeout(final Duration timeout) {
+    public OpenTelemetryFlusherConfiguration setTimeout(final Duration timeout) {
         this.timeout = timeout;
         return this;
     }

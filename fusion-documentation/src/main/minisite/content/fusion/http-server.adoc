@@ -160,4 +160,4 @@ serverConfiguration
 <.> Finally the clock enables to timestamp the span and compute its duration.
 
 IMPORTANT: if you reuse `AccumulatingSpanCollector`, it is automatically closed with the valve "stop" phase.
-You can combine the accumulator with `ZipkinFlusher` `onFlush` implementation to flush to a zipkin collector v2.
+You can combine the accumulator with `ZipkinFlusher` or `OpenTelemetryFlusher` `onFlush` implementation to flush to a zipkin collector v2.

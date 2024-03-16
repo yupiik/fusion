@@ -22,8 +22,10 @@ import java.util.function.Supplier;
 
 public class IdGenerator implements Supplier<Object> {
     private final Supplier<Object> delegate;
+    private final Type type;
 
     public IdGenerator(final Type type) {
+        this.type = type;
         switch (type) {
             case COUNTER:
                 delegate = new Supplier<>() {
@@ -54,6 +56,10 @@ public class IdGenerator implements Supplier<Object> {
                     }
                 };
         }
+    }
+
+    public Type getType() {
+        return type;
     }
 
     @Override
