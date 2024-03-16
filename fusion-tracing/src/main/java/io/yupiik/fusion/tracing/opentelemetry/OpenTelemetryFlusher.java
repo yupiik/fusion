@@ -77,7 +77,7 @@ public class OpenTelemetryFlusher implements Consumer<Collection<Span>> {
         final byte[] payload = mapper.toBytes(Map.of(
                 "resourceSpans",
                 byService.entrySet().stream()
-                        .map(e -> Map.of(
+                        .map(e -> map(
                                 "resource", Map.of(
                                         "attributes", List.of(map(
                                                 "key", "service.name",
@@ -286,7 +286,7 @@ public class OpenTelemetryFlusher implements Consumer<Collection<Span>> {
         }
         return map(
                 "key", key,
-                "value", Map.of("stringValue", value.toString()));
+                "value", mi("stringValue", value.toString()));
     }
 
     private Map<String, Object> map(final String key1, final Object v1, final String key2, final Object v2) {
