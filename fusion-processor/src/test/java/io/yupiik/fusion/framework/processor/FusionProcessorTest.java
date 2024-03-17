@@ -1103,6 +1103,25 @@ class FusionProcessorTest {
     }
 
     @Test
+    void listMap(@TempDir final Path work) throws IOException {
+        new Compiler(work, "json.ListMap").compileAndAsserts((loader, container) -> {
+            final var recordType = loader.apply("test.p.json.ListMap");
+            try {
+                final var constructor = recordType.getConstructor(List.class);
+                try (final var jsonMapperInstance = container.lookup(JsonMapper.class)) {
+                    final var mapper = jsonMapperInstance.instance();
+                    final var sorted = List.of(Map.of("a", BigDecimal.ONE));
+                    final var instance = constructor.newInstance(sorted);
+                    assertEquals("{\"items\":[{\"a\":1}]}", mapper.toString(instance));
+                    assertEquals(instance, mapper.fromString(recordType, "{\"items\":[{\"a\":1}]}"));
+                }
+            } catch (final Exception e) {
+                fail(e);
+            }
+        });
+    }
+
+    @Test
     void jsonComplexNoJsonOthers(@TempDir final Path work) throws IOException {
         new Compiler(work, "JsonRecords").jsonRoundTripAsserts("test.p.JsonRecords$StrongTyping", "" +
                         "{" +

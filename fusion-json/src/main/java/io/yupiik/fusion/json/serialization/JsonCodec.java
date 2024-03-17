@@ -19,6 +19,8 @@ import io.yupiik.fusion.json.spi.Parser;
 
 import java.io.IOException;
 import java.lang.reflect.Type;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 
 public interface JsonCodec<A> {
@@ -43,7 +45,11 @@ public interface JsonCodec<A> {
 
         @SuppressWarnings("unchecked")
         public <A> JsonCodec<A> codec(final Class<A> clazz) {
-            return (JsonCodec<A>) codecLookup.apply(clazz);
+            final JsonCodec<?> codec = codecLookup.apply(clazz);
+            if (codec == null && (Map.class == clazz || List.class == clazz)) {
+                return (JsonCodec<A>) codecLookup.apply(Object.class);
+            }
+            return (JsonCodec<A>) codec;
         }
     }
 

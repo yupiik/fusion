@@ -209,6 +209,9 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
         out.append("  }\n");
         out.append("\n");
         out.append("  @Override\n");
+        if (collections.stream().anyMatch(t -> t.types().paramTypeDef() == ParamTypeDef.GENERIC_OBJECT)) {
+            out.append("  @SuppressWarnings({\"unchecked\", \"rawtypes\"})\n"); // the cast will issue a warning but is actually safe
+        }
         out.append("  public ").append(className.replace('$', '.')).append(" read(")
                 .append(JsonCodec.DeserializationContext.class.getName().replace('$', '.')).append(" context) throws ").append(IOException.class.getName()).append(" {\n");
         out.append("    final var parser = context.parser();\n");
@@ -391,19 +394,23 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
                             "              parser.rewind(event);\n" +
                             switch (it.types().paramTypeDef()) {
                                 // todo: generate a codec?
-                                default ->
-                                        "              param__" + it.javaName() + " = new " + CollectionJsonCodec.class.getName() + "<>(" +
-                                                "context.codec(" + it.types().argTypeIfNotValue() + ".class), " + switch (it.types().paramType()) {
-                                            case LIST -> List.class.getName();
-                                            case SET -> Set.class.getName();
-                                            default ->
-                                                    throw new IllegalStateException("Unsupported parameter: " + it + " from " + element);
-                                        } + ".class, " + switch (it.types().paramType()) {
-                                            case LIST -> ArrayList.class.getName();
-                                            case SET -> HashSet.class.getName();
-                                            default ->
-                                                    throw new IllegalStateException("Unsupported parameter: " + it + " from " + element);
-                                        } + "::new).read(context);\n";
+                                default -> {
+                                    final var expectedType = it.types().argTypeIfNotValue().toString();
+                                    final var hasGenerics = expectedType.contains("<");
+                                    yield "              param__" + it.javaName() + " = new " + CollectionJsonCodec.class.getName() + "<>(" +
+                                            (hasGenerics ? "(" + JsonCodec.class.getName() + "<" + expectedType + ">)(io.yupiik.fusion.json.serialization.JsonCodec) " : "") +
+                                            "context.codec(" + (!hasGenerics ? expectedType : expectedType.substring(0, expectedType.indexOf('<'))) + ".class), " + switch (it.types().paramType()) {
+                                        case LIST -> List.class.getName();
+                                        case SET -> Set.class.getName();
+                                        default ->
+                                                throw new IllegalStateException("Unsupported parameter: " + it + " from " + element);
+                                    } + ".class, " + switch (it.types().paramType()) {
+                                        case LIST -> ArrayList.class.getName();
+                                        case SET -> HashSet.class.getName();
+                                        default ->
+                                                throw new IllegalStateException("Unsupported parameter: " + it + " from " + element);
+                                    } + "::new).read(context);\n";
+                                }
                             } +
                             "              break;\n")
                     .collect(joining()));
@@ -868,7 +875,7 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
                 case "java.time.LocalDateTime" -> LOCAL_DATE_TIME;
                 case "java.time.OffsetDateTime" -> OFFSET_DATE_TIME;
                 case "java.time.ZonedDateTime" -> ZONED_DATE_TIME;
-                case "java.lang.Object" -> GENERIC_OBJECT;
+                case "java.lang.Object", "java.util.Map<java.lang.String,java.lang.Object>" -> GENERIC_OBJECT;
                 default -> {
                     if (type.getKind() == RECORD &&
                             (type.getAnnotation(JsonModel.class) != null || models.contains(((TypeElement) type).getQualifiedName().toString()))) {
