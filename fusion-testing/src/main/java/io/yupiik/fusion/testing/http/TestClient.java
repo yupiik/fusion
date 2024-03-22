@@ -19,7 +19,6 @@ import io.yupiik.fusion.framework.api.container.Types;
 import io.yupiik.fusion.httpclient.core.ExtendedHttpClient;
 import io.yupiik.fusion.httpclient.core.ExtendedHttpClientConfiguration;
 import io.yupiik.fusion.httpclient.core.listener.impl.ExchangeLogger;
-import io.yupiik.fusion.httpclient.core.response.StaticHttpResponse;
 import io.yupiik.fusion.json.JsonMapper;
 
 import javax.net.ssl.SSLSession;
@@ -79,9 +78,8 @@ public class TestClient implements AutoCloseable {
                 return (HttpResponse<T>) res;
             }
             return new StaticHttpResponse<>(
-                    res.request(), res.uri(), res.version(),
-                    res.statusCode(), res.headers(),
-                    json.fromString(result, res.body()));
+                    res.request(), res.statusCode(), res.headers(),
+                    json.fromString(result, res.body()), res.uri(), res.version());
         } catch (final IOException e) {
             return fail(e);
         } catch (final InterruptedException e) {
@@ -275,6 +273,19 @@ public class TestClient implements AutoCloseable {
             } catch (final Throwable t) {
                 return client;
             }
+        }
+    }
+
+    private record StaticHttpResponse<T>(HttpRequest request, int statusCode, HttpHeaders headers, T body, URI uri,
+                                         HttpClient.Version version) implements HttpResponse<T> {
+        @Override
+        public Optional<HttpResponse<T>> previousResponse() {
+            return Optional.empty();
+        }
+
+        @Override
+        public Optional<SSLSession> sslSession() {
+            return Optional.empty();
         }
     }
 }

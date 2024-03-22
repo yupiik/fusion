@@ -67,3 +67,104 @@ void run(final Stdout stdout) {
 
 TIP: `args` are made available to `Configuration` thanks a dedicated `ConfigurationSource` which supports these style of arguments (all leading to `foo=bar` mapping):  `--foo bar`,  `-foo bar`, `foo bar`, `--foo=bar`,  `-foo=bar`,  `foo=bar`.
 A particular arg starting by `fusion-properties` will be replaced by loading its value (as `Properties`, it can be inline or a file path - preferred).
+
+== Utilities
+
+Additionally to the main container friendly extensions, `fusion-testing` also provides a few utilities to ease writing tests.
+
+=== TestClient
+
+`TestClient` is a bean which is active when you use `fusion-json`  at least and likely `fusion-http-server`.
+
+It autoconfigures the base URI of the server - even when port is set to `0` (random) and enables to use `HttpClient` like API with:
+
+* Logging of the request/response (uses `fusion-httpclient` is present),
+* Hides exception handling (synchronous API, aka `send`) to simplify code writing in tests,
+* Provide `jsonRpc` JUnit5 integration to ease JSON-RPC tests.
+
+[source,java]
+----
+@Test
+void myTest(@Fusion final TestClient client) { <1>
+    final var res = client.jsonRpcRequest( <2>
+            "my.jsonrpc.method", <3>
+            Map.of("id", id.value())); <4>
+
+    final var order = res
+        .asJsonRpc() <5>
+        .success() <6>
+        .as(Order.class); <7>
+    assertAll(
+            () -> assertEquals(200, res.statusCode()),
+            () -> assertInsertedOrder(order, id, res::body));
+}
+----
+<.> Inject the `TestClient` as a standard fusion bean - requires a fusion support annotation,
+<.> Call a JSON-RPC method just providing its method name and parameters,
+<.> The JSON-RPC method name,
+<.> The JSON-RPC method params,
+<.> Convert the `HttpResponse` to a JSON-RPC response helper,
+<.> Asserts the JSON-RPC response has no `error`,
+<.> Maps the `result` as an object - compatible with `fusion-json`.
+
+=== Before/After method task
+
+JUnit5 has `@BeforeEach`/`@AfterEach` callbacks but they are not per methods and related to the class - state - more then the test itself.
+It is also not directly related to fusion IoC beans.
+
+To solve that pitfall, `@Task` enables to reference some code - _task_ - which can be a fusion bean or not and call it before or after a test method execution.
+
+Here is how it can look like:
+
+[source,java]
+----
+@Test
+@Task(phase = BEFORE, value = InsertMyData.class) <1>
+@Task(phase = AFTER, value = CleanMyData.class) <2>
+void run(@TaskResult(InsertMyData.class) final MyData data) { <3>
+    // ...
+}
+----
+<.> Before the test run the bean `InsertMyData`,
+<.> After the test run the bean `CleanMyData`,
+<.> Inject the result of `InsertMyData` as first parameter.
+
+`@Task(value)` must implement `Task.Supplier` which can be a java `Supplier<T>` - which,
+for `BEFORE` tasks will enable to inject some state as parameter referencing the bean class,
+or a `Runnable` - mainly for `AFTER` tasks.
+
+Here is a sample `BEFORE` task:
+
+[source,java]
+----
+@DefaultScoped
+public class BeforeTask implements Task.Supplier<String> {
+    private final MyService service;
+
+    // constructor...
+
+    @Override
+    public MyData get() {
+        return service.createData();
+    }
+}
+----
+
+An after task will often be like:
+
+[source,java]
+----
+@DefaultScoped
+public class AfterTask implements Task.Supplier<String> {
+    private final MyService service;
+
+    // constructor...
+
+    @Override
+    public void run() {
+        service.clean();
+    }
+}
+----
+
+What is interesting is that, since tasks are beans, you can use an `@ApplicationScoped` bean to link both before/after tasks and for example store the before identifiers to delete in the after phase.
