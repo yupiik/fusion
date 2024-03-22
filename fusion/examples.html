@@ -6,19 +6,19 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Fusion :: Documentation">
+    <meta name="description" content="Fusion framework aims at providing a very light java framework and graal native.">
     <meta name="author" content="Yupiik Minisite Generator">
     <meta name="generator" content="Yupiik Minisite Generator">
     
-    <link rel="shortcut icon" href="//www.yupiik.io/images/favicon.png">
+    <link rel="shortcut icon" href="//www.yupiik.io/fusion/images/logo.svg">
 
     <link href="//fonts.googleapis.com/css?family=Open+Sans:300,300i,400,400i,700,700i|Montserrat:300,400,500,700" rel="stylesheet">
     <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css" integrity="sha512-+4zCK9k+qNFUR5X+cKL9EIR+ZOhtIloNl9GIKS57V1MyNsYpYcUrUeQc9vNfzsWfV28IaLL3i96P9sdNyeRssA==" crossorigin="anonymous" />
     <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/asciidoctor.js/1.5.5-5/css/asciidoctor.min.css" integrity="sha512-kI7tn5cuEg16kMeXnYmg8rEJPxbxzEM7Gsr191iQdLDevFBLXPCSU9aZWSVuP61tMZWU3nBAR1cJ7SmXnOGLZw==" crossorigin="anonymous" />
     <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.3/css/bootstrap.min.css" integrity="sha512-oc9+XSs1H243/FRN9Rw62Fn8EtxjEYWHXRvjS43YtueEewbS6ObfXcJNyohjHqVKFPoXXUxwc+q1K7Dee6vv9g==" crossorigin="anonymous" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/styles/vs2015.min.css" integrity="sha512-w8aclkBlN3Ha08SMwFKXFJqhSUx2qlvTBFLLelF8sm4xQnlg64qmGB/A6pBIKy0W8Bo51yDMDtQiPLNRq1WMcQ==" crossorigin="anonymous" />
-    <link id="theme-style" rel="stylesheet" href="//www.yupiik.io/fusion/css/theme.css?v=1.0.14-SNAPSHOT">
     
+    <link id="theme-style" rel="stylesheet" href="//www.yupiik.io/fusion/css/theme.css?v=1.0.17-SNAPSHOT">
 </head>
 <body>
     <header class="header fixed-top">
@@ -26,8 +26,8 @@
             <div class="container-fluid position-relative py-2">
                 <div class="docs-logo-wrapper">
 	                <div class="site-logo"><a title="Home" class="navbar-brand" href="//www.yupiik.io/fusion/index.html">
-	                <img class="logo-icon mr-2" src="//www.yupiik.io/images/favicon.png" alt="logo">
-	                <span class="logo-text">Fusion :: Documentation <span class="text-alt">Docs</span></span></a></div>
+	                <img class="logo-icon mr-2" src="//www.yupiik.io/fusion/images/logo.svg" alt="logo">
+	                <span class="logo-text">Fusion <span class="text-alt">Documentation</span></span></a></div>
                 </div>
 	            <div class="docs-top-utilities d-flex justify-content-end align-items-center">
 					
@@ -35,7 +35,7 @@
 
 					<ul class="social-list list-inline mx-md-3 mx-lg-5 mb-0 d-none d-lg-flex">
 						
-						<li class="list-inline-item"><a href="https://www.github.com/yupiik/"><i class="fab fa-github fa-fw"></i></a></li><li class="list-inline-item"><a href="https://www.linkedin.com/company/yupiik/"><i class="fab fa-linkedin fa-fw"></i></a></li>
+						<li class="list-inline-item"><a title="Github" href="https://www.github.com/yupiik/"><i class="fab fa-github fa-fw"></i></a></li><li class="list-inline-item"><a title="LinkedIn" href="https://www.linkedin.com/company/yupiik/"><i class="fab fa-linkedin fa-fw"></i></a></li>
 		            </ul>
 	            </div>
             </div>
@@ -58,12 +58,12 @@
                         <i class="fas fa-building"></i>Setup
                     </a>
                 </li>                <li>
-                    <a title="Fusion JSON support" href="//www.yupiik.io/fusion/fusion/json.html">
-                        <i class="fas fa-wifi"></i>JSON
-                    </a>
-                </li>                <li>
                     <a title="Fusion CLI" href="//www.yupiik.io/fusion/fusion/cli.html">
                         <i class="fas fa-terminal"></i>CLI
+                    </a>
+                </li>                <li>
+                    <a title="Fusion JSON support" href="//www.yupiik.io/fusion/fusion/json.html">
+                        <i class="fas fa-wifi"></i>JSON
                     </a>
                 </li>                <li>
                     <a title="framework and GraalVM (native-image)" href="//www.yupiik.io/fusion/fusion/graalvm.html">
@@ -79,96 +79,81 @@
             </div>
             <div class="page-content-body">
                 <div id="toc" class="toc">
-<div id="toctitle">Table of Contents</div>
-<ul class="sectlevel1">
-<li><a href="#_defining_a_bean_without_injections">Defining a Bean <em>without</em> injections</a></li>
-<li><a href="#_defining_a_bean_with_injections">Defining a Bean with injection(s)</a></li>
-<li><a href="#_create_a_bean_in_a_custom_fashion_without_a_class">Create a bean in a custom fashion without a class</a></li>
-<li><a href="#_injection_of_a_listset">Injection of a list/set</a></li>
-<li><a href="#_listen_to_an_event">Listen to an event</a></li>
-<li><a href="#_emit_an_event">Emit an event</a></li>
-<li><a href="#configuration_model">Create a configuration model</a></li>
-<li><a href="#json_model">Create a JSON model</a></li>
-<li><a href="#_handle_unknown_json_attributes">Handle unknown JSON attributes</a></li>
-<li><a href="#_define_a_custom_http_endpoint">Define a custom HTTP endpoint</a>
-<ul class="sectlevel2">
-<li><a href="#_implement_a_custom_explicit_endpoint_bean">Implement a custom explicit Endpoint bean</a></li>
-<li><a href="#_implement_a_custom_implicit_endpoint">Implement a custom implicit Endpoint</a></li>
-</ul>
-</li>
-<li><a href="#_define_a_json_rpc_endpoint">Define a JSON-RPC endpoint</a></li>
-<li><a href="#_define_a_reactive_json_rpc_endpoint">Define a "reactive" JSON-RPC endpoint</a></li>
-<li><a href="#_register_openrpc_endpoint">Register OpenRPC endpoint</a></li>
-<li><a href="#_start_the_container">Start the container</a></li>
-<li><a href="#_test_with_junit_5">Test with JUnit 5</a></li>
-</ul>
-</div>
-<div id="preamble">
-<div class="sectionbody">
-<div class="quoteblock abstract">
-<blockquote>
-This page lists some common examples using Fusion framework.
-</blockquote>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_defining_a_bean_without_injections">Defining a Bean <em>without</em> injections</h2>
-<div class="sectionbody">
-<div class="paragraph">
-<p>If a bean has an injection or an event listener it will be automatically defined as a bean, but in some cases, you want to define a bean on a plain class without any injection nor event listener.
-For such a case, you can mark the class with <code>@Bean</code>:</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@Bean
+  <div id="toctitle">Fusion framework Examples</div>
+ </div>
+ <div id="preamble">
+ <div class="sectionbody">
+ <p> <div class="quoteblock abstract">
+  <blockquote>
+This page lists some common examples using Fusion framework.  </blockquote>
+ </div></p>
+ </div>
+ </div>
+ <div class="sect1" id="_defining_a_bean_without_injections">
+  <h2>Defining a Bean <i>without</i> injections</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>If a bean has an injection or an event listener it will be automatically defined as a bean, but in some cases, you want to define a bean on a plain class without any injection nor event listener. For such a case, you can mark the class with <code>@Bean</code>:</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@Bean
 public class MyService {
     public int magicNumber() {
         return 42;
     }
 }</code></pre>
-</div>
-</div>
-<div class="paragraph">
-<p>This simple definition enables you to inject this bean in other beans.</p>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_defining_a_bean_with_injections">Defining a Bean with injection(s)</h2>
-<div class="sectionbody">
-<div class="paragraph">
-<p>The common use case of a framework is to get injected some bean without exactly knowing how it was created or initialized.
-Here is how to get an injection with Fusion framework:</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public class MyService {
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>
+This simple definition enables you to inject this bean in other beans.
+ </p>
+ </div>
+ </div>
+ </div>
+ <div class="sect1" id="_defining_a_bean_with_injections">
+  <h2>Defining a Bean with injection(s)</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>
+The common use case of a framework is to get injected some bean without exactly knowing how it was created or initialized. Here is how to get an injection with Fusion framework:
+ </p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public class MyService {
     @Injection
     ConfigService config;
 
     // ...
 }</code></pre>
-</div>
-</div>
-<div class="admonitionblock important">
-<table>
-<tr>
-<td class="icon">
-<div class="title">Important</div>
-</td>
-<td class="content">
-do <strong>NOT</strong> use <code>private</code> fields, it is not yet supported.
-</td>
-</tr>
-</table>
-</div>
-<div class="paragraph">
-<p>Alternatively, you can use constructor injections:</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@ApplicationScoped // any marker making it a bean, can be as simple as @Bean
+ </div>
+ </div>
+ <div class="admonitionblock important">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">IMPORTANT</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p>do <b>NOT</b> use <code>private</code> fields, it is not yet supported.</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ <div class="paragraph">
+ <p>
+Alternatively, you can use constructor injections:
+ </p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@ApplicationScoped // any marker making it a bean, can be as simple as @Bean
 public class MyService {
     private final ConfigService config; <b class="conum">(1)</b>
 
@@ -180,34 +165,47 @@ public class MyService {
         this.config = null;
     }
 }</code></pre>
-</div>
-</div>
-<div class="colist arabic">
-<ol>
-<li>
-<p>The injected values can be defined normally since injections happen with the constructor, you can even precompute the data you need in the bean and not store the injection itself,</p>
-</li>
-<li>
-<p>The constructor injection (the selected one is the most public one - <code>public</code> wins over <code>protected</code>) and with the most parameters,</p>
-</li>
-<li>
-<p>The no-arg constructor - only needed for scopes using subclassing like <code>@ApplicationScoped</code>.</p>
-</li>
-</ol>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_create_a_bean_in_a_custom_fashion_without_a_class">Create a bean in a custom fashion without a class</h2>
-<div class="sectionbody">
-<div class="paragraph">
-<p>It can happen you need to reuse some custom factory and code the initialization of a bean.
-For such a case you can mark a method with <code>@Bean</code>.
-Injections can be done in the enclosing bean if needed:</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@DefaultScoped // enclosing class is a bean
+ </div>
+ </div>
+ <div class="colist arabic">
+  <ol>
+   <li>
+ <span>
+The injected values can be defined normally since injections happen with the constructor, you can even precompute the data you need in the bean and not store the injection itself,
+ </span>
+   </li>
+   <li>
+ <span>
+The constructor injection (the selected one is the most public one - 
+ </span>
+<code>public</code> <span>
+ wins over 
+ </span>
+<code>protected</code> <span>
+) and with the most parameters,
+ </span>
+   </li>
+   <li>
+ <span>
+The no-arg constructor - only needed for scopes using subclassing like 
+ </span>
+<code>@ApplicationScoped</code> <span>
+.
+ </span>
+   </li>
+  </ol>
+ </div>
+ </div>
+ </div>
+ <div class="sect1" id="_create_a_bean_in_a_custom_fashion_without_a_class">
+  <h2>Create a bean in a custom fashion without a class</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>It can happen you need to reuse some custom factory and code the initialization of a bean. For such a case you can mark a method with <code>@Bean</code>. Injections can be done in the enclosing bean if needed:</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@DefaultScoped // enclosing class is a bean
 public class MyProducer {
     @Injection
     ConfigService conf;
@@ -217,134 +215,157 @@ public class MyProducer {
         return new DataSourcefactory(conf).create();
     }
 }</code></pre>
-</div>
-</div>
-<div class="admonitionblock important">
-<table>
-<tr>
-<td class="icon">
-<div class="title">Important</div>
-</td>
-<td class="content">
-as of today, you can mark the producer method with a scope but lazy scopes (like <code>@ApplicationScoped</code> are not really lazy until you implement yourself the lazyness - but scope is respected, i.e. if it is <code>@ApplicationScoped</code> it will be a singleton).
-</td>
-</tr>
-</table>
-</div>
-<div class="admonitionblock tip">
-<table>
-<tr>
-<td class="icon">
-<div class="title">Tip</div>
-</td>
-<td class="content">
-if the returned type implements <code>AutoCloseable</code>, <code>close()</code> will be called to destroy the bean instance(s).
-</td>
-</tr>
-</table>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_injection_of_a_listset">Injection of a list/set</h2>
-<div class="sectionbody">
-<div class="admonitionblock important">
-<table>
-<tr>
-<td class="icon">
-<div class="title">Important</div>
-</td>
-<td class="content">
-injections of <code>List</code> or <code>Set</code> are done by resolving the parameter type of the injection.
-</td>
-</tr>
-</table>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public class MyService {
+ </div>
+ </div>
+ <div class="admonitionblock important">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">IMPORTANT</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p>as of today, you can mark the producer method with a scope but lazy scopes (like <code>@ApplicationScoped</code> are not really lazy until you implement yourself the lazyness - but scope is respected, i.e. if it is <code>@ApplicationScoped</code> it will be a singleton).</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ <div class="admonitionblock tip">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">TIP</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p>if the returned type implements <code>AutoCloseable</code>, <code>close()</code> will be called to destroy the bean instance(s).</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ </div>
+ </div>
+ <div class="sect1" id="_injection_of_a_listset">
+  <h2>Injection of a list/set</h2>
+ <div class="sectionbody">
+ <div class="admonitionblock important">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">IMPORTANT</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p>injections of <code>List</code> or <code>Set</code> are done by resolving the parameter type of the injection.</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public class MyService {
     @Injection
     List&lt;MySpi&gt; implementations;
 }</code></pre>
-</div>
-</div>
-<div class="admonitionblock tip">
-<table>
-<tr>
-<td class="icon">
-<div class="title">Tip</div>
-</td>
-<td class="content">
-you can put on the implementations (or beans) the annotation <code>@Order</code> to sort their position in the <code>List</code> - ignored for <code>Set</code>.
-</td>
-</tr>
-</table>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_listen_to_an_event">Listen to an event</h2>
-<div class="sectionbody">
-<div class="paragraph">
-<p>Beans can communicate loosely between them thanks to events.
-The bus is synchronous and sorted using <code>@Order</code> annotation.</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public class MyListener {
+ </div>
+ </div>
+ <div class="admonitionblock tip">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">TIP</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p>you can put on the implementations (or beans) the annotation <code>@Order</code> to sort their position in the <code>List</code> - ignored for <code>Set</code>.</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ </div>
+ </div>
+ <div class="sect1" id="_listen_to_an_event">
+  <h2>Listen to an event</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>Beans can communicate loosely between them thanks to events. The bus is synchronous and sorted using <code>@Order</code> annotation.</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public class MyListener {
     public void onStart(@OnEvent final Start start) {
-        System.out.println("Application started");
+        System.out.println(&quot;Application started&quot;);
     }
 
     public void onStop(@OnEvent final Stop stop) {
-        System.out.println("Application stopped");
+        System.out.println(&quot;Application stopped&quot;);
     }
 }</code></pre>
-</div>
-</div>
-<div class="paragraph">
-<p>Example of ordered event listener (default being <code>1000</code>):</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public void onStart(@OnEvent @Order(990) final Start start);</code></pre>
-</div>
-</div>
-<div class="admonitionblock tip">
-<table>
-<tr>
-<td class="icon">
-<div class="title">Tip</div>
-</td>
-<td class="content">
-listening to <code>Start</code> event can enable a lazy instance (<code>@ApplicationScoped</code>) to be forced to be initialized.
-</td>
-</tr>
-</table>
-</div>
-<div class="admonitionblock tip">
-<table>
-<tr>
-<td class="icon">
-<div class="title">Tip</div>
-</td>
-<td class="content">
-an event can have more parameters, other parameters will be considered as injections (but the lookup will be destroyed after the method call if it is not <code>@ApplicationScoped</code>)
-</td>
-</tr>
-</table>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_emit_an_event">Emit an event</h2>
-<div class="sectionbody">
-<div class="paragraph">
-<p>To emit an event simply inject the <code>Emitter</code> and send the needed event:</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public class CustomerService {
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>Example of ordered event listener (default being <code>1000</code>):</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public void onStart(@OnEvent @Order(990) final Start start);</code></pre>
+ </div>
+ </div>
+ <div class="admonitionblock tip">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">TIP</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p>listening to <code>Start</code> event can enable a lazy instance (<code>@ApplicationScoped</code>) to be forced to be initialized.</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ <div class="admonitionblock tip">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">TIP</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p>an event can have more parameters, other parameters will be considered as injections (but the lookup will be destroyed after the method call if it is not <code>@ApplicationScoped</code>)</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ </div>
+ </div>
+ <div class="sect1" id="_emit_an_event">
+  <h2>Emit an event</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>To emit an event simply inject the <code>Emitter</code> and send the needed event:</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public class CustomerService {
     @Injection
     Emitter emitter;
 
@@ -352,29 +373,31 @@ an event can have more parameters, other parameters will be considered as inject
         emitter.emit(customer);
     }
 }</code></pre>
-</div>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="configuration_model">Create a configuration model</h2>
-<div class="sectionbody">
-<div class="paragraph">
-<p>A configuration model is a record marked with <code>@RootConfiguration</code>:</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@RootConfiguration("server")
+ </div>
+ </div>
+ </div>
+ </div>
+ <div class="sect1" id="__create_a_configuration_model_">
+  <h2> <p id="configuration_model">
+Create a configuration model
+ </p>
+</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>A configuration model is a record marked with <code>@RootConfiguration</code>:</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@RootConfiguration(&quot;server&quot;)
 public record ServerConfiguration(int port, String accessLogPattern) {}</code></pre>
-</div>
-</div>
-<div class="paragraph">
-<p>This simple configuration will read the system properties <code>server.port</code>, <code>server.accessLogPattern</code> (or environment variables <code>SERVER_PORT</code>, <code>SERVER_ACCESSLOGPATTERN</code>) to fill the values.
-The instance of <code>ServerConfiguration</code> can be injected in any bean:</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@Bean
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>This simple configuration will read the system properties <code>server.port</code>, <code>server.accessLogPattern</code> (or environment variables <code>SERVER_PORT</code>, <code>SERVER_ACCESSLOGPATTERN</code>) to fill the values. The instance of <code>ServerConfiguration</code> can be injected in any bean:</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@Bean
 public class MyServer {
     private final ServerConfiguration conf;
 
@@ -384,46 +407,53 @@ public class MyServer {
 
     // ...
 }</code></pre>
-</div>
-</div>
-<div class="paragraph">
-<p>If you want to customize the name of the property you can use <code>@Property</code>.</p>
-</div>
-<div class="paragraph">
-<p>Finally, you can register you own source of values creating a bean of type <code>ConfigurationSource</code>.</p>
-</div>
-<div class="admonitionblock important">
-<table>
-<tr>
-<td class="icon">
-<div class="title">Important</div>
-</td>
-<td class="content">
-<code>List&lt;OtherConfig&gt;</code> are supported, but you must set in the configuration <code>&lt;prefix for this list&gt;.length</code> to the length value of the list then the nested instances are configured using <code>&lt;prefix&gt;.&lt;index&gt;</code> starting at index 0. Ex: <code>myconf.mylist.0.name=foo</code>.
-</td>
-</tr>
-</table>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="json_model">Create a JSON model</h2>
-<div class="sectionbody">
-<div class="paragraph">
-<p>A JSON model is a record marked with <code>@JsonModel</code>:</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@JsonModel
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>If you want to customize the name of the property you can use <code>@Property</code>.</p>
+ </div>
+ <div class="paragraph">
+ <p>Finally, you can register you own source of values creating a bean of type <code>ConfigurationSource</code>.</p>
+ </div>
+ <div class="admonitionblock important">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">IMPORTANT</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p><code>List&lt;OtherConfig&gt;</code> are supported, but you must set in the configuration <code>&lt;prefix for this list&gt;.length</code> to the length value of the list then the nested instances are configured using <code>&lt;prefix&gt;.&lt;index&gt;</code> starting at index 0. Ex: <code>myconf.mylist.0.name=foo</code>.</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ </div>
+ </div>
+ <div class="sect1" id="__create_a_json_model_">
+  <h2> <p id="json_model">
+Create a JSON model
+ </p>
+</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>A JSON model is a record marked with <code>@JsonModel</code>:</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@JsonModel
 public record ServerConfiguration(int port, String accessLogPattern) {}</code></pre>
-</div>
-</div>
-<div class="paragraph">
-<p>Then simply inject the <code>JsonMapper</code> in any bean to read/write such a model:</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@Bean
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>Then simply inject the <code>JsonMapper</code> in any bean to read/write such a model:</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@Bean
 public class MyServer {
     private final JsonMapper mapper;
 
@@ -431,64 +461,69 @@ public class MyServer {
         this.mapper = mapper;
     }
 
-    // ... mapper.toString(serverconf) / mapper.fromString(ServerConfiguration.class, "{}");
+    // ... mapper.toString(serverconf) / mapper.fromString(ServerConfiguration.class, &quot;{}&quot;);
 }</code></pre>
-</div>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_handle_unknown_json_attributes">Handle unknown JSON attributes</h2>
-<div class="sectionbody">
-<div class="paragraph">
-<p>A JSON model is a record marked with <code>@JsonModel</code>:</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@JsonModel
+ </div>
+ </div>
+ </div>
+ </div>
+ <div class="sect1" id="_handle_unknown_json_attributes">
+  <h2>Handle unknown JSON attributes</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>A JSON model is a record marked with <code>@JsonModel</code>:</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@JsonModel
 public record MyModel(
         // known attribute
         String name,
         // unknown attributes/extensions
         @JsonOthers Map&lt;String, Object&gt; extensions) {}</code></pre>
-</div>
-</div>
-<div class="paragraph">
-<p>This will match this JSON:</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-json hljs" data-lang="json">{
-  "name": "fusion",
-  "x-foo": true,
-  "boney": "M"
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>
+This will match this JSON:
+ </p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-json hljs" data-lang="json">{
+  &quot;name&quot;: &quot;fusion&quot;,
+  &quot;x-foo&quot;: true,
+  &quot;boney&quot;: &quot;M&quot;
 }</code></pre>
-</div>
-</div>
-<div class="paragraph">
-<p>And convert it to the following record mapping: <code>MyModel[name=fusion, extensions={x-foo=true,boney=M}]</code>.</p>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_define_a_custom_http_endpoint">Define a custom HTTP endpoint</h2>
-<div class="sectionbody">
-<div class="sect2">
-<h3 id="_implement_a_custom_explicit_endpoint_bean">Implement a custom explicit Endpoint bean</h3>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@Bean
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>And convert it to the following record mapping: <code>MyModel[name=fusion, extensions={x-foo=true,boney=M}]</code>.</p>
+ </div>
+ </div>
+ </div>
+ <div class="sect1" id="_define_a_custom_http_endpoint">
+  <h2>Define a custom HTTP endpoint</h2>
+ <div class="sectionbody">
+ <div class="sect2" id="_implement_a_custom_explicit_endpoint_bean">
+  <h3>Implement a custom explicit Endpoint bean</h3>
+ <div class="sectionbody">
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@Bean
 public class MyEndpoint implements Endpoint {
     ....
 }</code></pre>
-</div>
-</div>
-</div>
-<div class="sect2">
-<h3 id="_implement_a_custom_implicit_endpoint">Implement a custom implicit Endpoint</h3>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@HttpMatcher(...)
+ </div>
+ </div>
+ </div>
+ </div>
+ <div class="sect2" id="_implement_a_custom_implicit_endpoint">
+  <h3>Implement a custom implicit Endpoint</h3>
+ <div class="sectionbody">
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@HttpMatcher(...)
 public CompletionStage&lt;Response&gt; myEndpoint(final Request request) {
     ....
 }
@@ -500,18 +535,19 @@ public CompletionStage&lt;Response&gt; myEndpoint(final Request request) {
 public Response myEndpoint(final Request request) {
     ....
 }</code></pre>
-</div>
-</div>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_define_a_json_rpc_endpoint">Define a JSON-RPC endpoint</h2>
-<div class="sectionbody">
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public class Endpoints {
-    @JsonRpc("copy")
+ </div>
+ </div>
+ </div>
+ </div>
+ </div>
+ </div>
+ <div class="sect1" id="_define_a_jsonrpc_endpoint">
+  <h2>Define a JSON-RPC endpoint</h2>
+ <div class="sectionbody">
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public class Endpoints {
+    @JsonRpc(&quot;copy&quot;)
     public MyResult result(final MyInput input) {
         return new MyResult(input.name());
     }
@@ -524,155 +560,266 @@ public Response myEndpoint(final Request request) {
     public record MyInput(String name) {
     }
 }</code></pre>
-</div>
-</div>
-<div class="admonitionblock tip">
-<table>
-<tr>
-<td class="icon">
-<div class="title">Tip</div>
-</td>
-<td class="content">
-you can use the configuration entry <code>fusion.jsonrpc.binding</code> to change the <code>/jsonrpc</code> default binding.
-You can also set <code>fusion.jsonrpc.forceInputStreamUsage</code> to <code>true</code> to force the input to be reactive instead of using default request <code>Reader</code>.
-</td>
-</tr>
-</table>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_define_a_reactive_json_rpc_endpoint">Define a "reactive" JSON-RPC endpoint</h2>
-<div class="sectionbody">
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public class Endpoints {
+ </div>
+ </div>
+ <div class="admonitionblock tip">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">TIP</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p>you can use the configuration entry <code>fusion.jsonrpc.binding</code> to change the <code>/jsonrpc</code> default binding. You can also set <code>fusion.jsonrpc.forceInputStreamUsage</code> to <code>true</code> to force the input to be reactive instead of using default request <code>Reader</code>.</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ <div class="admonitionblock note">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">NOTE</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p>you can review  <a href="documentation.html">documentation</a>
+ page to see how to render OpenRPC as asciidoc or OpenAPI content.</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ </div>
+ </div>
+ <div class="sect1" id="_define_a_quotreactivequot_jsonrpc_endpoint">
+  <h2>Define a &quot;reactive&quot; JSON-RPC endpoint</h2>
+ <div class="sectionbody">
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public class Endpoints {
     private final MyRemoteService remote;
 
     public Endpoints(final MyRemoteService remote) {
         this.remote = remote;
     }
 
-    @JsonRpc("remoteById")
+    @JsonRpc(&quot;remoteById&quot;)
     public CompletionStage&lt;MyResult&gt; result(final String id) {
         return remote.invoke(id);
     }
 }</code></pre>
-</div>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_register_openrpc_endpoint">Register OpenRPC endpoint</h2>
-<div class="sectionbody">
-<div class="paragraph">
-<p>It is possible to register an OpenRPC endpoint named <code>openrpc</code> to serve JSON-RPC specification:</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@Bean
+ </div>
+ </div>
+ </div>
+ </div>
+ <div class="sect1" id="_register_openrpc_endpoint">
+  <h2>Register OpenRPC endpoint</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>It is possible to register an OpenRPC endpoint named <code>openrpc</code> to serve JSON-RPC specification:</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@Bean
 public OpenRPCEndpoint openrpc() {
     return new OpenRPCEndpoint()
         /*.setInfo(new Info(...))*/;
 }</code></pre>
-</div>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_start_the_container">Start the container</h2>
-<div class="sectionbody">
-<div class="paragraph">
-<p>To launch the application you need to start the container.
-It is done in two phases:</p>
-</div>
-<div class="ulist">
-<ul>
-<li>
-<p>Configure the runtime</p>
-</li>
-<li>
-<p>Launch the runtime.</p>
-</li>
-</ul>
-</div>
-<div class="paragraph">
-<p>Here is how to do it:</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">try (
+ </div>
+ </div>
+ </div>
+ </div>
+ <div class="sect1" id="_start_the_container">
+  <h2>Start the container</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>
+To launch the application you need to start the container. It is done in two phases:
+ </p>
+ </div>
+ <div class="ulist">
+ <ul>
+  <li>
+ <p>
+Configure the runtime
+ </p>
+  </li>
+  <li>
+ <p>
+Launch the runtime.
+ </p>
+  </li>
+ </ul>
+ </div>
+ <div class="paragraph">
+ <p>
+Here is how to do it:
+ </p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">try (
     final var container = ConfiguringContainer
         .of() <b class="conum">(1)</b>
         .start() <b class="conum">(2)</b>
 ) {
     // use the container or just await for the end of the application
 }</code></pre>
-</div>
-</div>
-<div class="colist arabic">
-<ol>
-<li>
-<p>Get a <code>ConfiguringContainer</code> which enables you to disable bean autodiscovery, to replace beans etc&#8230;&#8203;</p>
-</li>
-<li>
-<p>Launch the runtime container (you can look up beans there).</p>
-</li>
-</ol>
-</div>
-<div class="admonitionblock tip">
-<table>
-<tr>
-<td class="icon">
-<div class="title">Tip</div>
-</td>
-<td class="content">
-you can also just reuse <code>io.yupiik.fusion.framework.api.main.Launcher</code> main which will start the default container.
-You can implement a custom <code>Awaiter</code> to not let the container shutdown immediately if you need - webserver does it by default.
-Finally you can also, using this launcher, inject <code>Args</code> to read the main arguments.
-</td>
-</tr>
-</table>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_test_with_junit_5">Test with JUnit 5</h2>
-<div class="sectionbody">
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@FusionSupport <b class="conum">(1)</b>
+ </div>
+ </div>
+ <div class="colist arabic">
+  <ol>
+   <li>
+ <span>
+Get a 
+ </span>
+<code>ConfiguringContainer</code> <span>
+ which enables you to disable bean autodiscovery, to replace beans etc...
+ </span>
+   </li>
+   <li>
+ <span>
+Launch the runtime container (you can look up beans there).
+ </span>
+   </li>
+  </ol>
+ </div>
+ <div class="admonitionblock tip">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">TIP</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p>you can also just reuse <code>io.yupiik.fusion.framework.api.main.Launcher</code> main which will start the default container. You can implement a custom <code>Awaiter</code> to not let the container shutdown immediately if you need - webserver does it by default. Finally you can also, using this launcher, inject <code>Args</code> to read the main arguments.</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ </div>
+ </div>
+ <div class="sect1" id="_test_with_junit_5">
+  <h2>Test with JUnit 5</h2>
+ <div class="sectionbody">
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@FusionSupport <b class="conum">(1)</b>
 class FusionSupportTest {
     @Test
     void run(@Fusion final Emitter emitter) { <b class="conum">(2)</b>
         assertNotNull(emitter);
     }
 }</code></pre>
-</div>
-</div>
-<div class="colist arabic">
-<ol>
-<li>
-<p>Mark the class to run tests under a container context (it is started/stopped automatically),</p>
-</li>
-<li>
-<p>Inject container beans in test parameters (mark them with <code>@Fusion</code>).</p>
-</li>
-</ol>
-</div>
-<div class="paragraph">
-<p>Alternatively you can run a single container for all tests:</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@MonoFusionSupport
+ </div>
+ </div>
+ <div class="colist arabic">
+  <ol>
+   <li>
+ <span>
+Mark the class to run tests under a container context (it is started/stopped automatically),
+ </span>
+   </li>
+   <li>
+ <span>
+Inject container beans in test parameters (mark them with 
+ </span>
+<code>@Fusion</code> <span>
+).
+ </span>
+   </li>
+  </ol>
+ </div>
+ <div class="paragraph">
+ <p>
+Alternatively you can run a single container for all tests:
+ </p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@MonoFusionSupport
 class FusionSupportTest {
     // same as before
 }</code></pre>
-</div>
-</div>
-</div>
-</div>
+ </div>
+ </div>
+ </div>
+ </div>
+ <div class="sect1" id="_do_a_fat_jar_with_maven_shade_plugin">
+  <h2>Do a fat jar with maven shade plugin</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>
+Fatjar are not recommended in general but can be convenient for demo or CLI applications. Here is how to do it very easily with Apache Maven shade plugin:
+ </p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-xml hljs" data-lang="xml">&lt;plugin&gt;
+  &lt;groupId&gt;org.apache.maven.plugins&lt;/groupId&gt;
+  &lt;artifactId&gt;maven-shade-plugin&lt;/artifactId&gt;
+  &lt;version&gt;3.5.2&lt;/version&gt;
+  &lt;dependencies&gt;
+    &lt;dependency&gt;
+      &lt;groupId&gt;io.yupiik.maven&lt;/groupId&gt;
+      &lt;artifactId&gt;maven-shade-transformers&lt;/artifactId&gt;
+      &lt;version&gt;0.0.5&lt;/version&gt;
+    &lt;/dependency&gt;
+  &lt;/dependencies&gt;
+  &lt;executions&gt;
+    &lt;execution&gt;
+      &lt;goals&gt;
+        &lt;goal&gt;shade&lt;/goal&gt;
+      &lt;/goals&gt;
+      &lt;configuration&gt;
+        &lt;shadedArtifactAttached&gt;true&lt;/shadedArtifactAttached&gt;
+        &lt;shadedClassifierName&gt;fat&lt;/shadedClassifierName&gt;
+        &lt;createDependencyReducedPom&gt;false&lt;/createDependencyReducedPom&gt;
+        &lt;dependencyReducedPomLocation&gt;${project.build.directory}/reduced-pom.xml&lt;/dependencyReducedPomLocation&gt;
+        &lt;transformers&gt;
+          &lt;transformer implementation=&quot;org.apache.maven.plugins.shade.resource.ManifestResourceTransformer&quot;&gt;
+            &lt;mainClass&gt;io.yupiik.fusion.framework.api.main.Launcher&lt;/mainClass&gt;
+          &lt;/transformer&gt;
+          &lt;transformer implementation=&quot;org.apache.maven.plugins.shade.resource.ServicesResourceTransformer&quot; /&gt;
+          &lt;transformer implementation=&quot;io.yupiik.maven.shade.transformer.FusionDocumentationTransformer&quot; /&gt;
+          &lt;transformer implementation=&quot;io.yupiik.maven.shade.transformer.FusionJsonSchemaTransformer&quot; /&gt;
+          &lt;transformer implementation=&quot;io.yupiik.maven.shade.transformer.FusionOpenRPCTransformer&quot; /&gt;
+        &lt;/transformers&gt;
+        &lt;filters&gt;
+          &lt;filter&gt; &lt;!-- optional but generally saner --&gt;
+            &lt;artifact&gt;*:*&lt;/artifact&gt;
+            &lt;excludes&gt;
+              &lt;exclude&gt;module-info.class&lt;/exclude&gt;
+              &lt;exclude&gt;META-INF/*.SF&lt;/exclude&gt;
+              &lt;exclude&gt;META-INF/*.DSA&lt;/exclude&gt;
+              &lt;exclude&gt;META-INF/*.RSA&lt;/exclude&gt;
+              &lt;exclude&gt;META-INF/LICENSE.txt&lt;/exclude&gt;
+              &lt;exclude&gt;META-INF/LICENSE&lt;/exclude&gt;
+              &lt;exclude&gt;META-INF/NOTICE.txt&lt;/exclude&gt;
+              &lt;exclude&gt;META-INF/NOTICE&lt;/exclude&gt;
+              &lt;exclude&gt;META-INF/MANIFEST.MF&lt;/exclude&gt;
+              &lt;exclude&gt;META-INF/DEPENDENCIES&lt;/exclude&gt;
+            &lt;/excludes&gt;
+          &lt;/filter&gt;
+        &lt;/filters&gt;
+      &lt;/configuration&gt;
+    &lt;/execution&gt;
+  &lt;/executions&gt;
+&lt;/plugin&gt;</code></pre>
+ </div>
+ </div>
+ </div>
+ </div>
+                
                 
             </div>
         </div>
@@ -681,13 +828,12 @@ class FusionSupportTest {
         <nav class="generated-nav-menu"></nav>
     </div>
     </div>
-    <hr />
     <footer class="footer pb-5">
-	    <div class="footer-bottom text-center">
+	    <div class="text-center">
 		    <ul class="social-list list-unstyled">
-                <li class="list-inline-item"><a href="https://www.github.com/yupiik/"><i class="fab fa-github fa-fw"></i></a></li><li class="list-inline-item"><a href="https://www.linkedin.com/company/yupiik/"><i class="fab fa-linkedin fa-fw"></i></a></li>
+                <li class="list-inline-item"><a title="Github" href="https://www.github.com/yupiik/"><i class="fab fa-github fa-fw"></i></a></li><li class="list-inline-item"><a title="LinkedIn" href="https://www.linkedin.com/company/yupiik/"><i class="fab fa-linkedin fa-fw"></i></a></li>
 	        </ul>
-            <small class="copyright">Yupiik &copy;</small> | <a href="https://www.yupiik.com/terms-of-service/">Terms of service</a> | <a href="https://www.yupiik.com/privacy-policy/">Privacy policy</a>
+            <small class="copyright">Yupiik &copy;</small> | <a href="https://www.yupiik.com/terms-of-use/">Terms of use</a> | <a href="https://www.yupiik.com/privacy-policy/">Privacy policy</a>
 	    </div>
     </footer>
 
@@ -724,8 +870,12 @@ class FusionSupportTest {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/languages/bash.min.js" integrity="sha512-Hg0ufGEvn0AuzKMU0psJ1iH238iUN6THh7EI0CfA0n1sd3yu6PYet4SaDMpgzN9L1yQHxfB3yc5ezw3PwolIfA==" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/languages/json.min.js" integrity="sha512-37sW1XqaJmseHAGNg4N4Y01u6g2do6LZL8tsziiL5CMXGy04Th65OXROw2jeDeXLo5+4Fsx7pmhEJJw77htBFg==" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/languages/dockerfile.min.js" integrity="sha512-eRNl3ty7GOJPBN53nxLgtSSj2rkYj5/W0Vg0MFQBw8xAoILeT6byOogENHHCRRvHil4pKQ/HbgeJ5DOwQK3SJA==" crossorigin="anonymous"></script>
-    <script>if (!(window.minisite || {}).skipHighlightJs) { hljs.highlightAll(); }</script>
-    <script src="//www.yupiik.io/fusion/js/minisite.js?v=1.0.14-SNAPSHOT"></script>
+    <script>if (!(window.minisite || {}).skipHighlightJs) { hljs.highlightAll();
+function addCopyButtons(clipboard) {
+  document.querySelectorAll('pre > code').forEach(function (codeBlock) {
+  var button = document.createElement('button');  button.className = 'copy-code-button';  button.type = 'button';  button.innerText = 'Copy';  button.addEventListener('click', function () {   clipboard.writeText(codeBlock.innerText).then(function () {   button.blur();   button.innerText = 'Copied!';   setTimeout(function () { button.innerText = 'Copy'; }, 2000); }, function (error) { button.innerText = 'Error'; });  });  var pre = codeBlock.parentNode;  if (pre.parentNode.classList.contains('highlight')) {   var highlight = pre.parentNode; highlight.parentNode.insertBefore(button, highlight);  } else { pre.parentNode.insertBefore(button, pre); } });}
+if (navigator && navigator.clipboard) { addCopyButtons(navigator.clipboard);} else { var script = document.createElement('script'); script.src = '//cdnjs.cloudflare.com/ajax/libs/clipboard-polyfill/2.7.0/clipboard-polyfill.promise.js'; script.integrity = 'sha256-waClS2re9NUbXRsryKoof+F9qc1gjjIhc2eT7ZbIv94='; script.crossOrigin = 'anonymous'; script.onload = function() {addCopyButtons(clipboard);}; document.body.appendChild(script);} }</script>
+    <script src="//www.yupiik.io/fusion/js/minisite.js?v=1.0.17-SNAPSHOT"></script>
     <script>$('.page-content-body').generatedNavMenu();</script>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fuse.js/6.4.3/fuse.min.js" integrity="sha512-neoBxVNv0UMXjoilAYGxfWrSsW6iAVclx7vQKdPJ9Peet1bM5YQjU0aIB8LtH8iNPa+pAyMZprBBw2ZQ/Q1LjQ==" crossorigin="anonymous"></script>

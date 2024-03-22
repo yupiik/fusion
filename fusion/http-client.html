@@ -6,19 +6,19 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Fusion :: Documentation">
+    <meta name="description" content="Fusion framework aims at providing a very light java framework and graal native.">
     <meta name="author" content="Yupiik Minisite Generator">
     <meta name="generator" content="Yupiik Minisite Generator">
     
-    <link rel="shortcut icon" href="//www.yupiik.io/images/favicon.png">
+    <link rel="shortcut icon" href="//www.yupiik.io/fusion/images/logo.svg">
 
     <link href="//fonts.googleapis.com/css?family=Open+Sans:300,300i,400,400i,700,700i|Montserrat:300,400,500,700" rel="stylesheet">
     <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css" integrity="sha512-+4zCK9k+qNFUR5X+cKL9EIR+ZOhtIloNl9GIKS57V1MyNsYpYcUrUeQc9vNfzsWfV28IaLL3i96P9sdNyeRssA==" crossorigin="anonymous" />
     <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/asciidoctor.js/1.5.5-5/css/asciidoctor.min.css" integrity="sha512-kI7tn5cuEg16kMeXnYmg8rEJPxbxzEM7Gsr191iQdLDevFBLXPCSU9aZWSVuP61tMZWU3nBAR1cJ7SmXnOGLZw==" crossorigin="anonymous" />
     <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.3/css/bootstrap.min.css" integrity="sha512-oc9+XSs1H243/FRN9Rw62Fn8EtxjEYWHXRvjS43YtueEewbS6ObfXcJNyohjHqVKFPoXXUxwc+q1K7Dee6vv9g==" crossorigin="anonymous" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/styles/vs2015.min.css" integrity="sha512-w8aclkBlN3Ha08SMwFKXFJqhSUx2qlvTBFLLelF8sm4xQnlg64qmGB/A6pBIKy0W8Bo51yDMDtQiPLNRq1WMcQ==" crossorigin="anonymous" />
-    <link id="theme-style" rel="stylesheet" href="//www.yupiik.io/fusion/css/theme.css?v=1.0.14-SNAPSHOT">
     
+    <link id="theme-style" rel="stylesheet" href="//www.yupiik.io/fusion/css/theme.css?v=1.0.17-SNAPSHOT">
 </head>
 <body>
     <header class="header fixed-top">
@@ -26,8 +26,8 @@
             <div class="container-fluid position-relative py-2">
                 <div class="docs-logo-wrapper">
 	                <div class="site-logo"><a title="Home" class="navbar-brand" href="//www.yupiik.io/fusion/index.html">
-	                <img class="logo-icon mr-2" src="//www.yupiik.io/images/favicon.png" alt="logo">
-	                <span class="logo-text">Fusion :: Documentation <span class="text-alt">Docs</span></span></a></div>
+	                <img class="logo-icon mr-2" src="//www.yupiik.io/fusion/images/logo.svg" alt="logo">
+	                <span class="logo-text">Fusion <span class="text-alt">Documentation</span></span></a></div>
                 </div>
 	            <div class="docs-top-utilities d-flex justify-content-end align-items-center">
 					
@@ -35,7 +35,7 @@
 
 					<ul class="social-list list-inline mx-md-3 mx-lg-5 mb-0 d-none d-lg-flex">
 						
-						<li class="list-inline-item"><a href="https://www.github.com/yupiik/"><i class="fab fa-github fa-fw"></i></a></li><li class="list-inline-item"><a href="https://www.linkedin.com/company/yupiik/"><i class="fab fa-linkedin fa-fw"></i></a></li>
+						<li class="list-inline-item"><a title="Github" href="https://www.github.com/yupiik/"><i class="fab fa-github fa-fw"></i></a></li><li class="list-inline-item"><a title="LinkedIn" href="https://www.linkedin.com/company/yupiik/"><i class="fab fa-linkedin fa-fw"></i></a></li>
 		            </ul>
 	            </div>
             </div>
@@ -58,12 +58,12 @@
                         <i class="fas fa-building"></i>Setup
                     </a>
                 </li>                <li>
-                    <a title="Fusion JSON support" href="//www.yupiik.io/fusion/fusion/json.html">
-                        <i class="fas fa-wifi"></i>JSON
-                    </a>
-                </li>                <li>
                     <a title="Fusion CLI" href="//www.yupiik.io/fusion/fusion/cli.html">
                         <i class="fas fa-terminal"></i>CLI
+                    </a>
+                </li>                <li>
+                    <a title="Fusion JSON support" href="//www.yupiik.io/fusion/fusion/json.html">
+                        <i class="fas fa-wifi"></i>JSON
                     </a>
                 </li>                <li>
                     <a title="framework and GraalVM (native-image)" href="//www.yupiik.io/fusion/fusion/graalvm.html">
@@ -79,125 +79,145 @@
             </div>
             <div class="page-content-body">
                 <div id="preamble">
-<div class="sectionbody">
-<div class="paragraph">
-<p>Fusion HTTP Client is based on <code>java.net.http.HttpClient</code>.
-It is configured with <code>ExtendedHttpClientConfiguration</code> which enables to:</p>
-</div>
-<div class="ulist">
-<ul>
-<li>
-<p>optionally provide a configured <code>HttpClient</code> instance - otherwise the default JVM one is used,</p>
-</li>
-<li>
-<p>optionally provide a set of `RequestListener`s which listen for requests.</p>
-</li>
-</ul>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_request_listeners">Request Listeners</h2>
-<div class="sectionbody">
-<div class="paragraph">
-<p>Request listener is a callback triggered before and after each request.
-It enables to store data before the requests in the caller context and execute some callback once the request is finished.
-To pass data between both steps (since the request can be asynchronous or not) it uses a <code>State</code> which can hold any data the listener needs.</p>
-</div>
-<div class="admonitionblock tip">
-<table>
-<tr>
-<td class="icon">
-<div class="title">Tip</div>
-</td>
-<td class="content">
-if you write custom listeners (to add OpenTracing capabilities for example), you can make them implement <code>AutoCloseable</code> and when closing the HTTP client the method will be called automatically.
-</td>
-</tr>
-</table>
-</div>
-<div class="sect2">
-<h3 id="_default_listeners">Default Listeners</h3>
-<div class="sect3">
-<h4 id="_defaulttimeout"><code>DefaultTimeout</code></h4>
-<div class="paragraph">
-<p>This listener is pretty straight forward, if the request does not have a timeout, it sets it to the default one configured in the listener.
-It enables to enforce a global timeout to all requests.</p>
-</div>
-</div>
-<div class="sect3">
-<h4 id="_setuseragent"><code>SetUserAgent</code></h4>
-<div class="paragraph">
-<p>This listener enforce a custom user-agent value.
-It defaults to chrome one.</p>
-</div>
-</div>
-<div class="sect3">
-<h4 id="_exchangelogger"><code>ExchangeLogger</code></h4>
-<div class="paragraph">
-<p>This listener enables to force all exchanges to be logged.</p>
-</div>
-</div>
-<div class="sect3">
-<h4 id="_filteringlistener"><code>FilteringListener</code></h4>
-<div class="paragraph">
-<p>This listener wraps another listener to filter the calls to <code>before</code>/<code>after</code> callbacks either based on the request or on the response.
-Can be useful to ignore some data (for example to only capture errors in <code>HARDumperListener</code>).</p>
-</div>
-<div class="admonitionblock tip">
-<table>
-<tr>
-<td class="icon">
-<div class="title">Tip</div>
-</td>
-<td class="content">
-for <code>ignoredPaths</code> you can use the syntax <code>regex:&lt;java regex&gt;</code> to match more than an exact path at once.
-</td>
-</tr>
-</table>
-</div>
-</div>
-<div class="sect3">
-<h4 id="_hardumperlistener"><code>HARDumperListener</code></h4>
-<div class="paragraph">
-<p>This listener enables to capture a <code>HAR</code> dump of all exchanges which went through the client.
-It can be very useful to generate some test data you replay with a HAR server in a test or a demo environment.</p>
-</div>
-<div class="paragraph">
-<p>It comes with its companion <code>HARHttpClient</code> which enables to replay a HAR without actually doing the requests.</p>
-</div>
-<div class="admonitionblock tip">
-<table>
-<tr>
-<td class="icon">
-<div class="title">Tip</div>
-</td>
-<td class="content">
-a sibling listener called <code>NDJSONDumperListener</code> exists and allows to log each entry in a ND-JSON output (better in case of error but not standard).
-It can be combined to <code>NDJSONHttpClient</code> to replay captured requests (in order).
-</td>
-</tr>
-</table>
-</div>
-<div class="admonitionblock important">
-<table>
-<tr>
-<td class="icon">
-<div class="title">Important</div>
-</td>
-<td class="content">
-the <code>HttpClient</code> companions of these "capture" listeners must be used in sequential order (until you know you can parallelize them all) because there is no matching logic as of today of requests/responses to enable a wider reuse of captures.
-</td>
-</tr>
-</table>
-</div>
-</div>
-</div>
-<div class="sect2">
-<h3 id="_sample_usage">Sample usage</h3>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">final var conf = new ExtendedHttpClientConfiguration();
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>Fusion HTTP Client is based on <code>java.net.http.HttpClient</code>. It is configured with <code>ExtendedHttpClientConfiguration</code> which enables to:</p>
+ </div>
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>- optionally provide a configured <code>HttpClient</code> instance - otherwise the default JVM one is used, - optionally provide a set of <code>RequestListener</code>s which listen for requests.</p>
+ </div>
+ <div class="sect1" id="_request_listeners">
+  <h2>Request Listeners</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>Request listener is a callback triggered before and after each request. It enables to store data before the requests in the caller context and execute some callback once the request is finished. To pass data between both steps (since the request can be asynchronous or not) it uses a <code>State</code> which can hold any data the listener needs.</p>
+ </div>
+ <div class="admonitionblock tip">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">TIP</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p>if you write custom listeners (to add OpenTracing capabilities for example), you can make them implement <code>AutoCloseable</code> and when closing the HTTP client the method will be called automatically.</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ <div class="sect2" id="_default_listeners">
+  <h3>Default Listeners</h3>
+ <div class="sectionbody">
+ <div class="sect3" id="_defaulttimeout">
+  <h4><code>DefaultTimeout</code></h4>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>
+This listener is pretty straight forward, if the request does not have a timeout, it sets it to the default one configured in the listener. It enables to enforce a global timeout to all requests.
+ </p>
+ </div>
+ </div>
+ </div>
+ <div class="sect3" id="_setuseragent">
+  <h4><code>SetUserAgent</code></h4>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>
+This listener enforce a custom user-agent value. It defaults to chrome one.
+ </p>
+ </div>
+ </div>
+ </div>
+ <div class="sect3" id="_exchangelogger">
+  <h4><code>ExchangeLogger</code></h4>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>
+This listener enables to force all exchanges to be logged.
+ </p>
+ </div>
+ </div>
+ </div>
+ <div class="sect3" id="_filteringlistener">
+  <h4><code>FilteringListener</code></h4>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>This listener wraps another listener to filter the calls to <code>before</code>/<code>after</code> callbacks either based on the request or on the response. Can be useful to ignore some data (for example to only capture errors in <code>HARDumperListener</code>).</p>
+ </div>
+ <div class="admonitionblock tip">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">TIP</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p>for <code>ignoredPaths</code> you can use the syntax <code>regex:&lt;java regex&gt;</code> to match more than an exact path at once.</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ </div>
+ </div>
+ <div class="sect3" id="_hardumperlistener">
+  <h4><code>HARDumperListener</code></h4>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>This listener enables to capture a <code>HAR</code> dump of all exchanges which went through the client. It can be very useful to generate some test data you replay with a HAR server in a test or a demo environment.</p>
+ </div>
+ <div class="paragraph">
+ <p>It comes with its companion <code>HARHttpClient</code> which enables to replay a HAR without actually doing the requests.</p>
+ </div>
+ <div class="admonitionblock tip">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">TIP</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p>a sibling listener called <code>NDJSONDumperListener</code> exists and allows to log each entry in a ND-JSON output (better in case of error but not standard). It can be combined to <code>NDJSONHttpClient</code> to replay captured requests (in order).</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ <div class="admonitionblock important">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">IMPORTANT</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p>the <code>HttpClient</code> companions of these &quot;capture&quot; listeners must be used in sequential order (until you know you can parallelize them all) because there is no matching logic as of today of requests/responses to enable a wider reuse of captures.</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ </div>
+ </div>
+ </div>
+ </div>
+ <div class="sect2" id="_sample_usage">
+  <h3>Sample usage</h3>
+ <div class="sectionbody">
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">final var conf = new ExtendedHttpClientConfiguration();
 
 // (optional) force a custom SSL context
 conf.setDelegate(
@@ -213,105 +233,149 @@ conf.setListeners(List.of(
             Logger.getLogger(getClass().getName()),
             Clock.systemUTC(),
             false)));</code></pre>
-</div>
-</div>
-</div>
-<div class="sect2">
-<h3 id="client-tracing">(Open) Tracing</h3>
-<div class="admonitionblock important">
-<table>
-<tr>
-<td class="icon">
-<div class="title">Important</div>
-</td>
-<td class="content">
-this is not in the same module, you must add <code>fusion-tracing</code> module to get this feature.
-</td>
-</tr>
-</table>
-</div>
-<div class="paragraph">
-<p><code>tracing</code> module provides a Tomcat valve you can set up on your web container to add tracing capabilities to your Tomcat:</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">final var listener = new TracingListener(
+ </div>
+ </div>
+ </div>
+ </div>
+ <div class="sect2" id="_open_tracing">
+  <h3>(Open) Tracing</h3>
+ <div class="sectionbody">
+ <div class="admonitionblock important">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">IMPORTANT</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p>this is not in the same module, you must add <code>fusion-tracing</code> module to get this feature.</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ <div class="paragraph">
+ <p><code>tracing</code> module provides a Tomcat valve you can set up on your web container to add tracing capabilities to your Tomcat:</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">final var listener = new TracingListener(
     new ClientTracingConfiguration(), <b class="conum">(1)</b>
     accumulator, <b class="conum">(2)</b>
     new IdGenerator(IdGenerator.Type.HEX), <b class="conum">(3)</b>
     new ServletContextAttributeEvaluator(servletRequest), <b class="conum">(4)</b>
     systemUTC()); <b class="conum">(5)</b>
 
-<b class="conum">(6)</b>
+(6)
 final var configuration = new ExtendedHttpClientConfiguration()
     .setRequestListeners(List.of(listener));
 final var client = new ExtendedHttpClient(configuration);</code></pre>
-</div>
-</div>
-<div class="colist arabic">
-<ol>
-<li>
-<p>The configuration enables to customize the span tags and headers to enrich the request with,</p>
-</li>
-<li>
-<p>The accumulator is what will send/log/&#8230;&#8203; the spans once aggregated, ensure to configure it as needed,</p>
-</li>
-<li>
-<p>The <code>IdGenerator</code> provides the span/trace identifiers, it must be compatible with your collector (<code>hex</code> for zipkin for example),</p>
-</li>
-<li>
-<p>Actually a <code>Supplier&lt;Span&gt;</code>, the span evaluator enables to get parent span, here from the <code>request</code> in a <code>webserver-tomcat</code> using <code>Tracingvalve</code> but any evaluation will work,</p>
-</li>
-<li>
-<p>The clock enables to timestamp the span and compute its duration,</p>
-</li>
-<li>
-<p>Finally, add the listener to your http client configuration and create your client.</p>
-</li>
-</ol>
-</div>
-<div class="admonitionblock important">
-<table>
-<tr>
-<td class="icon">
-<div class="title">Important</div>
-</td>
-<td class="content">
-the accumulator should generally be closed if you reuse <code>AccumulatingSpanCollector</code>. You can combine it with <code>ZipkinFlusher</code> to flush to a zipkin collector v2.
-</td>
-</tr>
-</table>
-</div>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_kubernetes_client">Kubernetes client</h2>
-<div class="sectionbody">
-<div class="paragraph">
-<p><code>kubernetes-client</code> modules providers a HTTP Client already configured for Kubernetes in cluster connection (from a POD).
-This will typically be used from an operator or cloud native application to call Kubernetes API using a plain and very light HTTP Client from the JVM.</p>
-</div>
-<div class="admonitionblock tip">
-<table>
-<tr>
-<td class="icon">
-<div class="title">Tip</div>
-</td>
-<td class="content">
-indeed you can combine it with the enhanced HTTP Client configuring it in the <code>KubernetesClientConfiguration</code>.
-However, it is recommended to do it using <code>setClientWrapper</code> on the configuration and pass the automatically created client to <code>ExtendedHttpClientConfiguration.setDelegate</code>
-to avoid to have to handle the <code>SSLContext</code> yourself.
-</td>
-</tr>
-</table>
-</div>
-<div class="paragraph">
-<p>Usage:</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">final var conf = new KubernetesClientConfiguration()
+ </div>
+ </div>
+ <div class="colist arabic">
+  <ol>
+   <li>
+ <span>
+The configuration enables to customize the span tags and headers to enrich the request with,
+ </span>
+   </li>
+   <li>
+ <span>
+The accumulator is what will send/log/... the spans once aggregated, ensure to configure it as needed,
+ </span>
+   </li>
+   <li>
+ <span>
+The 
+ </span>
+<code>IdGenerator</code> <span>
+ provides the span/trace identifiers, it must be compatible with your collector (
+ </span>
+<code>hex</code> <span>
+ for zipkin for example),
+ </span>
+   </li>
+   <li>
+ <span>
+Actually a 
+ </span>
+<code>Supplier&lt;Span&gt;</code> <span>
+, the span evaluator enables to get parent span, here from the 
+ </span>
+<code>request</code> <span>
+ in a 
+ </span>
+<code>webserver-tomcat</code> <span>
+ using 
+ </span>
+<code>Tracingvalve</code> <span>
+ but any evaluation will work,
+ </span>
+   </li>
+   <li>
+ <span>
+The clock enables to timestamp the span and compute its duration,
+ </span>
+   </li>
+   <li>
+ <span>
+Finally, add the listener to your http client configuration and create your client.
+ </span>
+   </li>
+  </ol>
+ </div>
+ <div class="admonitionblock important">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">IMPORTANT</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p>the accumulator should generally be closed if you reuse <code>AccumulatingSpanCollector</code>. You can combine it with <code>ZipkinFlusher</code> or <code>OpenTelemetryFlusher</code> to flush to a zipkin collector v2.</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ </div>
+ </div>
+ </div>
+ </div>
+ <div class="sect1" id="_kubernetes_client">
+  <h2>Kubernetes client</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p><code>kubernetes-client</code> modules providers a HTTP Client already configured for Kubernetes in cluster connection (from a POD). This will typically be used from an operator or cloud native application to call Kubernetes API using a plain and very light HTTP Client from the JVM.</p>
+ </div>
+ <div class="admonitionblock tip">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">TIP</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p>indeed you can combine it with the enhanced HTTP Client configuring it in the <code>KubernetesClientConfiguration</code>. However, it is recommended to do it using <code>setClientWrapper</code> on the configuration and pass the automatically created client to <code>ExtendedHttpClientConfiguration.setDelegate</code>to avoid to have to handle the <code>SSLContext</code> yourself.</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ <div class="paragraph">
+ <p>
+Usage:
+ </p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">final var conf = new KubernetesClientConfiguration()
     .setClientWrapper(client -&gt; new ExtendedHttpClient(new ExtendedHttpClientConfiguration()
         .setDelegate(client)));
 final var k8s = new KubernetesClient(conf);
@@ -321,32 +385,36 @@ final var response = k8s.send(
         HttpRequest.newBuilder()
                 .GET()
                 .uri(URI.create(
-                    "https://kubernetes.api/api/v1/namespaces/" + k8s.namespace().orElse("default") + "/configmaps?" +
-                            "includeUninitialized=false&amp;" +
-                            "limit=1000&amp;" +
-                            "timeoutSeconds=600")
-                .header("Accept", "application/json")
+                    &quot;https://kubernetes.api/api/v1/namespaces/&quot; + k8s.namespace().orElse(&quot;default&quot;) + &quot;/configmaps?&quot; +
+                            &quot;includeUninitialized=false&amp;&quot; +
+                            &quot;limit=1000&amp;&quot; +
+                            &quot;timeoutSeconds=600&quot;)
+                .header(&quot;Accept&quot;, &quot;application/json&quot;)
                 .build(),
         HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
 // handle the response</code></pre>
-</div>
-</div>
-<div class="admonitionblock important">
-<table>
-<tr>
-<td class="icon">
-<div class="title">Important</div>
-</td>
-<td class="content">
-as you can see, there is no need to pass the token to the request, it is done under the hood by the <code>KubernetesClient</code>.
-The other important note is that <code><a href="https://kubernetes.api" class="bare">https://kubernetes.api</a></code> is automatically replaced by the <code>conf.getMaster()</code> value.
-This enables your code to stay more straight forward in general but if you pass them, the client will handle it properly too.
-</td>
-</tr>
-</table>
-</div>
-</div>
-</div>
+ </div>
+ </div>
+ <div class="admonitionblock important">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">IMPORTANT</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p>as you can see, there is no need to pass the token to the request, it is done under the hood by the <code>KubernetesClient</code>. The other important note is that <code> <a href="https://kubernetes.api" class="inline-code">https://kubernetes.api</a>
+</code> is automatically replaced by the <code>conf.getMaster()</code> value. This enables your code to stay more straight forward in general but if you pass them, the client will handle it properly too.</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ </div>
+ </div>
+                
                 
             </div>
         </div>
@@ -355,13 +423,12 @@ This enables your code to stay more straight forward in general but if you pass 
         <nav class="generated-nav-menu"></nav>
     </div>
     </div>
-    <hr />
     <footer class="footer pb-5">
-	    <div class="footer-bottom text-center">
+	    <div class="text-center">
 		    <ul class="social-list list-unstyled">
-                <li class="list-inline-item"><a href="https://www.github.com/yupiik/"><i class="fab fa-github fa-fw"></i></a></li><li class="list-inline-item"><a href="https://www.linkedin.com/company/yupiik/"><i class="fab fa-linkedin fa-fw"></i></a></li>
+                <li class="list-inline-item"><a title="Github" href="https://www.github.com/yupiik/"><i class="fab fa-github fa-fw"></i></a></li><li class="list-inline-item"><a title="LinkedIn" href="https://www.linkedin.com/company/yupiik/"><i class="fab fa-linkedin fa-fw"></i></a></li>
 	        </ul>
-            <small class="copyright">Yupiik &copy;</small> | <a href="https://www.yupiik.com/terms-of-service/">Terms of service</a> | <a href="https://www.yupiik.com/privacy-policy/">Privacy policy</a>
+            <small class="copyright">Yupiik &copy;</small> | <a href="https://www.yupiik.com/terms-of-use/">Terms of use</a> | <a href="https://www.yupiik.com/privacy-policy/">Privacy policy</a>
 	    </div>
     </footer>
 
@@ -398,8 +465,12 @@ This enables your code to stay more straight forward in general but if you pass 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/languages/bash.min.js" integrity="sha512-Hg0ufGEvn0AuzKMU0psJ1iH238iUN6THh7EI0CfA0n1sd3yu6PYet4SaDMpgzN9L1yQHxfB3yc5ezw3PwolIfA==" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/languages/json.min.js" integrity="sha512-37sW1XqaJmseHAGNg4N4Y01u6g2do6LZL8tsziiL5CMXGy04Th65OXROw2jeDeXLo5+4Fsx7pmhEJJw77htBFg==" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/languages/dockerfile.min.js" integrity="sha512-eRNl3ty7GOJPBN53nxLgtSSj2rkYj5/W0Vg0MFQBw8xAoILeT6byOogENHHCRRvHil4pKQ/HbgeJ5DOwQK3SJA==" crossorigin="anonymous"></script>
-    <script>if (!(window.minisite || {}).skipHighlightJs) { hljs.highlightAll(); }</script>
-    <script src="//www.yupiik.io/fusion/js/minisite.js?v=1.0.14-SNAPSHOT"></script>
+    <script>if (!(window.minisite || {}).skipHighlightJs) { hljs.highlightAll();
+function addCopyButtons(clipboard) {
+  document.querySelectorAll('pre > code').forEach(function (codeBlock) {
+  var button = document.createElement('button');  button.className = 'copy-code-button';  button.type = 'button';  button.innerText = 'Copy';  button.addEventListener('click', function () {   clipboard.writeText(codeBlock.innerText).then(function () {   button.blur();   button.innerText = 'Copied!';   setTimeout(function () { button.innerText = 'Copy'; }, 2000); }, function (error) { button.innerText = 'Error'; });  });  var pre = codeBlock.parentNode;  if (pre.parentNode.classList.contains('highlight')) {   var highlight = pre.parentNode; highlight.parentNode.insertBefore(button, highlight);  } else { pre.parentNode.insertBefore(button, pre); } });}
+if (navigator && navigator.clipboard) { addCopyButtons(navigator.clipboard);} else { var script = document.createElement('script'); script.src = '//cdnjs.cloudflare.com/ajax/libs/clipboard-polyfill/2.7.0/clipboard-polyfill.promise.js'; script.integrity = 'sha256-waClS2re9NUbXRsryKoof+F9qc1gjjIhc2eT7ZbIv94='; script.crossOrigin = 'anonymous'; script.onload = function() {addCopyButtons(clipboard);}; document.body.appendChild(script);} }</script>
+    <script src="//www.yupiik.io/fusion/js/minisite.js?v=1.0.17-SNAPSHOT"></script>
     <script>$('.page-content-body').generatedNavMenu();</script>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fuse.js/6.4.3/fuse.min.js" integrity="sha512-neoBxVNv0UMXjoilAYGxfWrSsW6iAVclx7vQKdPJ9Peet1bM5YQjU0aIB8LtH8iNPa+pAyMZprBBw2ZQ/Q1LjQ==" crossorigin="anonymous"></script>

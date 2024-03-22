@@ -6,19 +6,19 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Fusion :: Documentation">
+    <meta name="description" content="Fusion framework aims at providing a very light java framework and graal native.">
     <meta name="author" content="Yupiik Minisite Generator">
     <meta name="generator" content="Yupiik Minisite Generator">
     
-    <link rel="shortcut icon" href="//www.yupiik.io/images/favicon.png">
+    <link rel="shortcut icon" href="//www.yupiik.io/fusion/images/logo.svg">
 
     <link href="//fonts.googleapis.com/css?family=Open+Sans:300,300i,400,400i,700,700i|Montserrat:300,400,500,700" rel="stylesheet">
     <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css" integrity="sha512-+4zCK9k+qNFUR5X+cKL9EIR+ZOhtIloNl9GIKS57V1MyNsYpYcUrUeQc9vNfzsWfV28IaLL3i96P9sdNyeRssA==" crossorigin="anonymous" />
     <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/asciidoctor.js/1.5.5-5/css/asciidoctor.min.css" integrity="sha512-kI7tn5cuEg16kMeXnYmg8rEJPxbxzEM7Gsr191iQdLDevFBLXPCSU9aZWSVuP61tMZWU3nBAR1cJ7SmXnOGLZw==" crossorigin="anonymous" />
     <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.3/css/bootstrap.min.css" integrity="sha512-oc9+XSs1H243/FRN9Rw62Fn8EtxjEYWHXRvjS43YtueEewbS6ObfXcJNyohjHqVKFPoXXUxwc+q1K7Dee6vv9g==" crossorigin="anonymous" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/styles/vs2015.min.css" integrity="sha512-w8aclkBlN3Ha08SMwFKXFJqhSUx2qlvTBFLLelF8sm4xQnlg64qmGB/A6pBIKy0W8Bo51yDMDtQiPLNRq1WMcQ==" crossorigin="anonymous" />
-    <link id="theme-style" rel="stylesheet" href="//www.yupiik.io/fusion/css/theme.css?v=1.0.14-SNAPSHOT">
     
+    <link id="theme-style" rel="stylesheet" href="//www.yupiik.io/fusion/css/theme.css?v=1.0.17-SNAPSHOT">
 </head>
 <body>
     <header class="header fixed-top">
@@ -26,8 +26,8 @@
             <div class="container-fluid position-relative py-2">
                 <div class="docs-logo-wrapper">
 	                <div class="site-logo"><a title="Home" class="navbar-brand" href="//www.yupiik.io/fusion/index.html">
-	                <img class="logo-icon mr-2" src="//www.yupiik.io/images/favicon.png" alt="logo">
-	                <span class="logo-text">Fusion :: Documentation <span class="text-alt">Docs</span></span></a></div>
+	                <img class="logo-icon mr-2" src="//www.yupiik.io/fusion/images/logo.svg" alt="logo">
+	                <span class="logo-text">Fusion <span class="text-alt">Documentation</span></span></a></div>
                 </div>
 	            <div class="docs-top-utilities d-flex justify-content-end align-items-center">
 					
@@ -35,7 +35,7 @@
 
 					<ul class="social-list list-inline mx-md-3 mx-lg-5 mb-0 d-none d-lg-flex">
 						
-						<li class="list-inline-item"><a href="https://www.github.com/yupiik/"><i class="fab fa-github fa-fw"></i></a></li><li class="list-inline-item"><a href="https://www.linkedin.com/company/yupiik/"><i class="fab fa-linkedin fa-fw"></i></a></li>
+						<li class="list-inline-item"><a title="Github" href="https://www.github.com/yupiik/"><i class="fab fa-github fa-fw"></i></a></li><li class="list-inline-item"><a title="LinkedIn" href="https://www.linkedin.com/company/yupiik/"><i class="fab fa-linkedin fa-fw"></i></a></li>
 		            </ul>
 	            </div>
             </div>
@@ -58,12 +58,12 @@
                         <i class="fas fa-building"></i>Setup
                     </a>
                 </li>                <li>
-                    <a title="Fusion JSON support" href="//www.yupiik.io/fusion/fusion/json.html">
-                        <i class="fas fa-wifi"></i>JSON
-                    </a>
-                </li>                <li>
                     <a title="Fusion CLI" href="//www.yupiik.io/fusion/fusion/cli.html">
                         <i class="fas fa-terminal"></i>CLI
+                    </a>
+                </li>                <li>
+                    <a title="Fusion JSON support" href="//www.yupiik.io/fusion/fusion/json.html">
+                        <i class="fas fa-wifi"></i>JSON
                     </a>
                 </li>                <li>
                     <a title="framework and GraalVM (native-image)" href="//www.yupiik.io/fusion/fusion/graalvm.html">
@@ -79,72 +79,182 @@
             </div>
             <div class="page-content-body">
                 <div id="preamble">
-<div class="sectionbody">
-<div class="paragraph">
-<p>The JWT module intend to parse and validate a JWT just using <code>fusion-json</code> dependency and the JVM.</p>
-</div>
-<div class="paragraph">
-<p>Most of the time you will use an API gateway to do that but for advanced business validations or lighter architectures, it can make sense to do it in the application.</p>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_runtime_dependency">Runtime Dependency</h2>
-<div class="sectionbody">
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-xml hljs" data-lang="xml">&lt;dependency&gt;
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>The JWT module intend to parse and validate a JWT just using <code>fusion-json</code> dependency and the JVM.</p>
+ </div>
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>
+Most of the time you will use an API gateway to do that but for advanced business validations or lighter architectures, it can make sense to do it in the application.
+ </p>
+ </div>
+ <div class="sect1" id="_runtime_dependency">
+  <h2>Runtime Dependency</h2>
+ <div class="sectionbody">
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-xml hljs" data-lang="xml">&lt;dependency&gt;
   &lt;groupId&gt;${project.groupId}&lt;/groupId&gt;
   &lt;artifactId&gt;fusion-jwt&lt;/artifactId&gt;
   &lt;version&gt;${project.version}&lt;/version&gt;
 &lt;/dependency&gt;</code></pre>
-</div>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_configuration">Configuration</h2>
-<div class="sectionbody">
-<div class="paragraph">
-<p>The configuration is a <code>JwtValidationConfiguration</code> (you have to integrate it in your application configuration or reuse the <code>jwt</code> named one you can inject).
-Here are the subkeys:</p>
-</div>
-<div class="ulist">
-<ul>
-<li>
-<p><code>jwt.algo</code> (default: <code>"RS256"</code>): JWT <code>alg</code> value..</p>
-</li>
-<li>
-<p><code>jwt.expRequired</code> (default: <code>true</code>): Are <code>exp</code> (expiry) validation required of can it be skipped if claim is missing..</p>
-</li>
-<li>
-<p><code>jwt.iatRequired</code> (default: <code>false</code>): Are <code>iat</code> (issued at) validation required of can it be skipped if claim is missing..</p>
-</li>
-<li>
-<p><code>jwt.issuer</code>: JWT issuer, validation is ignored if null..</p>
-</li>
-<li>
-<p><code>jwt.key</code>*: Public key to use to validate the incoming JWT..</p>
-</li>
-<li>
-<p><code>jwt.nbfRequired</code> (default: <code>false</code>): Are <code>nbf</code> (not before) validation required of can it be skipped if claim is missing..</p>
-</li>
-<li>
-<p><code>jwt.tolerance</code> (default: <code>30</code>): Tolerance for date validation (in seconds)..</p>
-</li>
-</ul>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_usage">Usage</h2>
-<div class="sectionbody">
-<div class="paragraph">
-<p>Entry point is to inject a <code>JwtvalidatorFactory</code> (through constructor or <code>@Injection</code> on a field) and create an instance of validator passing a <code>JwtValidatorConfiguration</code> which sets the JWT algorithm, issuer, key etc&#8230;&#8203;</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@ApplicationScoped
+ </div>
+ </div>
+ </div>
+ </div>
+ <div class="sect1" id="_configuration">
+  <h2>Configuration</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>The configuration is a <code>JwtValidationConfiguration</code> (you have to integrate it in your application configuration or reuse the <code>jwt</code> named one you can inject). Here are the subkeys:</p>
+ </div>
+ <div class="ulist">
+ <ul>
+  <li>
+ <div class="paragraph">
+ <p><code>jwt-signer.algorithm</code> (<code>JWT_SIGNER_ALGORITHM</code>) (default: <code>&quot;RS256&quot;</code>): Default JWT <code>alg</code> value if no <code>keys</code> is set (mainly useful for Hmac case).</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p><code>jwt-signer.expRequired</code> (<code>JWT_SIGNER_EXPREQUIRED</code>) (default: <code>true</code>): Is <code>exp</code> (expiry) required.</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p><code>jwt-signer.expValidity</code> (<code>JWT_SIGNER_EXPVALIDITY</code>) (default: <code>0</code>): Is <code>exp</code> is required the validity used in milliseconds.</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p><code>jwt-signer.iatRequired</code> (<code>JWT_SIGNER_IATREQUIRED</code>) (default: <code>false</code>): Is <code>iat</code> (issued at) required.</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p><code>jwt-signer.issuer</code> (<code>JWT_SIGNER_ISSUER</code>)*: JWT issuer.</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p><code>jwt-signer.key</code> (<code>JWT_SIGNER_KEY</code>)*: Private key.</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p><code>jwt-signer.kid</code> (<code>JWT_SIGNER_KID</code>) (default: <code>&quot;k001&quot;</code>): KID header kid.</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p><code>jwt-signer.nbfRequired</code> (<code>JWT_SIGNER_NBFREQUIRED</code>) (default: <code>false</code>): Is <code>nbf</code> (not before) required.</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p><code>jwt.algo</code> (<code>JWT_ALGO</code>) (default: <code>&quot;RS256&quot;</code>): Default JWT <code>alg</code> value if no <code>keys</code> is set (mainly useful for Hmac case).</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p><code>jwt.expRequired</code> (<code>JWT_EXPREQUIRED</code>) (default: <code>true</code>): Is <code>exp</code> (expiry) validation required of can it be skipped if claim is missing.</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p><code>jwt.iatRequired</code> (<code>JWT_IATREQUIRED</code>) (default: <code>false</code>): Is <code>iat</code> (issued at) validation required of can it be skipped if claim is missing.</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p><code>jwt.issuer</code> (<code>JWT_ISSUER</code>): JWT issuer, validation is ignored if null.</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p><code>jwt.jtiRequired</code> (<code>JWT_JTIREQUIRED</code>) (default: <code>true</code>): Is <code>jta</code> (expiry) validation required of can it be skipped if claim is missing.</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p><code>jwt.key</code> (<code>JWT_KEY</code>)*: Default public key to use to validate the incoming JWT if no <code>keys</code> is set else <code>kid</code> is matched against the <code>keys</code> set (mainly useful for Hmac case which can't be in <code>jwk_uri</code>).</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p><code>jwt.keys.$index.alg</code> (<code>JWT_KEYS_INDEX_ALG</code>): -.</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p><code>jwt.keys.$index.crv</code> (<code>JWT_KEYS_INDEX_CRV</code>): -.</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p><code>jwt.keys.$index.e</code> (<code>JWT_KEYS_INDEX_E</code>): -.</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p><code>jwt.keys.$index.kid</code> (<code>JWT_KEYS_INDEX_KID</code>): -.</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p><code>jwt.keys.$index.kty</code> (<code>JWT_KEYS_INDEX_KTY</code>): -.</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p><code>jwt.keys.$index.n</code> (<code>JWT_KEYS_INDEX_N</code>): -.</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p><code>jwt.keys.$index.use</code> (<code>JWT_KEYS_INDEX_USE</code>): -.</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p><code>jwt.keys.$index.x5c</code> (<code>JWT_KEYS_INDEX_X5C</code>): -.</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p><code>jwt.keys.$index.x</code> (<code>JWT_KEYS_INDEX_X</code>): -.</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p><code>jwt.keys.$index.y</code> (<code>JWT_KEYS_INDEX_Y</code>): -.</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p><code>jwt.nbfRequired</code> (<code>JWT_NBFREQUIRED</code>) (default: <code>false</code>): Is <code>nbf</code> (not before) validation required of can it be skipped if claim is missing.</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p><code>jwt.tolerance</code> (<code>JWT_TOLERANCE</code>) (default: <code>30</code>): Tolerance for date validation (in seconds).</p>
+ </div>
+  </li>
+ </ul>
+ </div>
+ </div>
+ </div>
+ <div class="sect1" id="_usage">
+  <h2>Usage</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>Entry point is to inject a <code>JwtvalidatorFactory</code> (through constructor or <code>@Injection</code> on a field) and create an instance of validator passing a <code>JwtValidatorConfiguration</code> which sets the JWT algorithm, issuer, key etc...</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@ApplicationScoped
 public class MyService {
   private final Function&lt;String, Jwt&gt; jwtValidator;
 
@@ -157,49 +267,55 @@ public class MyService {
   }
 
   public Optional&lt;Jwt&gt; findJwt(final Request request) { <b class="conum">(3)</b>
-    final var jwt = request.header("authorization");
-    if (jwt == null || !jwt.startsWith("Bearer ")) {
+    final var jwt = request.header(&quot;authorization&quot;);
+    if (jwt == null || !jwt.startsWith(&quot;Bearer &quot;)) {
         return empty();
     }
     try {
-      return jwtValidator.apply(jwt.substring("Bearer ".length()));
+      return jwtValidator.apply(jwt.substring(&quot;Bearer &quot;.length()));
     } catch (final RuntimeException re) {
       // depending your code you can log the error or not but generally good to log it
       return empty();
     }
   }
 }</code></pre>
-</div>
-</div>
-<div class="colist arabic">
-<ol>
-<li>
-<p>Inject the validator factory and the JWT validator configuration (key, algorithm, &#8230;&#8203;),</p>
-</li>
-<li>
-<p>Create the runtime validator (once for the app),</p>
-</li>
-<li>
-<p>If the JWT header is present extract it (or fail with an exception if invalid).</p>
-</li>
-</ol>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_integration_with_web_layer">Integration with web layer</h2>
-<div class="sectionbody">
-<div class="paragraph">
-<p>For JSON-RPC module, the easiest integration is to observe <code>io.yupiik.fusion.jsonrpc.event.BeforeRequest</code> event and plug your validation logic there (claim checks for example):</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">// jwtValidator as in MyService
+ </div>
+ </div>
+ <div class="colist arabic">
+  <ol>
+   <li>
+ <span>
+Inject the validator factory and the JWT validator configuration (key, algorithm, ...),
+ </span>
+   </li>
+   <li>
+ <span>
+Create the runtime validator (once for the app),
+ </span>
+   </li>
+   <li>
+ <span>
+If the JWT header is present extract it (or fail with an exception if invalid).
+ </span>
+   </li>
+  </ol>
+ </div>
+ </div>
+ </div>
+ <div class="sect1" id="_integration_with_web_layer">
+  <h2>Integration with web layer</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>For JSON-RPC module, the easiest integration is to observe <code>io.yupiik.fusion.jsonrpc.event.BeforeRequest</code> event and plug your validation logic there (claim checks for example):</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">// jwtValidator as in MyService
 public void onJsonRpcJwt(@OnEvent final BeforeRequest event) {
-  final var jwt = readJwtFromHeaderValue(event.request().header("authorization")); // <b class="conum">(1)</b>
+  final var jwt = readJwtFromHeaderValue(event.request().header(&quot;authorization&quot;)); // <b class="conum">(1)</b>
   final var validated = jwtValidator.apply(jwt); <b class="conum">(2)</b>
   if (!validated
-        .map(ok -&gt; ok.claim("roles", List.class).contains("admin")) <b class="conum">(3)</b>
+        .map(ok -&gt; ok.claim(&quot;roles&quot;, List.class).contains(&quot;admin&quot;)) <b class="conum">(3)</b>
         .orElse(true)) {
     <b class="conum">(4)</b>
     final var failed = new CompletableFuture&lt;Response&gt;();
@@ -207,38 +323,63 @@ public void onJsonRpcJwt(@OnEvent final BeforeRequest event) {
     event.promises().add(failed);
   }
 }</code></pre>
-</div>
-</div>
-<div class="colist arabic">
-<ol>
-<li>
-<p>Like in <code>MyService</code> (previous snippet), extract the jwt from the header checking/dropping <code>Bearer</code> prefix,</p>
-</li>
-<li>
-<p>Validate the JWT,</p>
-</li>
-<li>
-<p>Check <code>roles</code> claim contains <code>admin</code>,</p>
-</li>
-<li>
-<p>Complete the request as failed (all requests if bulk is used).</p>
-</li>
-</ol>
-</div>
-<div class="admonitionblock tip">
-<table>
-<tr>
-<td class="icon">
-<div class="title">Tip</div>
-</td>
-<td class="content">
-if you don&#8217;t want to redefine the configuration nor the validator, you can inject <code>io.yupiik.fusion.jwt.bean.DefaultJwtValidator</code> directly.
-</td>
-</tr>
-</table>
-</div>
-</div>
-</div>
+ </div>
+ </div>
+ <div class="colist arabic">
+  <ol>
+   <li>
+ <span>
+Like in 
+ </span>
+<code>MyService</code> <span>
+ (previous snippet), extract the jwt from the header checking/dropping 
+ </span>
+<code>Bearer</code> <span>
+ prefix,
+ </span>
+   </li>
+   <li>
+ <span>
+Validate the JWT,
+ </span>
+   </li>
+   <li>
+ <span>
+Check 
+ </span>
+<code>roles</code> <span>
+ claim contains 
+ </span>
+<code>admin</code> <span>
+,
+ </span>
+   </li>
+   <li>
+ <span>
+Complete the request as failed (all requests if bulk is used).
+ </span>
+   </li>
+  </ol>
+ </div>
+ <div class="admonitionblock tip">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">TIP</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p>if you don't want to redefine the configuration nor the validator, you can inject <code>io.yupiik.fusion.jwt.bean.DefaultJwtValidator</code> directly.</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ </div>
+ </div>
+                
                 
             </div>
         </div>
@@ -247,13 +388,12 @@ if you don&#8217;t want to redefine the configuration nor the validator, you can
         <nav class="generated-nav-menu"></nav>
     </div>
     </div>
-    <hr />
     <footer class="footer pb-5">
-	    <div class="footer-bottom text-center">
+	    <div class="text-center">
 		    <ul class="social-list list-unstyled">
-                <li class="list-inline-item"><a href="https://www.github.com/yupiik/"><i class="fab fa-github fa-fw"></i></a></li><li class="list-inline-item"><a href="https://www.linkedin.com/company/yupiik/"><i class="fab fa-linkedin fa-fw"></i></a></li>
+                <li class="list-inline-item"><a title="Github" href="https://www.github.com/yupiik/"><i class="fab fa-github fa-fw"></i></a></li><li class="list-inline-item"><a title="LinkedIn" href="https://www.linkedin.com/company/yupiik/"><i class="fab fa-linkedin fa-fw"></i></a></li>
 	        </ul>
-            <small class="copyright">Yupiik &copy;</small> | <a href="https://www.yupiik.com/terms-of-service/">Terms of service</a> | <a href="https://www.yupiik.com/privacy-policy/">Privacy policy</a>
+            <small class="copyright">Yupiik &copy;</small> | <a href="https://www.yupiik.com/terms-of-use/">Terms of use</a> | <a href="https://www.yupiik.com/privacy-policy/">Privacy policy</a>
 	    </div>
     </footer>
 
@@ -290,8 +430,12 @@ if you don&#8217;t want to redefine the configuration nor the validator, you can
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/languages/bash.min.js" integrity="sha512-Hg0ufGEvn0AuzKMU0psJ1iH238iUN6THh7EI0CfA0n1sd3yu6PYet4SaDMpgzN9L1yQHxfB3yc5ezw3PwolIfA==" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/languages/json.min.js" integrity="sha512-37sW1XqaJmseHAGNg4N4Y01u6g2do6LZL8tsziiL5CMXGy04Th65OXROw2jeDeXLo5+4Fsx7pmhEJJw77htBFg==" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/languages/dockerfile.min.js" integrity="sha512-eRNl3ty7GOJPBN53nxLgtSSj2rkYj5/W0Vg0MFQBw8xAoILeT6byOogENHHCRRvHil4pKQ/HbgeJ5DOwQK3SJA==" crossorigin="anonymous"></script>
-    <script>if (!(window.minisite || {}).skipHighlightJs) { hljs.highlightAll(); }</script>
-    <script src="//www.yupiik.io/fusion/js/minisite.js?v=1.0.14-SNAPSHOT"></script>
+    <script>if (!(window.minisite || {}).skipHighlightJs) { hljs.highlightAll();
+function addCopyButtons(clipboard) {
+  document.querySelectorAll('pre > code').forEach(function (codeBlock) {
+  var button = document.createElement('button');  button.className = 'copy-code-button';  button.type = 'button';  button.innerText = 'Copy';  button.addEventListener('click', function () {   clipboard.writeText(codeBlock.innerText).then(function () {   button.blur();   button.innerText = 'Copied!';   setTimeout(function () { button.innerText = 'Copy'; }, 2000); }, function (error) { button.innerText = 'Error'; });  });  var pre = codeBlock.parentNode;  if (pre.parentNode.classList.contains('highlight')) {   var highlight = pre.parentNode; highlight.parentNode.insertBefore(button, highlight);  } else { pre.parentNode.insertBefore(button, pre); } });}
+if (navigator && navigator.clipboard) { addCopyButtons(navigator.clipboard);} else { var script = document.createElement('script'); script.src = '//cdnjs.cloudflare.com/ajax/libs/clipboard-polyfill/2.7.0/clipboard-polyfill.promise.js'; script.integrity = 'sha256-waClS2re9NUbXRsryKoof+F9qc1gjjIhc2eT7ZbIv94='; script.crossOrigin = 'anonymous'; script.onload = function() {addCopyButtons(clipboard);}; document.body.appendChild(script);} }</script>
+    <script src="//www.yupiik.io/fusion/js/minisite.js?v=1.0.17-SNAPSHOT"></script>
     <script>$('.page-content-body').generatedNavMenu();</script>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fuse.js/6.4.3/fuse.min.js" integrity="sha512-neoBxVNv0UMXjoilAYGxfWrSsW6iAVclx7vQKdPJ9Peet1bM5YQjU0aIB8LtH8iNPa+pAyMZprBBw2ZQ/Q1LjQ==" crossorigin="anonymous"></script>

@@ -6,19 +6,19 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Fusion :: Documentation">
+    <meta name="description" content="Fusion framework aims at providing a very light java framework and graal native.">
     <meta name="author" content="Yupiik Minisite Generator">
     <meta name="generator" content="Yupiik Minisite Generator">
     
-    <link rel="shortcut icon" href="//www.yupiik.io/images/favicon.png">
+    <link rel="shortcut icon" href="//www.yupiik.io/fusion/images/logo.svg">
 
     <link href="//fonts.googleapis.com/css?family=Open+Sans:300,300i,400,400i,700,700i|Montserrat:300,400,500,700" rel="stylesheet">
     <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css" integrity="sha512-+4zCK9k+qNFUR5X+cKL9EIR+ZOhtIloNl9GIKS57V1MyNsYpYcUrUeQc9vNfzsWfV28IaLL3i96P9sdNyeRssA==" crossorigin="anonymous" />
     <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/asciidoctor.js/1.5.5-5/css/asciidoctor.min.css" integrity="sha512-kI7tn5cuEg16kMeXnYmg8rEJPxbxzEM7Gsr191iQdLDevFBLXPCSU9aZWSVuP61tMZWU3nBAR1cJ7SmXnOGLZw==" crossorigin="anonymous" />
     <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.3/css/bootstrap.min.css" integrity="sha512-oc9+XSs1H243/FRN9Rw62Fn8EtxjEYWHXRvjS43YtueEewbS6ObfXcJNyohjHqVKFPoXXUxwc+q1K7Dee6vv9g==" crossorigin="anonymous" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/styles/vs2015.min.css" integrity="sha512-w8aclkBlN3Ha08SMwFKXFJqhSUx2qlvTBFLLelF8sm4xQnlg64qmGB/A6pBIKy0W8Bo51yDMDtQiPLNRq1WMcQ==" crossorigin="anonymous" />
-    <link id="theme-style" rel="stylesheet" href="//www.yupiik.io/fusion/css/theme.css?v=1.0.14-SNAPSHOT">
     
+    <link id="theme-style" rel="stylesheet" href="//www.yupiik.io/fusion/css/theme.css?v=1.0.17-SNAPSHOT">
 </head>
 <body>
     <header class="header fixed-top">
@@ -26,8 +26,8 @@
             <div class="container-fluid position-relative py-2">
                 <div class="docs-logo-wrapper">
 	                <div class="site-logo"><a title="Home" class="navbar-brand" href="//www.yupiik.io/fusion/index.html">
-	                <img class="logo-icon mr-2" src="//www.yupiik.io/images/favicon.png" alt="logo">
-	                <span class="logo-text">Fusion :: Documentation <span class="text-alt">Docs</span></span></a></div>
+	                <img class="logo-icon mr-2" src="//www.yupiik.io/fusion/images/logo.svg" alt="logo">
+	                <span class="logo-text">Fusion <span class="text-alt">Documentation</span></span></a></div>
                 </div>
 	            <div class="docs-top-utilities d-flex justify-content-end align-items-center">
 					
@@ -35,7 +35,7 @@
 
 					<ul class="social-list list-inline mx-md-3 mx-lg-5 mb-0 d-none d-lg-flex">
 						
-						<li class="list-inline-item"><a href="https://www.github.com/yupiik/"><i class="fab fa-github fa-fw"></i></a></li><li class="list-inline-item"><a href="https://www.linkedin.com/company/yupiik/"><i class="fab fa-linkedin fa-fw"></i></a></li>
+						<li class="list-inline-item"><a title="Github" href="https://www.github.com/yupiik/"><i class="fab fa-github fa-fw"></i></a></li><li class="list-inline-item"><a title="LinkedIn" href="https://www.linkedin.com/company/yupiik/"><i class="fab fa-linkedin fa-fw"></i></a></li>
 		            </ul>
 	            </div>
             </div>
@@ -58,12 +58,12 @@
                         <i class="fas fa-building"></i>Setup
                     </a>
                 </li>                <li>
-                    <a title="Fusion JSON support" href="//www.yupiik.io/fusion/fusion/json.html">
-                        <i class="fas fa-wifi"></i>JSON
-                    </a>
-                </li>                <li>
                     <a title="Fusion CLI" href="//www.yupiik.io/fusion/fusion/cli.html">
                         <i class="fas fa-terminal"></i>CLI
+                    </a>
+                </li>                <li>
+                    <a title="Fusion JSON support" href="//www.yupiik.io/fusion/fusion/json.html">
+                        <i class="fas fa-wifi"></i>JSON
                     </a>
                 </li>                <li>
                     <a title="framework and GraalVM (native-image)" href="//www.yupiik.io/fusion/fusion/graalvm.html">
@@ -79,88 +79,107 @@
             </div>
             <div class="page-content-body">
                 <div id="preamble">
-<div class="sectionbody">
-<div class="paragraph">
-<p>Fusion JSON proposes a <code>JsonMapper</code> API which intends to support <code>record</code> models.</p>
-</div>
-<div class="paragraph">
-<p>Here the supported features list:</p>
-</div>
-<div class="ulist">
-<ul>
-<li>
-<p>Models must be records or <code>List&lt;X&gt;</code> of a supported type, or a <code>Map&lt;String, X&gt;</code> of a supported type</p>
-</li>
-<li>
-<p>Supported primitives are</p>
-<div class="ulist">
-<ul>
-<li>
-<p><code>String</code></p>
-</li>
-<li>
-<p><code>String</code>, <code>BigDecimal</code> (represented as <code>string</code> in JSON but incoming data can be a number), <code>{b,B}oolean</code>, <code>{d,D}ouble</code>, <code>int</code>/<code>Integer</code>, <code>{l,L}ouble</code>, <code>OffsetDateTime</code>, <code>ZonedDateTime</code>, <code>LocalDate</code>, <code>LocalDateTime</code></p>
-</li>
-</ul>
-</div>
-</li>
-<li>
-<p>Generic mapper is supported, it will bind <code>Object</code> as a <code>Map&lt;String, Object&gt;</code> values being <code>String</code> for JSON strings, <code>BigDecimal</code> for JSON numbers, another <code>Map&lt;String, Object&gt;</code> for JSON objects and <code>List&lt;Object&gt;</code> for JSON lists,</p>
-</li>
-<li>
-<p>A simple post processor prettifier (takes a JSON as input and formats it). It is used decorating the default <code>JsonMapper</code>: <code>io.yupiik.fusion.json.pretty.PrettyJsonMapper</code>,</p>
-</li>
-<li>
-<p>The Fusion annotation processor will generate the JSON "codecs" from the code when a record is marked with <code>@JsonModel</code>, the codec will be reflection free,</p>
-</li>
-<li>
-<p>You can customize the attribute names using <code>@JsonProperty</code> on the record members,</p>
-</li>
-<li>
-<p>You can map all unknown attributes in a <code>Map&lt;String, Object&gt;</code> member marked with <code>@JsonOthers</code> annotation.</p>
-</li>
-</ul>
-</div>
-<div class="admonitionblock important">
-<table>
-<tr>
-<td class="icon">
-<div class="title">Important</div>
-</td>
-<td class="content">
-static model (annotations) are in <code>fusion-build-api</code> which is a <code>provided</code> bundle - build time only.
-</td>
-</tr>
-</table>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_runtime_dependency">Runtime Dependency</h2>
-<div class="sectionbody">
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-xml hljs" data-lang="xml">&lt;dependency&gt;
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>Fusion JSON proposes a <code>JsonMapper</code> API which intends to support <code>record</code> models.</p>
+ </div>
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>
+Here the supported features list:
+ </p>
+ </div>
+ <div class="ulist">
+ <ul>
+  <li>
+ <div class="paragraph">
+ <p>Models must be records or <code>List&lt;X&gt;</code> of a supported type, or a <code>Map&lt;String, X&gt;</code> of a supported type</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+Supported primitives are <div class="ulist">
+ <ul>
+  <li>
+<code>String</code>  </li>
+  <li>
+ <div class="paragraph">
+ <p><code>String</code>, <code>BigDecimal</code> (represented as <code>string</code> in JSON but incoming data can be a number), <code>{b,B}oolean</code>, <code>{d,D}ouble</code>, <code>int</code>/<code>Integer</code>, <code>{l,L}ong</code>, <code>OffsetDateTime</code>, <code>ZonedDateTime</code>, <code>LocalDate</code>, <code>LocalDateTime</code></p>
+ </div>
+  </li>
+ </ul>
+ </div>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p>Generic mapper is supported, it will bind <code>Object</code> as a <code>Map&lt;String, Object&gt;</code> values being <code>String</code> for JSON strings, <code>BigDecimal</code> for JSON numbers, another <code>Map&lt;String, Object&gt;</code> for JSON objects and <code>List&lt;Object&gt;</code> for JSON lists,</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p>A simple post processor prettifier (takes a JSON as input and formats it). It is used decorating the default <code>JsonMapper</code>: <code>io.yupiik.fusion.json.pretty.PrettyJsonMapper</code>,</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p>The Fusion annotation processor will generate the JSON &quot;codecs&quot; from the code when a record is marked with <code>@JsonModel</code>, the codec will be reflection free,</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p>You can customize the attribute names using <code>@JsonProperty</code> on the record members,</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p>You can map all unknown attributes in a <code>Map&lt;String, Object&gt;</code> member marked with <code>@JsonOthers</code> annotation.</p>
+ </div>
+  </li>
+ </ul>
+ </div>
+ <div class="admonitionblock important">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">IMPORTANT</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p>static model (annotations) are in <code>fusion-build-api</code> which is a <code>provided</code> bundle - build time only.</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ <div class="sect1" id="_runtime_dependency">
+  <h2>Runtime Dependency</h2>
+ <div class="sectionbody">
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-xml hljs" data-lang="xml">&lt;dependency&gt;
   &lt;groupId&gt;${project.groupId}&lt;/groupId&gt;
   &lt;artifactId&gt;fusion-json&lt;/artifactId&gt;
   &lt;version&gt;${project.version}&lt;/version&gt;
 &lt;/dependency&gt;</code></pre>
-</div>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_example">Example</h2>
-<div class="sectionbody">
-<div class="paragraph">
-<p>To modelise the flow you just have to define a record marked with <code>@JsonModel</code>:</p>
-</div>
-<div class="listingblock">
-<div class="title">Model</div>
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@JsonModel
+ </div>
+ </div>
+ </div>
+ </div>
+ <div class="sect1" id="_example">
+  <h2>Example</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>To modelise the flow you just have to define a record marked with <code>@JsonModel</code>:</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@JsonModel
 public record MyModel(
-    @JsonProperty("boolean") boolean aBool,
+    @JsonProperty(&quot;boolean&quot;) boolean aBool,
     BigDecimal bigDecimal,
     int integer,
     Integer nullableInt,
@@ -189,26 +208,30 @@ public record MyModel(
     Map&lt;String, Integer&gt; mapStringInt,
     Map&lt;String, AnotherModel&gt; mapNested) {
 }</code></pre>
-</div>
-</div>
-<div class="admonitionblock warning">
-<table>
-<tr>
-<td class="icon">
-<div class="title">Warning</div>
-</td>
-<td class="content">
-<code>BigDecimal</code> is supported but avoid to use <code>toBigInteger()</code> or scale related methods without size validation due to java implementation.
-</td>
-</tr>
-</table>
-</div>
-<div class="paragraph">
-<p>Then read/write data using <code>JsonMapper</code>:</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@Bean
+ </div>
+ </div>
+ <div class="admonitionblock warning">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">WARNING</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p><code>BigDecimal</code> is supported but avoid to use <code>toBigInteger()</code> or scale related methods without size validation due to java implementation.</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ <div class="paragraph">
+ <p>Then read/write data using <code>JsonMapper</code>:</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@Bean
 public class MyService extends HttpServlet {
     @Injection
     JsonMapper mapper;
@@ -220,69 +243,168 @@ public class MyService extends HttpServlet {
         }
     }
 }</code></pre>
-</div>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_enums">Enums</h2>
-<div class="sectionbody">
-<div class="paragraph">
-<p>Enumerations (de)serialization behavior can be customized by using some specific methods:</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public enum MyEnum {
+ </div>
+ </div>
+ </div>
+ </div>
+ <div class="sect1" id="_enums">
+  <h2>Enums</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>
+Enumerations (de)serialization behavior can be customized by using some specific methods:
+ </p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public enum MyEnum {
     A, B;
 
     public String toJsonString() { <b class="conum">(1)</b>
-        return this == A ? "first" : "second";
+        return this == A ? &quot;first&quot; : &quot;second&quot;;
     }
 
     public static MyEnum fromJsonString(final String v) { <b class="conum">(2)</b>
         return switch (v) {
-            case "first" -&gt; MyEnum.A;
-            case "second" -&gt; MyEnum.B;
-            default -&gt; throw new IllegalArgumentException("Unsupported '" + v + "'");
+            case &quot;first&quot; -&gt; MyEnum.A;
+            case &quot;second&quot; -&gt; MyEnum.B;
+            default -&gt; throw new IllegalArgumentException(&quot;Unsupported '&quot; + v + &quot;'&quot;);
         };
     }
 }</code></pre>
-</div>
-</div>
-<div class="colist arabic">
-<ol>
-<li>
-<p><code>toJsonString</code> is an instance method with no parameter used to replace <code>.name()</code> call during serialization,</p>
-</li>
-<li>
-<p><code>fromJsonString</code> is a static method with a <code>String</code> parameter used to replace <code>.valueOf(String)</code> call during deserialization.</p>
-</li>
-</ol>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_json_pointer_and_json_patch">JSON-Pointer and JSON-Patch</h2>
-<div class="sectionbody">
-<div class="paragraph">
-<p>JSON-Pointer (<a href="https://datatracker.ietf.org/doc/html/rfc6901" class="bare">https://datatracker.ietf.org/doc/html/rfc6901</a>) and JSON-Patch (<a href="https://www.rfc-editor.org/rfc/rfc6902.html" class="bare">https://www.rfc-editor.org/rfc/rfc6902.html</a>) are available for generic types today (ie you type as <code>Object</code> the serialized/deserialized instances to use <code>Map&lt;String, Object&gt;</code> and <code>List&lt;Object&gt;</code> as JSON-Object/JSON-Array).</p>
-</div>
-<div class="paragraph">
-<p>To use them, rely on <code>GenericJsonPointer</code> and <code>GenericJsonPatch</code> classes:</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">// is reusable
-final var patch = new GenericJsonPatch(List.of(new JsonPatchOperation(add, "/baz", null, "qux")));
+ </div>
+ </div>
+ <div class="colist arabic">
+  <ol>
+   <li>
+<code>toJsonString</code> <span>
+ is an instance method with no parameter used to replace 
+ </span>
+<code>.name()</code> <span>
+ call during serialization,
+ </span>
+   </li>
+   <li>
+<code>fromJsonString</code> <span>
+ is a static method with a 
+ </span>
+<code>String</code> <span>
+ parameter used to replace 
+ </span>
+<code>.valueOf(String)</code> <span>
+ call during deserialization.
+ </span>
+   </li>
+  </ol>
+ </div>
+ </div>
+ </div>
+ <div class="sect1" id="_jsonpointer_and_jsonpatch">
+  <h2>JSON-Pointer and JSON-Patch</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>JSON-Pointer ( <a href="https://datatracker.ietf.org/doc/html/rfc6901)">https://datatracker.ietf.org/doc/html/rfc6901)</a>
+ and JSON-Patch ( <a href="https://www.rfc-editor.org/rfc/rfc6902.html)">https://www.rfc-editor.org/rfc/rfc6902.html)</a>
+ are available for generic types today (ie you type as `Object` the serialized/deserialized instances to use `Map&lt;String, Object&gt;` and `List&lt;Object&gt;` as JSON-Object/JSON-Array).</p>
+ </div>
+ <div class="paragraph">
+ <p>To use them, rely on <code>GenericJsonPointer</code> and <code>GenericJsonPatch</code> classes:</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">// is reusable
+final var patch = new GenericJsonPatch(List.of(new JsonPatchOperation(add, &quot;/baz&quot;, null, &quot;qux&quot;)));
 
-// "runtime"
-final var object = Map.of("foo", "bar");
+// &quot;runtime&quot;
+final var object = Map.of(&quot;foo&quot;, &quot;bar&quot;);
 final var patched = patch.apply(object);
-// patched={"foo":"bar","baz":"qux"}</code></pre>
-</div>
-</div>
-</div>
-</div>
+// patched={&quot;foo&quot;:&quot;bar&quot;,&quot;baz&quot;:&quot;qux&quot;}</code></pre>
+ </div>
+ </div>
+ </div>
+ </div>
+ <div class="sect1" id="_json_schema_validator">
+  <h2>Json Schema Validator</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>The Json Schema Validator can be used to validate a json content according to a json-schema ( <a href="https://json-schema.org/understanding-json-schema/reference).">https://json-schema.org/understanding-json-schema/reference).</a>
+</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@Bean
+public class MyService {
+
+    @Injection
+    JsonMapper mapper;
+
+    public boolean validate(final MyModel myModel) throws IOException {
+        final var schema = jsonMapper.fromString(Object.class,
+                &quot;&quot;&quot;
+                        {
+                          &quot;$id&quot;: &quot;https://spec.openapis.org/oas/3.1/schema/2022-10-07&quot;,
+                          &quot;$schema&quot;: &quot;https://json-schema.org/draft/2020-12/schema&quot;,
+                          &quot;description&quot;: &quot;The description of OpenAPI v3.1.x documents without schema validation, as defined by https://spec.openapis.org/oas/v3.1.0&quot;,
+                          &quot;type&quot;: &quot;object&quot;
+                          ...
+                        }
+                      &quot;&quot;&quot;); <b class="conum">(1)</b>
+        final JsonSchemaValidatorFactory factory = new JsonSchemaValidatorFactory(); <b class="conum">(2)</b>
+        final JsonSchemaValidator validator = factory.newInstance((Map&lt;String, Object&gt;) schema); <b class="conum">(3)</b>
+        final var result = validator.apply(myModel); <b class="conum">(4)</b>
+        validator.close();
+        return result.isSuccess(); <b class="conum">(5)</b>
+    }
+}</code></pre>
+ </div>
+ </div>
+ <div class="colist arabic">
+  <ol>
+   <li>
+ <span>
+use the 
+ </span>
+<code>jsonMapper</code> <span>
+ to load the json schema you want to use,
+ </span>
+   </li>
+   <li>
+ <span>
+the factory instance can be reuse and is thread safe,
+ </span>
+   </li>
+   <li>
+ <span>
+create a validator from the json schema loaded,
+ </span>
+   </li>
+   <li>
+ <span>
+apply the validator to the input model object,
+ </span>
+   </li>
+   <li>
+ <span>
+result of the validation.
+ </span>
+   </li>
+  </ol>
+ </div>
+ <div class="paragraph">
+ <p>
+If the validation failed, the result object of the apply method will contain a list of the messages for each validation check:
+ </p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">final var result = validator.apply(myModel);
+final var error = result.errors().iterator().next();
+logger.info(&quot;Error on field '&quot; + error.field() + &quot;' &quot; + error.message());</code></pre>
+ </div>
+ </div>
+ </div>
+ </div>
+                
                 
             </div>
         </div>
@@ -291,13 +413,12 @@ final var patched = patch.apply(object);
         <nav class="generated-nav-menu"></nav>
     </div>
     </div>
-    <hr />
     <footer class="footer pb-5">
-	    <div class="footer-bottom text-center">
+	    <div class="text-center">
 		    <ul class="social-list list-unstyled">
-                <li class="list-inline-item"><a href="https://www.github.com/yupiik/"><i class="fab fa-github fa-fw"></i></a></li><li class="list-inline-item"><a href="https://www.linkedin.com/company/yupiik/"><i class="fab fa-linkedin fa-fw"></i></a></li>
+                <li class="list-inline-item"><a title="Github" href="https://www.github.com/yupiik/"><i class="fab fa-github fa-fw"></i></a></li><li class="list-inline-item"><a title="LinkedIn" href="https://www.linkedin.com/company/yupiik/"><i class="fab fa-linkedin fa-fw"></i></a></li>
 	        </ul>
-            <small class="copyright">Yupiik &copy;</small> | <a href="https://www.yupiik.com/terms-of-service/">Terms of service</a> | <a href="https://www.yupiik.com/privacy-policy/">Privacy policy</a>
+            <small class="copyright">Yupiik &copy;</small> | <a href="https://www.yupiik.com/terms-of-use/">Terms of use</a> | <a href="https://www.yupiik.com/privacy-policy/">Privacy policy</a>
 	    </div>
     </footer>
 
@@ -334,8 +455,12 @@ final var patched = patch.apply(object);
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/languages/bash.min.js" integrity="sha512-Hg0ufGEvn0AuzKMU0psJ1iH238iUN6THh7EI0CfA0n1sd3yu6PYet4SaDMpgzN9L1yQHxfB3yc5ezw3PwolIfA==" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/languages/json.min.js" integrity="sha512-37sW1XqaJmseHAGNg4N4Y01u6g2do6LZL8tsziiL5CMXGy04Th65OXROw2jeDeXLo5+4Fsx7pmhEJJw77htBFg==" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/languages/dockerfile.min.js" integrity="sha512-eRNl3ty7GOJPBN53nxLgtSSj2rkYj5/W0Vg0MFQBw8xAoILeT6byOogENHHCRRvHil4pKQ/HbgeJ5DOwQK3SJA==" crossorigin="anonymous"></script>
-    <script>if (!(window.minisite || {}).skipHighlightJs) { hljs.highlightAll(); }</script>
-    <script src="//www.yupiik.io/fusion/js/minisite.js?v=1.0.14-SNAPSHOT"></script>
+    <script>if (!(window.minisite || {}).skipHighlightJs) { hljs.highlightAll();
+function addCopyButtons(clipboard) {
+  document.querySelectorAll('pre > code').forEach(function (codeBlock) {
+  var button = document.createElement('button');  button.className = 'copy-code-button';  button.type = 'button';  button.innerText = 'Copy';  button.addEventListener('click', function () {   clipboard.writeText(codeBlock.innerText).then(function () {   button.blur();   button.innerText = 'Copied!';   setTimeout(function () { button.innerText = 'Copy'; }, 2000); }, function (error) { button.innerText = 'Error'; });  });  var pre = codeBlock.parentNode;  if (pre.parentNode.classList.contains('highlight')) {   var highlight = pre.parentNode; highlight.parentNode.insertBefore(button, highlight);  } else { pre.parentNode.insertBefore(button, pre); } });}
+if (navigator && navigator.clipboard) { addCopyButtons(navigator.clipboard);} else { var script = document.createElement('script'); script.src = '//cdnjs.cloudflare.com/ajax/libs/clipboard-polyfill/2.7.0/clipboard-polyfill.promise.js'; script.integrity = 'sha256-waClS2re9NUbXRsryKoof+F9qc1gjjIhc2eT7ZbIv94='; script.crossOrigin = 'anonymous'; script.onload = function() {addCopyButtons(clipboard);}; document.body.appendChild(script);} }</script>
+    <script src="//www.yupiik.io/fusion/js/minisite.js?v=1.0.17-SNAPSHOT"></script>
     <script>$('.page-content-body').generatedNavMenu();</script>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fuse.js/6.4.3/fuse.min.js" integrity="sha512-neoBxVNv0UMXjoilAYGxfWrSsW6iAVclx7vQKdPJ9Peet1bM5YQjU0aIB8LtH8iNPa+pAyMZprBBw2ZQ/Q1LjQ==" crossorigin="anonymous"></script>

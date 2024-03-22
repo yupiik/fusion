@@ -6,19 +6,19 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Fusion :: Documentation">
+    <meta name="description" content="Fusion framework aims at providing a very light java framework and graal native.">
     <meta name="author" content="Yupiik Minisite Generator">
     <meta name="generator" content="Yupiik Minisite Generator">
     
-    <link rel="shortcut icon" href="//www.yupiik.io/images/favicon.png">
+    <link rel="shortcut icon" href="//www.yupiik.io/fusion/images/logo.svg">
 
     <link href="//fonts.googleapis.com/css?family=Open+Sans:300,300i,400,400i,700,700i|Montserrat:300,400,500,700" rel="stylesheet">
     <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css" integrity="sha512-+4zCK9k+qNFUR5X+cKL9EIR+ZOhtIloNl9GIKS57V1MyNsYpYcUrUeQc9vNfzsWfV28IaLL3i96P9sdNyeRssA==" crossorigin="anonymous" />
     <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/asciidoctor.js/1.5.5-5/css/asciidoctor.min.css" integrity="sha512-kI7tn5cuEg16kMeXnYmg8rEJPxbxzEM7Gsr191iQdLDevFBLXPCSU9aZWSVuP61tMZWU3nBAR1cJ7SmXnOGLZw==" crossorigin="anonymous" />
     <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.3/css/bootstrap.min.css" integrity="sha512-oc9+XSs1H243/FRN9Rw62Fn8EtxjEYWHXRvjS43YtueEewbS6ObfXcJNyohjHqVKFPoXXUxwc+q1K7Dee6vv9g==" crossorigin="anonymous" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/styles/vs2015.min.css" integrity="sha512-w8aclkBlN3Ha08SMwFKXFJqhSUx2qlvTBFLLelF8sm4xQnlg64qmGB/A6pBIKy0W8Bo51yDMDtQiPLNRq1WMcQ==" crossorigin="anonymous" />
-    <link id="theme-style" rel="stylesheet" href="//www.yupiik.io/fusion/css/theme.css?v=1.0.14-SNAPSHOT">
     
+    <link id="theme-style" rel="stylesheet" href="//www.yupiik.io/fusion/css/theme.css?v=1.0.17-SNAPSHOT">
 </head>
 <body>
     <header class="header fixed-top">
@@ -26,8 +26,8 @@
             <div class="container-fluid position-relative py-2">
                 <div class="docs-logo-wrapper">
 	                <div class="site-logo"><a title="Home" class="navbar-brand" href="//www.yupiik.io/fusion/index.html">
-	                <img class="logo-icon mr-2" src="//www.yupiik.io/images/favicon.png" alt="logo">
-	                <span class="logo-text">Fusion :: Documentation <span class="text-alt">Docs</span></span></a></div>
+	                <img class="logo-icon mr-2" src="//www.yupiik.io/fusion/images/logo.svg" alt="logo">
+	                <span class="logo-text">Fusion <span class="text-alt">Documentation</span></span></a></div>
                 </div>
 	            <div class="docs-top-utilities d-flex justify-content-end align-items-center">
 					
@@ -35,7 +35,7 @@
 
 					<ul class="social-list list-inline mx-md-3 mx-lg-5 mb-0 d-none d-lg-flex">
 						
-						<li class="list-inline-item"><a href="https://www.github.com/yupiik/"><i class="fab fa-github fa-fw"></i></a></li><li class="list-inline-item"><a href="https://www.linkedin.com/company/yupiik/"><i class="fab fa-linkedin fa-fw"></i></a></li>
+						<li class="list-inline-item"><a title="Github" href="https://www.github.com/yupiik/"><i class="fab fa-github fa-fw"></i></a></li><li class="list-inline-item"><a title="LinkedIn" href="https://www.linkedin.com/company/yupiik/"><i class="fab fa-linkedin fa-fw"></i></a></li>
 		            </ul>
 	            </div>
             </div>
@@ -58,12 +58,12 @@
                         <i class="fas fa-building"></i>Setup
                     </a>
                 </li>                <li>
-                    <a title="Fusion JSON support" href="//www.yupiik.io/fusion/fusion/json.html">
-                        <i class="fas fa-wifi"></i>JSON
-                    </a>
-                </li>                <li>
                     <a title="Fusion CLI" href="//www.yupiik.io/fusion/fusion/cli.html">
                         <i class="fas fa-terminal"></i>CLI
+                    </a>
+                </li>                <li>
+                    <a title="Fusion JSON support" href="//www.yupiik.io/fusion/fusion/json.html">
+                        <i class="fas fa-wifi"></i>JSON
                     </a>
                 </li>                <li>
                     <a title="framework and GraalVM (native-image)" href="//www.yupiik.io/fusion/fusion/graalvm.html">
@@ -79,125 +79,147 @@
             </div>
             <div class="page-content-body">
                 <div id="preamble">
-<div class="sectionbody">
-<div class="paragraph">
-<p>HTTP server module provides an abstraction over an Apache Tomcat server.</p>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_dependency">Dependency</h2>
-<div class="sectionbody">
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-xml hljs" data-lang="xml">&lt;dependency&gt;
+ <div class="sectionbody">
+ <p> <div class="paragraph">
+ <p>
+HTTP server module provides an abstraction over an Apache Tomcat server.
+ </p>
+ </div>
+</p>
+ </div>
+ </div>
+ <div class="sect1" id="_dependency">
+  <h2>Dependency</h2>
+ <div class="sectionbody">
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-xml hljs" data-lang="xml">&lt;dependency&gt;
   &lt;groupId&gt;io.yupiik.fusion&lt;/groupId&gt;
   &lt;artifactId&gt;fusion-http-server&lt;/artifactId&gt;
   &lt;version&gt;${fusion.version}&lt;/artifactId&gt;
 &lt;/dependency&gt;</code></pre>
-</div>
-</div>
-<div class="admonitionblock important">
-<table>
-<tr>
-<td class="icon">
-<div class="title">Important</div>
-</td>
-<td class="content">
-annotations - design API - is in <code>fusion-build-api</code> and is only useful at build time.
-</td>
-</tr>
-</table>
-</div>
-<div class="admonitionblock tip">
-<table>
-<tr>
-<td class="icon">
-<div class="title">Tip</div>
-</td>
-<td class="content">
-set tomcat-catalina in scope runtime to avoid to show the internal API if you don&#8217;t need them, will also avoid to let your IDE complete javakarta.* transitive dependencies of tomcat.
-</td>
-</tr>
-</table>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_usage">Usage</h2>
-<div class="sectionbody">
-<div class="paragraph">
-<p>By default, if you use Fusion IoC, the webservice will be started.
-You can customize the configuration listening for <code>WebServer.Configuration</code> event.</p>
-</div>
-<div class="paragraph">
-<p>Defining an endpoint can be done creating an <code>Endpoint</code> bean and implementing the matcher (<code>matches</code>) and handler which will return a <code>Response</code> thanks the builder:</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@Bean
+ </div>
+ </div>
+ <div class="admonitionblock important">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">IMPORTANT</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p>annotations - design API - is in <code>fusion-build-api</code> and is only useful at build time.</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ <div class="admonitionblock tip">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">TIP</div>
+       </td>
+      <td class="content">
+set tomcat-catalina in scope runtime to avoid to show the internal API if you don't need them, will also avoid to let your IDE complete javakarta.* transitive dependencies of tomcat.    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ </div>
+ </div>
+ <div class="sect1" id="_usage">
+  <h2>Usage</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>By default, if you use Fusion IoC, the webservice will be started. You can customize the configuration listening for <code>WebServer.Configuration</code> event.</p>
+ </div>
+ <div class="paragraph">
+ <p>Defining an endpoint can be done creating an <code>Endpoint</code> bean and implementing the matcher (<code>matches</code>) and handler which will return a <code>Response</code> thanks the builder:</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@Bean
 public class Greeting implements Endpoint {
     @Override
     public boolean matches(final Request request) {
-        return "GET".equals(request.method());
+        return &quot;GET&quot;.equals(request.method());
     }
 
     @Override
     public CompletionStage&lt;Response&gt; handle(final Request request) {
         return completedFuture(Response.of()
-                .body("{\"hello\":true}")
+                .body(&quot;{\&quot;hello\&quot;:true}&quot;)
                 .build());
     }
 }</code></pre>
-</div>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_configuration">Configuration</h2>
-<div class="sectionbody">
-<div class="paragraph">
-<p>Most of the configuration can be customized using an event listener on <code>WebServer.Configuration</code> and unwrapping the instance as a <code>TomcatWebServerConfiguration</code> you have access to a full Tomcat server customization (HTTP/2.0, WebSocket and so on).</p>
-</div>
-<div class="paragraph">
-<p>However, there are a few system properties/environment variables (uppercased and with underscores instead of dots) you can set:</p>
-</div>
-<div class="ulist">
-<ul>
-<li>
-<p>To skip the initialization of the server at startup: <code>fusion.http-server.start=[true|false]</code>. This can be useful to not start the server in tests for example,</p>
-</li>
-<li>
-<p>To set the HTTP port to use: <code>fusion.http-server.port=&lt;port&gt;</code>, note that setting 0 will make the port random and you can inject <code>WebServer.Configuration</code> to read its value,</p>
-</li>
-<li>
-<p>To set the host to use: <code>fusion.http-server.host=&lt;host&gt;</code>,</p>
-</li>
-<li>
-<p>To set the access log pattern to use: <code>fusion.http-server.accessLogPattern=&lt;&#8230;&#8203;&gt;</code>, see <a href="https://tomcat.apache.org/tomcat-11.0-doc/config/valve.html#Access_Logging">Tomcat</a> documentation for pattern details,</p>
-</li>
-<li>
-<p>To set the webapp directory: <code>fusion.http-server.base=/path/to/www</code>. It can be useful to serve static websites if you configure the right servlets,</p>
-</li>
-<li>
-<p>To set the fusion default servlet mapping: <code>fusion.http-server.fusionServletMapping=/</code>. It can be useful if you want to bind it to a subcontext to use standard servlets for other things like serving base directory,</p>
-</li>
-<li>
-<p>To set if UTF-8 is enforced (default) or not over the requests/responses: <code>fusion.http-server.utf8Setup=true</code>.</p>
-</li>
-</ul>
-</div>
-<div class="paragraph">
-<p>Finally, you can also set by default the deployment of a monitoring server (for health checks or metrics depending your application).
-This is done setting <code>fusion.http-server.monitoring.enabled</code> to <code>true</code>, optionally <code>fusion.http-server.monitoring.port</code> to something else than <code>8081</code>.
-The deployed endpoints in this context will be the <code>MonitoringEndpoint</code> bean instances.</p>
-</div>
-<div class="paragraph">
-<p>Here is a sample <code>MonitoringEndpoint</code>:</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@DefaultScoped
+ </div>
+ </div>
+ </div>
+ </div>
+ <div class="sect1" id="_configuration">
+  <h2>Configuration</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>Most of the configuration can be customized using an event listener on <code>WebServer.Configuration</code> and unwrapping the instance as a <code>TomcatWebServerConfiguration</code> you have access to a full Tomcat server customization (HTTP/2.0, WebSocket and so on).</p>
+ </div>
+ <div class="paragraph">
+ <p>
+However, there are a few system properties/environment variables (uppercased and with underscores instead of dots) you can set:
+ </p>
+ </div>
+ <div class="ulist">
+ <ul>
+  <li>
+ <div class="paragraph">
+ <p>To skip the initialization of the server at startup: <code>fusion.http-server.start=[true|false]</code>. This can be useful to not start the server in tests for example,</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p>To set the HTTP port to use: <code>fusion.http-server.port=&lt;port&gt;</code>, note that setting 0 will make the port random and you can inject <code>WebServer.Configuration</code> to read its value,</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p>To set the host to use: <code>fusion.http-server.host=&lt;host&gt;</code>,</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p>To set the access log pattern to use: <code>fusion.http-server.accessLogPattern=&lt;...&gt;</code>, see  <a href="https://tomcat.apache.org/tomcat-11.0-doc/config/valve.html#Access_Logging">Tomcat</a>
+ documentation for pattern details,</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p>To set the webapp directory: <code>fusion.http-server.base=/path/to/www</code>. It can be useful to serve static websites if you configure the right servlets,</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p>To set the fusion default servlet mapping: <code>fusion.http-server.fusionServletMapping=/</code>. It can be useful if you want to bind it to a subcontext to use standard servlets for other things like serving base directory,</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p>To set if UTF-8 is enforced (default) or not over the requests/responses: <code>fusion.http-server.utf8Setup=true</code>.</p>
+ </div>
+  </li>
+ </ul>
+ </div>
+ <div class="paragraph">
+ <p>Finally, you can also set by default the deployment of a monitoring server (for health checks or metrics depending your application). This is done setting <code>fusion.http-server.monitoring.enabled</code> to <code>true</code>, optionally <code>fusion.http-server.monitoring.port</code> to something else than <code>8081</code>. The deployed endpoints in this context will be the <code>MonitoringEndpoint</code> bean instances.</p>
+ </div>
+ <div class="paragraph">
+ <p>Here is a sample <code>MonitoringEndpoint</code>:</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@DefaultScoped
 public class Health implements MonitoringEndpoint {
     private final TransactionManager transactionManager;
 
@@ -207,7 +229,7 @@ public class Health implements MonitoringEndpoint {
 
     @Override
     public boolean matches(final Request request) {
-        return "GET".equalsIgnoreCase(request.method()) &amp;&amp; "/metrics".equalsIgnoreCase(request.path());
+        return &quot;GET&quot;.equalsIgnoreCase(request.method()) &amp;&amp; &quot;/metrics&quot;.equalsIgnoreCase(request.path());
     }
 
     @Override
@@ -216,86 +238,89 @@ public class Health implements MonitoringEndpoint {
                 .read(c -&gt; {
                     try {
                         if (!c.isValid(30_000)) {
-                            return Optional.of(fail("Timeout"));
+                            return Optional.of(fail(&quot;Timeout&quot;));
                         }
                         return Optional.&lt;CompletionStage&lt;Response&gt;&gt;empty();
                     } catch (final SQLException e) {
                         return Optional.of(fail(e.getMessage()));
                     }
                 })
-                .orElseGet(() -&gt; completedStage(Response.of().body("OK").build()));
+                .orElseGet(() -&gt; completedStage(Response.of().body(&quot;OK&quot;).build()));
     }
 }</code></pre>
-</div>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_high_level_api">High level API</h2>
-<div class="sectionbody">
-<div class="paragraph">
-<p>The first option to define an endpoint as a bean - automatically picked - is to use <code>Endpoint.of</code> API:</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@Bean
+ </div>
+ </div>
+ </div>
+ </div>
+ <div class="sect1" id="_high_level_api">
+  <h2>High level API</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>The first option to define an endpoint as a bean - automatically picked - is to use <code>Endpoint.of</code> API:</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@Bean
 public Endpoint myGreetingEndpoint() {
     return Endpoint.of(
             // matching impl
-            request -&gt; "GET".equals(request.method()) &amp;&amp;
-                request.path().startsWith("/greet") &amp;&amp;
+            request -&gt; &quot;GET&quot;.equals(request.method()) &amp;&amp;
+                request.path().startsWith(&quot;/greet&quot;) &amp;&amp;
                 request.query() != null &amp;&amp;
-                request.query().startsWith("name="),
+                request.query().startsWith(&quot;name=&quot;),
             // endpoint impl - can be delegated to any bean
             request -&gt; completableStage(Response.of()
                 .status(200)
-                .header("content-type", "application/json")
+                .header(&quot;content-type&quot;, &quot;application/json&quot;)
                 .body(jsonMapper.toString(
-                        new Greet(request.query().substring("name=".length()))))
+                        new Greet(request.query().substring(&quot;name=&quot;.length()))))
                 .build()));
 }</code></pre>
-</div>
-</div>
-<div class="paragraph">
-<p>The alternative is to use <code>@HttpMatcher</code> API:</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@HttpMatcher(method = "GET", pathMatching = EXACT, path = "/greet")
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>The alternative is to use <code>@HttpMatcher</code> API:</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@HttpMatcher(method = &quot;GET&quot;, pathMatching = EXACT, path = &quot;/greet&quot;)
 public CompletionStage&lt;Response&gt; myGreetingEndpoint() {
     return completableStage(Response.of()
         .status(200)
-        .header("content-type", "application/json")
+        .header(&quot;content-type&quot;, &quot;application/json&quot;)
         .body(jsonMapper.toString(
-                new Greet(request.query().substring("name=".length()))))
+                new Greet(request.query().substring(&quot;name=&quot;.length()))))
         .build());
 }</code></pre>
-</div>
-</div>
-<div class="admonitionblock tip">
-<table>
-<tr>
-<td class="icon">
-<div class="title">Tip</div>
-</td>
-<td class="content">
-if your endpoint is fully synchronous you can drop the <code>CompletionStage</code> wrapper: <code>public CompletionStage&lt;Response&gt; myGreetingEndpoint();</code>.
-You can also pass as first parameter a <code>Request</code> parameter.
-</td>
-</tr>
-</table>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="server-tracing">(Open) Tracing</h2>
-<div class="sectionbody">
-<div class="paragraph">
-<p><code>fusion-tracing</code> module provides a Tomcat valve you can set up on your web container to add tracing capabilities to your Tomcat:</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">serverConfiguration
+ </div>
+ </div>
+ <div class="admonitionblock tip">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">TIP</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p>if your endpoint is fully synchronous you can drop the <code>CompletionStage</code> wrapper: <code>public CompletionStage&lt;Response&gt; myGreetingEndpoint();</code>. You can also pass as first parameter a <code>Request</code> parameter.</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ </div>
+ </div>
+ <div class="sect1" id="_open_tracing">
+  <h2>(Open) Tracing</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p><code>fusion-tracing</code> module provides a Tomcat valve you can set up on your web container to add tracing capabilities to your Tomcat:</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">serverConfiguration
     .unwrap(TomcatWebServerConfiguration.class)
     .setContextCustomizers(List.of(c -&gt; c.getPipeline() <b class="conum">(1)</b>
         .addValve(new TracingValve( <b class="conum">(1)</b>
@@ -303,42 +328,62 @@ You can also pass as first parameter a <code>Request</code> parameter.
             new AccumulatingSpanCollector().setOnFlush(...), <b class="conum">(3)</b>
             new IdGenerator(IdGenerator.Type.HEX), <b class="conum">(4)</b>
             systemUTC())))); <b class="conum">(5)</b></code></pre>
-</div>
-</div>
-<div class="colist arabic">
-<ol>
-<li>
-<p>Add the valve to the context pipeline, it is recommended to add it as early as possible (just after error report and access log valve in general),</p>
-</li>
-<li>
-<p>The configuration enables to customize the span tags and headers to read for span propagation,</p>
-</li>
-<li>
-<p>The accumulator is what will send/log/&#8230;&#8203; the spans once aggregated, ensure to configure it as needed,</p>
-</li>
-<li>
-<p>The <code>IdGenerator</code> provides the span/trace identifiers, it must be compatible with your collector (<code>hex</code> for zipkin for example),</p>
-</li>
-<li>
-<p>Finally the clock enables to timestamp the span and compute its duration.</p>
-</li>
-</ol>
-</div>
-<div class="admonitionblock important">
-<table>
-<tr>
-<td class="icon">
-<div class="title">Important</div>
-</td>
-<td class="content">
-if you reuse <code>AccumulatingSpanCollector</code>, it is automatically closed with the valve "stop" phase.
-You can combine the accumulator with <code>ZipkinFlusher</code> <code>onFlush</code> implementation to flush to a zipkin collector v2.
-</td>
-</tr>
-</table>
-</div>
-</div>
-</div>
+ </div>
+ </div>
+ <div class="colist arabic">
+  <ol>
+   <li>
+ <span>
+Add the valve to the context pipeline, it is recommended to add it as early as possible (just after error report and access log valve in general),
+ </span>
+   </li>
+   <li>
+ <span>
+The configuration enables to customize the span tags and headers to read for span propagation,
+ </span>
+   </li>
+   <li>
+ <span>
+The accumulator is what will send/log/... the spans once aggregated, ensure to configure it as needed,
+ </span>
+   </li>
+   <li>
+ <span>
+The 
+ </span>
+<code>IdGenerator</code> <span>
+ provides the span/trace identifiers, it must be compatible with your collector (
+ </span>
+<code>hex</code> <span>
+ for zipkin for example),
+ </span>
+   </li>
+   <li>
+ <span>
+Finally the clock enables to timestamp the span and compute its duration.
+ </span>
+   </li>
+  </ol>
+ </div>
+ <div class="admonitionblock important">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">IMPORTANT</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p>if you reuse <code>AccumulatingSpanCollector</code>, it is automatically closed with the valve &quot;stop&quot; phase. You can combine the accumulator with <code>ZipkinFlusher</code> or <code>OpenTelemetryFlusher</code> <code>onFlush</code> implementation to flush to a zipkin collector v2.</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ </div>
+ </div>
+                
                 
             </div>
         </div>
@@ -347,13 +392,12 @@ You can combine the accumulator with <code>ZipkinFlusher</code> <code>onFlush</c
         <nav class="generated-nav-menu"></nav>
     </div>
     </div>
-    <hr />
     <footer class="footer pb-5">
-	    <div class="footer-bottom text-center">
+	    <div class="text-center">
 		    <ul class="social-list list-unstyled">
-                <li class="list-inline-item"><a href="https://www.github.com/yupiik/"><i class="fab fa-github fa-fw"></i></a></li><li class="list-inline-item"><a href="https://www.linkedin.com/company/yupiik/"><i class="fab fa-linkedin fa-fw"></i></a></li>
+                <li class="list-inline-item"><a title="Github" href="https://www.github.com/yupiik/"><i class="fab fa-github fa-fw"></i></a></li><li class="list-inline-item"><a title="LinkedIn" href="https://www.linkedin.com/company/yupiik/"><i class="fab fa-linkedin fa-fw"></i></a></li>
 	        </ul>
-            <small class="copyright">Yupiik &copy;</small> | <a href="https://www.yupiik.com/terms-of-service/">Terms of service</a> | <a href="https://www.yupiik.com/privacy-policy/">Privacy policy</a>
+            <small class="copyright">Yupiik &copy;</small> | <a href="https://www.yupiik.com/terms-of-use/">Terms of use</a> | <a href="https://www.yupiik.com/privacy-policy/">Privacy policy</a>
 	    </div>
     </footer>
 
@@ -390,8 +434,12 @@ You can combine the accumulator with <code>ZipkinFlusher</code> <code>onFlush</c
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/languages/bash.min.js" integrity="sha512-Hg0ufGEvn0AuzKMU0psJ1iH238iUN6THh7EI0CfA0n1sd3yu6PYet4SaDMpgzN9L1yQHxfB3yc5ezw3PwolIfA==" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/languages/json.min.js" integrity="sha512-37sW1XqaJmseHAGNg4N4Y01u6g2do6LZL8tsziiL5CMXGy04Th65OXROw2jeDeXLo5+4Fsx7pmhEJJw77htBFg==" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/languages/dockerfile.min.js" integrity="sha512-eRNl3ty7GOJPBN53nxLgtSSj2rkYj5/W0Vg0MFQBw8xAoILeT6byOogENHHCRRvHil4pKQ/HbgeJ5DOwQK3SJA==" crossorigin="anonymous"></script>
-    <script>if (!(window.minisite || {}).skipHighlightJs) { hljs.highlightAll(); }</script>
-    <script src="//www.yupiik.io/fusion/js/minisite.js?v=1.0.14-SNAPSHOT"></script>
+    <script>if (!(window.minisite || {}).skipHighlightJs) { hljs.highlightAll();
+function addCopyButtons(clipboard) {
+  document.querySelectorAll('pre > code').forEach(function (codeBlock) {
+  var button = document.createElement('button');  button.className = 'copy-code-button';  button.type = 'button';  button.innerText = 'Copy';  button.addEventListener('click', function () {   clipboard.writeText(codeBlock.innerText).then(function () {   button.blur();   button.innerText = 'Copied!';   setTimeout(function () { button.innerText = 'Copy'; }, 2000); }, function (error) { button.innerText = 'Error'; });  });  var pre = codeBlock.parentNode;  if (pre.parentNode.classList.contains('highlight')) {   var highlight = pre.parentNode; highlight.parentNode.insertBefore(button, highlight);  } else { pre.parentNode.insertBefore(button, pre); } });}
+if (navigator && navigator.clipboard) { addCopyButtons(navigator.clipboard);} else { var script = document.createElement('script'); script.src = '//cdnjs.cloudflare.com/ajax/libs/clipboard-polyfill/2.7.0/clipboard-polyfill.promise.js'; script.integrity = 'sha256-waClS2re9NUbXRsryKoof+F9qc1gjjIhc2eT7ZbIv94='; script.crossOrigin = 'anonymous'; script.onload = function() {addCopyButtons(clipboard);}; document.body.appendChild(script);} }</script>
+    <script src="//www.yupiik.io/fusion/js/minisite.js?v=1.0.17-SNAPSHOT"></script>
     <script>$('.page-content-body').generatedNavMenu();</script>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fuse.js/6.4.3/fuse.min.js" integrity="sha512-neoBxVNv0UMXjoilAYGxfWrSsW6iAVclx7vQKdPJ9Peet1bM5YQjU0aIB8LtH8iNPa+pAyMZprBBw2ZQ/Q1LjQ==" crossorigin="anonymous"></script>

@@ -6,19 +6,19 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Fusion :: Documentation">
+    <meta name="description" content="Fusion framework aims at providing a very light java framework and graal native.">
     <meta name="author" content="Yupiik Minisite Generator">
     <meta name="generator" content="Yupiik Minisite Generator">
     
-    <link rel="shortcut icon" href="//www.yupiik.io/images/favicon.png">
+    <link rel="shortcut icon" href="//www.yupiik.io/fusion/images/logo.svg">
 
     <link href="//fonts.googleapis.com/css?family=Open+Sans:300,300i,400,400i,700,700i|Montserrat:300,400,500,700" rel="stylesheet">
     <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css" integrity="sha512-+4zCK9k+qNFUR5X+cKL9EIR+ZOhtIloNl9GIKS57V1MyNsYpYcUrUeQc9vNfzsWfV28IaLL3i96P9sdNyeRssA==" crossorigin="anonymous" />
     <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/asciidoctor.js/1.5.5-5/css/asciidoctor.min.css" integrity="sha512-kI7tn5cuEg16kMeXnYmg8rEJPxbxzEM7Gsr191iQdLDevFBLXPCSU9aZWSVuP61tMZWU3nBAR1cJ7SmXnOGLZw==" crossorigin="anonymous" />
     <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.3/css/bootstrap.min.css" integrity="sha512-oc9+XSs1H243/FRN9Rw62Fn8EtxjEYWHXRvjS43YtueEewbS6ObfXcJNyohjHqVKFPoXXUxwc+q1K7Dee6vv9g==" crossorigin="anonymous" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/styles/vs2015.min.css" integrity="sha512-w8aclkBlN3Ha08SMwFKXFJqhSUx2qlvTBFLLelF8sm4xQnlg64qmGB/A6pBIKy0W8Bo51yDMDtQiPLNRq1WMcQ==" crossorigin="anonymous" />
-    <link id="theme-style" rel="stylesheet" href="//www.yupiik.io/fusion/css/theme.css?v=1.0.14-SNAPSHOT">
     
+    <link id="theme-style" rel="stylesheet" href="//www.yupiik.io/fusion/css/theme.css?v=1.0.17-SNAPSHOT">
 </head>
 <body>
     <header class="header fixed-top">
@@ -26,8 +26,8 @@
             <div class="container-fluid position-relative py-2">
                 <div class="docs-logo-wrapper">
 	                <div class="site-logo"><a title="Home" class="navbar-brand" href="//www.yupiik.io/fusion/index.html">
-	                <img class="logo-icon mr-2" src="//www.yupiik.io/images/favicon.png" alt="logo">
-	                <span class="logo-text">Fusion :: Documentation <span class="text-alt">Docs</span></span></a></div>
+	                <img class="logo-icon mr-2" src="//www.yupiik.io/fusion/images/logo.svg" alt="logo">
+	                <span class="logo-text">Fusion <span class="text-alt">Documentation</span></span></a></div>
                 </div>
 	            <div class="docs-top-utilities d-flex justify-content-end align-items-center">
 					
@@ -35,7 +35,7 @@
 
 					<ul class="social-list list-inline mx-md-3 mx-lg-5 mb-0 d-none d-lg-flex">
 						
-						<li class="list-inline-item"><a href="https://www.github.com/yupiik/"><i class="fab fa-github fa-fw"></i></a></li><li class="list-inline-item"><a href="https://www.linkedin.com/company/yupiik/"><i class="fab fa-linkedin fa-fw"></i></a></li>
+						<li class="list-inline-item"><a title="Github" href="https://www.github.com/yupiik/"><i class="fab fa-github fa-fw"></i></a></li><li class="list-inline-item"><a title="LinkedIn" href="https://www.linkedin.com/company/yupiik/"><i class="fab fa-linkedin fa-fw"></i></a></li>
 		            </ul>
 	            </div>
             </div>
@@ -58,12 +58,12 @@
                         <i class="fas fa-building"></i>Setup
                     </a>
                 </li>                <li>
-                    <a title="Fusion JSON support" href="//www.yupiik.io/fusion/fusion/json.html">
-                        <i class="fas fa-wifi"></i>JSON
-                    </a>
-                </li>                <li>
                     <a title="Fusion CLI" href="//www.yupiik.io/fusion/fusion/cli.html">
                         <i class="fas fa-terminal"></i>CLI
+                    </a>
+                </li>                <li>
+                    <a title="Fusion JSON support" href="//www.yupiik.io/fusion/fusion/json.html">
+                        <i class="fas fa-wifi"></i>JSON
                     </a>
                 </li>                <li>
                     <a title="framework and GraalVM (native-image)" href="//www.yupiik.io/fusion/fusion/graalvm.html">
@@ -79,171 +79,222 @@
             </div>
             <div class="page-content-body">
                 <div id="preamble">
-<div class="sectionbody">
-<div class="quoteblock abstract">
-<blockquote>
-Fusion framework aims at providing a very light framework.
-</blockquote>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_core_values">Core Values</h2>
-<div class="sectionbody">
-<div class="paragraph">
-<p>For cloud applications, being the most reactive possible is a key criteria so Fusion chose to:</p>
-</div>
-<div class="ulist">
-<ul>
-<li>
-<p>Be build time oriented: only delegate to runtime the bean resolution (to enable dynamic module aggregation) and not the bean and model discovery nor proxy generation,</p>
-</li>
-<li>
-<p>Stay flexible: even if the model is generated at build time you can generally still customize it by removing a bean and adding your own one,</p>
-</li>
-<li>
-<p>Be native friendly: some applications need to be native to start very fast and bypass the classloading and a bunch of JVM init, for that purpose we ensure the framework is GraalVM friendly - using Apache Geronimo Arthur or not.</p>
-</li>
-</ul>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_features">Features</h2>
-<div class="sectionbody">
-<div class="ulist">
-<ul>
-<li>
-<p>Field/constructor injections</p>
-</li>
-<li>
-<p>Contexts/scopes</p>
-<div class="ulist">
-<ul>
-<li>
-<p>Default scope (<code>@DefaultScoped</code>) is to create an instance per lookup/injection</p>
-</li>
-<li>
-<p>Application scope (<code>@ApplicationScoped</code>) creates an instance per container and instantiates it lazily (at first call)</p>
-</li>
-</ul>
-</div>
-</li>
-<li>
-<p>Event bus</p>
-<div class="ulist">
-<ul>
-<li>
-<p><code>Start</code>/<code>Stop</code> events are fired with container related lifecycle hooks,</p>
-</li>
-</ul>
-</div>
-</li>
-<li>
-<p>Lifecycle: <code>@Init</code>/<code>@Destroy</code> to react to the bean lifecycle,</p>
-</li>
-<li>
-<p><code>Optional&lt;MyClass&gt;</code> injections,</p>
-</li>
-<li>
-<p>Basic cloud friendly <a href="examples.html#configuration_model">configuration</a>,</p>
-</li>
-<li>
-<p>Adding <code>fusion-json</code> module, you can get JSON records mapping support without reflection,</p>
-</li>
-<li>
-<p>Adding <code>fusion-http-server</code> module, you get an Apache Tomcat abstraction enabling to write any HTTP endpoint in an efficient and GraalVM friendly manner,</p>
-</li>
-<li>
-<p>Adding <a href="testing.html"><code>fusion-testing</code></a> module, you get some JUnit 5 integration enabling to test easily your code.</p>
-</li>
-<li>
-<p>Adding <a href="cli.html"><code>fusion-cli</code></a> module, you can generate simple CLI applications just writing commands.</p>
-</li>
-</ul>
-</div>
-<div class="admonitionblock tip">
-<table>
-<tr>
-<td class="icon">
-<div class="title">Tip</div>
-</td>
-<td class="content">
-you can find examples on the <a href="examples.html">examples</a> page.
-</td>
-</tr>
-</table>
-</div>
-<div class="sect2">
-<h3 id="_no_interceptor_support">No interceptor support</h3>
-<div class="paragraph">
-<p>Since some years we got used to see declarative interceptors (annotations) like in this snippet:</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public class MyBean {
+ <div class="sectionbody">
+ <p> <div class="quoteblock abstract">
+  <blockquote>
+Fusion framework aims at providing a very light framework.  </blockquote>
+ </div></p>
+ </div>
+ </div>
+ <div class="sect1" id="_core_values">
+  <h2>Core Values</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>
+For cloud applications, being the most reactive possible is a key criteria so Fusion chose to:
+ </p>
+ </div>
+ <div class="ulist">
+ <ul>
+  <li>
+ <p>
+Be build time oriented: only delegate to runtime the bean resolution (to enable dynamic module aggregation) and not the bean and model discovery nor proxy generation,
+ </p>
+  </li>
+  <li>
+ <p>
+Stay flexible: even if the model is generated at build time you can generally still customize it by removing a bean and adding your own one,
+ </p>
+  </li>
+  <li>
+ <p>
+Be native friendly: some applications need to be native to start very fast and bypass the classloading and a bunch of JVM init, for that purpose we ensure the framework is GraalVM friendly - using Apache Geronimo Arthur or not.
+ </p>
+  </li>
+ </ul>
+ </div>
+ </div>
+ </div>
+ <div class="sect1" id="_features">
+  <h2>Features</h2>
+ <div class="sectionbody">
+ <div class="ulist">
+ <ul>
+  <li>
+ <p>
+Field/constructor injections
+ </p>
+  </li>
+  <li>
+ <div class="paragraph">
+Contexts/scopes <div class="ulist">
+ <ul>
+  <li>
+ <div class="paragraph">
+ <p>Default scope (<code>@DefaultScoped</code>) is to create an instance per lookup/injection</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p>Application scope (<code>@ApplicationScoped</code>) creates an instance per container and instantiates it lazily (at first call)</p>
+ </div>
+  </li>
+ </ul>
+ </div>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+Event bus <div class="ulist">
+ <ul>
+  <li>
+ <div class="paragraph">
+ <p><code>Start</code>/<code>Stop</code> events are fired with container related lifecycle hooks,</p>
+ </div>
+  </li>
+ </ul>
+ </div>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p>Lifecycle: <code>@Init</code>/<code>@Destroy</code> to react to the bean lifecycle,</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p><code>Optional&lt;MyClass&gt;</code> injections,</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p>Basic cloud friendly  <a href="examples.html#configuration_model">configuration</a>
+,</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p>Adding <code>fusion-json</code> module, you can get JSON records mapping support without reflection,</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p>Adding <code>fusion-http-server</code> module, you get an Apache Tomcat abstraction enabling to write any HTTP endpoint in an efficient and GraalVM friendly manner,</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p>Adding  <a href="testing.html">`fusion-testing`</a>
+ module, you get some JUnit 5 integration enabling to test easily your code.</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p>Adding  <a href="cli.html">`fusion-cli`</a>
+ module, you can generate simple CLI applications just writing commands.</p>
+ </div>
+  </li>
+ </ul>
+ </div>
+ <div class="admonitionblock tip">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">TIP</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p>you can find examples on the  <a href="examples.html">examples</a>
+ page.</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ <div class="sect2" id="_no_interceptor_support">
+  <h3>No interceptor support</h3>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>
+Since some years we got used to see declarative interceptors (annotations) like in this snippet:
+ </p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public class MyBean {
     @Traced
     public void doSomething() {
         // ...
     }
 }</code></pre>
-</div>
-</div>
-<div class="paragraph">
-<p>These are great and the container is actually linking the annotation to an implementation (a bean in general) which intercepts the call.
-This is not bad but has some design pitfalls:</p>
-</div>
-<div class="ulist">
-<ul>
-<li>
-<p>Most interceptors will use parameters and for such a generic approach to work, it needs an <code>Object[]</code> (or <code>List</code>) of parameters.
-This is really not fast (it requires to allocate an array for that purpose).</p>
-</li>
-<li>
-<p>It requires to know and understand the rules between class interceptors, method interceptors, appending/overriding when relevant plus the same with parent classes.
-All that can quickly become complex.</p>
-</li>
-<li>
-<p>It is often static: once put on a method disabling an interceptor requires the underlying library to be able to do that or to use some advanced customization at startup to do it.</p>
-</li>
-</ul>
-</div>
-<div class="paragraph">
-<p>For these reasons, we think that we don&#8217;t need an interceptor solution in Fusion framework but we don&#8217;t say the underlying feature is pointless, not at all.
-However, thanks to a more modern programming style, we can use a more functional approach to solve the same problem.
-Therefore, previous example would rather become:</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public class MyBean {
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>
+These are great and the container is actually linking the annotation to an implementation (a bean in general) which intercepts the call. This is not bad but has some design pitfalls:
+ </p>
+ </div>
+ <div class="ulist">
+ <ul>
+  <li>
+ <div class="paragraph">
+ <p>Most interceptors will use parameters and for such a generic approach to work, it needs an <code>Object[]</code> (or <code>List</code>) of parameters. This is really not fast (it requires to allocate an array for that purpose).</p>
+ </div>
+  </li>
+  <li>
+ <p>
+It requires to know and understand the rules between class interceptors, method interceptors, appending/overriding when relevant plus the same with parent classes. All that can quickly become complex.
+ </p>
+  </li>
+  <li>
+ <p>
+It is often static: once put on a method disabling an interceptor requires the underlying library to be able to do that or to use some advanced customization at startup to do it.
+ </p>
+  </li>
+ </ul>
+ </div>
+ <div class="paragraph">
+ <p>
+For these reasons, we think that we don't need an interceptor solution in Fusion framework but we don't say the underlying feature is pointless, not at all. However, thanks to a more modern programming style, we can use a more functional approach to solve the same problem. Therefore, previous example would rather become:
+ </p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public class MyBean {
     public void doSomething() {
         tracing(() -&gt; {
             // ...
         });
     }
 }</code></pre>
-</div>
-</div>
-<div class="paragraph">
-<p>The big advantage is you can use some static utility if you want but also rely on beans and even combine more efficiently interceptions in a custom and configurable fashion:</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public class MyBean {
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>
+The big advantage is you can use some static utility if you want but also rely on beans and even combine more efficiently interceptions in a custom and configurable fashion:
+ </p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public class MyBean {
     public void doSomething() {
         tracing(() -&gt; timed(() -&gt; logged(() -&gt; {
             // ...
         })));
     }
 }</code></pre>
-</div>
-</div>
-<div class="paragraph">
-<p>can become:</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public class MyBean {
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>
+can become:
+ </p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public class MyBean {
     @Injection
     MyObservabilityService obs;
 
@@ -253,14 +304,16 @@ Therefore, previous example would rather become:</p>
         });
     }
 }</code></pre>
-</div>
-</div>
-<div class="paragraph">
-<p>If you compare the case with parameters it is way more efficient in general since you just do a standard parameter passing call:</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public class MyBean {
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>
+If you compare the case with parameters it is way more efficient in general since you just do a standard parameter passing call:
+ </p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public class MyBean {
     @Injection
     EntityManager em; // assume the application used JPA - not required
 
@@ -275,28 +328,21 @@ Therefore, previous example would rather become:</p>
           () -&gt; jpa.tx(() -&gt; em.persist(tx)));
     }
 }</code></pre>
-</div>
-</div>
-<div class="admonitionblock tip">
-<table>
-<tr>
-<td class="icon">
-<div class="title">Tip</div>
-</td>
-<td class="content">
-<div class="paragraph">
-<p>going with this solution can, however, get the <em>chaining lambda</em> pitfall (a.k.a. <em>callback hell</em> in JavaScript),
-to solve this one we encourage you to ensure your "interceptor" can be chained properly using the same kind of callback.</p>
-</div>
-<div class="paragraph">
-<p>Here is an example (the important part is more the signature than the fact it is a <code>static</code> method or a bean method):</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public static &lt;T&gt; Supplier&lt;T&gt; interceptor1(String marker, Map&lt;String, String&gt; data, Supplier&lt;T&gt; nested) {
+ </div>
+ </div>
+  <div class="content">
+ <div class="paragraph">
+ <p>going with this solution can, however, get the <i>chaining lambda</i> pitfall (a.k.a. <i>callback hell</i> in JavaScript), to solve this one we encourage you to ensure your &quot;interceptor&quot; can be chained properly using the same kind of callback.</p>
+ </div>
+ <div class="paragraph">
+ <p>Here is an example (the important part is more the signature than the fact it is a <code>static</code> method or a bean method):</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public static &lt;T&gt; Supplier&lt;T&gt; interceptor1(String marker, Map&lt;String, String&gt; data, Supplier&lt;T&gt; nested) {
     return () -&gt; {
         logger.info(message(marker, data)); // interceptor role
-        return task.get();  // intercepted business, "ic.proceed()" in jakarta interceptor API
+        return task.get();  // intercepted business, &quot;ic.proceed()&quot; in jakarta interceptor API
     };
 }
 
@@ -304,54 +350,49 @@ to solve this one we encourage you to ensure your "interceptor" can be chained p
 public static &lt;T&gt; Supplier&lt;T&gt; interceptor12(Params params, Supplier&lt;T&gt; nested) {
     // same kind of logic for the impl
 }</code></pre>
-</div>
-</div>
-<div class="paragraph">
-<p>Thanks this definition which commonly agreed to use <code>Supplier&lt;T&gt;</code> as the intercepted call and the fact interceptor methods return a call and not execute it directly, you can chain them more easily:</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public void storeCustomer(final Customer customer) {
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>Thanks this definition which commonly agreed to use <code>Supplier&lt;T&gt;</code> as the intercepted call and the fact interceptor methods return a call and not execute it directly, you can chain them more easily:</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public void storeCustomer(final Customer customer) {
     interceptor2(
             Params.of(customer),
             interceptor1(
-                "incoming-customer", Map.of("id", customer.id()),
+                &quot;incoming-customer&quot;, Map.of(&quot;id&quot;, customer.id()),
                 () -&gt; {
                     // business code
                 }))
     .get(); // trigger the actual execution, it is the terminal operation for the chain
 }</code></pre>
-</div>
-</div>
-<div class="paragraph">
-<p>If you want to go further you can use a <code>Stream</code> to represent that.
-Now an interceptor is a <code>Function&lt;Supplier&lt;T&gt;, Supplier&lt;T&gt;&gt;</code> so if you define the list of interceptors in a <code>Stream</code>, then you can just reduce  them using the business function/logic as identity to have the actual invocation and execute it.
-Only detail to take care: ensure to reverse the stream to call the interceptor in order:</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public void storeCustomer(final Customer customer) {
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>If you want to go further you can use a <code>Stream</code> to represent that. Now an interceptor is a <code>Function&lt;Supplier&lt;T&gt;, Supplier&lt;T&gt;&gt;</code> so if you define the list of interceptors in a <code>Stream</code>, then you can just reduce  them using the business function/logic as identity to have the actual invocation and execute it. Only detail to take care: ensure to reverse the stream to call the interceptor in order:</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public void storeCustomer(final Customer customer) {
     Stream.&lt;Function&lt;Supplier&lt;Void&gt;, Supplier&lt;Void&gt;&gt;&gt;of(
                 // reversed chain of interceptor (i1 will be executed before i2)
                 delegate -&gt; interceptor2(Params.of(customer), delegate),
-                delegate -&gt; interceptor1("incoming-customer", Map.of("id", customer.id()), delegate)
+                delegate -&gt; interceptor1(&quot;incoming-customer&quot;, Map.of(&quot;id&quot;, customer.id()), delegate)
         )
         // merge the stream of interceptors as one execution wrapper
         .reduce(identity(), Function::andThen)
         .apply(() -&gt; { // apply to the actual business logic
-            System.out.println("&gt;Business");
+            System.out.println(&quot;&gt;Business&quot;);
             return null;
         })
         .get(); // execute it
 }</code></pre>
-</div>
-</div>
-<div class="paragraph">
-<p>Indeed in practise you can extract that kind of code in an utility and use something like:</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">// utility
+ </div>
+ </div>
+Indeed in practise you can extract that kind of code in an utility and use something like: <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">// utility
 public static &lt;T&gt; T intercepted(final Supplier&lt;T&gt; execution, final Function&lt;Supplier&lt;T&gt;, Supplier&lt;T&gt;&gt;... interceptors) {
     return Stream.of(interceptors)
             .reduce(identity(), Function::andThen)
@@ -362,108 +403,124 @@ public static &lt;T&gt; T intercepted(final Supplier&lt;T&gt; execution, final F
 // usage
 intercepted(
     () -&gt; { // business logic
-        System.out.println("&gt;Business");
+        System.out.println(&quot;&gt;Business&quot;);
         return null;
     },
     // interceptors
     delegate -&gt; interceptor2(Params.of(customer), delegate),
-    delegate -&gt; interceptor1("incoming-customer", Map.of("id", customer.id()), delegate)
+    delegate -&gt; interceptor1(&quot;incoming-customer&quot;, Map.of(&quot;id&quot;, customer.id()), delegate)
 );</code></pre>
-</div>
-</div>
-<div class="paragraph">
-<p>This is what the class <code>io.yupiik.fusion.framework.api.composable.Wraps</code> does.</p>
-</div>
-</td>
-</tr>
-</table>
-</div>
-<div class="paragraph">
-<p>Last tip: you interceptor can work with <code>CompletionStage</code> to add some behavior before/after the call even if the result is not computed synchronously ;).</p>
-</div>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_limitations">Limitations</h2>
-<div class="sectionbody">
-<div class="admonitionblock note">
-<table>
-<tr>
-<td class="icon">
-<div class="title">Note</div>
-</td>
-<td class="content">
-these are limitations <em>as of today</em>, none are <em>technically</em> strong limitations we can&#8217;t fix at a later point if desired.
-</td>
-</tr>
-</table>
-</div>
-<div class="ulist">
-<ul>
-<li>
-<p>A no-arg constructor must be available for any class bean,</p>
-</li>
-<li>
-<p>If a method producer bean is <code>AutoCloseable</code> then it will be automatically closed,</p>
-</li>
-<li>
-<p>Event methods can not be package scope if the enclosing bean uses a subclass proxy (like <code>@ApplicationScoped</code> context),</p>
-</li>
-<li>
-<p>Constructor injections are supported but for proxied scopes (<code>@ApplicationScoped</code> for ex) it requires a default no-arg constructor (in scope <code>protected</code> or <code>public</code>) in the class (if not existing the instantiation constructor will be called with null parameters),</p>
-</li>
-<li>
-<p>Event bus listeners can only have the event as method parameter,</p>
-</li>
-<li>
-<p>Only classes are supported exception for method producers which can return a <code>ParameterizedType</code> (ex: <code>List&lt;String&gt;</code>) but injections must exactly match this type and <code>List</code>/<code>Set</code> injections are handled by looking up all beans matching the parameter.</p>
-</li>
-</ul>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_setup">Setup</h2>
-<div class="sectionbody">
-<div class="paragraph">
-<p>See <a href="setup.html">setup</a> page to see how to get your project started.</p>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_extension_modules">Extension Modules</h2>
-<div class="sectionbody">
-<div class="ulist">
-<ul>
-<li>
-<p><a href="json.html">JSON</a></p>
-</li>
-<li>
-<p><a href="jwt.html">JWT validation</a></p>
-</li>
-<li>
-<p><a href="http-server.html">HTTP Server</a></p>
-</li>
-<li>
-<p><a href="http-client.html">HTTP Client</a></p>
-</li>
-<li>
-<p><a href="observability.html">Observability</a></p>
-</li>
-<li>
-<p><a href="handlebars.html">Handlebars</a></p>
-</li>
-<li>
-<p><a href="persistence.html">Persistence</a></p>
-</li>
-<li>
-<p><a href="kubernetes-operator.html">Kubernetes Operator Base</a></p>
-</li>
-</ul>
-</div>
-</div>
-</div>
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>This is what the class <code>io.yupiik.fusion.framework.api.composable.Wraps</code> does.</p>
+ </div>
+  </div>
+ <div class="paragraph">
+ <p>Last tip: you interceptor can work with <code>CompletionStage</code> to add some behavior before/after the call even if the result is not computed synchronously ;).</p>
+ </div>
+ </div>
+ </div>
+ </div>
+ </div>
+ <div class="sect1" id="_limitations">
+  <h2>Limitations</h2>
+ <div class="sectionbody">
+ <div class="admonitionblock note">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">NOTE</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p>these are limitations <i>as of today</i>, none are <i>technically</i> strong limitations we can't fix at a later point if desired.</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ <div class="ulist">
+ <ul>
+  <li>
+ <p>
+A no-arg constructor must be available for any class bean,
+ </p>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p>If a method producer bean is <code>AutoCloseable</code> then it will be automatically closed,</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p>Event methods can not be package scope if the enclosing bean uses a subclass proxy (like <code>@ApplicationScoped</code> context),</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p>Constructor injections are supported but for proxied scopes (<code>@ApplicationScoped</code> for ex) it requires a default no-arg constructor (in scope <code>protected</code> or <code>public</code>) in the class (if not existing the instantiation constructor will be called with null parameters),</p>
+ </div>
+  </li>
+  <li>
+ <p>
+Event bus listeners can only have the event as method parameter,
+ </p>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p>Only classes are supported exception for method producers which can return a <code>ParameterizedType</code> (ex: <code>List&lt;String&gt;</code>) but injections must exactly match this type and <code>List</code>/<code>Set</code> injections are handled by looking up all beans matching the parameter.</p>
+ </div>
+  </li>
+ </ul>
+ </div>
+ </div>
+ </div>
+ <div class="sect1" id="_setup">
+  <h2>Setup</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>See  <a href="setup.html">setup</a>
+ page to see how to get your project started.</p>
+ </div>
+ </div>
+ </div>
+ <div class="sect1" id="_extension_modules">
+  <h2>Extension Modules</h2>
+ <div class="sectionbody">
+ <div class="ulist">
+ <ul>
+  <li>
+ <a href="json.html">JSON</a>
+  </li>
+  <li>
+ <a href="jwt.html">JWT validation</a>
+  </li>
+  <li>
+ <a href="http-server.html">HTTP Server</a>
+  </li>
+  <li>
+ <a href="http-client.html">HTTP Client</a>
+  </li>
+  <li>
+ <a href="observability.html">Observability</a>
+  </li>
+  <li>
+ <a href="handlebars.html">Handlebars</a>
+  </li>
+  <li>
+ <a href="persistence.html">Persistence</a>
+  </li>
+  <li>
+ <a href="kubernetes-operator.html">Kubernetes Operator Base</a>
+  </li>
+ </ul>
+ </div>
+ </div>
+ </div>
+                
                 
             </div>
         </div>
@@ -472,13 +529,12 @@ these are limitations <em>as of today</em>, none are <em>technically</em> strong
         <nav class="generated-nav-menu"></nav>
     </div>
     </div>
-    <hr />
     <footer class="footer pb-5">
-	    <div class="footer-bottom text-center">
+	    <div class="text-center">
 		    <ul class="social-list list-unstyled">
-                <li class="list-inline-item"><a href="https://www.github.com/yupiik/"><i class="fab fa-github fa-fw"></i></a></li><li class="list-inline-item"><a href="https://www.linkedin.com/company/yupiik/"><i class="fab fa-linkedin fa-fw"></i></a></li>
+                <li class="list-inline-item"><a title="Github" href="https://www.github.com/yupiik/"><i class="fab fa-github fa-fw"></i></a></li><li class="list-inline-item"><a title="LinkedIn" href="https://www.linkedin.com/company/yupiik/"><i class="fab fa-linkedin fa-fw"></i></a></li>
 	        </ul>
-            <small class="copyright">Yupiik &copy;</small> | <a href="https://www.yupiik.com/terms-of-service/">Terms of service</a> | <a href="https://www.yupiik.com/privacy-policy/">Privacy policy</a>
+            <small class="copyright">Yupiik &copy;</small> | <a href="https://www.yupiik.com/terms-of-use/">Terms of use</a> | <a href="https://www.yupiik.com/privacy-policy/">Privacy policy</a>
 	    </div>
     </footer>
 
@@ -515,8 +571,12 @@ these are limitations <em>as of today</em>, none are <em>technically</em> strong
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/languages/bash.min.js" integrity="sha512-Hg0ufGEvn0AuzKMU0psJ1iH238iUN6THh7EI0CfA0n1sd3yu6PYet4SaDMpgzN9L1yQHxfB3yc5ezw3PwolIfA==" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/languages/json.min.js" integrity="sha512-37sW1XqaJmseHAGNg4N4Y01u6g2do6LZL8tsziiL5CMXGy04Th65OXROw2jeDeXLo5+4Fsx7pmhEJJw77htBFg==" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/languages/dockerfile.min.js" integrity="sha512-eRNl3ty7GOJPBN53nxLgtSSj2rkYj5/W0Vg0MFQBw8xAoILeT6byOogENHHCRRvHil4pKQ/HbgeJ5DOwQK3SJA==" crossorigin="anonymous"></script>
-    <script>if (!(window.minisite || {}).skipHighlightJs) { hljs.highlightAll(); }</script>
-    <script src="//www.yupiik.io/fusion/js/minisite.js?v=1.0.14-SNAPSHOT"></script>
+    <script>if (!(window.minisite || {}).skipHighlightJs) { hljs.highlightAll();
+function addCopyButtons(clipboard) {
+  document.querySelectorAll('pre > code').forEach(function (codeBlock) {
+  var button = document.createElement('button');  button.className = 'copy-code-button';  button.type = 'button';  button.innerText = 'Copy';  button.addEventListener('click', function () {   clipboard.writeText(codeBlock.innerText).then(function () {   button.blur();   button.innerText = 'Copied!';   setTimeout(function () { button.innerText = 'Copy'; }, 2000); }, function (error) { button.innerText = 'Error'; });  });  var pre = codeBlock.parentNode;  if (pre.parentNode.classList.contains('highlight')) {   var highlight = pre.parentNode; highlight.parentNode.insertBefore(button, highlight);  } else { pre.parentNode.insertBefore(button, pre); } });}
+if (navigator && navigator.clipboard) { addCopyButtons(navigator.clipboard);} else { var script = document.createElement('script'); script.src = '//cdnjs.cloudflare.com/ajax/libs/clipboard-polyfill/2.7.0/clipboard-polyfill.promise.js'; script.integrity = 'sha256-waClS2re9NUbXRsryKoof+F9qc1gjjIhc2eT7ZbIv94='; script.crossOrigin = 'anonymous'; script.onload = function() {addCopyButtons(clipboard);}; document.body.appendChild(script);} }</script>
+    <script src="//www.yupiik.io/fusion/js/minisite.js?v=1.0.17-SNAPSHOT"></script>
     <script>$('.page-content-body').generatedNavMenu();</script>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fuse.js/6.4.3/fuse.min.js" integrity="sha512-neoBxVNv0UMXjoilAYGxfWrSsW6iAVclx7vQKdPJ9Peet1bM5YQjU0aIB8LtH8iNPa+pAyMZprBBw2ZQ/Q1LjQ==" crossorigin="anonymous"></script>

@@ -6,19 +6,19 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Fusion :: Documentation">
+    <meta name="description" content="Fusion framework aims at providing a very light java framework and graal native.">
     <meta name="author" content="Yupiik Minisite Generator">
     <meta name="generator" content="Yupiik Minisite Generator">
     
-    <link rel="shortcut icon" href="//www.yupiik.io/images/favicon.png">
+    <link rel="shortcut icon" href="//www.yupiik.io/fusion/images/logo.svg">
 
     <link href="//fonts.googleapis.com/css?family=Open+Sans:300,300i,400,400i,700,700i|Montserrat:300,400,500,700" rel="stylesheet">
     <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css" integrity="sha512-+4zCK9k+qNFUR5X+cKL9EIR+ZOhtIloNl9GIKS57V1MyNsYpYcUrUeQc9vNfzsWfV28IaLL3i96P9sdNyeRssA==" crossorigin="anonymous" />
     <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/asciidoctor.js/1.5.5-5/css/asciidoctor.min.css" integrity="sha512-kI7tn5cuEg16kMeXnYmg8rEJPxbxzEM7Gsr191iQdLDevFBLXPCSU9aZWSVuP61tMZWU3nBAR1cJ7SmXnOGLZw==" crossorigin="anonymous" />
     <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.3/css/bootstrap.min.css" integrity="sha512-oc9+XSs1H243/FRN9Rw62Fn8EtxjEYWHXRvjS43YtueEewbS6ObfXcJNyohjHqVKFPoXXUxwc+q1K7Dee6vv9g==" crossorigin="anonymous" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/styles/vs2015.min.css" integrity="sha512-w8aclkBlN3Ha08SMwFKXFJqhSUx2qlvTBFLLelF8sm4xQnlg64qmGB/A6pBIKy0W8Bo51yDMDtQiPLNRq1WMcQ==" crossorigin="anonymous" />
-    <link id="theme-style" rel="stylesheet" href="//www.yupiik.io/fusion/css/theme.css?v=1.0.14-SNAPSHOT">
     
+    <link id="theme-style" rel="stylesheet" href="//www.yupiik.io/fusion/css/theme.css?v=1.0.17-SNAPSHOT">
 </head>
 <body>
     <header class="header fixed-top">
@@ -26,8 +26,8 @@
             <div class="container-fluid position-relative py-2">
                 <div class="docs-logo-wrapper">
 	                <div class="site-logo"><a title="Home" class="navbar-brand" href="//www.yupiik.io/fusion/index.html">
-	                <img class="logo-icon mr-2" src="//www.yupiik.io/images/favicon.png" alt="logo">
-	                <span class="logo-text">Fusion :: Documentation <span class="text-alt">Docs</span></span></a></div>
+	                <img class="logo-icon mr-2" src="//www.yupiik.io/fusion/images/logo.svg" alt="logo">
+	                <span class="logo-text">Fusion <span class="text-alt">Documentation</span></span></a></div>
                 </div>
 	            <div class="docs-top-utilities d-flex justify-content-end align-items-center">
 					
@@ -35,7 +35,7 @@
 
 					<ul class="social-list list-inline mx-md-3 mx-lg-5 mb-0 d-none d-lg-flex">
 						
-						<li class="list-inline-item"><a href="https://www.github.com/yupiik/"><i class="fab fa-github fa-fw"></i></a></li><li class="list-inline-item"><a href="https://www.linkedin.com/company/yupiik/"><i class="fab fa-linkedin fa-fw"></i></a></li>
+						<li class="list-inline-item"><a title="Github" href="https://www.github.com/yupiik/"><i class="fab fa-github fa-fw"></i></a></li><li class="list-inline-item"><a title="LinkedIn" href="https://www.linkedin.com/company/yupiik/"><i class="fab fa-linkedin fa-fw"></i></a></li>
 		            </ul>
 	            </div>
             </div>
@@ -58,12 +58,12 @@
                         <i class="fas fa-building"></i>Setup
                     </a>
                 </li>                <li>
-                    <a title="Fusion JSON support" href="//www.yupiik.io/fusion/fusion/json.html">
-                        <i class="fas fa-wifi"></i>JSON
-                    </a>
-                </li>                <li>
                     <a title="Fusion CLI" href="//www.yupiik.io/fusion/fusion/cli.html">
                         <i class="fas fa-terminal"></i>CLI
+                    </a>
+                </li>                <li>
+                    <a title="Fusion JSON support" href="//www.yupiik.io/fusion/fusion/json.html">
+                        <i class="fas fa-wifi"></i>JSON
                     </a>
                 </li>                <li>
                     <a title="framework and GraalVM (native-image)" href="//www.yupiik.io/fusion/fusion/graalvm.html">
@@ -79,27 +79,25 @@
             </div>
             <div class="page-content-body">
                 <div id="preamble">
-<div class="sectionbody">
-<div class="quoteblock abstract">
-<blockquote>
-Fusion Kubernetes operator base module provides a simple backbone to build a custom operator.
-</blockquote>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_what_an_operator_is">What an operator is</h2>
-<div class="sectionbody">
-<div class="paragraph">
-<p>An operator is generally a process handling <em>Custom Resource Definition</em> (CRD).
-In other words, it is a process handling custom descriptor types.</p>
-</div>
-<div class="paragraph">
-<p>A common example is to handle an <code>API</code> kind of descriptor instead of creating a <code>ConfigMap</code> plus a <code>Deployemnt</code> plus an <code>Ingress</code> plus a <code>LoadBalancer</code>:</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: custom.company.com/v1
+ <div class="sectionbody">
+ <p> <div class="quoteblock abstract">
+  <blockquote>
+Fusion Kubernetes operator base module provides a simple backbone to build a custom operator.  </blockquote>
+ </div></p>
+ </div>
+ </div>
+ <div class="sect1" id="_what_an_operator_is">
+  <h2>What an operator is</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>An operator is generally a process handling <i>Custom Resource Definition</i> (CRD). In other words, it is a process handling custom descriptor types.</p>
+ </div>
+ <div class="paragraph">
+ <p>A common example is to handle an <code>API</code> kind of descriptor instead of creating a <code>ConfigMap</code> plus a <code>Deployemnt</code> plus an <code>Ingress</code> plus a <code>LoadBalancer</code>:</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">apiVersion: custom.company.com/v1
 kind: MyAPI
 metadata:
   name: my-api
@@ -107,103 +105,129 @@ metadata:
 spec:
   path: /api/my
   image: company/my-api:1.0</code></pre>
-</div>
-</div>
-<div class="admonitionblock note">
-<table>
-<tr>
-<td class="icon">
-<div class="title">Note</div>
-</td>
-<td class="content">
-as for Yupiik Bundlebee, we prefer to use descriptors in JSON since it is easier to work with and less error prone.
-</td>
-</tr>
-</table>
-</div>
-<div class="paragraph">
-<p>Once deployed, the operator will be responsible to convert the <code>spec</code> in Kubernetes default objects (<code>Deployment</code>, &#8230;&#8203;).
-On the user side you can manage your API with any Kubernetes API client, including <code>kubectl</code>: <code>kubectl get -n my-apps my-apis</code>.</p>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_dependency">Dependency</h2>
-<div class="sectionbody">
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-xml hljs" data-lang="xml">&lt;dependency&gt;
+ </div>
+ </div>
+ <div class="admonitionblock note">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">NOTE</div>
+       </td>
+      <td class="content">
+as for Yupiik Bundlebee, we prefer to use descriptors in JSON since it is easier to work with and less error prone.    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ <div class="paragraph">
+ <p>Once deployed, the operator will be responsible to convert the <code>spec</code> in Kubernetes default objects (<code>Deployment</code>, ...). On the user side you can manage your API with any Kubernetes API client, including <code>kubectl</code>: <code>kubectl get -n my-apps my-apis</code>.</p>
+ </div>
+ </div>
+ </div>
+ <div class="sect1" id="_dependency">
+  <h2>Dependency</h2>
+ <div class="sectionbody">
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-xml hljs" data-lang="xml">&lt;dependency&gt;
 &lt;groupId&gt;io.yupiik.fusion&lt;/groupId&gt;
 &lt;artifactId&gt;fusion-kubernetes-operator-base&lt;/artifactId&gt;
 &lt;version&gt;${fusion.version}&lt;/artifactId&gt;
 &lt;/dependency&gt;</code></pre>
-</div>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_configuration">Configuration</h2>
-<div class="sectionbody">
-<div class="paragraph">
-<p>The operator default runtime has these default configuration keys:</p>
-</div>
-<div class="ulist">
-<ul>
-<li>
-<p><code>operator.await</code> (default: <code>true</code>): Should operator await process termination, keep it <code>true</code> until you embed it..</p>
-</li>
-<li>
-<p><code>operator.event-thread-count</code> (default: <code>1</code>): How many threads are handling events, take care that more than one require a specific concurrency handling..</p>
-</li>
-<li>
-<p><code>operator.kubernetes.certificates</code> (default: <code>"/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"</code>): Kubernetes certificate to connect to its API.</p>
-</li>
-<li>
-<p><code>operator.kubernetes.master</code> (default: <code>java.util.Optional.ofNullable(System.getenv("KUBERNETES_SERVICE_HOST")).map(host &#8594; "https://" + host + ':' + java.util.Optional.ofNullable(System.getenv("KUBERNETES_SERVICE_PORT")).orElse("443")).orElse(null)</code>): The kubernetes API base URL.</p>
-</li>
-<li>
-<p><code>operator.kubernetes.tls-skip</code> (default: <code>false</code>): Should TLS validations be skipped..</p>
-</li>
-<li>
-<p><code>operator.kubernetes.token</code> (default: <code>"/var/run/secrets/kubernetes.io/serviceaccount/token"</code>): Kubernetes token (service account)..</p>
-</li>
-<li>
-<p><code>operator.probe-port</code> (default: <code>8081</code>): Server for healthchecks, set to a negative value to disable (when embedded for ex)..</p>
-</li>
-<li>
-<p><code>operator.use-bookmarks</code> (default: <code>true</code>): If <code>true</code>, <code>BOOKMARK</code> events are enabled..</p>
-</li>
-</ul>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_build_a_custom_operator">Build a custom operator</h2>
-<div class="sectionbody">
-<div class="paragraph">
-<p>As soon as you imported <code>fusion-kubernetes-operator-base</code> module (and as any Fusion application you can use <code>fusion-api</code> and build dependencies <code>fusion-processor</code> and <code>fusion-build-api</code>) you have to implement the <code>Operator</code> API and define your custom resource model (<code>spec</code>).</p>
-</div>
-<div class="paragraph">
-<p>This API enables you to get current state of the descriptors (it starts by a "find all") and listen for any change (add, modify, delete hooks).</p>
-</div>
-<div class="admonitionblock tip">
-<table>
-<tr>
-<td class="icon">
-<div class="title">Tip</div>
-</td>
-<td class="content">
-these is an <code>Operator.Base</code> class which enables to ease the configuration and a <code>BulkingOperator</code> which gives you events by bulk instead of one by one to bulk changes and reduce the work you do with the API when needed.
-</td>
-</tr>
-</table>
-</div>
-<div class="paragraph">
-<p>Here is an operator just logging custom resource events - the other actions are generally custom:</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@ApplicationScoped
+ </div>
+ </div>
+ </div>
+ </div>
+ <div class="sect1" id="_configuration">
+  <h2>Configuration</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>
+The operator default runtime has these default configuration keys:
+ </p>
+ </div>
+ <div class="ulist">
+ <ul>
+  <li>
+ <div class="paragraph">
+ <p><code>operator.await</code> (<code>OPERATOR_AWAIT</code>) (default: <code>true</code>): Should operator await process termination, keep it <code>true</code> until you embed it.</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p><code>operator.event-thread-count</code> (<code>OPERATOR_EVENT_THREAD_COUNT</code>) (default: <code>1</code>): How many threads are handling events, take care that more than one require a specific concurrency handling.</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p><code>operator.kubernetes.certificates</code> (<code>OPERATOR_KUBERNETES_CERTIFICATES</code>) (default: <code>&quot;/var/run/secrets/kubernetes.io/serviceaccount/ca.crt&quot;</code>): Kubernetes certificate to connect to its API.</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p><code>operator.kubernetes.master</code> (<code>OPERATOR_KUBERNETES_MASTER</code>) (default: <code>java.util.Optional.ofNullable(System.getenv(&quot;KUBERNETES_SERVICE_HOST&quot;)).map(host -&gt; &quot;https://&quot; + host + ':' + java.util.Optional.ofNullable(System.getenv(&quot;KUBERNETES_SERVICE_PORT&quot;)).orElse(&quot;443&quot;)).orElse(null)</code>): The kubernetes API base URL.</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p><code>operator.kubernetes.tls-skip</code> (<code>OPERATOR_KUBERNETES_TLS_SKIP</code>) (default: <code>false</code>): Should TLS validations be skipped.</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p><code>operator.kubernetes.token</code> (<code>OPERATOR_KUBERNETES_TOKEN</code>) (default: <code>&quot;/var/run/secrets/kubernetes.io/serviceaccount/token&quot;</code>): Kubernetes token (service account).</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p><code>operator.probe-port</code> (<code>OPERATOR_PROBE_PORT</code>) (default: <code>8081</code>): Server for healthchecks, set to a negative value to disable (when embedded for ex).</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p><code>operator.use-bookmarks</code> (<code>OPERATOR_USE_BOOKMARKS</code>) (default: <code>true</code>): If <code>true</code>, <code>BOOKMARK</code> events are enabled.</p>
+ </div>
+  </li>
+ </ul>
+ </div>
+ </div>
+ </div>
+ <div class="sect1" id="_build_a_custom_operator">
+  <h2>Build a custom operator</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>As soon as you imported <code>fusion-kubernetes-operator-base</code> module (and as any Fusion application you can use <code>fusion-api</code> and build dependencies <code>fusion-processor</code> and <code>fusion-build-api</code>) you have to implement the <code>Operator</code> API and define your custom resource model (<code>spec</code>).</p>
+ </div>
+ <div class="paragraph">
+ <p>
+This API enables you to get current state of the descriptors (it starts by a &quot;find all&quot;) and listen for any change (add, modify, delete hooks).
+ </p>
+ </div>
+ <div class="admonitionblock tip">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">TIP</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p>these is an <code>Operator.Base</code> class which enables to ease the configuration and a <code>BulkingOperator</code> which gives you events by bulk instead of one by one to bulk changes and reduce the work you do with the API when needed.</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ <div class="paragraph">
+ <p>
+Here is an operator just logging custom resource events - the other actions are generally custom:
+ </p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@ApplicationScoped
 public class APIOperator extends Operator.Base&lt;APIResource&gt; { //  <b class="conum">(1)</b>
     private final Logger logger = Logger.getLogger(getClass().getName());
 
@@ -216,68 +240,88 @@ public class APIOperator extends Operator.Base&lt;APIResource&gt; { //  <b class
         super(
                 APIResource.class, // <b class="conum">(3)</b>
                 // <b class="conum">(4)</b>
-                new DefaultOperatorConfiguration(true, List.of("default"), "api", "company.com/v1"));
+                new DefaultOperatorConfiguration(true, List.of(&quot;default&quot;), &quot;api&quot;, &quot;company.com/v1&quot;));
         this.kubernetes = client;
         this.jsonMapper = jsonMapper;
     }
 
     @Override
     public CompletionStage&lt;?&gt; onStart() { // <b class="conum">(5)</b>
-        logger.info(() -&gt; "Starting operator " + getClass().getName());
+        logger.info(() -&gt; &quot;Starting operator &quot; + getClass().getName());
         return super.onStart();
     }
 
     @Override // <b class="conum">(6)</b>
     public void onAdd(final APIResource object) {
-        logger.info(() -&gt; "[ADD] " + object);
+        logger.info(() -&gt; &quot;[ADD] &quot; + object);
     }
 
     @Override // <b class="conum">(6)</b>
     public void onDelete(final APIResource object) {
-        logger.info(() -&gt; "[DELETE] " + object);
+        logger.info(() -&gt; &quot;[DELETE] &quot; + object);
     }
 
     @Override // <b class="conum">(6)</b>
     public void onModify(final APIResource object) {
-        logger.info(() -&gt; "[MODIFY] " + object);
+        logger.info(() -&gt; &quot;[MODIFY] &quot; + object);
     }
 }</code></pre>
-</div>
-</div>
-<div class="colist arabic">
-<ol>
-<li>
-<p>We inherit from <code>Operator.Base</code> to simplify the implementation (fully optional),</p>
-</li>
-<li>
-<p>We inject the kubernetes client (generally to do the <code>Deployement</code> or other resources creation),</p>
-</li>
-<li>
-<p>We define our custom model type for our resource/CRD,</p>
-</li>
-<li>
-<p>We define the name we register for our CRD (see later),</p>
-</li>
-<li>
-<p>On startup we have a callback before watching events giving us the opportunity to query the same of the mapping between the CRD and actual instance (the deployment behind an API for example) to be able to update it easily later on,</p>
-</li>
-<li>
-<p>Finally we listen for CRD changes and adjust our actual runtime on it.</p>
-</li>
-</ol>
-</div>
-<div class="sect2">
-<h3 id="_creating_a_container_for_our_operator">Creating a container for our operator</h3>
-<div class="paragraph">
-<p>You can create the image of your container as you want but the easiest is to use <code>jib</code> or Geronimo Arthur maven plugins.</p>
-</div>
-<div class="paragraph">
-<p>Here is how with JIB I can convert my module to a container:</p>
-</div>
-<div class="listingblock">
-<div class="title">In plugins section of my pom.xml</div>
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-xml hljs" data-lang="xml">&lt;plugin&gt;
+ </div>
+ </div>
+ <div class="colist arabic">
+  <ol>
+   <li>
+ <span>
+We inherit from 
+ </span>
+<code>Operator.Base</code> <span>
+ to simplify the implementation (fully optional),
+ </span>
+   </li>
+   <li>
+ <span>
+We inject the kubernetes client (generally to do the 
+ </span>
+<code>Deployement</code> <span>
+ or other resources creation),
+ </span>
+   </li>
+   <li>
+ <span>
+We define our custom model type for our resource/CRD,
+ </span>
+   </li>
+   <li>
+ <span>
+We define the name we register for our CRD (see later),
+ </span>
+   </li>
+   <li>
+ <span>
+On startup we have a callback before watching events giving us the opportunity to query the same of the mapping between the CRD and actual instance (the deployment behind an API for example) to be able to update it easily later on,
+ </span>
+   </li>
+   <li>
+ <span>
+Finally we listen for CRD changes and adjust our actual runtime on it.
+ </span>
+   </li>
+  </ol>
+ </div>
+ <div class="sect2" id="_creating_a_container_for_our_operator">
+  <h3>Creating a container for our operator</h3>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>You can create the image of your container as you want but the easiest is to use <code>jib</code> or Geronimo Arthur maven plugins.</p>
+ </div>
+ <div class="paragraph">
+ <p>
+Here is how with JIB I can convert my module to a container:
+ </p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-xml hljs" data-lang="xml">&lt;plugin&gt;
   &lt;groupId&gt;com.google.cloud.tools&lt;/groupId&gt;
   &lt;artifactId&gt;jib-maven-plugin&lt;/artifactId&gt;
   &lt;version&gt;3.3.2&lt;/version&gt;
@@ -299,397 +343,436 @@ public class APIOperator extends Operator.Base&lt;APIResource&gt; { //  <b class
     &lt;/container&gt;
   &lt;/configuration&gt;
 &lt;/plugin&gt;</code></pre>
-</div>
-</div>
-<div class="openblock">
-<div class="content">
-<div class="admonitionblock tip">
-<table>
-<tr>
-<td class="icon">
-<div class="title">Tip</div>
-</td>
-<td class="content">
-it is recommended to add the following dependency to your pom:
-</td>
-</tr>
-</table>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-xml hljs" data-lang="xml">&lt;dependency&gt;
+ </div>
+ </div>
+  <div class="content">
+ <div class="admonitionblock tip">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">TIP</div>
+       </td>
+      <td class="content">
+it is recommended to add the following dependency to your pom:    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-xml hljs" data-lang="xml">&lt;dependency&gt;
   &lt;groupId&gt;io.yupiik.logging&lt;/groupId&gt;
   &lt;artifactId&gt;yupiik-logging-jul&lt;/artifactId&gt;
   &lt;version&gt;${yupiik-logging.version}&lt;/version&gt;
   &lt;scope&gt;runtime&lt;/scope&gt;
 &lt;/dependency&gt;</code></pre>
-</div>
-</div>
-<div class="paragraph">
-<p>and then in your <code>jvmFlags</code> add (to get logs in JSON):</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-xml hljs" data-lang="xml">&lt;jvmFlag&gt;-Djava.util.logging.manager=io.yupiik.logging.jul.YupiikLogManager&lt;/jvmFlag&gt;
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>and then in your <code>jvmFlags</code> add (to get logs in JSON):</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-xml hljs" data-lang="xml">&lt;jvmFlag&gt;-Djava.util.logging.manager=io.yupiik.logging.jul.YupiikLogManager&lt;/jvmFlag&gt;
 &lt;jvmFlag&gt;-Dio.yupiik.logging.jul.handler.StandardHandler.formatter=json&lt;/jvmFlag&gt;</code></pre>
-</div>
-</div>
-</div>
-</div>
-<div class="paragraph">
-<p>Once done, you can run <code>mvn package jib:build</code> to push the image to the remote registry if set or <code>mvn package jib:dockerBuild</code> to push it to your docker daemon.</p>
-</div>
-</div>
-<div class="sect2">
-<h3 id="_deploy_your_operator">Deploy your operator</h3>
-<div class="paragraph">
-<p>Before deploying your operator, you need to define your CRD, this is done in a yaml or JSON file and defines the API your operator will support.</p>
-</div>
-<div class="admonitionblock tip">
-<table>
-<tr>
-<td class="icon">
-<div class="title">Tip</div>
-</td>
-<td class="content">
-for a full reference, refer to Kubernetes documentation.
-</td>
-</tr>
-</table>
-</div>
-<div class="paragraph">
-<p>Here is an example for the API CRD we took as an example:</p>
-</div>
-<div class="listingblock">
-<div class="title">crd.json</div>
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-json hljs" data-lang="json">{
-  "apiVersion": "apiextensions.k8s.io/v1",
-  "kind": "CustomResourceDefinition",
-  "metadata": {
-    "name": "apis.company.com"
+ </div>
+ </div>
+  </div>
+ <div class="paragraph">
+ <p>Once done, you can run <code>mvn package jib:build</code> to push the image to the remote registry if set or <code>mvn package jib:dockerBuild</code> to push it to your docker daemon.</p>
+ </div>
+ </div>
+ </div>
+ <div class="sect2" id="_deploy_your_operator">
+  <h3>Deploy your operator</h3>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>
+Before deploying your operator, you need to define your CRD, this is done in a yaml or JSON file and defines the API your operator will support.
+ </p>
+ </div>
+ <div class="admonitionblock tip">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">TIP</div>
+       </td>
+      <td class="content">
+for a full reference, refer to Kubernetes documentation.    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ <div class="paragraph">
+ <p>
+Here is an example for the API CRD we took as an example:
+ </p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-json hljs" data-lang="json">{
+  &quot;apiVersion&quot;: &quot;apiextensions.k8s.io/v1&quot;,
+  &quot;kind&quot;: &quot;CustomResourceDefinition&quot;,
+  &quot;metadata&quot;: {
+    &quot;name&quot;: &quot;apis.company.com&quot;
   },
-  "spec": {
-    "group": "company.com",
-    "versions": [
+  &quot;spec&quot;: {
+    &quot;group&quot;: &quot;company.com&quot;,
+    &quot;versions&quot;: [
       {
-        "name": "v1",
-        "served": true,
-        "storage": true,
-        "schema": {
-          "openAPIV3Schema": {
-            "type": "object",
-            "properties": {
-              "spec": {
-                "type": "object",
-                "properties": {
-                  "image": {
-                    "type": "string"
+        &quot;name&quot;: &quot;v1&quot;,
+        &quot;served&quot;: true,
+        &quot;storage&quot;: true,
+        &quot;schema&quot;: {
+          &quot;openAPIV3Schema&quot;: {
+            &quot;type&quot;: &quot;object&quot;,
+            &quot;properties&quot;: {
+              &quot;spec&quot;: {
+                &quot;type&quot;: &quot;object&quot;,
+                &quot;properties&quot;: {
+                  &quot;image&quot;: {
+                    &quot;type&quot;: &quot;string&quot;
                   },
-                  "path": {
-                    "type": "string"
+                  &quot;path&quot;: {
+                    &quot;type&quot;: &quot;string&quot;
                   }
                 }
               }
             }
           }
         },
-        "additionalPrinterColumns": [
+        &quot;additionalPrinterColumns&quot;: [
           {
-            "name": "Path",
-            "type": "string",
-            "description": "Path of the endpoint",
-            "jsonPath": ".spec.path"
+            &quot;name&quot;: &quot;Path&quot;,
+            &quot;type&quot;: &quot;string&quot;,
+            &quot;description&quot;: &quot;Path of the endpoint&quot;,
+            &quot;jsonPath&quot;: &quot;.spec.path&quot;
           },
           {
-            "name": "Image",
-            "type": "string",
-            "description": "Image of the main container containing the API",
-            "jsonPath": ".spec.image"
+            &quot;name&quot;: &quot;Image&quot;,
+            &quot;type&quot;: &quot;string&quot;,
+            &quot;description&quot;: &quot;Image of the main container containing the API&quot;,
+            &quot;jsonPath&quot;: &quot;.spec.image&quot;
           },
           {
-            "name": "Age",
-            "type": "date",
-            "jsonPath": ".metadata.creationTimestamp"
+            &quot;name&quot;: &quot;Age&quot;,
+            &quot;type&quot;: &quot;date&quot;,
+            &quot;jsonPath&quot;: &quot;.metadata.creationTimestamp&quot;
           }
         ]
       }
     ],
-    "scope": "Namespaced",
-    "names": {
-      "plural": "apis",
-      "singular": "api",
-      "kind": "API"
+    &quot;scope&quot;: &quot;Namespaced&quot;,
+    &quot;names&quot;: {
+      &quot;plural&quot;: &quot;apis&quot;,
+      &quot;singular&quot;: &quot;api&quot;,
+      &quot;kind&quot;: &quot;API&quot;
     }
   }
 }</code></pre>
-</div>
-</div>
-<div class="paragraph">
-<p>Once this descriptor applied (using <code>mvn bundlebee:apply</code> or <code>kubectl apply</code>), you can deploy the operator itself.
-The operator needs a service account with the needed roles of what the operator uses from the Kubernetes API.
-It is at least the permissions to <code>get</code>, <code>list</code>, <code>watch</code> the custom resources we just defined but it is also generally the permissions to create/update/delete a deployment/configmap/&#8230;&#8203;.</p>
-</div>
-<div class="admonitionblock tip">
-<table>
-<tr>
-<td class="icon">
-<div class="title">Tip</div>
-</td>
-<td class="content">
-you can use <code>ClusterRole</code> but it is good to ensure it is namespaces to avoid the operator to break something in other namespaces - at least while testing or until your operator is cluster wide (like an observability one for ex).
-</td>
-</tr>
-</table>
-</div>
-<div class="sect3">
-<h4 id="_creating_the_service_account">Creating the service account</h4>
-<div class="admonitionblock note">
-<table>
-<tr>
-<td class="icon">
-<div class="title">Note</div>
-</td>
-<td class="content">
-this part is mainly to give you an entry point but it will need customization depending your case.
-</td>
-</tr>
-</table>
-</div>
-<div class="paragraph">
-<p>The service account part will be composed of:</p>
-</div>
-<div class="ulist">
-<ul>
-<li>
-<p>A service account we will use in the controller,</p>
-</li>
-<li>
-<p>A role (list of roles actually) giving the permission to the kubernetes client to do what is needed,</p>
-</li>
-<li>
-<p>A role binding to associate the role to the service account.</p>
-</li>
-</ul>
-</div>
-<div class="paragraph">
-<p>Here is the service account:</p>
-</div>
-<div class="listingblock">
-<div class="title">serviceaccount.json</div>
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-json hljs" data-lang="json">{
-  "apiVersion":"v1",
-  "kind":"ServiceAccount",
-  "metadata":{
-    "name":"api-controller",
-    "namespace":"default",
-    "labels":{
-      "app":"api-controller"
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>Once this descriptor applied (using <code>mvn bundlebee:apply</code> or <code>kubectl apply</code>), you can deploy the operator itself. The operator needs a service account with the needed roles of what the operator uses from the Kubernetes API. It is at least the permissions to <code>get</code>, <code>list</code>, <code>watch</code> the custom resources we just defined but it is also generally the permissions to create/update/delete a deployment/configmap/....</p>
+ </div>
+ <div class="admonitionblock tip">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">TIP</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p>you can use <code>ClusterRole</code> but it is good to ensure it is namespaces to avoid the operator to break something in other namespaces - at least while testing or until your operator is cluster wide (like an observability one for ex).</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ <div class="sect3" id="_creating_the_service_account">
+  <h4>Creating the service account</h4>
+ <div class="sectionbody">
+ <div class="admonitionblock note">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">NOTE</div>
+       </td>
+      <td class="content">
+this part is mainly to give you an entry point but it will need customization depending your case.    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ <div class="paragraph">
+ <p>
+The service account part will be composed of:
+ </p>
+ </div>
+ <div class="ulist">
+ <ul>
+  <li>
+ <p>
+A service account we will use in the controller,
+ </p>
+  </li>
+  <li>
+ <p>
+A role (list of roles actually) giving the permission to the kubernetes client to do what is needed,
+ </p>
+  </li>
+  <li>
+ <p>
+A role binding to associate the role to the service account.
+ </p>
+  </li>
+ </ul>
+ </div>
+ <div class="paragraph">
+ <p>
+Here is the service account:
+ </p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-json hljs" data-lang="json">{
+  &quot;apiVersion&quot;:&quot;v1&quot;,
+  &quot;kind&quot;:&quot;ServiceAccount&quot;,
+  &quot;metadata&quot;:{
+    &quot;name&quot;:&quot;api-controller&quot;,
+    &quot;namespace&quot;:&quot;default&quot;,
+    &quot;labels&quot;:{
+      &quot;app&quot;:&quot;api-controller&quot;
     }
   }
 }</code></pre>
-</div>
-</div>
-<div class="admonitionblock important">
-<table>
-<tr>
-<td class="icon">
-<div class="title">Important</div>
-</td>
-<td class="content">
-you can need to create one per namespace you target - or let your operator doing it using another service account but this is out of scope of this part.
-</td>
-</tr>
-</table>
-</div>
-<div class="paragraph">
-<p>The role will require at minimum the list and watch permissions on your custom resource:</p>
-</div>
-<div class="listingblock">
-<div class="title">role.json</div>
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-json hljs" data-lang="json">{
-  "apiVersion": "rbac.authorization.k8s.io/v1",
-  "kind": "Role",
-  "metadata": {
-    "name": "api-controller",
-    "namespace": "default",
-    "labels": {
-      "app": "api-controller"
+ </div>
+ </div>
+ <div class="admonitionblock important">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">IMPORTANT</div>
+       </td>
+      <td class="content">
+you can need to create one per namespace you target - or let your operator doing it using another service account but this is out of scope of this part.    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ <div class="paragraph">
+ <p>
+The role will require at minimum the list and watch permissions on your custom resource:
+ </p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-json hljs" data-lang="json">{
+  &quot;apiVersion&quot;: &quot;rbac.authorization.k8s.io/v1&quot;,
+  &quot;kind&quot;: &quot;Role&quot;,
+  &quot;metadata&quot;: {
+    &quot;name&quot;: &quot;api-controller&quot;,
+    &quot;namespace&quot;: &quot;default&quot;,
+    &quot;labels&quot;: {
+      &quot;app&quot;: &quot;api-controller&quot;
     }
   },
-  "rules": [
+  &quot;rules&quot;: [
     {
-      "apiGroups": [
-        "company.com"
+      &quot;apiGroups&quot;: [
+        &quot;company.com&quot;
       ],
-      "resources": [
-        "apis"
+      &quot;resources&quot;: [
+        &quot;apis&quot;
       ],
-      "verbs": [
-        "list",
-        "watch"
+      &quot;verbs&quot;: [
+        &quot;list&quot;,
+        &quot;watch&quot;
       ]
     }
   ]
 }</code></pre>
-</div>
-</div>
-<div class="paragraph">
-<p>Finally, the role binding associates both:</p>
-</div>
-<div class="listingblock">
-<div class="title">rolebinding.json</div>
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-json hljs" data-lang="json">{
-  "apiVersion": "rbac.authorization.k8s.io/v1",
-  "kind": "RoleBinding",
-  "metadata": {
-    "name":"api-controller",
-    "namespace":"default",
-    "labels":{
-      "app":"api-controller"
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>
+Finally, the role binding associates both:
+ </p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-json hljs" data-lang="json">{
+  &quot;apiVersion&quot;: &quot;rbac.authorization.k8s.io/v1&quot;,
+  &quot;kind&quot;: &quot;RoleBinding&quot;,
+  &quot;metadata&quot;: {
+    &quot;name&quot;:&quot;api-controller&quot;,
+    &quot;namespace&quot;:&quot;default&quot;,
+    &quot;labels&quot;:{
+      &quot;app&quot;:&quot;api-controller&quot;
     }
   },
-  "subjects": [
+  &quot;subjects&quot;: [
     {
-      "kind": "ServiceAccount",
-      "name": "api-controller"
+      &quot;kind&quot;: &quot;ServiceAccount&quot;,
+      &quot;name&quot;: &quot;api-controller&quot;
     }
   ],
-  "roleRef": {
-    "kind": "Role",
-    "name": "api-controller",
-    "apiGroup": "rbac.authorization.k8s.io"
+  &quot;roleRef&quot;: {
+    &quot;kind&quot;: &quot;Role&quot;,
+    &quot;name&quot;: &quot;api-controller&quot;,
+    &quot;apiGroup&quot;: &quot;rbac.authorization.k8s.io&quot;
   }
 }</code></pre>
-</div>
-</div>
-</div>
-<div class="sect3">
-<h4 id="_deployment_for_the_controller">Deployment for the controller</h4>
-<div class="paragraph">
-<p>The controller can be a deployment or statefulset if you need to store some state:</p>
-</div>
-<div class="listingblock">
-<div class="title">deployment.json</div>
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-json hljs" data-lang="json">{
-  "apiVersion": "apps/v1",
-  "kind": "Deployment",
-  "metadata": {
-    "name": "api-controller",
-    "namespace": "default",
-    "labels": {
-      "app": "api-controller"
+ </div>
+ </div>
+ </div>
+ </div>
+ <div class="sect3" id="_deployment_for_the_controller">
+  <h4>Deployment for the controller</h4>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>
+The controller can be a deployment or statefulset if you need to store some state:
+ </p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-json hljs" data-lang="json">{
+  &quot;apiVersion&quot;: &quot;apps/v1&quot;,
+  &quot;kind&quot;: &quot;Deployment&quot;,
+  &quot;metadata&quot;: {
+    &quot;name&quot;: &quot;api-controller&quot;,
+    &quot;namespace&quot;: &quot;default&quot;,
+    &quot;labels&quot;: {
+      &quot;app&quot;: &quot;api-controller&quot;
     }
   },
-  "spec": {
-    "selector": {
-      "matchLabels": {
-        "app": "api-controller"
+  &quot;spec&quot;: {
+    &quot;selector&quot;: {
+      &quot;matchLabels&quot;: {
+        &quot;app&quot;: &quot;api-controller&quot;
       }
     },
-    "template": {
-      "metadata": {
-        "labels": {
-          "app": "api-controller"
+    &quot;template&quot;: {
+      &quot;metadata&quot;: {
+        &quot;labels&quot;: {
+          &quot;app&quot;: &quot;api-controller&quot;
         }
       },
-      "spec": {
-        "serviceAccountName": "api-controller", <b class="conum">(1)</b>
-        "automountServiceAccountToken": true,
-        "containers": [
+      &quot;spec&quot;: {
+        &quot;serviceAccountName&quot;: &quot;api-controller&quot;, <b class="conum">(1)</b>
+        &quot;automountServiceAccountToken&quot;: true,
+        &quot;containers&quot;: [
           {
-            "name": "operator-controller",
-            "image": "company/operator-api",
-            "readinessProbe": { <b class="conum">(2)</b>
-              "initialDelaySeconds": 4,
-              "periodSeconds": 30,
-              "failureThreshold": 10,
-              "timeoutSeconds": 20,
-              "httpGet": {
-                "path": "/health",
-                "port": 8081
+            &quot;name&quot;: &quot;operator-controller&quot;,
+            &quot;image&quot;: &quot;company/operator-api&quot;,
+            &quot;readinessProbe&quot;: { <b class="conum">(2)</b>
+              &quot;initialDelaySeconds&quot;: 4,
+              &quot;periodSeconds&quot;: 30,
+              &quot;failureThreshold&quot;: 10,
+              &quot;timeoutSeconds&quot;: 20,
+              &quot;httpGet&quot;: {
+                &quot;path&quot;: &quot;/health&quot;,
+                &quot;port&quot;: 8081
               }
             },
-            "livenessProbe": { <b class="conum">(2)</b>
-              "initialDelaySeconds": 5,
-              "periodSeconds": 30,
-              "failureThreshold": 10,
-              "timeoutSeconds": 30,
-              "httpGet": {
-                "path": "/health",
-                "port": 8081
+            &quot;livenessProbe&quot;: { <b class="conum">(2)</b>
+              &quot;initialDelaySeconds&quot;: 5,
+              &quot;periodSeconds&quot;: 30,
+              &quot;failureThreshold&quot;: 10,
+              &quot;timeoutSeconds&quot;: 30,
+              &quot;httpGet&quot;: {
+                &quot;path&quot;: &quot;/health&quot;,
+                &quot;port&quot;: 8081
               }
             }
           }
         ]
       }
     },
-    "replicas": 1 <b class="conum">(3)</b>
+    &quot;replicas&quot;: 1 <b class="conum">(3)</b>
   }
 }</code></pre>
-</div>
-</div>
-<div class="colist arabic">
-<ol>
-<li>
-<p>Don&#8217;t forget to mount the service account which has the right roles for the controller/operator,</p>
-</li>
-<li>
-<p>If you didn&#8217;t disable the operator probes, you can setup health checks - optional since in case of error the operator should crash,</p>
-</li>
-<li>
-<p>By default there is no leader election so a single instance is needed but if you handle it you can scale - but generally it is not needed since scalability is in the instances you create, not there until you are a cloud provider.</p>
-</li>
-</ol>
-</div>
-</div>
-<div class="sect3">
-<h4 id="_bonus_deploy_with_bundlebee">Bonus: deploy with bundlebee</h4>
-<div class="paragraph">
-<p>If you want to deploy this CRD with bundlebee, we recommend you to create:</p>
-</div>
-<div class="ulist">
-<ul>
-<li>
-<p>An alveolus (deployable) for the CRD itseld,</p>
-</li>
-<li>
-<p>An alveolus for the controller stack (with service account),</p>
-</li>
-<li>
-<p>An alveolus for both.</p>
-</li>
-</ul>
-</div>
-<div class="paragraph">
-<p>Here is what it can look like in your manifest.json assuming you have previous resources named as the snippets and put in <code>kubernetes</code> folder:</p>
-</div>
-<div class="listingblock">
-<div class="title">manifest.json</div>
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-json hljs" data-lang="json">{
-  "$schema": "https://raw.githubusercontent.com/yupiik/bundlebee/gh-pages/generated/jsonschema/manifest.descriptor.json",
-  "interpolateAlveoli": true,
-  "alveoli": [
+ </div>
+ </div>
+ <div class="colist arabic">
+  <ol>
+   <li>
+ <span>
+Don't forget to mount the service account which has the right roles for the controller/operator,
+ </span>
+   </li>
+   <li>
+ <span>
+If you didn't disable the operator probes, you can setup health checks - optional since in case of error the operator should crash,
+ </span>
+   </li>
+   <li>
+ <span>
+By default there is no leader election so a single instance is needed but if you handle it you can scale - but generally it is not needed since scalability is in the instances you create, not there until you are a cloud provider.
+ </span>
+   </li>
+  </ol>
+ </div>
+ </div>
+ </div>
+ <div class="sect3" id="_bonus_deploy_with_bundlebee">
+  <h4>Bonus: deploy with bundlebee</h4>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>
+If you want to deploy this CRD with bundlebee, we recommend you to create:
+ </p>
+ </div>
+ <div class="ulist">
+ <ul>
+  <li>
+ <p>
+An alveolus (deployable) for the CRD itseld,
+ </p>
+  </li>
+  <li>
+ <p>
+An alveolus for the controller stack (with service account),
+ </p>
+  </li>
+  <li>
+ <p>
+An alveolus for both.
+ </p>
+  </li>
+ </ul>
+ </div>
+ <div class="paragraph">
+ <p>Here is what it can look like in your manifest.json assuming you have previous resources named as the snippets and put in <code>kubernetes</code> folder:</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-json hljs" data-lang="json">{
+  &quot;$schema&quot;: &quot;https://raw.githubusercontent.com/yupiik/bundlebee/gh-pages/generated/jsonschema/manifest.descriptor.json&quot;,
+  &quot;interpolateAlveoli&quot;: true,
+  &quot;alveoli&quot;: [
     {
-      "//": "CRD only, no controller",
-      "name": "api-crd-only",
-      "descriptors": [
+      &quot;//&quot;: &quot;CRD only, no controller&quot;,
+      &quot;name&quot;: &quot;api-crd-only&quot;,
+      &quot;descriptors&quot;: [
         {
-          "name": "crd.json",
-          "await": true,
-          "awaitConditions": [
+          &quot;name&quot;: &quot;crd.json&quot;,
+          &quot;await&quot;: true,
+          &quot;awaitConditions&quot;: [
             {
-              "command": "apply",
-              "conditions": [
+              &quot;command&quot;: &quot;apply&quot;,
+              &quot;conditions&quot;: [
                 {
-                  "type": "STATUS_CONDITION",
-                  "conditionType": "Established",
-                  "value": "True"
+                  &quot;type&quot;: &quot;STATUS_CONDITION&quot;,
+                  &quot;conditionType&quot;: &quot;Established&quot;,
+                  &quot;value&quot;: &quot;True&quot;
                 }
               ]
             }
@@ -698,51 +781,54 @@ you can need to create one per namespace you target - or let your operator doing
       ]
     },
     {
-      "//": "CRD controller only registration",
-      "name": "api-crd-controller",
-      "descriptors": [
+      &quot;//&quot;: &quot;CRD controller only registration&quot;,
+      &quot;name&quot;: &quot;api-crd-controller&quot;,
+      &quot;descriptors&quot;: [
         {
-          "name": "serviceaccount.json"
+          &quot;name&quot;: &quot;serviceaccount.json&quot;
         },
         {
-          "name": "role.json"
+          &quot;name&quot;: &quot;role.json&quot;
         },
         {
-          "name": "rolebinding.json"
+          &quot;name&quot;: &quot;rolebinding.json&quot;
         },
         {
-          "name": "deployment.json"
+          &quot;name&quot;: &quot;deployment.json&quot;
         }
       ]
     },
     {
-      "//": "full stack alveolus",
-      "name": "api-crd",
-      "dependencies": [
+      &quot;//&quot;: &quot;full stack alveolus&quot;,
+      &quot;name&quot;: &quot;api-crd&quot;,
+      &quot;dependencies&quot;: [
         {
-          "name": "api-crd-only"
+          &quot;name&quot;: &quot;api-crd-only&quot;
         },
         {
-          "name": "api-crd-controller"
+          &quot;name&quot;: &quot;api-crd-controller&quot;
         }
       ]
     }
   ]
 }</code></pre>
-</div>
-</div>
-</div>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_tip">TIP</h2>
-<div class="sectionbody">
-<div class="paragraph">
-<p>You can disable, in the configuration, the probes, this is to ease to embed the operator stack in a custom <code>fusion-http-server</code> based module which will implement the probes itself.</p>
-</div>
-</div>
-</div>
+ </div>
+ </div>
+ </div>
+ </div>
+ </div>
+ </div>
+ </div>
+ </div>
+ <div class="sect1" id="_tip">
+  <h2>TIP</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>You can disable, in the configuration, the probes, this is to ease to embed the operator stack in a custom <code>fusion-http-server</code> based module which will implement the probes itself.</p>
+ </div>
+ </div>
+ </div>
+                
                 
             </div>
         </div>
@@ -751,13 +837,12 @@ you can need to create one per namespace you target - or let your operator doing
         <nav class="generated-nav-menu"></nav>
     </div>
     </div>
-    <hr />
     <footer class="footer pb-5">
-	    <div class="footer-bottom text-center">
+	    <div class="text-center">
 		    <ul class="social-list list-unstyled">
-                <li class="list-inline-item"><a href="https://www.github.com/yupiik/"><i class="fab fa-github fa-fw"></i></a></li><li class="list-inline-item"><a href="https://www.linkedin.com/company/yupiik/"><i class="fab fa-linkedin fa-fw"></i></a></li>
+                <li class="list-inline-item"><a title="Github" href="https://www.github.com/yupiik/"><i class="fab fa-github fa-fw"></i></a></li><li class="list-inline-item"><a title="LinkedIn" href="https://www.linkedin.com/company/yupiik/"><i class="fab fa-linkedin fa-fw"></i></a></li>
 	        </ul>
-            <small class="copyright">Yupiik &copy;</small> | <a href="https://www.yupiik.com/terms-of-service/">Terms of service</a> | <a href="https://www.yupiik.com/privacy-policy/">Privacy policy</a>
+            <small class="copyright">Yupiik &copy;</small> | <a href="https://www.yupiik.com/terms-of-use/">Terms of use</a> | <a href="https://www.yupiik.com/privacy-policy/">Privacy policy</a>
 	    </div>
     </footer>
 
@@ -794,8 +879,12 @@ you can need to create one per namespace you target - or let your operator doing
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/languages/bash.min.js" integrity="sha512-Hg0ufGEvn0AuzKMU0psJ1iH238iUN6THh7EI0CfA0n1sd3yu6PYet4SaDMpgzN9L1yQHxfB3yc5ezw3PwolIfA==" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/languages/json.min.js" integrity="sha512-37sW1XqaJmseHAGNg4N4Y01u6g2do6LZL8tsziiL5CMXGy04Th65OXROw2jeDeXLo5+4Fsx7pmhEJJw77htBFg==" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/languages/dockerfile.min.js" integrity="sha512-eRNl3ty7GOJPBN53nxLgtSSj2rkYj5/W0Vg0MFQBw8xAoILeT6byOogENHHCRRvHil4pKQ/HbgeJ5DOwQK3SJA==" crossorigin="anonymous"></script>
-    <script>if (!(window.minisite || {}).skipHighlightJs) { hljs.highlightAll(); }</script>
-    <script src="//www.yupiik.io/fusion/js/minisite.js?v=1.0.14-SNAPSHOT"></script>
+    <script>if (!(window.minisite || {}).skipHighlightJs) { hljs.highlightAll();
+function addCopyButtons(clipboard) {
+  document.querySelectorAll('pre > code').forEach(function (codeBlock) {
+  var button = document.createElement('button');  button.className = 'copy-code-button';  button.type = 'button';  button.innerText = 'Copy';  button.addEventListener('click', function () {   clipboard.writeText(codeBlock.innerText).then(function () {   button.blur();   button.innerText = 'Copied!';   setTimeout(function () { button.innerText = 'Copy'; }, 2000); }, function (error) { button.innerText = 'Error'; });  });  var pre = codeBlock.parentNode;  if (pre.parentNode.classList.contains('highlight')) {   var highlight = pre.parentNode; highlight.parentNode.insertBefore(button, highlight);  } else { pre.parentNode.insertBefore(button, pre); } });}
+if (navigator && navigator.clipboard) { addCopyButtons(navigator.clipboard);} else { var script = document.createElement('script'); script.src = '//cdnjs.cloudflare.com/ajax/libs/clipboard-polyfill/2.7.0/clipboard-polyfill.promise.js'; script.integrity = 'sha256-waClS2re9NUbXRsryKoof+F9qc1gjjIhc2eT7ZbIv94='; script.crossOrigin = 'anonymous'; script.onload = function() {addCopyButtons(clipboard);}; document.body.appendChild(script);} }</script>
+    <script src="//www.yupiik.io/fusion/js/minisite.js?v=1.0.17-SNAPSHOT"></script>
     <script>$('.page-content-body').generatedNavMenu();</script>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fuse.js/6.4.3/fuse.min.js" integrity="sha512-neoBxVNv0UMXjoilAYGxfWrSsW6iAVclx7vQKdPJ9Peet1bM5YQjU0aIB8LtH8iNPa+pAyMZprBBw2ZQ/Q1LjQ==" crossorigin="anonymous"></script>
