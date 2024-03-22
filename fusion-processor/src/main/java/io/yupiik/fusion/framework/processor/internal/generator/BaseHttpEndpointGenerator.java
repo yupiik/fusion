@@ -137,7 +137,7 @@ public abstract class BaseHttpEndpointGenerator extends BaseGenerator {
                 "lookup(container, " + JsonMapper.class.getName() + ".class, dependents)",
                 Optional.class.getName() + ".ofNullable(request.unwrapOrNull(" + Reader.class.getName() + ".class))\n" +
                         "          .map(reader -> " + CompletableFuture.class.getName() + ".completedStage(jsonMapper.read(" + type + ", reader)))\n" +
-                        "          .orElseGet(() -> new " + RequestBodyAggregator.class.getName() + "(request.body(), " + StandardCharsets.class.getName() + ".UTF_8)\n" +
+                        "          .orElseGet(() -> new " + RequestBodyAggregator.class.getName() + "(request.fullBody(), " + StandardCharsets.class.getName() + ".UTF_8)\n" +
                         "              .promise()\n" +
                         "              .thenApply(payload -> jsonMapper.read(" + type + ", new " + AvailableCharArrayReader.class.getName() + "(payload))))",
                 "payload");
