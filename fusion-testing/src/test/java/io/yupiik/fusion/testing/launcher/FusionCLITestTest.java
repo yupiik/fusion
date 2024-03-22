@@ -15,11 +15,36 @@
  */
 package io.yupiik.fusion.testing.launcher;
 
+import io.yupiik.fusion.framework.api.ConfiguringContainer;
+import io.yupiik.fusion.framework.api.RuntimeContainer;
+import io.yupiik.fusion.framework.api.container.FusionBean;
+import io.yupiik.fusion.framework.api.container.FusionListener;
+import io.yupiik.fusion.framework.api.container.FusionModule;
+
+import java.util.function.BiPredicate;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class FusionCLITestTest {
-    @FusionCLITest(args = {"test", "run"})
+    @FusionCLITest(args = {"test", "run"}, customizer = DropWebServerForTest.class)
     void run(final Stdout stdout) {
         assertEquals("Args=Args[args=[test, run]]", stdout.content().strip());
+    }
+
+    public static class DropWebServerForTest implements FusionCLITest.Customizer {
+        @Override
+        public ConfiguringContainer apply(final ConfiguringContainer container) {
+            return container.register(new FusionModule() {
+                @Override
+                public BiPredicate<RuntimeContainer, FusionBean<?>> beanFilter() {
+                    return (c, b) -> !b.getClass().getName().startsWith("io.yupiik.fusion.http.server.");
+                }
+
+                @Override
+                public BiPredicate<RuntimeContainer, FusionListener<?>> listenerFilter() {
+                    return (c, l) -> !l.getClass().getName().startsWith("io.yupiik.fusion.http.server.");
+                }
+            });
+        }
     }
 }

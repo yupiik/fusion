@@ -1,1 +1,2 @@
 io.yupiik.fusion.testing.module.TestingModule
+io.yupiik.fusion.testing.http.TestingBeansModule

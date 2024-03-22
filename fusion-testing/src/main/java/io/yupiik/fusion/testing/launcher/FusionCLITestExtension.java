@@ -15,6 +15,9 @@
  */
 package io.yupiik.fusion.testing.launcher;
 
+import io.yupiik.fusion.framework.api.ConfiguringContainer;
+import io.yupiik.fusion.framework.api.Instance;
+import io.yupiik.fusion.framework.api.main.Awaiter;
 import io.yupiik.fusion.framework.api.main.Launcher;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.InvocationInterceptor;
@@ -25,9 +28,13 @@ import org.junit.jupiter.api.extension.ReflectiveInvocationContext;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.List;
+import java.util.function.Predicate;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.platform.commons.util.AnnotationUtils.findAnnotation;
 
 class FusionCLITestExtension implements InvocationInterceptor, ParameterResolver {
@@ -49,8 +56,33 @@ class FusionCLITestExtension implements InvocationInterceptor, ParameterResolver
         if (io.err() != null) {
             System.setErr(new PrintStream(io.err()));
         }
-        try {
-            Launcher.main(config.args());
+        try { // simulate launcher but enable to drop http awaiter for ex
+            try (final var launcher = new Launcher(config.args()) {
+                @Override
+                protected ConfiguringContainer customize(final ConfiguringContainer container) {
+                    if (config.customizer() == FusionCLITest.Customizer.class) {
+                        return super.customize(container);
+                    }
+                    try {
+                        return config.customizer().getConstructor().newInstance().apply(container);
+                    } catch (final InstantiationException | IllegalAccessException |
+                                   InvocationTargetException | NoSuchMethodException e) {
+                        return fail(e);
+                    }
+                }
+
+                @Override
+                protected Instance<List<Awaiter>> lookupAwaiters() {
+                    return container.lookups(
+                            Awaiter.class,
+                            list -> list.stream()
+                                    .filter(Predicate.not(it -> "io.yupiik.fusion.http.server.impl.bean.FusionServerAwaiterBean".equals(it.bean().getClass().getName())))
+                                    .map(Instance::instance)
+                                    .toList());
+                }
+            }) {
+                launcher.await();
+            }
         } finally {
             if (io.out() != null) {
                 System.out.close(); // flush capture

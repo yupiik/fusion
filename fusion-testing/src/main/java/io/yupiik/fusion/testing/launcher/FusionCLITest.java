@@ -15,11 +15,13 @@
  */
 package io.yupiik.fusion.testing.launcher;
 
+import io.yupiik.fusion.framework.api.ConfiguringContainer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
+import java.util.function.Function;
 
 import static java.lang.annotation.ElementType.METHOD;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
@@ -48,4 +50,11 @@ public @interface FusionCLITest {
      * @return should stdout be captured and injectable as {@link Stderr}.
      */
     boolean captureStderr() default true;
+
+    /**
+     * @return enables to customize the container of the test.
+     */
+    Class<? extends Customizer> customizer() default Customizer.class;
+
+    interface Customizer extends Function<ConfiguringContainer, ConfiguringContainer> {}
 }
