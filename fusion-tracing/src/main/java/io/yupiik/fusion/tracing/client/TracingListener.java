@@ -18,6 +18,7 @@ package io.yupiik.fusion.tracing.client;
 import io.yupiik.fusion.httpclient.core.listener.RequestListener;
 import io.yupiik.fusion.httpclient.core.request.UnlockedHttpRequest;
 import io.yupiik.fusion.tracing.collector.AccumulatingSpanCollector;
+import io.yupiik.fusion.tracing.id.IdGenerator;
 import io.yupiik.fusion.tracing.request.PendingSpan;
 import io.yupiik.fusion.tracing.span.Span;
 
@@ -47,6 +48,7 @@ public class TracingListener implements RequestListener<TracingListener.State> {
     private final Function<HttpRequest, PendingSpan> contextAttributeEvaluator;
     private final Clock clock;
     private final Map<String, String> ips = new ConcurrentHashMap<>();
+    private final boolean isHex;
 
     // backward compat
     public TracingListener(final ClientTracingConfiguration configuration,
@@ -94,6 +96,7 @@ public class TracingListener implements RequestListener<TracingListener.State> {
         this.idGenerator = requireNonNull(idGenerator, "contextAttributeEvaluator can't be null");
         this.contextAttributeEvaluator = requireNonNull(contextAttributeEvaluator, "contextAttributeEvaluator can't be null");
         this.clock = requireNonNull(clock, "clock can't be null");
+        this.isHex = idGenerator instanceof IdGenerator idg &&idg.getType() == IdGenerator.Type.HEX;
     }
 
     @Override
@@ -115,7 +118,7 @@ public class TracingListener implements RequestListener<TracingListener.State> {
         final var parent = contextAttributeEvaluator.apply(request);
         final var timestamp = TimeUnit.MILLISECONDS.toMicros(start.toEpochMilli());
         final var id = idGenerator.get();
-        final var traceId = parent != null ? parent.traceId() : idGenerator.get();
+        final var traceId = parent != null ? parent.traceId() : newTraceId();
         final var parentId = parent != null ? parent.id() : null;
 
         return new RequestListener.State<>(new UnlockedHttpRequest(
@@ -125,6 +128,14 @@ public class TracingListener implements RequestListener<TracingListener.State> {
                         traceId, parentId, id, configuration.getOperation(), "CLIENT",
                         timestamp, duration, null, endpoint, tags,
                         null, null, null)));
+    }
+
+    protected Object newTraceId() {
+        final var value = idGenerator.get();
+        if (isHex && value.toString().length() == 16) { // 32 is opentelemetry standard but out id generator does 16 by default
+            return value + idGenerator.get().toString();
+        }
+        return value;
     }
 
     protected String ipOf(final String host) {
