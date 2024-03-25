@@ -1908,6 +1908,61 @@ class FusionProcessorTest {
         });
     }
 
+
+    @Test
+    void persistenceOnDelete(@TempDir final Path work) throws IOException {
+        final var entity = "persistence.OnDeleteEntity";
+        final var compiler = new Compiler(work, entity);
+        compiler.compileAndAsserts((loader, container) -> assertEquals(
+                """
+                        package test.p.persistence;
+                                                
+                                                
+                        @io.yupiik.fusion.framework.api.container.Generation(version = 1)
+                        public class OnDeleteEntity$FusionPersistenceEntity extends io.yupiik.fusion.persistence.impl.BaseEntity<OnDeleteEntity, java.lang.String> {
+                            public OnDeleteEntity$FusionPersistenceEntity(io.yupiik.fusion.persistence.impl.DatabaseConfiguration configuration) {
+                                super(
+                                  configuration,
+                                  OnDeleteEntity.class,
+                                  "ON_DELETE",
+                                  java.util.List.of(
+                                    new io.yupiik.fusion.persistence.impl.ColumnMetadataImpl("id", java.lang.String.class, "id", 0, false)
+                                  ),
+                                  false,
+                                  (instance, statement) -> {
+                                    if (instance.id() == null) { statement.setNull(1, java.sql.Types.VARCHAR); } else { statement.setString(1, instance.id()); }
+                                    return instance;
+                                  },
+                                  (instance, statement) -> {
+                                                
+                                    if (instance.id() == null) { statement.setNull(1, java.sql.Types.VARCHAR); } else { statement.setString(1, instance.id()); }
+                                    return instance;
+                                  },
+                                  (instance, statement) -> {
+                                    instance.deleted();
+                                    if (instance.id() == null) { statement.setNull(1, java.sql.Types.VARCHAR); } else { statement.setString(1, instance.id()); }
+                                  },
+                                  (id, statement) -> {
+                                    if (id == null) { statement.setNull(1, java.sql.Types.VARCHAR); } else { statement.setString(1, id); }
+                                  },
+                                  (entity, statement) -> entity,
+                                  columns -> {
+                                    final var id = stringOf(columns.indexOf("id"));
+                                    return rset -> {
+                                      try {
+                                        return new test.p.persistence.OnDeleteEntity(id.apply(rset));
+                                      } catch (final java.sql.SQLException e) {
+                                        throw new io.yupiik.fusion.persistence.api.PersistenceException(e);
+                                      }
+                                    };
+                                  });
+                            }
+                        }
+                                                
+                        """,
+                compiler.readGeneratedSource(entity + "$FusionPersistenceEntity")));
+    }
+
     @Test
     void nestedRecordPersistence(@TempDir final Path work) throws IOException {
         final var entity = "persistence.NestedEntity";

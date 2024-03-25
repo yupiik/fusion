@@ -235,8 +235,8 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
                                 .collect(joining("\n", "", "\n")) +
                         "            return instance;\n" +
                         "          },\n" +
-                        "          (" + (onDeleteCb.isEmpty() ? "instance" : "entity") + ", statement) -> {\n" +
-                        (!onDeleteCb.isEmpty() ? "            entity." + onDeleteCb.get(0).getSimpleName().toString() + "();\n" : "") +
+                        "          (instance, statement) -> {\n" +
+                        (!onDeleteCb.isEmpty() ? "            instance." + onDeleteCb.get(0).getSimpleName().toString() + "();\n" : "") +
                         withIndex(ids.stream())
                                 .map(it -> "            " + jdbcSetter(
                                         it.item(), it.index() + 1,
