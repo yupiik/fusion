@@ -1830,7 +1830,7 @@ class FusionProcessorTest {
                                                     
                             @io.yupiik.fusion.framework.api.container.Generation(version = 1)
                             public class SimpleFlatEntity$FusionPersistenceEntity extends io.yupiik.fusion.persistence.impl.BaseEntity<SimpleFlatEntity, java.lang.String> {
-                                public SimpleFlatEntity$FusionPersistenceEntity(io.yupiik.fusion.persistence.impl.DatabaseConfiguration configuration) {
+                                public SimpleFlatEntity$FusionPersistenceEntity(final io.yupiik.fusion.persistence.impl.DatabaseConfiguration configuration) {
                                     super(
                                       configuration,
                                       SimpleFlatEntity.class,
@@ -1908,7 +1908,6 @@ class FusionProcessorTest {
         });
     }
 
-
     @Test
     void persistenceOnDelete(@TempDir final Path work) throws IOException {
         final var entity = "persistence.OnDeleteEntity";
@@ -1920,7 +1919,7 @@ class FusionProcessorTest {
                                                 
                         @io.yupiik.fusion.framework.api.container.Generation(version = 1)
                         public class OnDeleteEntity$FusionPersistenceEntity extends io.yupiik.fusion.persistence.impl.BaseEntity<OnDeleteEntity, java.lang.String> {
-                            public OnDeleteEntity$FusionPersistenceEntity(io.yupiik.fusion.persistence.impl.DatabaseConfiguration configuration) {
+                            public OnDeleteEntity$FusionPersistenceEntity(final io.yupiik.fusion.persistence.impl.DatabaseConfiguration configuration) {
                                 super(
                                   configuration,
                                   OnDeleteEntity.class,
@@ -1964,6 +1963,74 @@ class FusionProcessorTest {
     }
 
     @Test
+    void persistenceInjectionOnCallbacks(@TempDir final Path work) throws IOException {
+        final var entity = "persistence.CallbackWithInjections";
+        final var compiler = new Compiler(work, entity, "Bean2");
+        compiler.compileAndAsserts((loader, container) -> assertEquals(
+                """
+                        package test.p.persistence;
+                                                
+                                                
+                        @io.yupiik.fusion.framework.api.container.Generation(version = 1)
+                        public class CallbackWithInjections$FusionPersistenceEntity extends io.yupiik.fusion.persistence.impl.BaseEntity<CallbackWithInjections, java.lang.String> {
+                            public CallbackWithInjections$FusionPersistenceEntity(final io.yupiik.fusion.persistence.impl.DatabaseConfiguration configuration, final io.yupiik.fusion.framework.api.RuntimeContainer main__container) {
+                                super(
+                                  configuration,
+                                  CallbackWithInjections.class,
+                                  "CB_INJECTION",
+                                  java.util.List.of(
+                                    new io.yupiik.fusion.persistence.impl.ColumnMetadataImpl("id", java.lang.String.class, "id", 0, false)
+                                  ),
+                                  false,
+                                  (entity, statement) -> {
+                                    var instance = entity;
+                                    try (final var bean = main__container.lookup(test.p.Bean2.class)) {
+                                      instance = entity.onInsert(bean.instance());
+                                    }
+                                    if (instance.id() == null) { statement.setNull(1, java.sql.Types.VARCHAR); } else { statement.setString(1, instance.id()); }
+                                    return instance;
+                                  },
+                                  (entity, statement) -> {
+                                    var instance = entity;
+                                    try (final var bean = main__container.lookup(test.p.Bean2.class)) {
+                                      instance = entity.onUpdate(bean.instance());
+                                    }
+                                                
+                                    if (instance.id() == null) { statement.setNull(1, java.sql.Types.VARCHAR); } else { statement.setString(1, instance.id()); }
+                                    return instance;
+                                  },
+                                  (instance, statement) -> {
+                                    try (final var bean = main__container.lookup(test.p.Bean2.class)) {
+                                      instance.onDelete(bean.instance());
+                                    }
+                                    if (instance.id() == null) { statement.setNull(1, java.sql.Types.VARCHAR); } else { statement.setString(1, instance.id()); }
+                                  },
+                                  (id, statement) -> {
+                                    if (id == null) { statement.setNull(1, java.sql.Types.VARCHAR); } else { statement.setString(1, id); }
+                                  },
+                                  (entity, statement) -> entity,
+                                  columns -> {
+                                    final var id = stringOf(columns.indexOf("id"));
+                                    return rset -> {
+                                      try {
+                                        final var entity = new test.p.persistence.CallbackWithInjections(id.apply(rset));
+                                        try (final var bean = main__container.lookup(test.p.Bean2.class)) {
+                                      entity.onLoad(bean.instance());
+                                    }
+                                        return entity;
+                                      } catch (final java.sql.SQLException e) {
+                                        throw new io.yupiik.fusion.persistence.api.PersistenceException(e);
+                                      }
+                                    };
+                                  });
+                            }
+                        }
+                                                
+                        """,
+                compiler.readGeneratedSource(entity + "$FusionPersistenceEntity")));
+    }
+
+    @Test
     void nestedRecordPersistence(@TempDir final Path work) throws IOException {
         final var entity = "persistence.NestedEntity";
         final var compiler = new Compiler(work, entity);
@@ -1975,7 +2042,7 @@ class FusionProcessorTest {
                                                         
                             @io.yupiik.fusion.framework.api.container.Generation(version = 1)
                             public class NestedEntity$FusionPersistenceEntity extends io.yupiik.fusion.persistence.impl.BaseEntity<NestedEntity, java.lang.String> {
-                                public NestedEntity$FusionPersistenceEntity(io.yupiik.fusion.persistence.impl.DatabaseConfiguration configuration) {
+                                public NestedEntity$FusionPersistenceEntity(final io.yupiik.fusion.persistence.impl.DatabaseConfiguration configuration) {
                                     super(
                                       configuration,
                                       NestedEntity.class,

@@ -95,7 +95,4 @@ public class ListenerGenerator extends BaseGenerator implements Supplier<BaseGen
 
         return new GeneratedClass((!packageName.isBlank() ? packageName + '.' : "") + className + suffix, out.toString());
     }
-
-    private record Injection() {
-    }
 }

@@ -23,6 +23,7 @@ import io.yupiik.fusion.framework.api.scope.DefaultScoped;
 import io.yupiik.fusion.framework.build.api.persistence.Column;
 import io.yupiik.fusion.framework.build.api.persistence.Id;
 import io.yupiik.fusion.framework.build.api.persistence.Table;
+import io.yupiik.fusion.framework.processor.internal.Bean;
 import io.yupiik.fusion.framework.processor.internal.Elements;
 import io.yupiik.fusion.framework.processor.internal.ParsedType;
 import io.yupiik.fusion.framework.processor.internal.persistence.SimpleEntity;
@@ -40,6 +41,7 @@ import javax.lang.model.element.Name;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.NoType;
 import javax.lang.model.type.TypeMirror;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -107,22 +109,22 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
         // todo: avoid to visit so often the methods and do a single visitor to capture them all?
         // note: in practise not critical for a record (few methods) but better
 
-        final var onInsertCb = findMethods(type, onInsert).peek(this::isNotPrivate).peek(this::hasNoParam).toList();
+        final var onInsertCb = findMethods(type, onInsert).peek(this::isNotPrivate).toList();
         if (onInsertCb.size() > 1) {
             throw new IllegalArgumentException("Multiple @OnInsert were found, this behavior is forbidden for now because not deterministic.");
         }
 
-        final var onUpdateCb = findMethods(type, onUpdate).peek(this::isNotPrivate).peek(this::hasNoParam).toList();
+        final var onUpdateCb = findMethods(type, onUpdate).peek(this::isNotPrivate).toList();
         if (onUpdateCb.size() > 1) {
             throw new IllegalArgumentException("Multiple @OnUpdate were found, this behavior is forbidden for now because not deterministic.");
         }
 
-        final var onDeleteCb = findMethods(type, onDelete).peek(this::isNotPrivate).peek(this::hasNoParam).toList();
+        final var onDeleteCb = findMethods(type, onDelete).peek(this::isNotPrivate).toList();
         if (onDeleteCb.size() > 1) {
             throw new IllegalArgumentException("Multiple @OnDelete were found, this behavior is forbidden for now because not deterministic.");
         }
 
-        final var onLoadCb = findMethods(type, onLoad).peek(this::isNotPrivate).peek(this::hasNoParam).toList();
+        final var onLoadCb = findMethods(type, onLoad).peek(this::isNotPrivate).toList();
         if (onLoadCb.size() > 1) {
             throw new IllegalArgumentException("Multiple @OnLoad were found, this behavior is forbidden for now because not deterministic.");
         }
@@ -156,12 +158,22 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
         final var onInsertCounter = new AtomicInteger(1);
         final var onUpdateCounter = new AtomicInteger(1);
 
+        final var insertInjections = toInjectionsOfFirstIfAny(onInsertCb);
+        final var updateInjections = toInjectionsOfFirstIfAny(onUpdateCb);
+        final var deleteInjections = toInjectionsOfFirstIfAny(onDeleteCb);
+        final var loadInjections = toInjectionsOfFirstIfAny(onLoadCb);
+        final boolean hasCallbackInjection = Stream.of(insertInjections, updateInjections, deleteInjections, loadInjections)
+                .filter(Objects::nonNull)
+                .mapToInt(List::size)
+                .sum() > 0;
+
         return new Output(new GeneratedClass(packagePrefix + tableClassName,
                 packageLine +
                         "\n" +
                         generationVersion() +
                         "public class " + tableClassName + " extends " + BaseEntity.class.getName() + "<" + className + ", " + idType + "> {\n" +
-                        "    public " + tableClassName + "(" + DatabaseConfiguration.class.getName() + " configuration) {\n" +
+                        "    public " + tableClassName + "(final " + DatabaseConfiguration.class.getName() + " configuration" +
+                        (hasCallbackInjection ? ", final " + RuntimeContainer.class.getName() + " main__container" : "") + ") {\n" +
                         "        super(\n" +
                         "          configuration,\n" +
                         "          " + className + ".class,\n" +
@@ -186,7 +198,7 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
                         "          " + autoIncremented + ",\n" +
                         "          (" + (onInsertCb.isEmpty() ? "instance" : "entity") + ", statement) -> {\n" +
                         (!onInsertCb.isEmpty() ?
-                                "            final var instance = entity." + onInsertCb.get(0).getSimpleName().toString() + "();\n" :
+                                createInstanceFromCallback(onInsertCb.get(0), insertInjections, "entity", true) :
                                 "") +
                         (autoIncremented ? standardColumns.stream() : Stream.concat(ids.stream(), standardColumns.stream()))
                                 .flatMap(it -> {
@@ -209,7 +221,9 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
                         "            return instance;\n" +
                         "          },\n" +
                         "          (" + (onUpdateCb.isEmpty() ? "instance" : "entity") + ", statement) -> {\n" +
-                        (!onUpdateCb.isEmpty() ? "            final var instance = entity." + onUpdateCb.get(0).getSimpleName().toString() + "();\n" : "") +
+                        (!onUpdateCb.isEmpty() ?
+                                createInstanceFromCallback(onUpdateCb.get(0), updateInjections, "entity", true) :
+                                "") +
                         columns.entrySet().stream()
                                 .filter(it -> standardColumns.contains(it.getKey()))
                                 .flatMap(it -> {
@@ -236,7 +250,9 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
                         "            return instance;\n" +
                         "          },\n" +
                         "          (instance, statement) -> {\n" +
-                        (!onDeleteCb.isEmpty() ? "            instance." + onDeleteCb.get(0).getSimpleName().toString() + "();\n" : "") +
+                        (!onDeleteCb.isEmpty() ?
+                                createInstanceFromCallback(onDeleteCb.get(0), deleteInjections, "instance", false) :
+                                "") +
                         withIndex(ids.stream())
                                 .map(it -> "            " + jdbcSetter(
                                         it.item(), it.index() + 1,
@@ -270,7 +286,7 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
                         "            }" +
                         "          }") + ",\n" +
                         "          columns -> {\n" +
-                        createFactory(constructorParameters, onLoadCb, columns, columnsMapping, "return", type) +
+                        createFactory(constructorParameters, onLoadCb, loadInjections, columns, columnsMapping, "return", type) +
                         "          });\n" +
                         "    }\n" +
                         "}\n" +
@@ -290,14 +306,49 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
                                 "  @Override\n" +
                                 "  public " + tableClassName + " create(final " + RuntimeContainer.class.getName() + " container, final " +
                                 List.class.getName() + "<" + Instance.class.getName() + "<?>> dependents) {\n" +
-                                "    return new " + tableClassName + "(lookup(container, " + DatabaseConfiguration.class.getName() + ".class, dependents));\n" +
+                                "    return new " + tableClassName + "(lookup(container, " + DatabaseConfiguration.class.getName() + ".class, dependents)" + (hasCallbackInjection ? ", container" : "") + ");\n" +
                                 "  }\n" +
                                 "}\n" +
                                 "\n") :
                         null);
     }
 
-    private String createFactory(final Collection<? extends VariableElement> constructorParameters, final List<ExecutableElement> onLoadCb,
+    private String createInstanceFromCallback(final ExecutableElement callback, final List<Bean.FieldInjection> injections,
+                                              final String varName, final boolean returns) {
+        final var fnName = callback.getSimpleName().toString();
+        if (injections == null || injections.isEmpty()) {
+            return "            " + (returns ? "final var instance = " : "") + varName + "." + fnName + "();\n";
+        }
+
+        final var tryInstances = "try (" + injections.stream()
+                .map(it -> "final var " + it.name() + " = " + eventLookup(it))
+                .collect(joining(";\n         ")) + ") {\n";
+        final var callbackCall = injections.stream()
+                .map(Bean.FieldInjection::name)
+                .map(n -> n + ".instance()")
+                .collect(joining(", ", varName + "." + fnName + "(", ");\n"));
+        if (!returns) {
+            return (tryInstances +
+                    "  " + callbackCall +
+                    "}\n")
+                    .indent(12);
+        }
+        return ("var instance = " + varName + ";\n" +
+                tryInstances +
+                "  instance = " + callbackCall +
+                "}\n")
+                .indent(12);
+    }
+
+    private List<Bean.FieldInjection> toInjectionsOfFirstIfAny(final List<ExecutableElement> onInsertCb) {
+        return onInsertCb.stream()
+                .map(i -> createExecutableFieldInjections(i.getParameters().stream().toList()).toList())
+                .findFirst()
+                .orElse(null);
+    }
+
+    private String createFactory(final Collection<? extends VariableElement> constructorParameters,
+                                 final List<ExecutableElement> onLoadCb, final List<Bean.FieldInjection> loadInjections,
                                  final Map<VariableElement, SimpleEntity.SimpleColumn> columns, final Map<String, String> columnsMapping,
                                  final String resultPrefix, final TypeElement recordType) {
         return constructorParameters.stream()
@@ -306,7 +357,7 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
                     final var targetType = p.asType();
                     if (column != null && column.columns() != null) { // embeddable
                         return createFactory(
-                                column.columns().keySet(), List.of(), column.columns(), columnsMapping,
+                                column.columns().keySet(), List.of(), loadInjections, column.columns(), columnsMapping,
                                 "final var " + column.embeddableJavaName() + " = " +
                                         "(" + Function.class.getName() + "<" + ResultSet.class.getName() + ", " + ParsedType.of(targetType).className() + ">) ",
                                 (TypeElement) processingEnv.getTypeUtils().asElement(targetType));
@@ -321,11 +372,21 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
                 .collect(joining(", ")) + ");\n" +
                 (onLoadCb.isEmpty() ?
                         "" :
-                        "                entity." + onLoadCb.get(0).getSimpleName().toString() + "();\n                return entity;\n") +
+                        onLoadCallback(onLoadCb, loadInjections)) +
                 "              } catch (final " + SQLException.class.getName() + " e) {\n" +
                 "                throw new " + PersistenceException.class.getName() + "(e);\n" +
                 "              }\n" +
                 "            };\n";
+    }
+
+    private String onLoadCallback(final List<ExecutableElement> onLoadCb, final List<Bean.FieldInjection> loadInjections) {
+        final var callback = onLoadCb.get(0);
+        final boolean isVoid = callback.getReturnType() instanceof NoType;
+        final var call = createInstanceFromCallback(callback, loadInjections, "entity", false);
+        if (isVoid) {
+            return "return " + call.stripLeading();
+        }
+        return "    " + call + "                return entity;\n";
     }
 
     private String createInstance(final Map<String, String> columnsMapping, final Name simpleName, final TypeMirror type) {
@@ -465,13 +526,6 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
             throw new IllegalArgumentException("" +
                     "Forbidden private element: " + executableElement.getEnclosingElement() + "." + executableElement + ", " +
                     "make it protected/package scope at least.");
-        }
-    }
-
-    private void hasNoParam(final ExecutableElement executableElement) {
-        if (!executableElement.getParameters().isEmpty()) {
-            throw new IllegalArgumentException("" +
-                    "Forbidden parameters: " + executableElement.getEnclosingElement() + "." + executableElement + ".");
         }
     }
 

@@ -120,6 +120,8 @@ Some hooks are available and can be added in the entity record directly:
     }
 ----
 
+TIP: `fusion-persistence` in container mode (default) enables to pass injection parameters to callbacks which can ease the wiring for auditing or transversal features relying on services.
+
 == Querying
 
 It's very simple to execute common action, you just need to inject the database and use it with the entity.

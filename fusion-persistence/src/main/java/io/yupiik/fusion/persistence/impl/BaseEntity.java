@@ -15,6 +15,7 @@
  */
 package io.yupiik.fusion.persistence.impl;
 
+import io.yupiik.fusion.framework.api.container.BaseLookup;
 import io.yupiik.fusion.persistence.api.Entity;
 import io.yupiik.fusion.persistence.api.PersistenceException;
 import io.yupiik.fusion.persistence.api.SQLFunction;
@@ -38,7 +39,7 @@ import java.util.stream.Stream;
 import static java.util.Locale.ROOT;
 import static java.util.stream.Collectors.joining;
 
-public abstract class BaseEntity<A, B> implements Entity<A, B> {
+public abstract class BaseEntity<A, B> extends BaseLookup implements Entity<A, B> {
     private final DatabaseConfiguration configuration;
     private final Class<?> rootType;
     private final String table;
