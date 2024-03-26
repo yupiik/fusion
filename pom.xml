@@ -33,7 +33,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.build.outputTimestamp>${git.commit.time}</project.build.outputTimestamp>
 
-    <tomcat.version>10.1.19</tomcat.version>
+    <tomcat.version>10.1.20</tomcat.version>
     <yupiik-logging.version>1.0.7</yupiik-logging.version>
     <junit-jupiter.version>5.10.2</junit-jupiter.version>
   </properties>
