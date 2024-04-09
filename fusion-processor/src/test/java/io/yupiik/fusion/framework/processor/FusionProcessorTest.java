@@ -19,6 +19,8 @@ import io.yupiik.fusion.cli.CliAwaiter;
 import io.yupiik.fusion.framework.api.ConfiguringContainer;
 import io.yupiik.fusion.framework.api.Instance;
 import io.yupiik.fusion.framework.api.RuntimeContainer;
+import io.yupiik.fusion.framework.api.configuration.Configuration;
+import io.yupiik.fusion.framework.api.container.FusionBean;
 import io.yupiik.fusion.framework.api.container.FusionListener;
 import io.yupiik.fusion.framework.api.container.FusionModule;
 import io.yupiik.fusion.framework.api.container.Types;
@@ -80,6 +82,7 @@ import java.util.stream.Stream;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 import static java.util.Optional.empty;
+import static java.util.Optional.of;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -579,6 +582,29 @@ class FusionProcessorTest {
                                 new SimplePrettyFormatter(new JsonMapperImpl(java.util.List.of(), key -> Optional.empty())).apply(new String(in.readAllBytes(), UTF_8)));
                     } catch (final IOException e) {
                         fail(e);
+                    }
+                });
+    }
+
+    @Test
+    void requiredConfigurationParam(@TempDir final Path work) throws IOException {
+        final var clazz = "configuration.ConfigurationMissingParamMessage";
+        final var compiler = new Compiler(work, clazz);
+        compiler.compileAndAsserts((loader, container) ->
+                assertEquals("No value for 'conf.name'", assertThrows(
+                        IllegalArgumentException.class, () -> container.lookup(loader.apply("test.p." + clazz)))
+                        .getMessage()));
+        compiler.asserts(
+                (loader, container) -> assertEquals("No value for 'conf.nested.lower'", assertThrows(
+                        IllegalArgumentException.class, () -> container.lookup(loader.apply("test.p." + clazz)))
+                        .getMessage()),
+                new ProvidedInstanceBean<>(DefaultScoped.class, Configuration.class, () -> k -> switch (k) {
+                    case "conf.name" -> of("set");
+                    default -> empty();
+                }) {
+                    @Override
+                    public int priority() {
+                        return super.priority() + 1;
                     }
                 });
     }
@@ -2124,7 +2150,8 @@ class FusionProcessorTest {
         });
     }
 
-    private <A> void withInstance(final RuntimeContainer container, final Function<String, Class<?>> loader, final String name,
+    private <A> void withInstance(final RuntimeContainer container, final Function<String, Class<?>> loader,
+                                  final String name,
                                   final Class<A> type, final Consumer<A> consumer) {
         try (final var instance = container.lookup(loader.apply(name))) {
             consumer.accept(type.cast(instance.instance()));

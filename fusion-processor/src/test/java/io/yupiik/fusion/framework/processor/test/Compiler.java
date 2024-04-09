@@ -32,6 +32,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.net.MalformedURLException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -125,8 +126,12 @@ public class Compiler {
 
     public void compileAndAsserts(final BiConsumer<Function<String, Class<?>>, RuntimeContainer> test,
                                   final FusionBean<?>... beans) throws IOException {
-        final var classes = assertCompiles(setupSrc());
-        try (final var loader = new CompilationClassLoader(classes);
+        assertCompiles(setupSrc());
+        asserts(test, beans);
+    }
+
+    public void asserts(final BiConsumer<Function<String, Class<?>>, RuntimeContainer> test, FusionBean<?>... beans) throws MalformedURLException {
+        try (final var loader = new CompilationClassLoader(getClasses());
              final var container = ConfiguringContainer.of().register(beans).start()) {
             test.accept(s -> {
                 try {
