@@ -54,6 +54,10 @@ public class ServletInputStreamSubscription implements Flow.Subscription, ReadLi
         }
 
         try {
+            if (inputStream.isFinished()) {
+                return;
+            }
+
             long loop = requested;
             while (loop > 0) {
                 if (!inputStream.isReady()) {
