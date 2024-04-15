@@ -18,6 +18,7 @@ package io.yupiik.fusion.json;
 import java.io.Reader;
 import java.io.Writer;
 import java.lang.reflect.Type;
+import java.util.Optional;
 
 public interface JsonMapper extends AutoCloseable {
     <A> byte[] toBytes(A instance);
@@ -38,17 +39,41 @@ public interface JsonMapper extends AutoCloseable {
 
     <A> A read(Class<A> type, Reader reader);
 
-    /**
-     * IMPORTANT: this method is a best effort and depends the generated codecs and type you pass to the mapper.
-     * It returns a new mapper instance - thread safe - and does not change the underlying mapper behavior.
-     *
-     * @return enable the <b>hint</b> to try to keep null values in the serialization.
-     */
-    // @Experimental
-    default JsonMapper serializeNulls() {
-        return this;
-    }
-
     @Override
     void close();
+
+    /**
+     * Enables to unwrap not first citizen features.
+     *
+     * @param type the expected type to enable.
+     * @param <T>  the feature type.
+     * @return an optional potentially filled with the requested feature.
+     */
+    default <T> Optional<T> as(final Class<T> type) {
+        if (type.isInstance(this)) {
+            return Optional.of(type.cast(this));
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Enables to create a <b>new</b> {@link JsonMapper} with a slightly different tuning.
+     * <p>
+     * IMPORTANT: don't forget to close it too.
+     */
+    // @Experimental
+    interface Configuring {
+        /**
+         * IMPORTANT: this method is a best effort and depends the generated codecs and type you pass to the mapper.
+         * It returns a new mapper instance - thread safe - and does not change the underlying mapper behavior.
+         *
+         * @return enable the <b>hint</b> to try to keep null values in the serialization.
+         */
+        Configuring serializeNulls();
+
+        /**
+         * @return the {@link JsonMapper} respecting the configuration done.
+         */
+        JsonMapper build();
+    }
 }

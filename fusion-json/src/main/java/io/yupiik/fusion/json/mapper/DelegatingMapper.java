@@ -20,6 +20,7 @@ import io.yupiik.fusion.json.JsonMapper;
 import java.io.Reader;
 import java.io.Writer;
 import java.lang.reflect.Type;
+import java.util.Optional;
 
 public class DelegatingMapper implements JsonMapper {
     private final JsonMapper mapper;
@@ -29,8 +30,8 @@ public class DelegatingMapper implements JsonMapper {
     }
 
     @Override
-    public JsonMapper serializeNulls() {
-        return mapper.serializeNulls();
+    public <T> Optional<T> as(final Class<T> type) {
+        return mapper.as(type);
     }
 
     @Override

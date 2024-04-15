@@ -1189,8 +1189,9 @@ class FusionProcessorTest {
             assertEquals("StrongTyping[aBool=false, bigDecimal=null, integer=0, nullableInt=null, lg=0, more=0.0, simplest=null, date=null, dateTime=null, offset=null, zoned=null, generic=null, nested=null, booleanList=null, bigDecimalList=null, intList=null, longList=null, doubleList=null, stringList=null, dateList=null, dateTimeList=null, offsetList=null, zonedList=null, genericList=null, nestedList=null, mapStringString=null, mapStringInt=null, mapNested=null]", instance.toString());
 
             final var writer = new StringWriter();
-            try (writer) {
-                mapper.serializeNulls().write(instance, writer);
+            try (writer;
+                 final JsonMapper withNulls = mapper.as(JsonMapper.Configuring.class).orElseThrow().serializeNulls().build()) {
+                withNulls.write(instance, writer);
             } catch (final IOException e) {
                 fail(e);
             }

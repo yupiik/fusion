@@ -56,6 +56,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
@@ -69,10 +70,12 @@ import static java.util.stream.Collectors.toMap;
 public class JsonMapperImpl implements JsonMapper {
     private final Map<Type, JsonCodec<?>> codecs;
     private final Function<Reader, Parser> parserFactory;
+    private final boolean serializeNulls;
 
-    protected JsonMapperImpl(final Map<Type, JsonCodec<?>> codecs, final Function<Reader, Parser> parserFactory) {
+    protected JsonMapperImpl(final Map<Type, JsonCodec<?>> codecs, final Function<Reader, Parser> parserFactory, final boolean serializeNulls) {
         this.codecs = codecs;
         this.parserFactory = parserFactory;
+        this.serializeNulls = serializeNulls;
     }
 
     public JsonMapperImpl(final Collection<JsonCodec<?>> jsonCodecs, final Configuration configuration) {
@@ -82,6 +85,7 @@ public class JsonMapperImpl implements JsonMapper {
     public JsonMapperImpl(final Collection<JsonCodec<?>> jsonCodecs, final Configuration configuration,
                           final Function<Reader, Parser> readerParserFunction) {
         this.parserFactory = readerParserFunction;
+        this.serializeNulls = false;
 
         this.codecs = new ConcurrentHashMap<>();
         this.codecs.putAll(toCodecMap(jsonCodecs.stream()));
@@ -112,13 +116,11 @@ public class JsonMapperImpl implements JsonMapper {
     }
 
     @Override
-    public JsonMapper serializeNulls() {
-        return new JsonMapperImpl(codecs, parserFactory) {
-            @Override
-            protected JsonCodec.SerializationContext newSerializationContext(final Writer writer) {
-                return new JsonCodec.SerializationContext(wrap(writer), JsonMapperImpl.this::codecLookup, true);
-            }
-        };
+    public <T> Optional<T> as(final Class<T> type) {
+        if (type == Configuring.class) {
+            return Optional.of(type.cast(new ConfiguringImpl(this)));
+        }
+        return JsonMapper.super.as(type);
     }
 
     @Override
@@ -278,8 +280,8 @@ public class JsonMapperImpl implements JsonMapper {
         }
     }
 
-    protected JsonCodec.SerializationContext newSerializationContext(final Writer writer) {
-        return new JsonCodec.SerializationContext(wrap(writer), this::codecLookup, false);
+    private JsonCodec.SerializationContext newSerializationContext(final Writer writer) {
+        return new JsonCodec.SerializationContext(wrap(writer), this::codecLookup, serializeNulls);
     }
 
     @SuppressWarnings("unchecked")
@@ -425,5 +427,26 @@ public class JsonMapperImpl implements JsonMapper {
                 .orElse(-1);
         final var bufferFactory = new BufferProvider(maxStringLength, maxBuffers);
         return reader -> new JsonParser(reader, maxStringLength, bufferFactory, autoAdjust);
+    }
+
+    private static class ConfiguringImpl implements Configuring {
+        private final JsonMapperImpl parent;
+        private boolean serializeNulls;
+
+        private ConfiguringImpl(final JsonMapperImpl jsonMapper) {
+            this.parent = jsonMapper;
+            this.serializeNulls = parent.serializeNulls;
+        }
+
+        @Override
+        public Configuring serializeNulls() {
+            this.serializeNulls = true;
+            return this;
+        }
+
+        @Override
+        public JsonMapper build() {
+            return new JsonMapperImpl(parent.codecs, parent.parserFactory, serializeNulls);
+        }
     }
 }
