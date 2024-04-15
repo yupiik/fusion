@@ -70,6 +70,11 @@ public class JsonMapperImpl implements JsonMapper {
     private final Map<Type, JsonCodec<?>> codecs;
     private final Function<Reader, Parser> parserFactory;
 
+    protected JsonMapperImpl(final Map<Type, JsonCodec<?>> codecs, final Function<Reader, Parser> parserFactory) {
+        this.codecs = codecs;
+        this.parserFactory = parserFactory;
+    }
+
     public JsonMapperImpl(final Collection<JsonCodec<?>> jsonCodecs, final Configuration configuration) {
         this(jsonCodecs, configuration, createReaderParserFunction(configuration));
     }
@@ -104,6 +109,16 @@ public class JsonMapperImpl implements JsonMapper {
                 new ObjectJsonCodec(),
                 new EnumJsonCodec<>(JsonPatchOperation.Operation.class, List.of(JsonPatchOperation.Operation.add, JsonPatchOperation.Operation.copy, JsonPatchOperation.Operation.move, JsonPatchOperation.Operation.remove, JsonPatchOperation.Operation.replace, JsonPatchOperation.Operation.test), Enum::name),
                 new JsonPatchOperation.Codec());
+    }
+
+    @Override
+    public JsonMapper serializeNulls() {
+        return new JsonMapperImpl(codecs, parserFactory) {
+            @Override
+            protected JsonCodec.SerializationContext newSerializationContext(final Writer writer) {
+                return new JsonCodec.SerializationContext(wrap(writer), JsonMapperImpl.this::codecLookup, true);
+            }
+        };
     }
 
     @Override
@@ -181,7 +196,7 @@ public class JsonMapperImpl implements JsonMapper {
                 if (entry != null && entry.getKey() instanceof String && entry.getValue() != null) {
                     if (entry.getValue() instanceof Map<?, ?>) { // consider it is just an object
                         final JsonCodec jsonCodec = codecs.get(Object.class);
-                        jsonCodec.write(map, new JsonCodec.SerializationContext(wrap(writer), this::codecLookup));
+                        jsonCodec.write(map, newSerializationContext(writer));
                         return;
                     }
 
@@ -189,14 +204,14 @@ public class JsonMapperImpl implements JsonMapper {
                     // if at least one element does not match the type of the first item don't optimise it and go through object codec
                     if (map.values().stream().filter(Objects::nonNull).anyMatch(it -> !itemClass.isInstance(it))) {
                         final JsonCodec jsonCodec = codecs.get(Object.class);
-                        jsonCodec.write(map, new JsonCodec.SerializationContext(wrap(writer), this::codecLookup));
+                        jsonCodec.write(map, newSerializationContext(writer));
                         return;
                     }
 
                     final var key = new Types.ParameterizedTypeImpl(Map.class, String.class, itemClass);
                     final JsonCodec existing = codecs.get(key);
                     if (existing != null) {
-                        existing.write(map, new JsonCodec.SerializationContext(wrap(writer), this::codecLookup));
+                        existing.write(map, newSerializationContext(writer));
                         return;
                     }
 
@@ -227,7 +242,7 @@ public class JsonMapperImpl implements JsonMapper {
                     }
                     final var wrapper = new MapJsonCodec<>(itemCodec);
                     codecs.putIfAbsent(key, wrapper);
-                    wrapper.write((Map) map, new JsonCodec.SerializationContext(wrap(writer), this::codecLookup));
+                    wrapper.write((Map) map, newSerializationContext(writer));
                     return;
                 }
 
@@ -257,10 +272,14 @@ public class JsonMapperImpl implements JsonMapper {
                 throw missingCodecException(clazz);
             }
 
-            codec.write(instance, new JsonCodec.SerializationContext(wrap(writer), this::codecLookup));
+            codec.write(instance, newSerializationContext(writer));
         } catch (final IOException ioe) {
             throw new IllegalStateException(ioe);
         }
+    }
+
+    protected JsonCodec.SerializationContext newSerializationContext(final Writer writer) {
+        return new JsonCodec.SerializationContext(wrap(writer), this::codecLookup, false);
     }
 
     @SuppressWarnings("unchecked")
@@ -274,7 +293,7 @@ public class JsonMapperImpl implements JsonMapper {
         if (firstItem != null) {
             if (firstItem instanceof Map<?, ?>) { // consider it is just an object
                 final JsonCodec jsonCodec = codecs.get(Object.class);
-                jsonCodec.write(collection, new JsonCodec.SerializationContext(wrap(writer), this::codecLookup));
+                jsonCodec.write(collection, newSerializationContext(writer));
                 return;
             }
 
@@ -283,7 +302,7 @@ public class JsonMapperImpl implements JsonMapper {
             final var key = new Types.ParameterizedTypeImpl(Collection.class, itemClass);
             final JsonCodec existing = codecs.get(key);
             if (existing != null) {
-                existing.write(collection, new JsonCodec.SerializationContext(wrap(writer), this::codecLookup));
+                existing.write(collection, newSerializationContext(writer));
                 return;
             }
 
@@ -294,7 +313,7 @@ public class JsonMapperImpl implements JsonMapper {
 
             final var wrapper = new CollectionJsonCodec<>(itemCodec, List.class, () -> (Collection) new ArrayList<>());
             codecs.putIfAbsent(key, wrapper);
-            wrapper.write(collection, new JsonCodec.SerializationContext(wrap(writer), this::codecLookup));
+            wrapper.write(collection, newSerializationContext(writer));
             return;
         }
 

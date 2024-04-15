@@ -141,6 +141,7 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
                 null, null);
     }
 
+    // todo: optimize, adding some light helper in BaseJsonCodec we could save most of the generated code (and therefore bytecode)
     private StringBuilder generateCodec(final String modelClass, final List<Param> params) {
         final var valueParams = params.stream()
                 .filter(it -> it.types().paramType() == ParamType.VALUE)
@@ -509,7 +510,15 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
                             structure.append(firstCommaHandler);
                         }
                         structure.append("      writeJsonOthers(instance.").append(param.javaName()).append("(), context);\n");
-                        structure.append("  }\n");
+                        structure.append("    } else if (context.needsNull()) {\n");
+                        if (paramPosition > 0) {
+                            structure.append(commaAppender);
+                        } else {
+                            structure.append(firstCommaHandler);
+                        }
+                        structure.append("      writer.write(").append(param.javaName()).append("__CHAR_ARRAY);\n");
+                        structure.append("      writer.write(\"null\");\n");
+                        structure.append("    }\n");
                         return structure.toString();
                     }
                     return switch (param.types().paramType()) { // todo: add a config in @JsonModel to write or not null values (for now ignored)
@@ -519,7 +528,11 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
                                         "      writer.write(" + param.javaName() + "__CHAR_ARRAY);\n" +
                                         "      writer.write(String.valueOf(instance." + param.javaName() + "()));\n";
                                 if (param.type().toString().startsWith("java.lang.")) { // wrapper, can be null
-                                    yield "    if (instance." + param.javaName() + "() != null) {\n" + write + "    }\n";
+                                    yield "    if (instance." + param.javaName() + "() != null) {\n" + write +
+                                            "    } else if (context.needsNull()) {\n" +
+                                            (paramPosition > 0 ? commaAppender : firstCommaHandler) +
+                                            "      writer.write(" + param.javaName() + "__CHAR_ARRAY);\n" +
+                                            "      writer.write(\"null\");\n    }\n";
                                 }
                                 yield write;
                             }
@@ -528,28 +541,40 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
                                     (paramPosition > 0 ? commaAppender : firstCommaHandler) +
                                     "      writer.write(" + param.javaName() + "__CHAR_ARRAY);\n" +
                                     "      writer.write(" + JsonStrings.class.getName() + ".escapeChars(instance." + param.javaName() + "()));\n" +
-                                    "    }\n";
+                                    "    } else if (context.needsNull()) {\n" +
+                                    (paramPosition > 0 ? commaAppender : firstCommaHandler) +
+                                    "      writer.write(" + param.javaName() + "__CHAR_ARRAY);\n" +
+                                    "      writer.write(\"null\");\n    }\n";
                             case ENUM, LOCAL_DATE, LOCAL_DATE_TIME, OFFSET_DATE_TIME, ZONED_DATE_TIME, BIG_DECIMAL ->
                                     "" +
                                             "    if (instance." + param.javaName() + "() != null) {\n" +
                                             (paramPosition > 0 ? commaAppender : firstCommaHandler) +
                                             "      writer.write(" + param.javaName() + "__CHAR_ARRAY);\n" +
                                             "      context.codec(" + param.type().toString() + ".class).write(instance." + param.javaName() + "(), context);\n" +
-                                            "    }\n";
+                                            "    } else if (context.needsNull()) {\n" +
+                                            (paramPosition > 0 ? commaAppender : firstCommaHandler) +
+                                            "      writer.write(" + param.javaName() + "__CHAR_ARRAY);\n" +
+                                            "      writer.write(\"null\");\n    }\n";
                             case GENERIC_OBJECT -> "" +
                                     "    if (instance." + param.javaName() + "() != null) {\n" +
                                     (paramPosition > 0 ? commaAppender : firstCommaHandler) +
                                     "      final var codec = context.codec(" + Object.class.getName() + ".class);\n" +
                                     "      writer.write(" + param.javaName() + "__CHAR_ARRAY);\n" +
                                     "      codec.write(instance." + param.javaName() + "(), context);\n" +
-                                    "    }\n";
+                                    "    } else if (context.needsNull()) {\n" +
+                                    (paramPosition > 0 ? commaAppender : firstCommaHandler) +
+                                    "      writer.write(" + param.javaName() + "__CHAR_ARRAY);\n" +
+                                    "      writer.write(\"null\");\n    }\n";
                             case MODEL -> "" +
                                     "    if (instance." + param.javaName() + "() != null) {\n" +
                                     (paramPosition > 0 ? commaAppender : firstCommaHandler) +
                                     "      final var codec = context.codec(" + param.type() + ".class);\n" +
                                     "      writer.write(" + param.javaName() + "__CHAR_ARRAY);\n" +
                                     "      codec.write(instance." + param.javaName() + "(), context);\n" +
-                                    "    }\n";
+                                    "    } else if (context.needsNull()) {\n" +
+                                    (paramPosition > 0 ? commaAppender : firstCommaHandler) +
+                                    "      writer.write(" + param.javaName() + "__CHAR_ARRAY);\n" +
+                                    "      writer.write(\"null\");\n    }\n";
                         };
                         case SET, LIST -> {
                             final var structure = new StringBuilder();
@@ -586,6 +611,14 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
                             structure.append("        }\n");
                             structure.append("      }\n");
                             structure.append("      writer.write(']');\n");
+                            structure.append("    } else if (context.needsNull()) {\n");
+                            if (paramPosition > 0) {
+                                structure.append(commaAppender);
+                            } else {
+                                structure.append(firstCommaHandler);
+                            }
+                            structure.append("      writer.write(").append(param.javaName()).append("__CHAR_ARRAY);\n");
+                            structure.append("      writer.write(\"null\");\n");
                             structure.append("    }\n");
                             yield structure.toString();
                         }
@@ -633,6 +666,14 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
                             structure.append("        }\n");
                             structure.append("      }\n");
                             structure.append("      writer.write('}');\n");
+                            structure.append("    } else if (context.needsNull()) {\n");
+                            if (paramPosition > 0) {
+                                structure.append(commaAppender);
+                            } else {
+                                structure.append(firstCommaHandler);
+                            }
+                            structure.append("      writer.write(").append(param.javaName()).append("__CHAR_ARRAY);\n");
+                            structure.append("      writer.write(\"null\");\n");
                             structure.append("    }\n");
                             yield structure.toString();
                         }
@@ -687,6 +728,14 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
                             structure.append("        }\n");
                             structure.append("      }\n");
                             structure.append("      writer.write('}');\n");
+                            structure.append("    } else if (context.needsNull()) {\n");
+                            if (paramPosition > 0) {
+                                structure.append(commaAppender);
+                            } else {
+                                structure.append(firstCommaHandler);
+                            }
+                            structure.append("      writer.write(").append(param.javaName()).append("__CHAR_ARRAY);\n");
+                            structure.append("      writer.write(\"null\");\n");
                             structure.append("    }\n");
                             yield structure.toString();
                         }

@@ -29,6 +29,11 @@ public class DelegatingMapper implements JsonMapper {
     }
 
     @Override
+    public JsonMapper serializeNulls() {
+        return mapper.serializeNulls();
+    }
+
+    @Override
     public <A> byte[] toBytes(final A instance) {
         return mapper.toBytes(instance);
     }

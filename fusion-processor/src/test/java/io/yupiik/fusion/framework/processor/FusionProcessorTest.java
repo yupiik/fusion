@@ -55,6 +55,8 @@ import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.io.StringReader;
+import java.io.StringWriter;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
@@ -1172,6 +1174,31 @@ class FusionProcessorTest {
                         "zonedList=[2022-12-06T15:19Z, 2022-12-06T15:19:49Z], genericList=[{gen={n=true}}, {gen2={other=2}}], " +
                         "nestedList=[StringHolder[name=santa], StringHolder[name=nicolas]], " +
                         "mapStringString={k=v}, mapStringInt={k=1}, mapNested={k=StringHolder[name=self]}]");
+    }
+
+    @Test
+    void jsonWithNull(@TempDir final Path work) throws IOException {
+        new Compiler(work, "JsonRecords").compileAndJsonAsserts((loader, mapper) -> {
+            final var model = loader.apply("test.p.JsonRecords$StrongTyping");
+            final Object instance;
+            try (final var reader = new StringReader("{}")) {
+                instance = mapper.read(model, reader);
+                assertNotNull(instance);
+            }
+
+            assertEquals("StrongTyping[aBool=false, bigDecimal=null, integer=0, nullableInt=null, lg=0, more=0.0, simplest=null, date=null, dateTime=null, offset=null, zoned=null, generic=null, nested=null, booleanList=null, bigDecimalList=null, intList=null, longList=null, doubleList=null, stringList=null, dateList=null, dateTimeList=null, offsetList=null, zonedList=null, genericList=null, nestedList=null, mapStringString=null, mapStringInt=null, mapNested=null]", instance.toString());
+
+            final var writer = new StringWriter();
+            try (writer) {
+                mapper.serializeNulls().write(instance, writer);
+            } catch (final IOException e) {
+                fail(e);
+            }
+
+            final var json = writer.toString();
+            assertEquals("{\"aBool\":false,\"bigNumber\":null,\"bigNumbers\":null,\"booleanList\":null,\"date\":null,\"dateList\":null,\"dateTime\":null,\"dateTimeList\":null,\"doubleList\":null,\"generic\":null,\"genericList\":null,\"intList\":null,\"integer\":0,\"lg\":0,\"longList\":null,\"mapNested\":null,\"mapStringInt\":null,\"mapStringString\":null,\"more\":0.0,\"nested\":null,\"nestedList\":null,\"nullableInt\":null,\"offset\":null,\"offsetList\":null,\"simplest\":null,\"stringList\":null,\"zoned\":null,\"zonedList\":null}", json);
+            mapper.fromString(Object.class, json); // just check the syntax
+        });
     }
 
     @Test

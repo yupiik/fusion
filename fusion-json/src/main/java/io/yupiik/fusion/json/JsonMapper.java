@@ -38,6 +38,17 @@ public interface JsonMapper extends AutoCloseable {
 
     <A> A read(Class<A> type, Reader reader);
 
+    /**
+     * IMPORTANT: this method is a best effort and depends the generated codecs and type you pass to the mapper.
+     * It returns a new mapper instance - thread safe - and does not change the underlying mapper behavior.
+     *
+     * @return enable the <b>hint</b> to try to keep null values in the serialization.
+     */
+    // @Experimental
+    default JsonMapper serializeNulls() {
+        return this;
+    }
+
     @Override
     void close();
 }

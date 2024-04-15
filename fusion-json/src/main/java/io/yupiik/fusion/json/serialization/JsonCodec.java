@@ -33,10 +33,22 @@ public interface JsonCodec<A> {
     class SerializationContext {
         private final ExtendedWriter writer;
         private final Function<Class<?>, JsonCodec<?>> codecLookup;
+        private final boolean needsNull;
 
-        public SerializationContext(final ExtendedWriter writer, final Function<Class<?>, JsonCodec<?>> codecLookup) {
+        public SerializationContext(final ExtendedWriter writer,
+                                    final Function<Class<?>, JsonCodec<?>> codecLookup,
+                                    final boolean needsNull) {
             this.writer = writer;
             this.codecLookup = codecLookup;
+            this.needsNull = needsNull;
+        }
+
+        public SerializationContext(final ExtendedWriter writer, final Function<Class<?>, JsonCodec<?>> codecLookup) {
+            this(writer, codecLookup, false);
+        }
+
+        public boolean needsNull() {
+            return needsNull;
         }
 
         public ExtendedWriter writer() {
