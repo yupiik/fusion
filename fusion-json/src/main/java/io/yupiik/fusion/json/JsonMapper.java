@@ -72,6 +72,9 @@ public interface JsonMapper extends AutoCloseable {
         Configuring serializeNulls();
 
         /**
+         * Creates a child builder of the parent one (the one you called {@link JsonMapper#as(Class)} on.
+         * Ensure to call {@link JsonMapper#close()} on it when no more needed and that its scope is smaller or equals to the enclosing mapper.
+         *
          * @return the {@link JsonMapper} respecting the configuration done.
          */
         JsonMapper build();

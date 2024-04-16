@@ -71,11 +71,13 @@ public class JsonMapperImpl implements JsonMapper {
     private final Map<Type, JsonCodec<?>> codecs;
     private final Function<Reader, Parser> parserFactory;
     private final boolean serializeNulls;
+    private final boolean ignoreCodecClose;
 
-    protected JsonMapperImpl(final Map<Type, JsonCodec<?>> codecs, final Function<Reader, Parser> parserFactory, final boolean serializeNulls) {
+    protected JsonMapperImpl(final Map<Type, JsonCodec<?>> codecs, final Function<Reader, Parser> parserFactory, final boolean serializeNulls, final boolean ignoreCodecClose) {
         this.codecs = codecs;
         this.parserFactory = parserFactory;
         this.serializeNulls = serializeNulls;
+        this.ignoreCodecClose = ignoreCodecClose;
     }
 
     public JsonMapperImpl(final Collection<JsonCodec<?>> jsonCodecs, final Configuration configuration) {
@@ -86,6 +88,7 @@ public class JsonMapperImpl implements JsonMapper {
                           final Function<Reader, Parser> readerParserFunction) {
         this.parserFactory = readerParserFunction;
         this.serializeNulls = false;
+        this.ignoreCodecClose = false;
 
         this.codecs = new ConcurrentHashMap<>();
         this.codecs.putAll(toCodecMap(jsonCodecs.stream()));
@@ -383,6 +386,10 @@ public class JsonMapperImpl implements JsonMapper {
 
     @Override
     public void close() {
+        if (ignoreCodecClose) {
+            return;
+        }
+
         final var error = new IllegalStateException("Can't close some codec");
         codecs.values().stream()
                 .filter(AutoCloseable.class::isInstance)
@@ -446,7 +453,7 @@ public class JsonMapperImpl implements JsonMapper {
 
         @Override
         public JsonMapper build() {
-            return new JsonMapperImpl(parent.codecs, parent.parserFactory, serializeNulls);
+            return new JsonMapperImpl(parent.codecs, parent.parserFactory, serializeNulls, true);
         }
     }
 }
