@@ -32,17 +32,17 @@ Build and publish to central:
 
 [source, bash]
 ----
-mvn release:prepare release:perform -Pnative -Prelease -Dusername=$GIT_HUB_ACCOUNT -Dpassword=$GIT_HUB_TOKEN
+mvn release:prepare release:perform
 ----
 
-Publish documentation on github page:
+Publish documentation on GitHub page:
 
 [source, bash]
 ----
 git checkout -b <release-tag> <release-tag> && mvn clean package -Pgh-pages
 ----
 
-Pubish release on Github by running in https://github.com/yupiik/yupiik.github.io project:
+Pubish release on GitHub by running in https://github.com/yupiik/yupiik.github.io project:
 
 [source, bash]
 ----
