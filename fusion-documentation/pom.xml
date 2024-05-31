@@ -122,9 +122,17 @@
           <indexSubTitle>Fusion framework aims at providing a very light java framework and graal native.</indexSubTitle>
           <logoText>Fusion</logoText>
           <logoSideText>Documentation</logoSideText>
+          <copyright>© 2024 &lt;strong&gt;&lt;a href="https://www.yupiik.com"&gt;Yupiik&lt;/a&gt;&lt;/strong&gt;. All Rights Reserved</copyright>
           <attributes>
             <partialsdir>${project.basedir}/src/main/minisite/content/_partials</partialsdir>
           </attributes>
+          <templateExtensionPoints>
+            <socialLinks>
+              &lt;li class="list-inline-item"&gt;&lt;a title="LinkedIn" target="_blank" href="https://www.linkedin.com/company/yupiik/"&gt;&lt;i class="fab fa-linkedin fa-fw"&gt;&lt;/i&gt;&lt;/a&gt;&lt;/li&gt;
+              &lt;li class="list-inline-item"&gt;&lt;a title="Twitter" target="_blank" href="https://twitter.com/Yupiik/"&gt;&lt;i class="fab fa-twitter fa-fw"&gt;&lt;/i&gt;&lt;/a&gt;&lt;/li&gt;
+              &lt;li class="list-inline-item"&gt;&lt;a title="Github" target="_blank" href="https://www.github.com/yupiik/fusion"&gt;&lt;i class="fab fa-github fa-fw"&gt;&lt;/i&gt;&lt;/a&gt;&lt;/li&gt;
+            </socialLinks>
+          </templateExtensionPoints>
           <preActions>
             <preAction>
               <type>io.yupiik.fusion.documentation.DocumentationGenerator</type>
