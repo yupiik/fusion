@@ -42,25 +42,25 @@ All keys have `fusion.persistence.datasource.` prefix and follow `org.apache.tom
 
 Here are the available keys:
 
-** `fusion.persistence.datasource.defaultAutoCommit`
-** `fusion.persistence.datasource.driver`
-** `fusion.persistence.datasource.logAbandoned`
-** `fusion.persistence.datasource.maxActive`
-** `fusion.persistence.datasource.minEvictableIdleTime`
-** `fusion.persistence.datasource.minIdle`
-** `fusion.persistence.datasource.password`
-** `fusion.persistence.datasource.removeAbandoned`
-** `fusion.persistence.datasource.removeAbandonedTimeout`
-** `fusion.persistence.datasource.testOnBorrow`
-** `fusion.persistence.datasource.testOnReturn`
-** `fusion.persistence.datasource.testWhileIdle`
-** `fusion.persistence.datasource.timeBetweenEvictionRuns`
-** `fusion.persistence.datasource.url`
-** `fusion.persistence.datasource.username`
-** `fusion.persistence.datasource.validationQuery`
-** `fusion.persistence.datasource.validationQueryTimeout`
-** `fusion.persistence.datasource.rollbackOnReturn`
-** `fusion.persistence.datasource.forceReadOnly` (should `setReadOnly` be called on `.read()` invocations)
+* `fusion.persistence.datasource.defaultAutoCommit`
+* `fusion.persistence.datasource.driver`
+* `fusion.persistence.datasource.logAbandoned`
+* `fusion.persistence.datasource.maxActive`
+* `fusion.persistence.datasource.minEvictableIdleTime`
+* `fusion.persistence.datasource.minIdle`
+* `fusion.persistence.datasource.password`
+* `fusion.persistence.datasource.removeAbandoned`
+* `fusion.persistence.datasource.removeAbandonedTimeout`
+* `fusion.persistence.datasource.testOnBorrow`
+* `fusion.persistence.datasource.testOnReturn`
+* `fusion.persistence.datasource.testWhileIdle`
+* `fusion.persistence.datasource.timeBetweenEvictionRuns`
+* `fusion.persistence.datasource.url`
+* `fusion.persistence.datasource.username`
+* `fusion.persistence.datasource.validationQuery`
+* `fusion.persistence.datasource.validationQueryTimeout`
+* `fusion.persistence.datasource.rollbackOnReturn`
+* `fusion.persistence.datasource.forceReadOnly` (should `setReadOnly` be called on `.read()` invocations)
 
 IMPORTANT: this (implicit) datasource requires to define its bounds/transactions calling `read` or `write` wrapper, you can inject `TomcatDataSource` to have these methods.
 
