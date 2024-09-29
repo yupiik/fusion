@@ -21,7 +21,7 @@
 
   <groupId>io.yupiik.fusion</groupId>
   <artifactId>fusion</artifactId>
-  <version>1.0.21</version>
+  <version>1.0.22-SNAPSHOT</version>
   <packaging>pom</packaging>
   <name>Fusion</name>
   <description>Reflectionless and selfcontained framework (no business code dependency on jakarta/spring/guice).</description>
@@ -31,7 +31,7 @@
     <maven.compiler.release>17</maven.compiler.release>
 
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <project.build.outputTimestamp>2024-09-29T15:51:57Z</project.build.outputTimestamp>
+    <project.build.outputTimestamp>2024-09-29T15:53:10Z</project.build.outputTimestamp>
 
     <tomcat.version>10.1.30</tomcat.version>
     <yupiik-logging.version>1.0.8</yupiik-logging.version>
@@ -394,7 +394,7 @@ under the License.
     <connection>scm:git:https://github.com/yupiik/fusion.git</connection>
     <developerConnection>scm:git:https://github.com/yupiik/fusion.git</developerConnection>
     <url>https://github.com/yupiik/fusion.git</url>
-    <tag>fusion-1.0.21</tag>
+    <tag>HEAD</tag>
   </scm>
 
   <organization>
