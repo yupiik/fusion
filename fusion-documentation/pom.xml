@@ -28,7 +28,7 @@
   <name>Fusion :: Documentation</name>
 
   <properties>
-    <yupiik-tools.version>1.2.3</yupiik-tools.version>
+    <yupiik-tools.version>1.2.4</yupiik-tools.version>
   </properties>
 
   <dependencies>
