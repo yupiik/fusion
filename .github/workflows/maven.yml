@@ -35,9 +35,10 @@ jobs:
             /home/runner/work/fusion/fusion/.m2
           key: m2_repository
       - name: Set up JDK
-        uses: actions/setup-java@v1
+        uses: actions/setup-java@v4
         with:
-          java-version: '17.0.5'
+          distribution: 'zulu'
+          java-version: '21'
       - name: Build
         run: mvn install -Dm2.location=/home/runner/work/fusion/fusion/.m2
       - name: Remove Snapshots Before Caching
@@ -54,9 +55,10 @@ jobs:
           path: /home/runner/work/fusion/fusion/.m2
           key: m2_repository
       - name: Set up JDK
-        uses: actions/setup-java@v1
+        uses: actions/setup-java@v4
         with:
-          java-version: '17.0.5'
+          distribution: 'zulu'
+          java-version: '21'
       - name: Build
         run: mvn install -DskipTests ossindex:audit
       - name: Remove Snapshots Before Caching
