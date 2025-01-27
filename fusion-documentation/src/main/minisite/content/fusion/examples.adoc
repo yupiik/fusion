@@ -178,6 +178,7 @@ If you want to customize the name of the property you can use `@Property`.
 Finally, you can register you own source of values creating a bean of type `ConfigurationSource`.
 
 IMPORTANT: `List<OtherConfig>` are supported, but you must set in the configuration `<prefix for this list>.length` to the length value of the list then the nested instances are configured using `<prefix>.<index>` starting at index 0. Ex: `myconf.mylist.0.name=foo`.
+Similarly, `Map<String,X>` are supported. For primitives it uses properties syntax and when X is another configuration model you must use an index based notation with `length` property and `key`, `value` suffixes.
 
 == Create a JSON model [[json_model]]
 

@@ -54,9 +54,12 @@ public class RuntimeContainerImpl implements RuntimeContainer {
         this.listeners = listeners;
     }
 
+    /**
+     * @deprecated prefer {@link #clearCache()}.
+     */
+    @Deprecated
     public void clearLookupCaches() {
-        slowLookupMatchings.clear();
-        listMatchings.clear();
+        clearCache();
     }
 
     @Override

@@ -20,15 +20,19 @@ import io.yupiik.fusion.framework.api.ConfiguringContainer;
 import io.yupiik.fusion.framework.api.Instance;
 import io.yupiik.fusion.framework.api.RuntimeContainer;
 import io.yupiik.fusion.framework.api.configuration.Configuration;
+import io.yupiik.fusion.framework.api.configuration.ConfigurationSource;
 import io.yupiik.fusion.framework.api.container.FusionBean;
 import io.yupiik.fusion.framework.api.container.FusionListener;
 import io.yupiik.fusion.framework.api.container.FusionModule;
+import io.yupiik.fusion.framework.api.container.RuntimeContainerImpl;
 import io.yupiik.fusion.framework.api.container.Types;
 import io.yupiik.fusion.framework.api.container.bean.BaseBean;
 import io.yupiik.fusion.framework.api.container.bean.ProvidedInstanceBean;
+import io.yupiik.fusion.framework.api.container.context.ApplicationFusionContext;
 import io.yupiik.fusion.framework.api.container.context.subclass.DelegatingContext;
 import io.yupiik.fusion.framework.api.container.context.subclass.SupplierDelegatingContext;
 import io.yupiik.fusion.framework.api.main.Args;
+import io.yupiik.fusion.framework.api.scope.ApplicationScoped;
 import io.yupiik.fusion.framework.api.scope.DefaultScoped;
 import io.yupiik.fusion.framework.processor.test.CompilationClassLoader;
 import io.yupiik.fusion.framework.processor.test.Compiler;
@@ -55,6 +59,7 @@ import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.lang.invoke.MethodHandles;
@@ -581,9 +586,74 @@ class FusionProcessorTest {
                                         "    \"test.p.RecordConfiguration\"\n" +
                                         "  ]\n" +
                                         "}",
-                                new SimplePrettyFormatter(new JsonMapperImpl(java.util.List.of(), key -> Optional.empty())).apply(new String(in.readAllBytes(), UTF_8)));
+                                simpleFormat(in));
                     } catch (final IOException e) {
                         fail(e);
+                    }
+                });
+    }
+
+
+    @Test
+    void configurationMap(@TempDir final Path work) throws IOException {
+        new Compiler(work, "MapConfiguration")
+                .compileAndAsserts((loader, container) -> {
+                    // handle the configuration with a custom config source
+                    container.getBeans().doRegister(new BaseBean<ConfigurationSource>(ConfigurationSource.class, DefaultScoped.class, 0, Map.of()) {
+                        @Override
+                        public ConfigurationSource create(RuntimeContainer container, List<Instance<?>> dependents) {
+                            return new ConfigurationSource() {
+                                @Override
+                                public String get(final String key) {
+                                    return switch (key) {
+                                        case "conf.keyValues" -> """
+                                                # properties syntax
+                                                a = 1
+                                                """;
+                                        default -> null;
+                                    };
+                                }
+                            };
+                        }
+                    });
+                    // clean the bean to use our custom config source
+                    if (container.getContexts().findContext(ApplicationScoped.class).orElseThrow() instanceof  ApplicationFusionContext ac){
+                        ac.clean(container.lookup(Configuration.class).bean());
+                    }
+                    if (container instanceof RuntimeContainerImpl r) {
+                        r.clearCache();
+                    }
+
+                    try (final var instance = container.lookup(loader.apply("test.p.MapConfiguration"))) {
+                        // model
+                        assertEquals(
+                                "MapConfiguration[keyValues={a=1}]",
+                                instance.instance().toString());
+
+                        // doc
+                        try (final var in = requireNonNull(instance.instance().getClass().getClassLoader()
+                                .getResourceAsStream("META-INF/fusion/configuration/documentation.json"))) {
+                            assertEquals("""
+                                            {
+                                              "version": 1,
+                                              "classes": {
+                                                "test.p.MapConfiguration": [
+                                                  {
+                                                    "name": "conf.keyValues",
+                                                    "documentation": "",
+                                                    "defaultValue": null,
+                                                    "required": false
+                                                  }
+                                                ]
+                                              },
+                                              "roots": [
+                                                "test.p.MapConfiguration"
+                                              ]
+                                            }""",
+                                    simpleFormat(in));
+                        } catch (final IOException e) {
+                            fail(e);
+                        }
                     }
                 });
     }
@@ -2288,6 +2358,10 @@ class FusionProcessorTest {
                 }
             }
         });
+    }
+
+    private String simpleFormat(InputStream in) throws IOException {
+        return new SimplePrettyFormatter(new JsonMapperImpl(List.of(), key -> Optional.empty())).apply(new String(in.readAllBytes(), UTF_8));
     }
 
     private record SimpleRequest(String method, String path, Map<String, Object> attributes,

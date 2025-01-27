@@ -26,16 +26,21 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.QualifiedNameable;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.DeclaredType;
+import java.io.StringReader;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static java.util.Optional.ofNullable;
@@ -139,6 +144,16 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
                     "          list.add(new " + name + "(configuration, prefix + \".\" + index).get());\n" +
                     "        }\n" +
                     "        return list;\n" +
+                    "    }\n" +
+                    "\n" +
+                    "    private static " + Map.class.getName() + "<String, " + typeName + "> map(final " +
+                    Configuration.class.getName() + " configuration, final String prefix) {\n" +
+                    "        final int length = configuration.get(prefix + \".length\").map(Integer::parseInt).orElse(0);\n" +
+                    "        final var map = new " + LinkedHashMap.class.getName() + "<String, " + typeName + ">(length);\n" +
+                    "        for (int index = 0; index < length; index++) {\n" +
+                    "          map.put(configuration.get(prefix + \".\" + index + \".key\").orElseThrow(), new " + name + "(configuration, prefix + \".\" + index + \".value\").get());\n" +
+                    "        }\n" +
+                    "        return map;\n" +
                     "    }\n" +
                     "  }\n";
         } finally {
@@ -248,6 +263,62 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
             return nestedFactory(itemString) + ".list(configuration, " + name + ")";
         }
 
+        //
+        // map<string,x>
+        //
+
+        if (type instanceof DeclaredType dt &&
+                dt.getTypeArguments().size() == 2 &&
+                dt.asElement() instanceof TypeElement te &&
+                te.getQualifiedName().contentEquals(Map.class.getName()) &&
+                String.class.getName().equals(dt.getTypeArguments().get(0).toString())) {
+            final var valueType = dt.getTypeArguments().get(1);
+            final var valueTypeString = valueType.toString();
+            if (String.class.getName().equals(valueTypeString) || CharSequence.class.getName().equals(valueTypeString)) {
+                return lookup(name, required, mapOf(""), defaultValue != null ? defaultValue : "null", docName, desc);
+            }
+            if (boolean.class.getName().equals(valueTypeString) || Boolean.class.getName().equals(valueTypeString)) {
+                return lookup(name, required, mapOf(".map(Boolean::parseBoolean)"), defaultValue != null ? defaultValue : "null", docName, desc);
+            }
+            if (int.class.getName().equals(valueTypeString) || Integer.class.getName().equals(valueTypeString)) {
+                return lookup(name, required, mapOf(".map(Integer::parseInt)"), defaultValue != null ? defaultValue : "null", docName, desc);
+            }
+            if (long.class.getName().equals(valueTypeString) || Long.class.getName().equals(valueTypeString)) {
+                return lookup(name, required, mapOf(".map(Long::parseLong)"), defaultValue != null ? defaultValue : "null", docName, desc);
+            }
+            if (float.class.getName().equals(valueTypeString) || Float.class.getName().equals(valueTypeString)) {
+                return lookup(name, required, mapOf(".map(Float::parseFloat)"), defaultValue != null ? defaultValue : "null", docName, desc);
+            }
+            if (double.class.getName().equals(valueTypeString) || Double.class.getName().equals(valueTypeString)) {
+                return lookup(name, required, mapOf(".map(Double::parseDouble)"), defaultValue != null ? defaultValue : "null", docName, desc);
+            }
+            if (BigInteger.class.getName().equals(valueTypeString)) {
+                return lookup(name, required, mapOf(".map(" + BigInteger.class.getName() + "::new)"), defaultValue != null ? defaultValue : "null", docName, desc);
+            }
+            if (BigDecimal.class.getName().equals(valueTypeString)) {
+                return lookup(name, required, mapOf(".map(" + BigDecimal.class.getName() + "::new)"), defaultValue != null ? defaultValue : "null", docName, desc);
+            }
+            final var dtElt = processingEnv.getTypeUtils().asElement(valueType);
+            if (dtElt != null && dtElt.getKind() == ENUM) {
+                return lookup(name, required, mapOf(".map(" + valueTypeString + "::" + enumValueOf(dtElt) + ")"), defaultValue != null ? defaultValue : "null", docName, desc);
+            }
+            if (valueTypeString.startsWith("java.")) { // unsupported
+                processingEnv.getMessager().printMessage(ERROR, "Type not supported: '" + typeStr + "' (" + element + "." + param.getSimpleName() + ")");
+                return "null";
+            }
+
+            // nested list of objects, here we need to use prefixed notation
+            if (!nestedClasses.containsKey(valueTypeString)) {
+                nestedClasses.put(valueTypeString, generateNestedClass(
+                        (TypeElement) processingEnv.getTypeUtils().asElement(valueType), valueTypeString, null, nestedClasses));
+            }
+
+            this.docStack.getLast().items().addAll(List.of(
+                new Docs.DocItem(docName + ".$index.key", desc + " (Key).", required, "java.lang.String", "null"),
+                new Docs.DocItem(docName + ".$index.value", desc + " (Value).", required, valueTypeString, "null")));
+            return nestedFactory(valueTypeString) + ".map(configuration, " + name + ")";
+        }
+
         if (typeStr.startsWith("java.")) { // unsupported
             processingEnv.getMessager().printMessage(ERROR, "Type not supported: '" + typeStr + "' (" + element + "." + param.getSimpleName() + ")");
             return "null";
@@ -298,6 +369,21 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
                 ".filter(" + Predicate.class.getName() + ".not(String::isBlank))" +
                 valueMapper +
                 ".toList())";
+    }
+
+    private String mapOf(final String valueMapper) {
+        // if value starts with sep=x,... then we split on "x" instead of ","
+        return ".map(value -> {\n" +
+                "            var props = new " + Properties.class.getName() + "();\n" +
+                "            try (final var reader = new " + StringReader.class.getName() + "(value)) {\n" +
+                "                props.load(reader);\n" +
+                "            } catch (Exception e) { /* ignore for now */ }\n" +
+                "            return props;\n" +
+                "        })\n" +
+                "        .map(it -> it.stringPropertyNames().stream()\n" +
+                "           .collect(" + Collectors.class.getName() + ".toMap(\n" +
+                "             " + Function.class.getName() + ".identity()," +
+                "             " + (valueMapper.isEmpty() ? "it::getProperty" : Function.class.getName() + ".identity().andThen(it::getProperty).andThen(" + valueMapper + ")") + ")))";
     }
 
     private String nestedFactory(final String typeStr) {
