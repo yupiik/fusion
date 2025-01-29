@@ -288,8 +288,8 @@ under the License.
         </executions>
         <configuration>
           <scope>compile,runtime</scope>
-          <!-- // exclude false positive for Tomcat 10.1.x as it's raised because of Tomcat 9.x -->
-          <excludeVulnerabilityIds>CVE-2023-42794</excludeVulnerabilityIds>
+          <!-- // exclude false positive for Tomcat 10.1.x -->
+          <excludeVulnerabilityIds>CVE-2024-56337</excludeVulnerabilityIds>
         </configuration>
       </plugin>
     </plugins>
