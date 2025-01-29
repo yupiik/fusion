@@ -146,7 +146,7 @@ public class MyService {
     JsonMapper mapper;
 
     public boolean validate(final MyModel myModel) throws IOException {
-        final var schema = jsonMapper.fromString(Object.class,
+        final var schema = mapper.fromString(Object.class,
                 """
                         {
                           "$id": "https://spec.openapis.org/oas/3.1/schema/2022-10-07",
@@ -178,3 +178,27 @@ final var result = validator.apply(myModel);
 final var error = result.errors().iterator().next();
 logger.info("Error on field '" + error.field() + "' " + error.message());
 ----
+
+== Pretty mapper
+
+Fusion provide a json pretty mapper to print a json string.
+
+[source,java]
+----
+import io.yupiik.fusion.framework.build.api.scanning.Injection;
+import io.yupiik.fusion.json.JsonMapper;
+import io.yupiik.fusion.json.pretty.PrettyJsonMapper;
+
+@Bean
+public class MyService {
+
+    @Injection
+    JsonMapper jsonMapper;
+
+    public void printJson() {
+        final JsonMapper prettyJsonMapper = new PrettyJsonMapper(jsonMapper); <1>
+        logger.info(jsonMapper.toString(MyClass));
+    }
+}
+----
+<.> use the injected `jsonMapper` to create the instance of the PrettyJsonMapper.
