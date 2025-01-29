@@ -28,6 +28,7 @@ import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.X509TrustManager;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.Authenticator;
 import java.net.CookieHandler;
 import java.net.ProxySelector;
@@ -56,6 +57,7 @@ import java.time.Instant;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -65,15 +67,18 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
+import java.util.stream.Stream;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Optional.empty;
 import static java.util.Optional.of;
 import static java.util.Optional.ofNullable;
+import static java.util.stream.Collectors.toMap;
 
 public class KubernetesClient extends HttpClient implements AutoCloseable {
     private final HttpClient delegate;
     private final Path token;
+    private final Supplier<String> tokenEvaluator;
     private final URI base;
     private final Clock clock = Clock.systemUTC(); // todo: enable to replace it through the config?
     private final Optional<String> namespace;
@@ -86,7 +91,9 @@ public class KubernetesClient extends HttpClient implements AutoCloseable {
         this.base = URI.create(configuration.getMaster());
         this.delegate = ofNullable(configuration.getClient())
                 .orElseGet(() -> ofNullable(configuration.getClientWrapper()).orElseGet(Function::identity).apply(createClient(configuration)));
-        this.token = configuration.getToken() == null || "none".equals(configuration.getToken()) ? null : Paths.get(configuration.getToken());
+
+        this.tokenEvaluator = configuration.getTokenEvaluator();
+        this.token = this.tokenEvaluator != null || configuration.getToken() == null || "none".equals(configuration.getToken()) ? null : Paths.get(configuration.getToken());
 
         if (ns != null) {
             this.namespace = of(ns);
@@ -245,6 +252,7 @@ public class KubernetesClient extends HttpClient implements AutoCloseable {
         if (lastRefresh == null) {
             return true;
         }
+        // todo: make it configurable
         return lastRefresh.isBefore(instant.minusSeconds(60));
     }
 
@@ -255,6 +263,10 @@ public class KubernetesClient extends HttpClient implements AutoCloseable {
             } catch (final IOException e) {
                 throw new IllegalStateException(e);
             }
+        } else if (token != null) {
+            authorization = "Bearer " + token;
+        } else if (tokenEvaluator != null) {
+            authorization = "Bearer " + tokenEvaluator.get();
         }
     }
 
@@ -456,20 +468,98 @@ public class KubernetesClient extends HttpClient implements AutoCloseable {
                 .ifPresent(configuration::setSkipTls);
         selectedUser
                 .map(it -> {
-                    try {
-                        if (it.get("token") instanceof String data) {
-                            return data;
-                        }
-                        if (it.get("tokenFile") instanceof String path) {
-                            return Files.readString(Path.of(path));
-                        }
-                    } catch (final IOException ioe) {
-                        throw new IllegalStateException(ioe);
+                    if (it.get("token") instanceof String data) {
+                        return data;
+                    }
+                    if (it.get("tokenFile") instanceof String path) {
+                        return path; // client is able to handle it
                     }
                     return null;
                 })
-                .map(Object::toString)
                 .ifPresent(configuration::setToken);
+        if (configuration.getToken() == null ||
+                "/var/run/secrets/kubernetes.io/serviceaccount/token"/*default*/.equals(configuration.getToken())) {  // aws cli for example
+            selectedUser
+                    .map(it -> {
+                        if (!(it.get("exec") instanceof Map<?, ?> exec &&
+                                exec.get("apiVersion") instanceof String apiVersion &&
+                                apiVersion.startsWith("client.authentication.k8s.io/v"))) {
+                            return null;
+                        }
+
+                        var command = exec.get("command");
+                        if (!(command instanceof String cmd)) {
+                            return null;
+                        }
+
+                        final var env = exec.get("env");
+                        final var prepareEnv = env instanceof List<?> e ?
+                                e.stream()
+                                        .map(eit -> (Map<String, Object>) eit)
+                                        .collect(toMap(m -> m.get("name").toString(), m -> m.get("value").toString())):
+                                Map.<String, String>of();
+                        final var args = exec.get("args");
+                        final var fullCommand = Stream.concat(
+                                Stream.of(cmd),
+                                !(args instanceof List<?> al) ? Stream.empty() : al.stream().map(String.class::cast))
+                                .toList();
+                        return (Supplier<String>) () -> {
+                            final var builder = new ProcessBuilder();
+                            builder.command(fullCommand);
+                            if (!prepareEnv.isEmpty()){
+                                builder.environment().putAll(prepareEnv);
+                            }
+                            // todo: do not make it synchronous?
+                            try {
+                                final var process = builder.start();
+                                final int exitCode = process.waitFor();
+                                if (exitCode != 0) {
+                                    try (final var s = process.getErrorStream()) {
+                                        throw new IllegalStateException("Can't obtain a token with '" + cmd + "': exitCode=" + exitCode + "\n" + new String(s.readAllBytes(), UTF_8));
+                                    }
+                                }
+                                /* output looks like:
+                                {
+                                    "kind": "ExecCredential",
+                                    "apiVersion": "client.authentication.k8s.io/v1beta1",
+                                    "spec": {},
+                                    "status": {
+                                        "expirationTimestamp": "2025-01-29T17:58:22Z",
+                                        "token": "xxx"
+                                    }
+                                }
+                                 */
+                                // todo: parse it properly and extract expiration timestamp to refresh it less often?
+                                //       -> todo when reworking the refresh interval of the token
+
+                                // for now a simplistic impl
+                                String output;
+                                try (final InputStream inputStream = process.getInputStream()) {
+                                    output = new String(inputStream.readAllBytes(), UTF_8);
+                                }
+
+                                final int tokenKey = output.indexOf("\"token\"");
+                                if (tokenKey < 0) {
+                                    throw new IllegalStateException("No token in exec result");
+                                }
+                                final int from = output.indexOf('"', tokenKey+"\"token\":".length());
+                                final int end = output.indexOf('"', from + 1);
+                                if (from < 0 || end < from) {
+                                    throw new IllegalStateException("No valid token in exec result");
+                                }
+                                // assume a bearer so no specific json character to decode
+                                return output.substring(from + 1, end).strip();
+                            } catch (final IOException e) {
+                                throw new IllegalStateException("Can't obtain a token with '" + cmd + "'", e);
+                            } catch (final InterruptedException e) {
+                                Thread.currentThread().interrupt();
+                                throw new IllegalStateException(e);
+                            }
+                        };
+                    })
+                    .filter(Objects::nonNull)
+                    .ifPresent(configuration::setTokenEvaluator);
+        }
         selectedUser
                 .map(it -> {
                     try {

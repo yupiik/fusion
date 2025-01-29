@@ -113,7 +113,9 @@ public class LightYamlParser {
 
     private Object findValue(final LazyList list, final Map<String, Object> object) {
         if (list != null && list.list != null) {
-            Collections.reverse(list.list); // we stacked it in reverse order so clean it for the final extraction
+            if (!list.list.isEmpty() && list.list.get(0) instanceof Map<?,?>) {
+                Collections.reverse(list.list); // we stacked it in reverse order so clean it for the final extraction
+            }
             return list.list;
         }
         if (object != null) {

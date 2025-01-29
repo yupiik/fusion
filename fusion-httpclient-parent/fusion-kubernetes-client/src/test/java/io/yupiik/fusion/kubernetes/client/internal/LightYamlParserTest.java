@@ -16,12 +16,14 @@
 package io.yupiik.fusion.kubernetes.client.internal;
 
 import org.junit.jupiter.api.DynamicTest;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
 import org.junit.jupiter.api.TestInstance;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.StringReader;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +36,31 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 @TestInstance(PER_CLASS)
 class LightYamlParserTest {
     private final LightYamlParser parser = new LightYamlParser();
+
+    @Test
+    void parseStringList() throws IOException {
+        try (final var buffer = new BufferedReader(new StringReader("""
+                foo:
+                - a
+                - b
+                - c
+                """))) {
+            final var parsed = new LightYamlParser().parse(buffer);
+            assertEquals(parsed, Map.of("foo", List.of("a", "b", "c")));
+        }
+    }
+    @Test
+    void parseObjectList() throws IOException {
+        try (final var buffer = new BufferedReader(new StringReader("""
+                foo:
+                - name: a
+                - name: b
+                - name: c
+                """))) {
+            final var parsed = new LightYamlParser().parse(buffer);
+            assertEquals(parsed, Map.of("foo", List.of(Map.of("name", "a"), Map.of("name", "b"), Map.of("name", "c"))));
+        }
+    }
 
     @TestFactory
     Stream<DynamicTest> parse() {
