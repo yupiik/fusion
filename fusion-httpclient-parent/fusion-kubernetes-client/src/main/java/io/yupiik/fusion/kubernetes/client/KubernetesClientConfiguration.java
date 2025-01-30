@@ -19,6 +19,7 @@ import java.net.http.HttpClient;
 import java.nio.file.Path;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import static java.util.Optional.ofNullable;
 
@@ -30,6 +31,7 @@ public class KubernetesClientConfiguration {
             .map(host -> "https://" + host + ':' + ofNullable(System.getenv("KUBERNETES_SERVICE_PORT")).orElse("443"))
             .orElse(null);
     private String token = "/var/run/secrets/kubernetes.io/serviceaccount/token";
+    private Supplier<String> tokenEvaluator = null;
     private String certificates = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt";
     private String privateKey = null;
     private String privateKeyCertificate = null;
@@ -133,11 +135,24 @@ public class KubernetesClientConfiguration {
     }
 
     /**
-     * @param token path of the token file to read.
-     * @return the token file path.
+     * @param token path of the token file to read, ignored if {@link #setTokenEvaluator(Supplier)} is called.
+     * @return this configuration.
      */
     public KubernetesClientConfiguration setToken(final String token) {
         this.token = token;
+        return this;
+    }
+
+    public Supplier<String> getTokenEvaluator() {
+        return tokenEvaluator;
+    }
+
+    /**
+     * @param evaluator how to evaluate the token.
+     * @return this configuration.
+     */
+    public KubernetesClientConfiguration setTokenEvaluator(final Supplier<String> evaluator) {
+        this.tokenEvaluator = evaluator;
         return this;
     }
 
