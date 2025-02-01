@@ -63,20 +63,20 @@ public class Launcher implements AutoCloseable {
     }
 
     public static void main(final String... args) {
-        final AtomicBoolean useHook = new AtomicBoolean(false);
+        boolean useHook = false;
         Thread hook = null;
         try (final var launcher = new Launcher(args)) {
             Configuration configuration = launcher.container.lookup(Configuration.class).instance();
 
-            useHook.set(Boolean.parseBoolean(configuration.get("fusion.launcher.useHook").orElse("false")));
-            if (useHook.get()) {
+            useHook = Boolean.parseBoolean(configuration.get("fusion.launcher.useHook").orElse("false"));
+            if (useHook) {
                 hook = new Thread(launcher::close);
                 Runtime.getRuntime().addShutdownHook(hook);
             }
             launcher.awaiters.instance().forEach(Awaiter::await);
         } finally {
             try {
-                if (useHook.get()) {
+                if (useHook) {
                     Runtime.getRuntime().removeShutdownHook(hook);
                 }
 
