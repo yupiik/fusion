@@ -18,10 +18,13 @@ package io.yupiik.fusion.framework.api.main;
 import io.yupiik.fusion.framework.api.ConfiguringContainer;
 import io.yupiik.fusion.framework.api.Instance;
 import io.yupiik.fusion.framework.api.RuntimeContainer;
+import io.yupiik.fusion.framework.api.configuration.Configuration;
 import io.yupiik.fusion.framework.api.container.bean.ProvidedInstanceBean;
 import io.yupiik.fusion.framework.api.scope.DefaultScoped;
 
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Default launcher using {@link ConfiguringContainer}/{@code io.yupiik.fusion.framework.api.RuntimeContainer}.
@@ -30,6 +33,7 @@ import java.util.List;
 public class Launcher implements AutoCloseable {
     protected final RuntimeContainer container;
     private final Instance<List<Awaiter>> awaiters;
+    private final AtomicBoolean isClosing = new AtomicBoolean(false);
 
     public Launcher(final String... args) {
         container = customize(ConfiguringContainer.of()
@@ -49,7 +53,9 @@ public class Launcher implements AutoCloseable {
 
     @Override
     public void close() {
-        container.close();
+        if (!isClosing.compareAndSet(false, true)) {
+            container.close();
+        }
     }
 
     protected Instance<List<Awaiter>> lookupAwaiters() {
@@ -57,8 +63,26 @@ public class Launcher implements AutoCloseable {
     }
 
     public static void main(final String... args) {
+        final AtomicBoolean useHook = new AtomicBoolean(false);
+        Thread hook = null;
         try (final var launcher = new Launcher(args)) {
+            Configuration configuration = launcher.container.lookup(Configuration.class).instance();
+
+            useHook.set(Boolean.parseBoolean(configuration.get("fusion.launcher.useHook").orElse("false")));
+            if (useHook.get()) {
+                hook = new Thread(launcher::close);
+                Runtime.getRuntime().addShutdownHook(hook);
+            }
             launcher.awaiters.instance().forEach(Awaiter::await);
+        } finally {
+            try {
+                if (useHook.get()) {
+                    Runtime.getRuntime().removeShutdownHook(hook);
+                }
+
+            } catch (IllegalStateException e) {
+                /* already shutting down */
+            }
         }
     }
 }

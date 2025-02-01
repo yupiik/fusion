@@ -130,6 +130,11 @@ TIP: listening to `Start` event can enable a lazy instance (`@ApplicationScoped`
 
 TIP: an event can have more parameters, other parameters will be considered as injections (but the lookup will be destroyed after the method call if it is not `@ApplicationScoped`)
 
+TIP: When using the Launcher provided by the Fusion, you can use the shutdown hook to call the `container.close()` method and send the `Stop` event by settings the Fusion configuration
+property `fusion.launcher.useHook` to `true`. The JVM catches signals to implement shutdown hooks for unexpected
+termination. The JVM uses `SIGHUP`, `SIGINT`, and `SIGTERM` to
+initiate the running of shutdown hooks (see https://github.com/openjdk/jdk/blob/master/src/java.base/share/man/java.md?plain=1#L817)
+
 == Emit an event
 
 To emit an event simply inject the `Emitter` and send the needed event:
