@@ -35,7 +35,7 @@
 
     <tomcat.version>10.1.36</tomcat.version>
     <yupiik-logging.version>1.0.8</yupiik-logging.version>
-    <junit-jupiter.version>5.11.3</junit-jupiter.version>
+    <junit-jupiter.version>5.11.4</junit-jupiter.version>
   </properties>
 
   <modules>
