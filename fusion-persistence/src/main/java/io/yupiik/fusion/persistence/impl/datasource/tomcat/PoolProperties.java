@@ -40,7 +40,9 @@ public final class PoolProperties {
                 conf.get("fusion.persistence.datasource.minEvictableIdleTime").map(Integer::parseInt).orElse(60000),
                 conf.get("fusion.persistence.datasource.validationQuery").orElse(null),
                 conf.get("fusion.persistence.datasource.validationQueryTimeout").map(Integer::parseInt).orElse(-1),
-                conf.get("fusion.persistence.datasource.minIdle").map(Integer::parseInt).orElse(2),
+                conf.get("fusion.persistence.datasource.initialSize").map(Integer::parseInt).orElse(10),
+                conf.get("fusion.persistence.datasource.minIdle").map(Integer::parseInt).orElse(
+                        conf.get("fusion.persistence.datasource.initialSize").map(Integer::parseInt).orElse(10)),
                 conf.get("fusion.persistence.datasource.maxActive").map(Integer::parseInt).orElse(100),
                 conf.get("fusion.persistence.datasource.removeAbandoned").map(Boolean::parseBoolean).orElse(false),
                 conf.get("fusion.persistence.datasource.defaultAutoCommit").map(Boolean::parseBoolean).orElse(null),
@@ -63,6 +65,7 @@ public final class PoolProperties {
         properties.setValidationQuery(db.validationQuery());
         properties.setValidationQueryTimeout(db.validationQueryTimeout());
         properties.setDefaultAutoCommit(db.defaultAutoCommit());
+        properties.setInitialSize(db.initialSize());
         properties.setMinIdle(db.minIdle());
         properties.setMaxActive(db.maxActive());
         properties.setMaxIdle(db.maxActive());

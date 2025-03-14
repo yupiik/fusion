@@ -37,7 +37,9 @@ public record TomcatDatabaseConfiguration(
         String validationQuery,
         @Property(documentation = "Default timeout for validations.", defaultValue = "30")
         int validationQueryTimeout,
-        @Property(documentation = "Min number of connection - even when nothing happens.", defaultValue = "2")
+        @Property(documentation = "Initial number of connection.", defaultValue = "10")
+        int initialSize,
+        @Property(documentation = "Min number of connection - even when nothing happens.", defaultValue = "10")
         int minIdle,
         @Property(documentation = "Max active connections.", defaultValue = "100")
         int maxActive,
@@ -51,12 +53,12 @@ public record TomcatDatabaseConfiguration(
     public TomcatDatabaseConfiguration(final String driver, final String url, final String username, final String password,
                                        final boolean testOnBorrow, final boolean testOnReturn, final boolean testWhileIdle,
                                        final int timeBetweenEvictionRuns, final int minEvictableIdleTime,
-                                       final String validationQuery, final int validationQueryTimeout, final int minIdle,
+                                       final String validationQuery, final int validationQueryTimeout, final int initialSize, final int minIdle,
                                        final int maxActive, final boolean removeAbandoned, final Boolean defaultAutoCommit,
                                        final Boolean logAbandoned, final int removeAbandonedTimeout) {
         this(
                 driver, url, username, password, testOnBorrow, testOnReturn,
-                testWhileIdle, timeBetweenEvictionRuns, minEvictableIdleTime, validationQuery, validationQueryTimeout,
+                testWhileIdle, timeBetweenEvictionRuns, minEvictableIdleTime, validationQuery, validationQueryTimeout, initialSize,
                 minIdle, maxActive, removeAbandoned, defaultAutoCommit, logAbandoned, removeAbandonedTimeout, false);
     }
 }
