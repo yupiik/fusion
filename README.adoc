@@ -1,53 +1,202 @@
-= Fusion
+= Yupiik Fusion Framework
 
 image::https://img.shields.io/maven-central/v/io.yupiik.fusion/fusion?color=00b2ef&label=Last%20Release&logoColor=00b2ef&logo=data%3Aimage%2Fpng%3Bbase64%2CiVBORw0KGgoAAAANSUhEUgAAACAAAAAqCAYAAADS4VmSAAAAAXNSR0IArs4c6QAABGdJREFUWEedmF2I3FQUx%2F9nZrYzq7ttMtuK32B90WpFEbtUW2T7UqqbjIgM%2BKQP%2BmAfBUEFP0H7oo%2BiIgg%2BqRUqk%2BwWRXTFj9UWoVIp7UN1H9QitTvJMtpOd3dydDI7k9zk3syd5C25557zO1%2F3I4S8z3xzJzp0MpweBDfioanf86iiPJPCOY7HwlzbzKUr1yQ4XgAgOZdhm4VRHcoLIHrft5ojCqMDiKF%2FGlQkcOfNgecjQowGcKS5ByX6NmUsDrXOe%2FFw9TvdVIwGEDdUNiawn%2F4NDR0%2BP4HKWCtPFPQBXP8EmO9UGonDEf0My7hLJwr6AHEDqjzryCSo9ACEtuM%2FYVevl3rneH8D2LoxptWWugBR2w2r8hGjMBxAaDt6BrbxRmZuHf81gJ%2FXLchsgEbzQRDN6SobyMWhmWdRq86roLMB4ooKVMWs4Q0Uuf4jYP4kfKfONKytxwdjR1vbsL5%2BXgdcDeD6J8G8U6vtukLJ2hDb8hdYxh2yKKgBsorJ9QJwYjMiMKzEZqRRkHKAhrcKwliPmC7ANrYN6A%2Bf2oTKtZelOW1%2FUUK93oml6RKYK%2BE7Yw01c1NyXhpggSto%2BZe0Qh%2FgMQBFFPC%2BlvykMY4Zasch0gBC4RUfx%2BzmDwYT5lem0Ql%2BTBkTWjW4HfbUqVhHvALgRRWgCDDXmkGw%2FpWWN%2BXLE9h%2FdW8z%2BtQzUETUIVkFWSjtw%2BzkQt%2BGCBD3pG2UUKcon43mCRBpbkZYhGXeF9UNj6PiX5Q5FgE4zUWAdmt5n2czEtLEP8Cu3huWeCxX6vVenHwadnWHtAsc7zcAN43iRA9gmAGNftZ05A8A18UBCQtcQstf06JmfhS16kdS7%2FsfHf9ZgA9p6Zs0xkjwngsHUNvyWeTNch0ofKxUpiIRNiO6BzXjp4Fow38OxK9HXZC8YDAfRK36dio1JaOCB0i%2BAiZBjvx1FcbKn8MyxWOZ670MxkviQuR4vwLYnnKG2QeRsfG9A9ssZYY%2Ba9BpXgRoPCVCWOwVoXvhFnDxtFLHsFOQTirS1rfDNpbSS3HD64Agv2JR8VZYm88MKcJ9AH8plWEEqJlFMQVq%2Bq8B3K8Y%2Fga2KY45XrfQ7s6Ea%2F9zBeo3RBud5IIJzPmmePJZ2QUOjuXKf6GzA0FpL8DvqjpJTIG7%2FCq48EIoTPQULOMdwXCyY%2BRU6eO4cDrCDCyzG92eGaUBWeE5%2FlsAH8yMBvMh1KrRqbgvrFhNIwDXOwfGNdJQOZ4PYMtIaWAso2b2LynJHxrHYZvTsQgwwfG7Px16T9f7bi0E3FQbDZ4ECu%2BF490lmuhDpWz%2FIiuJgmQzoiWAox1N1LoK2yyHn5zlJ2IA0dnf9dfArFq0ugeYK%2BOOSgAkfhBcWKYt1osCoC%2Fk%2BsfAvCszbbZJQwCC3bCnojNgXJsqAkmLzsoBIDgqBRkAuP5ZMN88EGqfK6N%2B22omvS5AX8nCUgUtI74IfQ%2Fb3DP8cqqiGBVAoSc%2FQFiIG%2F8K825W%2F%2Bv4D2sg4qMfRFPFAAAAAElFTkSuQmCC[float="right"]
 image::https://github.com/yupiik/fusion/actions/workflows/maven.yml/badge.svg?branch=master[Github CI,float="right"]
 image::https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fjvm-repo-rebuild%2Freproducible-central%2Fmaster%2Fcontent%2Fio%2Fyupiik%2Ffusion%2Fbadge.json[Reproducible Builds,float="right",link=https://github.com/jvm-repo-rebuild/reproducible-central/blob/master/content/io/yupiik/fusion/README.md]
 
-== What is Fusion?
+**Yupiik Fusion** is a modern, lightweight Java framework designed to quickly build efficient, modular, and maintainable applications with ease built on top of GraalVM. Leveraging powerful features like dependency injection, easy RESTful API creation, and seamless JSON-RPC support, Fusion streamlines development and boosts developer productivity.
 
-Yupiik Fusion is a modern, high-performance web framework built on top of GraalVM.
-It's designed to provide a streamlined and efficient way to develop web applications.
+== 🚀 Key Features
 
-== Core Values
+- ✅ **Simplicity**: Minimum magic needed to make your development workflow smooth and nice.
+- ✅ **Modularity**: Lightweight and modular architecture that lets you choose exactly what your application needs.
+- ✅ **Dependency Injection**: Intuitive and reflectionless DI model that simplifies component management and improves maintainability.
+- ✅ **JSON-RPC & REST API**: Effortlessly build JSON-RPC or REST APIs for modern web applications.
+- ✅ **CLI Application Support**: Quickly create robust and maintainable Command-Line Interface (CLI) applications.
+- ✅ **Cloud-Native Ready**: Ideal for containerized applications running in Kubernetes or cloud environments.
+- ✅ **Native**: Built on top of GraalVM for easy native build.
+- ✅ **Efficient Resource Handling**: Supports streaming and low memory usage for high-performance scenarios.
 
-For cloud applications, being the most reactive possible is a key criteria so Fusion chose to:
+== 🔧 Getting Started
 
-* **Be build time oriented**: only delegate to runtime the bean resolution (to enable dynamic module aggregation) and not the bean and model discovery nor proxy generation,
-* **Stay flexible**: even if the model is generated at build time you can generally still customize it by removing a bean and adding your own one,
-* **Be native friendly**: some applications need to be native to start very fast and bypass the classloading and a bunch of JVM init, for that purpose we ensure the framework is GraalVM friendly - using Apache Geronimo Arthur or not.
+To quickly get started with Yupiik Fusion, add the core dependencies to your Maven project:
 
-== Documentation
-
-See https://www.yupiik.io/fusion for the full documentation.
-
-== Examples
-
-Some examples projects can be found here https://github.com/yupiik/fusion-examples
-
-== Build
-
-Pre-requisite: Maven >= 3.8 and Java >= 17.
-
-== Release
-
-Build and publish to central:
-
-[source, bash]
+[source,xml]
 ----
-mvn release:prepare release:perform
+<dependencies>
+    <dependency>
+        <groupId>io.yupiik.fusion</groupId>
+        <artifactId>fusion-build-api</artifactId>
+        <version>${fusion.version}</version>
+        <scope>provided</scope>
+    </dependency>
+    <dependency>
+        <groupId>io.yupiik.fusion</groupId>
+        <artifactId>fusion-processor</artifactId>
+        <version>${fusion.version}</version>
+        <scope>provided</scope>
+    </dependency>
+
+    <dependency>
+        <groupId>io.yupiik.fusion</groupId>
+        <artifactId>fusion-api</artifactId>
+        <version>${fusion.version}</version>
+    </dependency>
+</dependencies>
 ----
 
-Publish documentation on GitHub page:
+== 🚦 Quickstart Example
 
-[source, bash]
+=== Creating a Simple REST API
+
+Add Json and HttpServer dependencies:
+
+[source,xml]
 ----
-git checkout -b <release-tag> <release-tag> && mvn clean package -Pgh-pages
+<dependency>
+    <groupId>io.yupiik.fusion</groupId>
+    <artifactId>fusion-json</artifactId>
+    <version>${fusion.version}</version>
+</dependency>
+<dependency>
+    <groupId>io.yupiik.fusion</groupId>
+    <artifactId>fusion-http-server</artifactId>
+    <version>${fusion.version}</version>
+</dependency>
 ----
 
-Pubish release on GitHub by running in https://github.com/yupiik/yupiik.github.io project:
+Create REST Endpoint:
 
-[source, bash]
+[source,java]
 ----
-mvn yupiik-tools:synchronize-github-releases@fusion -Psynchronize-github-releases
+import io.yupiik.fusion.framework.api.scope.ApplicationScoped;
+import io.yupiik.fusion.framework.build.api.http.HttpMatcher;
+import io.yupiik.fusion.http.server.api.HttpException;
+import io.yupiik.fusion.http.server.api.Request;
+import io.yupiik.fusion.http.server.api.Response;
+import io.yupiik.fusion.json.JsonMapper;
+
+@ApplicationScoped
+public class ProductEndpoint {
+
+    private final ProductService productService;
+    private final JsonMapper jsonMapper;
+
+    public ProductEndpoint(final JsonMapper jsonMapper, final ProductService productService) {
+        this.jsonMapper = jsonMapper;
+        this.productService = productService;
+    }
+
+    @HttpMatcher(methods = "GET", path = "/product", pathMatching = HttpMatcher.PathMatching.EXACT)
+    public List<Product> findAllProduct(final Request request) {
+        return productService.findProducts();
+    }
+
+    @HttpMatcher(methods = "GET", path = "/product/", pathMatching = HttpMatcher.PathMatching.STARTS_WITH)
+    public Product findProduct(final Request request) {
+        final var id = request.path().split("/")[2];
+        return productService.findProduct(id);
+    }
+
+    @HttpMatcher(methods = "POST", path = "/order", pathMatching = HttpMatcher.PathMatching.EXACT)
+    public Response createOrder(final Request request, final Order order) { // custom response crafting
+        return Response.of()
+                .status(201)
+                .header("content-type", "application/json")
+                .body(jsonMapper.toString(orderService.createOrder(order)))
+                .build();
+    }
+}
 ----
+
+=== JSON-RPC Support
+Easily create JSON-RPC APIs.
+
+Add dependencies:
+
+[source,xml]
+----
+<dependency>
+    <groupId>io.yupiik.fusion</groupId>
+    <artifactId>fusion-json</artifactId>
+    <version>${fusion.version}</version>
+</dependency>
+<dependency>
+    <groupId>io.yupiik.fusion</groupId>
+    <artifactId>fusion-jsonrpc</artifactId>
+    <version>${fusion.version}</version>
+</dependency>
+----
+
+[source,java]
+----
+import io.yupiik.fusion.framework.api.scope.ApplicationScoped;
+import io.yupiik.fusion.framework.build.api.jsonrpc.JsonRpc;
+import io.yupiik.fusion.http.server.api.Request;
+import io.yupiik.fusion.json.JsonMapper;
+import java.util.Map;
+
+@ApplicationScoped
+public class JsonRpcEndpoint {
+    private final ProductService productService;
+
+    public JsonRpcEndpoint(final ProductService productService) {
+        this.productService = productService;
+    }
+
+    @JsonRpc(value = "fusion.examples.product.findAll", documentation = "Fetch all product available")
+    public List<Product> findAllProduct(final Request request) {
+        return productService.findProducts();
+    }
+
+    @JsonRpc(value = "fusion.examples.product.findById", documentation = "Find a product by id")
+    public Product findProduct(final Request request, final String id) {
+        return productService.findProduct(id);
+    }
+}
+----
+
+The full examples can be found on the GitHub project:
+
+https://github.com/yupiik/fusion-examples
+
+== 🧩 Extensions
+
+Fusion provide useful extensions:
+
+- https://www.yupiik.io/fusion/fusion/json.html[JSON]
+- https://www.yupiik.io/fusion/fusion/jwt.html[JWT validation]
+- https://www.yupiik.io/fusion/fusion/http-server.html[HTTP Server]
+- https://www.yupiik.io/fusion/fusion/http-client.html[HTTP Client]
+- https://www.yupiik.io/fusion/fusion/observability.html[Observability]
+- https://www.yupiik.io/fusion/fusion/handlebars.html[Handlebars]
+- https://www.yupiik.io/fusion/fusion/persistence.html[Persistence]
+- https://www.yupiik.io/fusion/fusion/kubernetes-operator.html[Kubernetes Operator Base]
+
+== 📖 Documentation
+
+Comprehensive documentation is available at:
+
+🌐 https://yupiik.github.io/fusion/
+
+== 🖥️ Contributing
+
+We warmly welcome contributions!
+
+- Fork the repository
+- Submit your enhancements via pull requests
+- Create https://github.com/yupiik/fusion/issues[issues]
+- Open https://github.com/yupiik/fusion/discussions[discussions]
+
+=== Build
+
+Pre-requisite: Apache Maven >= 3.8 and Java >= 17.
+
+== 📜 License
+
+Yupiik Fusion is released under the Apache License, Version 2.0. See the LICENSE file for more details.
+
+== ©️ Copyright
+Copyright © 2025 Yupiik.
+
+🌟 *Simplify your Java applications with Yupiik Fusion.* 🌟
