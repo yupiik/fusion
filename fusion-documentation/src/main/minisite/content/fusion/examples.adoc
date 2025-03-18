@@ -151,6 +151,7 @@ public class CustomerService {
 }
 ----
 
+
 == Create a configuration model [[configuration_model]]
 
 A configuration model is a record marked with `@RootConfiguration`:
@@ -183,7 +184,113 @@ If you want to customize the name of the property you can use `@Property`.
 Finally, you can register you own source of values creating a bean of type `ConfigurationSource`.
 
 IMPORTANT: `List<OtherConfig>` are supported, but you must set in the configuration `<prefix for this list>.length` to the length value of the list then the nested instances are configured using `<prefix>.<index>` starting at index 0. Ex: `myconf.mylist.0.name=foo`.
-Similarly, `Map<String,X>` are supported. For primitives it uses properties syntax and when X is another configuration model you must use an index based notation with `length` property and `key`, `value` suffixes.
+Similarly, `Map<String,X>` are supported. For primitives, it uses properties syntax and when X is another configuration model you must use an index based notation with `length` property and `key`, `value` suffixes.
+
+=== Example
+
+Here is an example of a simple configuration model using both `List` and `Map` of properties.
+
+[source,java]
+----
+@RootConfiguration("app") // will be the prefix of the system properties filtered to bind on the instance
+public record AppConfig(
+        @Property(value="name", documentation = "Name of the application.")
+        String appName,
+
+        @Property(value="host", documentation = "Host.", defaultValue = "\"localhost\"")
+        String host,
+
+        //When no @Property annotation is added, the name of the property is the name of the field (port)
+        int port,
+
+        @Property(value="frequency")
+        Frequency objectConfig,
+
+        @Property(value="sources", documentation = "Some source to be processed.")
+        List<Source> sources,
+
+        @Property(value="stamps", documentation = "Some documentation about stamps.")
+        List<String> stamps,
+
+        @Property(value="tags", documentation = "Some documentation about tags.")
+        Map<String, String> tags
+){
+    public record Frequency(
+        @Property(value = "interval", documentation = "Interval - How often to do something.", defaultValue = "60000L")
+        long interval
+    ) {}
+
+    public record Source(
+        String host,
+        int port
+    ) {}
+}
+----
+
+Environment variables (shell script):
+
+[source, bash]
+----
+export APP_NAME="app1"
+export APP_HOST="app-1"
+export APP_PORT="8380"
+export APP_FREQUENCY_INTERVAL="20000L"
+export APP_SOURCES_LENGTH="2"
+export APP_SOURCES_0_HOST="external-host-1"
+export APP_SOURCES_0_PORT="8080"
+export APP_SOURCES_1_HOST="external-host-2"
+export APP_SOURCES_1_PORT="8080"
+export APP_STAMPS="application,server,integration"
+export APP_TAGS="
+                       application = app1
+                       env = local
+                       phase = tests
+                       "
+----
+
+Environment variables (yaml):
+
+[source, yaml]
+----
+APP_NAME: "app1"
+APP_HOST: "app-1"
+APP_PORT: "8380"
+APP_FREQUENCY_INTERVAL: "20000L"
+APP_SOURCES_LENGTH: "2"
+APP_SOURCES_0_HOST: "external-host-1"
+APP_SOURCES_0_PORT: "8080"
+APP_SOURCES_1_HOST: "external-host-2"
+APP_SOURCES_1_PORT: "8080"
+APP_STAMPS: "application,server,integration"
+APP_TAGS: |
+    application = app1
+    env = local
+    phase = tests
+
+----
+
+Setting system properties in java:
+
+[source, java]
+----
+public class App{
+    static {
+        System.setProperty("app.name", "app1");
+        System.setProperty("app.host", "app-1");
+        System.setProperty("app.port", "8380");
+        System.setProperty("app.frequency.interval", "20000l");
+        System.setProperty("app.sources.length", "2");
+        System.setProperty("app.sources.0.host", "ext");
+        System.setProperty("app.sources.0.port", "808");
+        System.setProperty("app.sources.1.host", "ext");
+        System.setProperty("app.sources.1.port", "808");
+        System.setProperty("app.stamps", "application,server,integration");
+        System.setProperty("app.tags"," \napplication = app1 \nenv = local \nphase = tests" );
+    }
+}
+
+----
+
 
 == Create a JSON model [[json_model]]
 
