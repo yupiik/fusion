@@ -140,12 +140,12 @@
                         <i class="fas fa-building"></i>Setup
                     </a>
                 </li>                <li>
-                    <a title="Fusion JSON support" href="//www.yupiik.io/fusion/fusion/json.html">
-                        <i class="fas fa-wifi"></i>JSON
-                    </a>
-                </li>                <li>
                     <a title="Fusion CLI" href="//www.yupiik.io/fusion/fusion/cli.html">
                         <i class="fas fa-terminal"></i>CLI
+                    </a>
+                </li>                <li>
+                    <a title="Fusion JSON support" href="//www.yupiik.io/fusion/fusion/json.html">
+                        <i class="fas fa-wifi"></i>JSON
                     </a>
                 </li>                <li>
                     <a title="framework and GraalVM (native-image)" href="//www.yupiik.io/fusion/fusion/graalvm.html">
@@ -523,12 +523,128 @@ public class MyServer {
        </td>
       <td class="content">
  <div class="paragraph">
- <p><code>List&lt;OtherConfig&gt;</code> are supported, but you must set in the configuration <code>&lt;prefix for this list&gt;.length</code> to the length value of the list then the nested instances are configured using <code>&lt;prefix&gt;.&lt;index&gt;</code> starting at index 0. Ex: <code>myconf.mylist.0.name=foo</code>. Similarly, <code>Map&lt;String,X&gt;</code> are supported. For primitives it uses properties syntax and when X is another configuration model you must use an index based notation with <code>length</code> property and <code>key</code>, <code>value</code> suffixes.</p>
+ <p><code>List&lt;OtherConfig&gt;</code> are supported, but you must set in the configuration <code>&lt;prefix for this list&gt;.length</code> to the length value of the list then the nested instances are configured using <code>&lt;prefix&gt;.&lt;index&gt;</code> starting at index 0. Ex: <code>myconf.mylist.0.name=foo</code>. Similarly, <code>Map&lt;String,X&gt;</code> are supported. For primitives, it uses properties syntax and when X is another configuration model you must use an index based notation with <code>length</code> property and <code>key</code>, <code>value</code> suffixes.</p>
  </div>
     </td>
    </tr>
       </tbody>
   </table>
+ </div>
+ <div class="sect2" id="_example">
+  <h3>Example</h3>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>Here is an example of a simple configuration model using both <code>List</code> and <code>Map</code> of properties.</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@RootConfiguration(&quot;app&quot;) // will be the prefix of the system properties filtered to bind on the instance
+public record AppConfig(
+        @Property(value=&quot;name&quot;, documentation = &quot;Name of the application.&quot;)
+        String appName,
+
+        @Property(value=&quot;host&quot;, documentation = &quot;Host.&quot;, defaultValue = &quot;\&quot;localhost\&quot;&quot;)
+        String host,
+
+        //When no @Property annotation is added, the name of the property is the name of the field (port)
+        int port,
+
+        @Property(value=&quot;frequency&quot;)
+        Frequency objectConfig,
+
+        @Property(value=&quot;sources&quot;, documentation = &quot;Some source to be processed.&quot;)
+        List&lt;Source&gt; sources,
+
+        @Property(value=&quot;stamps&quot;, documentation = &quot;Some documentation about stamps.&quot;)
+        List&lt;String&gt; stamps,
+
+        @Property(value=&quot;tags&quot;, documentation = &quot;Some documentation about tags.&quot;)
+        Map&lt;String, String&gt; tags
+){
+    public record Frequency(
+        @Property(value = &quot;interval&quot;, documentation = &quot;Interval - How often to do something.&quot;, defaultValue = &quot;60000L&quot;)
+        long interval
+    ) {}
+
+    public record Source(
+        String host,
+        int port
+    ) {}
+}</code></pre>
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>
+Environment variables (shell script):
+ </p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">export APP_NAME=&quot;app1&quot;
+export APP_HOST=&quot;app-1&quot;
+export APP_PORT=&quot;8380&quot;
+export APP_FREQUENCY_INTERVAL=&quot;20000L&quot;
+export APP_SOURCES_LENGTH=&quot;2&quot;
+export APP_SOURCES_0_HOST=&quot;external-host-1&quot;
+export APP_SOURCES_0_PORT=&quot;8080&quot;
+export APP_SOURCES_1_HOST=&quot;external-host-2&quot;
+export APP_SOURCES_1_PORT=&quot;8080&quot;
+export APP_STAMPS=&quot;application,server,integration&quot;
+export APP_TAGS=&quot;
+                       application = app1
+                       env = local
+                       phase = tests
+                       &quot;</code></pre>
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>
+Environment variables (yaml):
+ </p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">APP_NAME: &quot;app1&quot;
+APP_HOST: &quot;app-1&quot;
+APP_PORT: &quot;8380&quot;
+APP_FREQUENCY_INTERVAL: &quot;20000L&quot;
+APP_SOURCES_LENGTH: &quot;2&quot;
+APP_SOURCES_0_HOST: &quot;external-host-1&quot;
+APP_SOURCES_0_PORT: &quot;8080&quot;
+APP_SOURCES_1_HOST: &quot;external-host-2&quot;
+APP_SOURCES_1_PORT: &quot;8080&quot;
+APP_STAMPS: &quot;application,server,integration&quot;
+APP_TAGS: |
+    application = app1
+    env = local
+    phase = tests</code></pre>
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>
+Setting system properties in java:
+ </p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public class App{
+    static {
+        System.setProperty(&quot;app.name&quot;, &quot;app1&quot;);
+        System.setProperty(&quot;app.host&quot;, &quot;app-1&quot;);
+        System.setProperty(&quot;app.port&quot;, &quot;8380&quot;);
+        System.setProperty(&quot;app.frequency.interval&quot;, &quot;20000l&quot;);
+        System.setProperty(&quot;app.sources.length&quot;, &quot;2&quot;);
+        System.setProperty(&quot;app.sources.0.host&quot;, &quot;ext&quot;);
+        System.setProperty(&quot;app.sources.0.port&quot;, &quot;808&quot;);
+        System.setProperty(&quot;app.sources.1.host&quot;, &quot;ext&quot;);
+        System.setProperty(&quot;app.sources.1.port&quot;, &quot;808&quot;);
+        System.setProperty(&quot;app.stamps&quot;, &quot;application,server,integration&quot;);
+        System.setProperty(&quot;app.tags&quot;,&quot; \napplication = app1 \nenv = local \nphase = tests&quot; );
+    }
+}</code></pre>
+ </div>
+ </div>
+ </div>
  </div>
  </div>
  </div>
