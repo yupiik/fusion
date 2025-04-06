@@ -66,7 +66,23 @@ public class DocumentationGenerator implements Runnable {
                         file = file.substring(Math.max(file.lastIndexOf('/'), file.lastIndexOf(File.separator)) + 1);
 
                         final var fileRef = file;
-                        final var module = ofNullable(configuration.get("module")).orElseGet(() -> fileRef.substring(fileRef.indexOf('-') + 1, fileRef.indexOf("-1"))); // fusion-$module-$version.jar
+                        final var module = ofNullable(configuration.get("module"))
+                                .orElseGet(() -> {
+                                    // assume this form:
+                                    // jar:file:/path/to/project/target/project-local-repo/group.id/artifact/version/group-version.jar!/META-INF/fusion/configuration/documentation.json
+                                    if (url.getFile().endsWith("!/META-INF/fusion/configuration/documentation.json")) {
+                                        final var versionSep = fileRef.indexOf('-');
+                                        if (versionSep > 0) {
+                                            return fileRef.substring(0, versionSep);
+                                        }
+                                        if (fileRef.endsWith(".jar")) {
+                                            return fileRef.substring(0, fileRef.length() - ".jar".length());
+                                        }
+                                        // fallback on legacy case
+                                    }
+                                    // this will mainly work for fusion itself but unlikely for other libs, legacy fallback
+                                    return fileRef.substring(fileRef.indexOf('-') + 1, fileRef.indexOf("-1"));
+                                }); // fusion-$module-$version.jar
                         final var adoc = ofNullable(configuration.get("output"))
                                 .map(Path::of)
                                 .orElseGet(() -> sourceBase.resolve("content/_partials/generated/documentation." + module + ".adoc"));
