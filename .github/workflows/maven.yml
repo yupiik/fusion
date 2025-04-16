@@ -24,7 +24,7 @@ env:
 jobs:
   build:
     name: Main Build
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
       - name: Clone
         uses: actions/checkout@v4
@@ -45,7 +45,7 @@ jobs:
         run: find /home/runner/work/fusion/fusion/.m2 -name '*SNAPSHOT' | xargs rm -Rf
   security_audit:
     name: Security Audit
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
       - name: Clone
         uses: actions/checkout@v4
