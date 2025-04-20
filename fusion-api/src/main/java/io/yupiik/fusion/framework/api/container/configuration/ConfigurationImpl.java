@@ -71,7 +71,7 @@ public class ConfigurationImpl implements Configuration {
                 logger
                         .info(() -> "Running into kubernetes, enabling using '/var/run/secrets' subdirectories as secret holders ('/var/run/secrets/kubernetes.io/serviceaccount' ends available as `kubernetes.io.serviceaccount` key for example). " +
                                 "To disable or customize it set FUSION_CONFIGURATION_SOURCES_SECRETS environment variable to an empty or false (disabled) or list of directories value.");
-                return result;
+                return result.toList().stream(); // materialize otherwise the list.close will ignore this part
             } catch (final IOException ioe) {
                 logger.log(Level.FINER, ioe, () -> "Can't load secrets: " + ioe.getMessage());
             }
