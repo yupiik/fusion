@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import static java.util.function.Function.identity;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
@@ -30,7 +31,7 @@ class DirectorySourceTest {
     void emptyPrefix(@TempDir final Path work) throws IOException {
         Files.writeString(work.resolve("test"), "some");
         Files.writeString(work.resolve("service.account"), "content");
-        final var source = new DirectorySource("", work);
+        final var source = new DirectorySource(work, identity(), k -> true);
         assertEquals("some", source.get("test"));
         assertEquals("content", source.get("service.account"));
         assertNull(source.get("missing"));
@@ -40,7 +41,7 @@ class DirectorySourceTest {
     void withPrefix(@TempDir final Path work) throws IOException {
         Files.writeString(work.resolve("test"), "some");
         Files.writeString(work.resolve("service.account"), "content");
-        final var source = new DirectorySource("app.", work);
+        final var source = new DirectorySource(work, k -> "app." + k, k -> true);
         assertEquals("some", source.get("app.test"));
         assertEquals("content", source.get("app.service.account"));
         assertNull(source.get("missing"));
