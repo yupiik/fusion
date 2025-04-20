@@ -23,6 +23,8 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -34,11 +36,11 @@ import static java.util.stream.Collectors.toMap;
 // note it is immutable for now since config reloading triggers consistency issues in apps.
 // if needed it can use a custom source (facading this one with cache for ex)
 public class DirectorySource implements ConfigurationSource {
-    private final String prefix;
     private final Map<String, String> values = new HashMap<>();
 
-    public DirectorySource(final String prefix, final Path directory) {
-        this.prefix = prefix;
+    public DirectorySource(final Path directory,
+                           final Function<String, String> keyMapper,
+                           final Predicate<String> filter) {
         if (!Files.exists(directory)) {
             return;
         }
@@ -54,7 +56,8 @@ public class DirectorySource implements ConfigurationSource {
                         }
                     })
                     .filter(Objects::nonNull)
-                    .collect(toMap(Map.Entry::getKey, Map.Entry::getValue)));
+                    .filter(e -> filter.test(e.getKey()))
+                    .collect(toMap(e -> keyMapper.apply(e.getKey()), Map.Entry::getValue)));
         } catch (final IOException e) {
             Logger.getLogger(getClass().getName()).log(Level.FINER, e, e::getMessage);
         }
@@ -62,9 +65,6 @@ public class DirectorySource implements ConfigurationSource {
 
     @Override
     public String get(final String key) {
-        if (key.startsWith(prefix)) {
-            return values.get(key.substring(prefix.length()));
-        }
-        return null;
+        return values.get(key);
     }
 }

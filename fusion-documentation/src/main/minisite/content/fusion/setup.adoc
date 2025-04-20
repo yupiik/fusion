@@ -185,3 +185,11 @@ By default Fusion configuration system comes with JVM system properties and envi
 It is also able to automatically enable default Kubernetes secret but most of the time you'll need to set the list of directories (comma separated) to the `FUSION_CONFIGURATION_SOURCES_SECRETS` environment variables if you mount them anywhere else than `/var/run/secrets`.
 If you use `/var/run/secrets`, ensure to bind secrets in a directory named as your configuration prefix, for example `/var/run/secrets/app` if you use `app.xxxx` keys.
 This will enable the autodiscovery to work automatically.
+
+You can also bind in the same directory than your configuration (`app` in previous example) a `_fusion.secrets.configuration.properties` file - often in the same `Secret` in Kubernetes - to refine the way the directory name and children files recompose the configuration key name.
+
+This file can contain `folder.name.mode` entry which can take these values:
+
+* `default` (or empty): do nothing, take the file name as configuration key,
+* `concat`: concatenate the directory name and file name separated by a dot (`app/xxxx` will lead to `app.xxxx` key),
+* `strip`: if the file name starts with the directory name, remove the directory name (with a dot suffix, for ex `app/app.xxxx` will lead to `xxxx` key).

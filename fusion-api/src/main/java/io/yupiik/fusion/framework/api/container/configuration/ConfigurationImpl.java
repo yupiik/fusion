@@ -27,10 +27,16 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Properties;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
+
+import static java.util.Locale.ROOT;
+import static java.util.Optional.ofNullable;
+import static java.util.function.Function.identity;
 
 public class ConfigurationImpl implements Configuration {
     private final List<ConfigurationSource> sources;
@@ -43,8 +49,11 @@ public class ConfigurationImpl implements Configuration {
     }
 
     private static Stream<ConfigurationSource> defaultSources() {
-        final var jvmSources = Stream.of(new SystemPropertiesSource(), new EnvironmentSource());
-        final var secretDirectories = System.getenv("FUSION_CONFIGURATION_SOURCES_SECRETS");
+        final var systemPropertiesSource = new SystemPropertiesSource();
+        final var envSource = new EnvironmentSource();
+        final var jvmSources = Stream.of(systemPropertiesSource, envSource);
+        final var secretDirectories = ofNullable(systemPropertiesSource.get("fusion.configuration.sources.secrets"))
+                .orElseGet(() -> envSource.get("FUSION_CONFIGURATION_SOURCES_SECRETS"));
         if (secretDirectories != null) {
             final var secrets = Stream.of(secretDirectories.split(","))
                     .map(String::strip)
@@ -54,7 +63,7 @@ public class ConfigurationImpl implements Configuration {
                     .toList();
             Logger.getLogger(ConfigurationImpl.class.getName())
                     .info(() -> "Using secret sources: "  + secrets);
-            return Stream.concat(secrets.stream().map(it -> new DirectorySource("", it)), jvmSources);
+            return Stream.concat(secrets.stream().map(ConfigurationImpl::toDirectorySource), jvmSources);
 
         }
         if (System.getenv("KUBERNETES_SERVICE_HOST") != null) {
@@ -66,7 +75,7 @@ public class ConfigurationImpl implements Configuration {
             final var logger = Logger.getLogger(ConfigurationImpl.class.getName());
             try (final var child = Files.list(root)) {
                 final var result = Stream.concat(
-                        child.map(it -> new DirectorySource(it.getFileName().toString() + '.', it)),
+                        child.map(ConfigurationImpl::toDirectorySource),
                         jvmSources);
                 logger
                         .info(() -> "Running into kubernetes, enabling using '/var/run/secrets' subdirectories as secret holders ('/var/run/secrets/kubernetes.io/serviceaccount' ends available as `kubernetes.io.serviceaccount` key for example). " +
@@ -77,6 +86,30 @@ public class ConfigurationImpl implements Configuration {
             }
         }
         return jvmSources;
+    }
+
+    private static DirectorySource toDirectorySource(Path it) {
+        final var conf = it.resolve("_fusion.secrets.configuration.properties");
+        Properties props = null;
+        if (Files.exists(conf)) {
+            props = new Properties();
+            try (final var reader = Files.newBufferedReader(conf)) {
+                props.load(reader);
+            } catch (final IOException e) {
+                throw new IllegalStateException(e);
+            }
+        }
+        final var prefix = it.getFileName().toString() + '.';
+        final var mode = (props == null ? "" : props.getProperty("folder.name.mode", "")).toLowerCase(ROOT);
+        return new DirectorySource(
+                it,
+                switch (mode) {
+                    case "concat" -> (Function<String, String>) k -> String.join("", prefix, k);
+                    case "strip" ->
+                            (Function<String, String>) k -> k.startsWith(prefix) ? k.substring(prefix.length()) : k;
+                    default -> identity();
+                },
+                "strip".equalsIgnoreCase(mode)? k -> k.startsWith(prefix) : k -> true);
     }
 
     @Override
