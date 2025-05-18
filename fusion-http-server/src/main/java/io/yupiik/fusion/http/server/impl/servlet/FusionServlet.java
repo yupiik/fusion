@@ -188,6 +188,7 @@ public class FusionServlet extends HttpServlet {
 
                         @Override
                         public void onError(final Throwable throwable) {
+                            logger.log(SEVERE, throwable, () -> "An error occurred: " + throwable.getMessage());
                             if (!resp.isCommitted()) {
                                 resp.setStatus(500);
                             }
