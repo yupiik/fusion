@@ -18,13 +18,13 @@ package io.yupiik.fusion.http.server.impl.servlet;
 import io.yupiik.fusion.http.server.api.Body;
 import io.yupiik.fusion.http.server.api.Cookie;
 import io.yupiik.fusion.http.server.api.Request;
-import io.yupiik.fusion.http.server.impl.flow.ServletInputStreamSubscription;
 import jakarta.servlet.http.HttpServletRequest;
 
 import java.io.IOException;
 import java.io.Reader;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.stream.Stream;
 
 import static java.util.Collections.list;
@@ -113,7 +113,11 @@ public class ServletRequest implements Request {
     @Override
     public Map<String, List<String>> headers() {
         return list(delegate.getHeaderNames()).stream()
-                .collect(toMap(identity(), k -> list(delegate.getHeaders(k))));
+                .collect(toMap(
+                        identity(),
+                        k -> list(delegate.getHeaders(k)),
+                        (a, b) -> a,
+                        () -> new TreeMap<String, List<String>>(String.CASE_INSENSITIVE_ORDER)));
     }
 
     @Override
