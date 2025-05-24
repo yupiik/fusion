@@ -32,7 +32,6 @@ import static java.net.http.HttpResponse.BodySubscribers.ofByteArray;
 import static java.net.http.HttpResponse.BodySubscribers.ofString;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Optional.ofNullable;
-import static java.util.concurrent.CompletableFuture.completedFuture;
 
 public class ServletBody implements Body {
     private final HttpServletRequest request;
@@ -46,7 +45,10 @@ public class ServletBody implements Body {
     @Override
     public void subscribe(final Flow.Subscriber<? super ByteBuffer> subscriber) {
         try {
-            subscriber.onSubscribe(new ServletInputStreamSubscription(request.getInputStream(), subscriber));
+            final var pool = request.getAttribute(ByteBufferPool.class.getName());
+            subscriber.onSubscribe(new ServletInputStreamSubscription(
+                    pool instanceof ByteBufferPool b ? b : NoCacheByteBufferPool.INSTANCE,
+                    request.getInputStream(), subscriber));
         } catch (final IOException e) {
             subscriber.onError(e);
         }

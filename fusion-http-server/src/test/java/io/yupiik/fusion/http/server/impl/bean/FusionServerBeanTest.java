@@ -18,7 +18,6 @@ package io.yupiik.fusion.http.server.impl.bean;
 import io.yupiik.fusion.framework.api.ConfiguringContainer;
 import io.yupiik.fusion.framework.api.Instance;
 import io.yupiik.fusion.framework.api.RuntimeContainer;
-import io.yupiik.fusion.framework.api.container.FusionListener;
 import io.yupiik.fusion.framework.api.container.bean.BaseBean;
 import io.yupiik.fusion.framework.api.scope.DefaultScoped;
 import io.yupiik.fusion.http.server.api.Request;
@@ -129,7 +128,7 @@ class FusionServerBeanTest {
                     return completedFuture(Response.of()
                             .status(203)
                             .header("X-Test", "post")
-                            .body(new StringBuilder(read(request.body())).reverse().toString())
+                            .body(new StringBuilder(read(request.fullBody())).reverse().toString())
                             .build());
                 }
             };

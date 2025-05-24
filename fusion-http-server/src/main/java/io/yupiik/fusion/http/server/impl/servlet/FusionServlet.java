@@ -29,7 +29,6 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.channels.Channels;
 import java.util.List;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Flow;
@@ -161,7 +160,6 @@ public class FusionServlet extends HttpServlet {
                     }
                 } else {
                     final var stream = resp.getOutputStream();
-                    final var channel = Channels.newChannel(stream);
                     body.subscribe(new Flow.Subscriber<>() {
                         private Flow.Subscription subscription;
                         private volatile boolean closed = false;
@@ -175,8 +173,7 @@ public class FusionServlet extends HttpServlet {
                         @Override
                         public void onNext(final ByteBuffer item) {
                             try {
-                                channel.write(item);
-
+                                stream.write(item);
                                 stream.flush(); // todo: make it configurable? idea is to enable to support SSE or things like that easily
 
                                 subscription.request(1);
@@ -190,7 +187,7 @@ public class FusionServlet extends HttpServlet {
                         public void onError(final Throwable throwable) {
                             logger.log(SEVERE, throwable, () -> "An error occurred: " + throwable.getMessage());
                             if (!resp.isCommitted()) {
-                                resp.setStatus(500);
+                                resp.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
                             }
                             doClose();
                         }
@@ -206,7 +203,7 @@ public class FusionServlet extends HttpServlet {
                             }
                             closed = true;
                             try {
-                                channel.close();
+                                stream.close();
                             } catch (final IOException e) {
                                 logger.log(SEVERE, e, e::getMessage);
                             }
