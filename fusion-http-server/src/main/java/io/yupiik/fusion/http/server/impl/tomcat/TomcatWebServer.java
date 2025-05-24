@@ -295,17 +295,13 @@ public class TomcatWebServer implements WebServer {
         }
 
         // no need of all these checks in general since we use a flat classpath
-        try { // no more in tomcat 11
-            ctx.setClearReferencesObjectStreamClassCaches(false);
-        } catch (final Error e) {
-            // no-op
-        }
         ctx.setClearReferencesThreadLocals(false);
         ctx.setClearReferencesRmiTargets(false);
         ctx.setClearReferencesHttpClientKeepAliveThread(false);
         ctx.setClearReferencesStopThreads(false);
         ctx.setClearReferencesStopTimerThreads(false);
         ctx.setSkipMemoryLeakChecksOnJvmShutdown(true);
+        ctx.setRenewThreadsWhenStoppingContext(false);
 
         return ctx;
     }

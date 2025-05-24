@@ -27,8 +27,7 @@ class ServletRequestTest {
     @Test
     void caseInsensitiveHeaders() {
         final var connector = new Connector();
-        final var req = new Request(connector);
-        req.setCoyoteRequest(new org.apache.coyote.Request());
+        final var req = new Request(connector, new org.apache.coyote.Request());
         req.getCoyoteRequest().getMimeHeaders().addValue("SImpLE").setString("a");
         final var wrapper = new ServletRequest(req);
         assertEquals("a", wrapper.header("simple"));

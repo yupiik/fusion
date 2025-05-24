@@ -15,13 +15,12 @@
  */
 package io.yupiik.fusion.http.server.impl.flow;
 
+import io.yupiik.fusion.http.server.impl.servlet.ByteBufferPool;
 import jakarta.servlet.ReadListener;
 import jakarta.servlet.ServletInputStream;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.channels.Channels;
-import java.nio.channels.ReadableByteChannel;
 import java.util.concurrent.Flow;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -31,19 +30,20 @@ import java.util.logging.Logger;
 public class ServletInputStreamSubscription implements Flow.Subscription, ReadListener {
     private static final Logger LOGGER = Logger.getLogger(ServletInputStreamSubscription.class.getName());
 
-    private static final int DEFAULT_BUFFER_SIZE = 8 * 1024; // org.apache.catalina.connector.InputBuffer.DEFAULT_BUFFER_SIZE
-
     private final ServletInputStream inputStream;
-    private final ReadableByteChannel channel;
     private final Flow.Subscriber<? super ByteBuffer> downstream;
     private final Lock lock = new ReentrantLock();
+    private final ByteBufferPool pool;
 
     private volatile boolean cancelled = false;
-    private volatile long requested = 0;
+    private long requested = 0;
 
-    public ServletInputStreamSubscription(final ServletInputStream inputStream, final Flow.Subscriber<? super ByteBuffer> downstream) {
+    public ServletInputStreamSubscription(
+            final ByteBufferPool pool,
+            final ServletInputStream inputStream,
+            final Flow.Subscriber<? super ByteBuffer> downstream) {
+        this.pool = pool;
         this.inputStream = inputStream;
-        this.channel = Channels.newChannel(inputStream);
         this.downstream = downstream;
         inputStream.setReadListener(this);
     }
@@ -64,14 +64,21 @@ public class ServletInputStreamSubscription implements Flow.Subscription, ReadLi
                     break;
                 }
 
-                final var buffer = ByteBuffer.allocate(DEFAULT_BUFFER_SIZE); // todo: reuse buffers to limit allocations
-                final var read = channel.read(buffer);
+                final var buffer = pool.get();
+                final var read = inputStream.read(buffer);
                 if (read <= 0) {
                     break;
                 }
 
-                buffer.position(0).limit(read);
-                downstream.onNext(buffer);
+                if (!pool.needsRelease()) {
+                    downstream.onNext(buffer);
+                } else {
+                    try { // copy cause we return early the buffer, fixme: enhance it by using reference counting instead of this simple pattern?
+                        downstream.onNext(ByteBuffer.allocate(buffer.remaining()).put(buffer).flip());
+                    } finally {
+                        pool.release(buffer); // note that we assume release calls flip()
+                    }
+                }
                 loop--;
             }
         } catch (final IOException | RuntimeException re) {
@@ -116,7 +123,11 @@ public class ServletInputStreamSubscription implements Flow.Subscription, ReadLi
         }
         lock.lock();
         try {
-            requested += n;
+            if (n == Long.MAX_VALUE) { // no backpressure caller
+                requested = Long.MAX_VALUE;
+            } else {
+                requested += n;
+            }
             readIfPossible();
         } finally {
             lock.unlock();
@@ -141,17 +152,16 @@ public class ServletInputStreamSubscription implements Flow.Subscription, ReadLi
     }
 
     private void doClose() {
-        if (channel.isOpen()) {
-            try {
-                channel.close();
-            } catch (final IOException e) {
-                LOGGER.log(Level.SEVERE, e, e::getMessage);
-            }
+        try {
+            inputStream.close();
+        } catch (final IOException e) {
+            LOGGER.log(Level.SEVERE, e, e::getMessage);
         }
     }
 
     @Override
     public void cancel() {
         cancelled = true;
+        doClose();
     }
 }
