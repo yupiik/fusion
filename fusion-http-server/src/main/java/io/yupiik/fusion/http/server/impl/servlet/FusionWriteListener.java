@@ -101,10 +101,11 @@ public class FusionWriteListener implements WriteListener {
 
     private void doClose() {
         try {
-            if (!closed) {
-                closed = true;
-                stream.close();
+            if (closed) {
+                return;
             }
+            closed = true;
+            stream.close();
             result.complete(null);
         } catch (final IOException e) {
             handleError(e);
