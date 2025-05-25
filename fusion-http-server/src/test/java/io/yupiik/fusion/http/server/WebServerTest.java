@@ -20,6 +20,7 @@ import io.yupiik.fusion.http.server.api.Response;
 import io.yupiik.fusion.http.server.api.WebServer;
 import io.yupiik.fusion.http.server.impl.tomcat.MonitoringServerConfiguration;
 import io.yupiik.fusion.http.server.impl.tomcat.TomcatWebServerConfiguration;
+import io.yupiik.fusion.http.server.spi.Endpoint;
 import io.yupiik.fusion.http.server.spi.MonitoringEndpoint;
 import jakarta.servlet.http.HttpServlet;
 import org.junit.jupiter.api.Test;
@@ -30,6 +31,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -38,12 +40,44 @@ import java.util.concurrent.ExecutionException;
 import java.util.stream.Stream;
 
 import static java.lang.Thread.sleep;
+import static java.net.http.HttpResponse.BodyHandlers.ofString;
 import static java.util.concurrent.CompletableFuture.completedStage;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class WebServerTest {
+    @Test
+    void longStreamingResponse() throws IOException, InterruptedException {
+        final int numberOfA = (int) (8192 * 2.5); // if too big test will be too long but we want more than one chunk/onNext(ByteBuffer)
+        final var configuration = WebServer.Configuration.of().port(0);
+        final var tomcat = configuration.unwrap(TomcatWebServerConfiguration.class);
+        tomcat.setEndpoints(List.of(new Endpoint() {
+            @Override
+            public boolean matches(final Request request) {
+                return "GET".equalsIgnoreCase(request.method()) && "/test".equalsIgnoreCase(request.path());
+            }
+
+            @Override
+            public CompletionStage<Response> handle(final Request request) {
+                return completedStage(Response.of()
+                        .status(212)
+                        .body(HttpRequest.BodyPublishers.ofString("a".repeat(numberOfA), StandardCharsets.UTF_8))
+                        .build());
+            }
+        }));
+        final var http = HttpClient.newHttpClient();
+        try (final var server = WebServer.of(configuration)) {
+            final var res = http.send(HttpRequest.newBuilder()
+                            .GET()
+                            .uri(URI.create("http://" + configuration.host() + ":" + configuration.port() + "/test"))
+                            .build(),
+                    ofString());
+            assertEquals(212, res.statusCode());
+            assertEquals("a".repeat(numberOfA), res.body());
+        }
+    }
+
     @Test
     void enableMonitoring() throws IOException, InterruptedException {
         final var configuration = WebServer.Configuration.of().port(0);

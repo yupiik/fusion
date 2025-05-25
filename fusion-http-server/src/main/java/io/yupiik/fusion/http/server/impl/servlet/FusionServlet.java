@@ -30,7 +30,9 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Flow;
 import java.util.logging.Logger;
 
@@ -74,24 +76,32 @@ public class FusionServlet extends HttpServlet {
     protected void execute(final HttpServletResponse resp, final Request request,
                            final BaseEndpoint matched, final AsyncContext asyncContext) {
         try {
-            matched.handle(request).whenComplete((response, ex) -> {
-                try {
-                    if (ex != null) {
-                        onError(resp, ex);
-                    } else {
-                        writeResponse(resp, response);
-                    }
-                } catch (final RuntimeException re) {
-                    if (!resp.isCommitted()) {
-                        onError(resp, re);
-                    } else {
-                        logger.log(SEVERE, re, re::getMessage);
-                    }
-                    throw re;
-                } finally {
-                    asyncContext.complete();
-                }
-            });
+            matched
+                    .handle(request)
+                    // important: when whenComplete ends we can still process the response payload (completedPromise)
+                    .whenComplete((response, ex) -> {
+                        CompletionStage<Void> completedPromise = null;
+                        try {
+                            if (ex != null) {
+                                onError(resp, ex);
+                            } else {
+                                completedPromise = writeResponse(resp, response);
+                            }
+                        } catch (final RuntimeException re) {
+                            if (!resp.isCommitted()) {
+                                onError(resp, re);
+                            } else {
+                                logger.log(SEVERE, re, re::getMessage);
+                            }
+                            throw re;
+                        } finally {
+                            if (completedPromise == null) {
+                                asyncContext.complete();
+                            } else {
+                                completedPromise.thenRun(asyncContext::complete);
+                            }
+                        }
+                    });
         } catch (final RuntimeException re) {
             try {
                 onError(resp, re);
@@ -117,7 +127,7 @@ public class FusionServlet extends HttpServlet {
         return ex;
     }
 
-    protected void writeResponse(final HttpServletResponse resp, final Response response) {
+    protected CompletionStage<Void> writeResponse(final HttpServletResponse resp, final Response response) {
         resp.setStatus(response.status());
         if (!response.headers().isEmpty()) {
             response.headers().forEach((k, v) -> {
@@ -152,67 +162,79 @@ public class FusionServlet extends HttpServlet {
             });
         }
         final var body = response.body();
-        if (body != null) {
-            try {
-                if (body instanceof WriterPublisher wp) { // optimize this path
-                    try (final var writer = new CloseOnceWriter(resp.getWriter())) {
-                        wp.getDelegate().accept(writer);
-                    }
-                } else {
-                    final var stream = resp.getOutputStream();
-                    body.subscribe(new Flow.Subscriber<>() {
-                        private Flow.Subscription subscription;
-                        private volatile boolean closed = false;
-
-                        @Override
-                        public void onSubscribe(final Flow.Subscription subscription) {
-                            this.subscription = subscription;
-                            this.subscription.request(1);
-                        }
-
-                        @Override
-                        public void onNext(final ByteBuffer item) {
-                            try {
-                                stream.write(item);
-                                stream.flush(); // todo: make it configurable? idea is to enable to support SSE or things like that easily
-
-                                subscription.request(1);
-                            } catch (final IOException e) {
-                                subscription.cancel();
-                                onError(e);
-                            }
-                        }
-
-                        @Override
-                        public void onError(final Throwable throwable) {
-                            logger.log(SEVERE, throwable, () -> "An error occurred: " + throwable.getMessage());
-                            if (!resp.isCommitted()) {
-                                resp.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-                            }
-                            doClose();
-                        }
-
-                        @Override
-                        public void onComplete() {
-                            doClose();
-                        }
-
-                        private void doClose() {
-                            if (closed) {
-                                return;
-                            }
-                            closed = true;
-                            try {
-                                stream.close();
-                            } catch (final IOException e) {
-                                logger.log(SEVERE, e, e::getMessage);
-                            }
-                        }
-                    });
+        if (body == null) {
+            return null;
+        }
+        try {
+            if (body instanceof WriterPublisher wp) { // optimize this path
+                try (final var writer = new CloseOnceWriter(resp.getWriter())) {
+                    wp.getDelegate().accept(writer);
                 }
-            } catch (final IOException e) {
-                throw new IllegalStateException(e);
+                return null;
             }
+
+            final var stream = resp.getOutputStream();
+            final var result = new CompletableFuture<Void>();
+            body.subscribe(new Flow.Subscriber<>() {
+                private Flow.Subscription subscription;
+                private volatile boolean closed = false;
+
+                @Override
+                public void onSubscribe(final Flow.Subscription subscription) {
+                    this.subscription = subscription;
+                    this.subscription.request(1);
+                }
+
+                @Override
+                public void onNext(final ByteBuffer item) {
+                    try {
+                        stream.write(item);
+                        stream.flush(); // todo: make it configurable? idea is to enable to support SSE or things like that easily
+
+                        subscription.request(1);
+                    } catch (final IOException e) {
+                        subscription.cancel();
+                        onError(e);
+                    }
+                }
+
+                @Override
+                public void onError(final Throwable throwable) {
+                    logger.log(SEVERE, throwable, () -> "An error occurred: " + throwable.getMessage());
+                    try {
+                        if (!resp.isCommitted()) {
+                            resp.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                        }
+                        doClose();
+                    } finally {
+                        result.completeExceptionally(throwable);
+                    }
+                }
+
+                @Override
+                public void onComplete() {
+                    try {
+                        doClose();
+                    } finally {
+                        result.complete(null);
+                    }
+                }
+
+                private void doClose() {
+                    if (closed) {
+                        return;
+                    }
+                    closed = true;
+                    try {
+                        stream.close();
+                    } catch (final IOException e) {
+                        logger.log(SEVERE, e, e::getMessage);
+                    }
+                }
+            });
+            return result;
+        } catch (final IOException e) {
+            throw new IllegalStateException(e);
         }
     }
 }
