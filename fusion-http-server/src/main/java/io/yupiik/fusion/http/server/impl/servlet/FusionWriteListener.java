@@ -15,6 +15,7 @@
  */
 package io.yupiik.fusion.http.server.impl.servlet;
 
+import jakarta.servlet.AsyncContext;
 import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.WriteListener;
 import jakarta.servlet.http.HttpServletResponse;
@@ -35,18 +36,22 @@ public class FusionWriteListener implements WriteListener {
     private final HttpServletResponse response;
     private final ServletOutputStream stream;
     private final CompletableFuture<Void> result;
+    private final AsyncContext asyncContext;
 
     private Flow.Subscription subscription;
     private ByteBuffer pendingBuffer;
     private Action action = Action.SUBSCRIBE;
     private boolean closed = false;
     private boolean completed = false;
+    private final AtomicBoolean looping = new AtomicBoolean();
 
     public FusionWriteListener(final Flow.Publisher<ByteBuffer> body,
                                final HttpServletResponse response,
                                final ServletOutputStream stream,
-                               final CompletableFuture<Void> result) {
+                               final CompletableFuture<Void> result,
+                               final AsyncContext asyncContext) {
         this.body = body;
+        this.asyncContext = asyncContext;
         this.response = response;
         this.stream = stream;
         this.result = result;
@@ -64,6 +69,9 @@ public class FusionWriteListener implements WriteListener {
 
     // normally we do not need to lock since we make everything sequential even if on multiple threads
     private void loop() {
+        if (!looping.compareAndSet(false, true)) {
+            return;
+        }
         try {
             while (!closed && stream.isReady()) {
                 switch (action) {
@@ -101,6 +109,8 @@ public class FusionWriteListener implements WriteListener {
             }
         } catch (final IOException e) {
             handleError(e);
+        } finally {
+            looping.set(false);
         }
     }
 
@@ -171,7 +181,7 @@ public class FusionWriteListener implements WriteListener {
         }
 
         private void triggerEventLoop() {
-            loop();
+            asyncContext.start(FusionWriteListener.this::loop);
         }
     }
 

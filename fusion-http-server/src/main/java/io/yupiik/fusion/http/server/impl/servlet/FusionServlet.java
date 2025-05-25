@@ -22,19 +22,16 @@ import io.yupiik.fusion.http.server.impl.flow.WriterPublisher;
 import io.yupiik.fusion.http.server.impl.io.CloseOnceWriter;
 import io.yupiik.fusion.http.server.spi.BaseEndpoint;
 import jakarta.servlet.AsyncContext;
-import jakarta.servlet.WriteListener;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.Flow;
 import java.util.logging.Logger;
 
 import static java.util.Objects.requireNonNull;
@@ -84,13 +81,13 @@ public class FusionServlet extends HttpServlet {
                         CompletionStage<Void> completedPromise = null;
                         try {
                             if (ex != null) {
-                                onError(resp, ex);
+                                onError(resp, ex, asyncContext);
                             } else {
-                                completedPromise = writeResponse(resp, response);
+                                completedPromise = writeResponse(resp, response, asyncContext);
                             }
                         } catch (final RuntimeException re) {
                             if (!resp.isCommitted()) {
-                                onError(resp, re);
+                                onError(resp, re, asyncContext);
                             } else {
                                 logger.log(SEVERE, re, re::getMessage);
                             }
@@ -105,17 +102,17 @@ public class FusionServlet extends HttpServlet {
                     });
         } catch (final RuntimeException re) {
             try {
-                onError(resp, re);
+                onError(resp, re, asyncContext);
             } finally {
                 asyncContext.complete();
             }
         }
     }
 
-    private void onError(final HttpServletResponse resp, final Throwable ex) {
+    private void onError(final HttpServletResponse resp, final Throwable ex, final AsyncContext asyncContext) {
         logger.log(SEVERE, ex, ex::getMessage);
         if (unwrap(ex) instanceof HttpException he) {
-            writeResponse(resp, he.getResponse());
+            writeResponse(resp, he.getResponse(), asyncContext);
         } else {
             resp.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
         }
@@ -128,7 +125,7 @@ public class FusionServlet extends HttpServlet {
         return ex;
     }
 
-    protected CompletionStage<Void> writeResponse(final HttpServletResponse resp, final Response response) {
+    protected CompletionStage<Void> writeResponse(final HttpServletResponse resp, final Response response, final AsyncContext asyncContext) {
         resp.setStatus(response.status());
         if (!response.headers().isEmpty()) {
             response.headers().forEach((k, v) -> {
@@ -176,7 +173,7 @@ public class FusionServlet extends HttpServlet {
 
             final var stream = resp.getOutputStream();
             final var result = new CompletableFuture<Void>();
-            stream.setWriteListener(new FusionWriteListener(body, resp, stream, result));
+            stream.setWriteListener(new FusionWriteListener(body, resp, stream, result, asyncContext));
             return result;
         } catch (final IOException e) {
             throw new IllegalStateException(e);
