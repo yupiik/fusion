@@ -61,7 +61,6 @@ public class FusionWriteListener implements WriteListener {
         handleError(throwable);
     }
 
-
     private void loop() {
         try {
             while (!closed && stream.isReady()) {
