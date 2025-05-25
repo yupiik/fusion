@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Flow;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Logger;
 
 import static java.util.logging.Level.SEVERE;
@@ -61,15 +62,20 @@ public class FusionWriteListener implements WriteListener {
         handleError(throwable);
     }
 
+    // normally we do not need to lock since we make everything sequential even if on multiple threads
     private void loop() {
         try {
             while (!closed && stream.isReady()) {
                 switch (action) {
+                    case AWAITING -> {
+                        return;
+                    }
                     case REQUEST -> {
                         if (subscription == null || result.isDone()) {
                             continue;
                         }
                         if (!completed) {
+                            action = Action.AWAITING;
                             subscription.request(1);
                         } else {
                             doClose();
@@ -156,6 +162,9 @@ public class FusionWriteListener implements WriteListener {
         @Override
         public void onComplete() {
             completed = true;
+            if (action == Action.AWAITING) {
+                action = Action.REQUEST;
+            }
             if (!closed) {
                 triggerEventLoop();
             }
@@ -171,6 +180,6 @@ public class FusionWriteListener implements WriteListener {
     // 2. write(buffer)
     // 3. flush()
     private enum Action {
-        SUBSCRIBE, REQUEST, WRITE, FLUSH
+        SUBSCRIBE, REQUEST, WRITE, FLUSH, AWAITING
     }
 }
