@@ -22,6 +22,7 @@ import io.yupiik.fusion.http.server.impl.flow.WriterPublisher;
 import io.yupiik.fusion.http.server.impl.io.CloseOnceWriter;
 import io.yupiik.fusion.http.server.spi.BaseEndpoint;
 import jakarta.servlet.AsyncContext;
+import jakarta.servlet.WriteListener;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
@@ -175,63 +176,7 @@ public class FusionServlet extends HttpServlet {
 
             final var stream = resp.getOutputStream();
             final var result = new CompletableFuture<Void>();
-            body.subscribe(new Flow.Subscriber<>() {
-                private Flow.Subscription subscription;
-                private volatile boolean closed = false;
-
-                @Override
-                public void onSubscribe(final Flow.Subscription subscription) {
-                    this.subscription = subscription;
-                    this.subscription.request(1);
-                }
-
-                @Override
-                public void onNext(final ByteBuffer item) {
-                    try {
-                        stream.write(item);
-                        stream.flush(); // todo: make it configurable? idea is to enable to support SSE or things like that easily
-
-                        subscription.request(1);
-                    } catch (final IOException e) {
-                        subscription.cancel();
-                        onError(e);
-                    }
-                }
-
-                @Override
-                public void onError(final Throwable throwable) {
-                    logger.log(SEVERE, throwable, () -> "An error occurred: " + throwable.getMessage());
-                    try {
-                        if (!resp.isCommitted()) {
-                            resp.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-                        }
-                        doClose();
-                    } finally {
-                        result.completeExceptionally(throwable);
-                    }
-                }
-
-                @Override
-                public void onComplete() {
-                    try {
-                        doClose();
-                    } finally {
-                        result.complete(null);
-                    }
-                }
-
-                private void doClose() {
-                    if (closed) {
-                        return;
-                    }
-                    closed = true;
-                    try {
-                        stream.close();
-                    } catch (final IOException e) {
-                        logger.log(SEVERE, e, e::getMessage);
-                    }
-                }
-            });
+            stream.setWriteListener(new FusionWriteListener(body, resp, stream, result));
             return result;
         } catch (final IOException e) {
             throw new IllegalStateException(e);

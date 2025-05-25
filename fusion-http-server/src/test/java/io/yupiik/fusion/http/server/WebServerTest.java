@@ -74,7 +74,10 @@ class WebServerTest {
                             .build(),
                     ofString());
             assertEquals(212, res.statusCode());
-            assertEquals("a".repeat(numberOfA), res.body());
+
+            final var repeat = "a".repeat(numberOfA);
+            assertEquals(repeat.length(), res.body().length()); // easier error message but useless functionally
+            assertEquals(repeat, res.body());
         }
     }
 
