@@ -37,7 +37,7 @@ public class FusionWriteListener implements WriteListener {
 
     private Flow.Subscription subscription;
     private ByteBuffer pendingBuffer;
-    private Action action = Action.REQUEST;
+    private Action action = Action.SUBSCRIBE;
     private boolean closed = false;
     private boolean completed = false;
 
@@ -65,25 +65,30 @@ public class FusionWriteListener implements WriteListener {
         try {
             while (!closed && stream.isReady()) {
                 switch (action) {
-                    case FLUSH -> {
-                        stream.flush();
-                        action = Action.REQUEST;
+                    case REQUEST -> {
+                        if (subscription == null || result.isDone()) {
+                            continue;
+                        }
+                        if (!completed) {
+                            subscription.request(1);
+                        } else {
+                            doClose();
+                        }
+                        return;
                     }
                     case WRITE -> {
                         final var ref = pendingBuffer;
                         pendingBuffer = null;
                         doWrite(ref);
                     }
-                    case REQUEST -> {
+                    case FLUSH -> {
+                        stream.flush();
+                        action = Action.REQUEST;
+                    }
+                    case SUBSCRIBE -> {
                         if (subscription == null) {
                             body.subscribe(new Subscriber());
-                        } else if (!result.isDone()) {
-                            if (!completed) {
-                                subscription.request(1);
-                            } else {
-                                doClose();
-                            }
-                            return;
+                            action = Action.REQUEST;
                         }
                     }
                 }
@@ -134,7 +139,6 @@ public class FusionWriteListener implements WriteListener {
         @Override
         public void onSubscribe(final Flow.Subscription s) {
             subscription = s;
-            subscription.request(1);
         }
 
         @Override
@@ -167,6 +171,6 @@ public class FusionWriteListener implements WriteListener {
     // 2. write(buffer)
     // 3. flush()
     private enum Action {
-        REQUEST, WRITE, FLUSH
+        SUBSCRIBE, REQUEST, WRITE, FLUSH
     }
 }
