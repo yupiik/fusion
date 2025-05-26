@@ -22,6 +22,7 @@ import jakarta.servlet.ServletInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.Flow;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
@@ -37,6 +38,7 @@ public class ServletInputStreamSubscription implements Flow.Subscription, ReadLi
 
     private volatile boolean cancelled = false;
     private long requested = 0;
+    private final AtomicBoolean ready = new AtomicBoolean();
 
     public ServletInputStreamSubscription(
             final ByteBufferPool pool,
@@ -88,6 +90,7 @@ public class ServletInputStreamSubscription implements Flow.Subscription, ReadLi
 
     @Override
     public void onDataAvailable() {
+        ready.set(true);
         lock.lock();
         try {
             readIfPossible();
@@ -98,6 +101,7 @@ public class ServletInputStreamSubscription implements Flow.Subscription, ReadLi
 
     @Override
     public void onAllDataRead() {
+        ready.set(true);
         if (cancelled) {
             return;
         }
@@ -128,7 +132,9 @@ public class ServletInputStreamSubscription implements Flow.Subscription, ReadLi
             } else {
                 requested += n;
             }
-            readIfPossible();
+            if (ready.get()) {
+                readIfPossible();
+            }
         } finally {
             lock.unlock();
         }
