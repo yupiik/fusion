@@ -73,7 +73,7 @@ class WebServerTest {
                             .uri(URI.create("http://" + configuration.host() + ":" + configuration.port() + "/test"))
                             .build(),
                     ofString());
-            assertEquals(212, res.statusCode());
+            assertEquals(212, res.statusCode(), res::body);
 
             final var repeat = "a".repeat(numberOfA);
             assertEquals(repeat.length(), res.body().length()); // easier error message but useless functionally
