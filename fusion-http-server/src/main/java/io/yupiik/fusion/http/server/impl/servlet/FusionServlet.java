@@ -81,13 +81,13 @@ public class FusionServlet extends HttpServlet {
                         CompletionStage<Void> completedPromise = null;
                         try {
                             if (ex != null) {
-                                onError(resp, ex, asyncContext);
+                                onError(resp, ex);
                             } else {
-                                completedPromise = writeResponse(resp, response, asyncContext);
+                                completedPromise = writeResponse(resp, response);
                             }
                         } catch (final RuntimeException re) {
                             if (!resp.isCommitted()) {
-                                onError(resp, re, asyncContext);
+                                onError(resp, re);
                             } else {
                                 logger.log(SEVERE, re, re::getMessage);
                             }
@@ -102,17 +102,17 @@ public class FusionServlet extends HttpServlet {
                     });
         } catch (final RuntimeException re) {
             try {
-                onError(resp, re, asyncContext);
+                onError(resp, re);
             } finally {
                 asyncContext.complete();
             }
         }
     }
 
-    private void onError(final HttpServletResponse resp, final Throwable ex, final AsyncContext asyncContext) {
+    private void onError(final HttpServletResponse resp, final Throwable ex) {
         logger.log(SEVERE, ex, ex::getMessage);
         if (unwrap(ex) instanceof HttpException he) {
-            writeResponse(resp, he.getResponse(), asyncContext);
+            writeResponse(resp, he.getResponse());
         } else {
             resp.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
         }
@@ -125,7 +125,7 @@ public class FusionServlet extends HttpServlet {
         return ex;
     }
 
-    protected CompletionStage<Void> writeResponse(final HttpServletResponse resp, final Response response, final AsyncContext asyncContext) {
+    protected CompletionStage<Void> writeResponse(final HttpServletResponse resp, final Response response) {
         resp.setStatus(response.status());
         if (!response.headers().isEmpty()) {
             response.headers().forEach((k, v) -> {
@@ -173,7 +173,7 @@ public class FusionServlet extends HttpServlet {
 
             final var stream = resp.getOutputStream();
             final var result = new CompletableFuture<Void>();
-            stream.setWriteListener(new FusionWriteListener(body, resp, stream, result, asyncContext));
+            stream.setWriteListener(new FusionWriteListener(body, resp, stream, result));
             return result;
         } catch (final IOException e) {
             throw new IllegalStateException(e);

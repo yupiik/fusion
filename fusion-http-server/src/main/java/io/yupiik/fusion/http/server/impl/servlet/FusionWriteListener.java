@@ -15,16 +15,19 @@
  */
 package io.yupiik.fusion.http.server.impl.servlet;
 
-import jakarta.servlet.AsyncContext;
 import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.WriteListener;
 import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Flow;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 
 import static java.util.logging.Level.SEVERE;
@@ -36,30 +39,32 @@ public class FusionWriteListener implements WriteListener {
     private final HttpServletResponse response;
     private final ServletOutputStream stream;
     private final CompletableFuture<Void> result;
-    private final AsyncContext asyncContext;
 
     private Flow.Subscription subscription;
-    private ByteBuffer pendingBuffer;
-    private Action action = Action.SUBSCRIBE;
     private boolean closed = false;
-    private boolean completed = false;
+    private final List<IORunnable> events = new ArrayList<>();
+    private final Lock lock = new ReentrantLock();
     private final AtomicBoolean looping = new AtomicBoolean();
 
     public FusionWriteListener(final Flow.Publisher<ByteBuffer> body,
                                final HttpServletResponse response,
                                final ServletOutputStream stream,
-                               final CompletableFuture<Void> result,
-                               final AsyncContext asyncContext) {
+                               final CompletableFuture<Void> result) {
         this.body = body;
-        this.asyncContext = asyncContext;
         this.response = response;
         this.stream = stream;
         this.result = result;
+        addEvent(new IORunnable("ctor::subscribe") {
+            @Override
+            public void run() {
+                body.subscribe(new Subscriber());
+            }
+        });
     }
 
     @Override
     public void onWritePossible() {
-        loop();
+        doLoop();
     }
 
     @Override
@@ -67,56 +72,49 @@ public class FusionWriteListener implements WriteListener {
         handleError(throwable);
     }
 
-    // normally we do not need to lock since we make everything sequential even if on multiple threads
-    private void loop() {
+    private void doLoop() {
         if (!looping.compareAndSet(false, true)) {
             return;
         }
         try {
-            while (!closed && stream.isReady()) {
-                switch (action) {
-                    case AWAITING -> {
-                        return;
-                    }
-                    case REQUEST -> {
-                        if (subscription == null || result.isDone()) {
-                            continue;
-                        }
-                        if (!completed) {
-                            action = Action.AWAITING;
-                            subscription.request(1);
-                        } else {
-                            doClose();
-                        }
-                        return;
-                    }
-                    case WRITE -> {
-                        final var ref = pendingBuffer;
-                        pendingBuffer = null;
-                        doWrite(ref);
-                    }
-                    case FLUSH -> {
-                        stream.flush();
-                        action = Action.REQUEST;
-                    }
-                    case SUBSCRIBE -> {
-                        if (subscription == null) {
-                            body.subscribe(new Subscriber());
-                            action = Action.REQUEST;
-                        }
-                    }
-                }
-            }
-        } catch (final IOException e) {
-            handleError(e);
+            loop();
         } finally {
             looping.set(false);
         }
     }
 
-    private void doWrite(final ByteBuffer pendingBuffer) throws IOException {
-        stream.write(pendingBuffer);
-        action = Action.FLUSH;
+    private void loop() {
+        try {
+            while (!closed && stream.isReady()) {
+                IORunnable removed;
+                lock.lock();
+                try {
+                    if (events.isEmpty()) {
+                        return;
+                    }
+                    removed = events.remove(0);
+                } finally {
+                    lock.unlock();
+                }
+                doRun(removed);
+            }
+        } catch (final IOException e) {
+            handleError(e);
+        }
+    }
+
+    protected void doRun(final IORunnable task) throws IOException {
+        task.run();
+    }
+
+    private void addEvent(final IORunnable... task) {
+        lock.lock();
+        try {
+            events.addAll(List.of(task));
+        } finally {
+            lock.unlock();
+        }
+        doLoop();
     }
 
     private void doClose() {
@@ -135,11 +133,15 @@ public class FusionWriteListener implements WriteListener {
     private void handleError(final Throwable throwable) {
         LOGGER.log(SEVERE, throwable, throwable::getMessage);
         try {
-            if (!response.isCommitted()) {
-                response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            if (closed) {
+                return;
             }
-            if (!closed) {
-                closed = true;
+            closed = true;
+            try {
+                if (!response.isCommitted()) {
+                    response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                }
+            } finally {
                 stream.close();
             }
         } catch (final IOException ioException) {
@@ -155,41 +157,65 @@ public class FusionWriteListener implements WriteListener {
         @Override
         public void onSubscribe(final Flow.Subscription s) {
             subscription = s;
+            addEvent(new IORunnable("onSubscribe::request") {
+                @Override
+                public void run() {
+                    subscription.request(1);
+                }
+            });
         }
 
         @Override
         public void onNext(final ByteBuffer item) {
-            pendingBuffer = item;
-            action = Action.WRITE;
-            triggerEventLoop();
+            addEvent(
+                    new IORunnable("onNext::write") {
+                        @Override
+                        public void run() throws IOException {
+                            stream.write(item);
+                        }
+                    },
+                    new IORunnable("onNext::flush") {
+                        @Override
+                        public void run() throws IOException {
+                            stream.flush();
+                        }
+                    },
+                    new IORunnable("onNext::request") {
+                        @Override
+                        public void run() {
+                            subscription.request(1);
+                        }
+                    });
+        }
+
+        @Override
+        public void onComplete() {
+            addEvent(new IORunnable("onComplete::doClose") {
+                @Override
+                public void run() {
+                    doClose();
+                }
+            });
         }
 
         @Override
         public void onError(final Throwable throwable) {
             handleError(throwable);
         }
-
-        @Override
-        public void onComplete() {
-            completed = true;
-            if (action == Action.AWAITING) {
-                action = Action.REQUEST;
-            }
-            if (!closed) {
-                triggerEventLoop();
-            }
-        }
-
-        private void triggerEventLoop() {
-            asyncContext.start(FusionWriteListener.this::loop);
-        }
     }
 
-    // defines the state machine we want, ie this flow:
-    // 1. request(1)
-    // 2. write(buffer)
-    // 3. flush()
-    private enum Action {
-        SUBSCRIBE, REQUEST, WRITE, FLUSH, AWAITING
+    protected static abstract class IORunnable {
+        private final String toString;
+
+        private IORunnable(final String toString) {
+            this.toString = toString;
+        }
+
+        @Override
+        public String toString() {
+            return toString;
+        }
+
+        public abstract void run() throws IOException;
     }
 }
