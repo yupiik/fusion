@@ -39,7 +39,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Flow;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 
 import static java.lang.Thread.sleep;
@@ -69,39 +69,44 @@ class WebServerTest {
                         .build());
             }
         }));
+
+        final var bodyPublisher = HttpRequest.BodyPublishers.fromPublisher(new HttpRequest.BodyPublisher() {
+            @Override
+            public long contentLength() {
+                return -1;
+            }
+
+            @Override
+            public void subscribe(final Flow.Subscriber<? super ByteBuffer> subscriber) {
+                subscriber.onSubscribe(new Flow.Subscription() {
+                    private final AtomicLong remaining = new AtomicLong(numberOfA);
+
+                    @Override
+                    public void request(final long n) {
+                        try {
+                            final var l = remaining.decrementAndGet();
+                            if (l >= 0) {
+                                subscriber.onNext(ByteBuffer.wrap(new byte[]{'a'}));
+                                if (l == 0) {
+                                    subscriber.onComplete();
+                                }
+                            }
+                        } catch (final RuntimeException re) {
+                            subscriber.onError(re);
+                        }
+                    }
+
+                    @Override
+                    public void cancel() {
+                        // no-op
+                    }
+                });
+            }
+        });
         final var http = HttpClient.newHttpClient();
         try (final var server = WebServer.of(configuration)) {
             final var res = http.send(HttpRequest.newBuilder()
-                            .POST(HttpRequest.BodyPublishers.fromPublisher(new HttpRequest.BodyPublisher() {
-                                @Override
-                                public long contentLength() {
-                                    return -1;
-                                }
-
-                                @Override
-                                public void subscribe(final Flow.Subscriber<? super ByteBuffer> subscriber) {
-                                    subscriber.onSubscribe(new Flow.Subscription() {
-                                        private int remaninig = numberOfA;
-
-                                        @Override
-                                        public void request(final long n) {
-                                            try {
-                                                subscriber.onNext(ByteBuffer.wrap(new byte[]{'a'}));
-                                                if ((remaninig -= (int) n) <= 1) {
-                                                    subscriber.onComplete();
-                                                }
-                                            } catch (final RuntimeException re) {
-                                                subscriber.onError(re);
-                                            }
-                                        }
-
-                                        @Override
-                                        public void cancel() {
-                                            // no-op
-                                        }
-                                    });
-                                }
-                            }))
+                            .POST(bodyPublisher)
                             .uri(URI.create("http://" + configuration.host() + ":" + configuration.port() + "/test"))
                             .build(),
                     ofString());
