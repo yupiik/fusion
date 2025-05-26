@@ -45,6 +45,7 @@ public class FusionWriteListener implements WriteListener {
     private final List<IORunnable> events = new ArrayList<>();
     private final Lock lock = new ReentrantLock();
     private final AtomicBoolean looping = new AtomicBoolean();
+    private volatile boolean completed = false;
 
     public FusionWriteListener(final Flow.Publisher<ByteBuffer> body,
                                final HttpServletResponse response,
@@ -154,6 +155,21 @@ public class FusionWriteListener implements WriteListener {
     }
 
     private class Subscriber implements Flow.Subscriber<ByteBuffer> {
+        private final IORunnable requestNext = new IORunnable("onNext::request") {
+            @Override
+            public void run() {
+                if (!completed) {
+                    subscription.request(1);
+                }
+            }
+        };
+        private final IORunnable flush = new IORunnable("onNext::flush") {
+            @Override
+            public void run() throws IOException {
+                stream.flush();
+            }
+        };
+
         @Override
         public void onSubscribe(final Flow.Subscription s) {
             subscription = s;
@@ -167,29 +183,17 @@ public class FusionWriteListener implements WriteListener {
 
         @Override
         public void onNext(final ByteBuffer item) {
-            addEvent(
-                    new IORunnable("onNext::write") {
-                        @Override
-                        public void run() throws IOException {
-                            stream.write(item);
-                        }
-                    },
-                    new IORunnable("onNext::flush") {
-                        @Override
-                        public void run() throws IOException {
-                            stream.flush();
-                        }
-                    },
-                    new IORunnable("onNext::request") {
-                        @Override
-                        public void run() {
-                            subscription.request(1);
-                        }
-                    });
+            addEvent(new IORunnable("onNext::write") {
+                @Override
+                public void run() throws IOException {
+                    stream.write(item);
+                }
+            }, flush, requestNext);
         }
 
         @Override
         public void onComplete() {
+            completed = true;
             addEvent(new IORunnable("onComplete::doClose") {
                 @Override
                 public void run() {
