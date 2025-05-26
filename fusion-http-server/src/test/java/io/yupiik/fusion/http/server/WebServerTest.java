@@ -108,7 +108,7 @@ class WebServerTest {
                             .uri(URI.create("http://localhost:" + port + "/test"))
                             .build(),
                     HttpResponse.BodyHandlers.ofString());
-            assertEquals(200, get.statusCode());
+            assertEquals(200, get.statusCode(), get::body);
             assertEquals("monitoring: true", get.body());
         }
     }
