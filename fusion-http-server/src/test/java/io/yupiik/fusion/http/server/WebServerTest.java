@@ -31,12 +31,15 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Flow;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 import static java.lang.Thread.sleep;
@@ -47,6 +50,69 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class WebServerTest {
+    @Test
+    void passthrough() throws IOException, InterruptedException {
+        final int numberOfA = (int) (8192 * 2.5); // if too big test will be too long but we want more than one chunk/onNext(ByteBuffer)
+        final var configuration = WebServer.Configuration.of().port(0);
+        final var tomcat = configuration.unwrap(TomcatWebServerConfiguration.class);
+        tomcat.setEndpoints(List.of(new Endpoint() {
+            @Override
+            public boolean matches(final Request request) {
+                return "POST".equalsIgnoreCase(request.method()) && "/test".equalsIgnoreCase(request.path());
+            }
+
+            @Override
+            public CompletionStage<Response> handle(final Request request) {
+                return completedStage(Response.of()
+                        .status(212)
+                        .body(request.fullBody())
+                        .build());
+            }
+        }));
+        final var http = HttpClient.newHttpClient();
+        try (final var server = WebServer.of(configuration)) {
+            final var res = http.send(HttpRequest.newBuilder()
+                            .POST(HttpRequest.BodyPublishers.fromPublisher(new HttpRequest.BodyPublisher() {
+                                @Override
+                                public long contentLength() {
+                                    return -1;
+                                }
+
+                                @Override
+                                public void subscribe(final Flow.Subscriber<? super ByteBuffer> subscriber) {
+                                    subscriber.onSubscribe(new Flow.Subscription() {
+                                        private int remaninig = numberOfA;
+
+                                        @Override
+                                        public void request(final long n) {
+                                            try {
+                                                subscriber.onNext(ByteBuffer.wrap(new byte[]{'a'}));
+                                                if ((remaninig -= (int) n) <= 1) {
+                                                    subscriber.onComplete();
+                                                }
+                                            } catch (final RuntimeException re) {
+                                                subscriber.onError(re);
+                                            }
+                                        }
+
+                                        @Override
+                                        public void cancel() {
+                                            // no-op
+                                        }
+                                    });
+                                }
+                            }))
+                            .uri(URI.create("http://" + configuration.host() + ":" + configuration.port() + "/test"))
+                            .build(),
+                    ofString());
+            assertEquals(212, res.statusCode(), res::body);
+
+            final var repeat = "a".repeat(numberOfA);
+            assertEquals(repeat.length(), res.body().length()); // easier error message but useless functionally
+            assertEquals(repeat, res.body());
+        }
+    }
+
     @Test
     void longStreamingResponse() throws IOException, InterruptedException {
         final int numberOfA = (int) (8192 * 2.5); // if too big test will be too long but we want more than one chunk/onNext(ByteBuffer)

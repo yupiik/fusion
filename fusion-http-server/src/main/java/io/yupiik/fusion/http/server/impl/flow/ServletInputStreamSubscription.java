@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.Flow;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
@@ -33,12 +34,12 @@ public class ServletInputStreamSubscription implements Flow.Subscription, ReadLi
 
     private final ServletInputStream inputStream;
     private final Flow.Subscriber<? super ByteBuffer> downstream;
-    private final Lock lock = new ReentrantLock();
     private final ByteBufferPool pool;
 
     private volatile boolean cancelled = false;
-    private long requested = 0;
-    private final AtomicBoolean ready = new AtomicBoolean();
+    private volatile boolean ready = false;
+    private final AtomicLong requested = new AtomicLong();
+    private final AtomicBoolean reading = new AtomicBoolean();
 
     public ServletInputStreamSubscription(
             final ByteBufferPool pool,
@@ -51,7 +52,7 @@ public class ServletInputStreamSubscription implements Flow.Subscription, ReadLi
     }
 
     private void readIfPossible() {
-        if (cancelled || requested == 0) {
+        if (cancelled) {
             return;
         }
 
@@ -60,9 +61,15 @@ public class ServletInputStreamSubscription implements Flow.Subscription, ReadLi
                 return;
             }
 
-            long loop = requested;
-            while (loop > 0) {
+            if (!reading.compareAndSet(false, true)) {
+                return;
+            }
+            while (true) {
                 if (!inputStream.isReady()) {
+                    break;
+                }
+
+                if (requested.getAndUpdate(i -> i > 0 ? i - 1 : 0) == 0) {
                     break;
                 }
 
@@ -81,39 +88,30 @@ public class ServletInputStreamSubscription implements Flow.Subscription, ReadLi
                         pool.release(buffer); // note that we assume release calls flip()
                     }
                 }
-                loop--;
             }
         } catch (final IOException | RuntimeException re) {
             onError(re);
+        } finally {
+            reading.set(false);
         }
     }
 
     @Override
     public void onDataAvailable() {
-        ready.set(true);
-        lock.lock();
-        try {
-            readIfPossible();
-        } finally {
-            lock.unlock();
-        }
+        ready = true;
+        readIfPossible();
     }
 
     @Override
     public void onAllDataRead() {
-        ready.set(true);
+        ready = true;
         if (cancelled) {
             return;
         }
-        lock.lock();
-        try {
-            readIfPossible();
-            if (!cancelled) {
-                downstream.onComplete();
-                doClose();
-            }
-        } finally {
-            lock.unlock();
+        readIfPossible();
+        if (!cancelled) {
+            downstream.onComplete();
+            doClose();
         }
     }
 
@@ -125,18 +123,22 @@ public class ServletInputStreamSubscription implements Flow.Subscription, ReadLi
         if (cancelled) {
             return;
         }
-        lock.lock();
-        try {
-            if (n == Long.MAX_VALUE) { // no backpressure caller
-                requested = Long.MAX_VALUE;
-            } else {
-                requested += n;
-            }
-            if (ready.get()) {
-                readIfPossible();
-            }
-        } finally {
-            lock.unlock();
+        if (n == Long.MAX_VALUE) { // no backpressure caller
+            requested.set(Long.MAX_VALUE);
+        } else {
+            requested.updateAndGet(i -> {
+                if (i == Long.MAX_VALUE) {
+                    return i;
+                }
+                try {
+                    return Math.addExact(i, n);
+                } catch (final ArithmeticException e) {
+                    return Long.MAX_VALUE;
+                }
+            });
+        }
+        if (ready) {
+            readIfPossible();
         }
     }
 
@@ -147,14 +149,15 @@ public class ServletInputStreamSubscription implements Flow.Subscription, ReadLi
             return;
         }
 
-        lock.lock();
-        try {
-            doClose();
-            downstream.onError(throwable);
-            cancelled = true;
-        } finally {
-            lock.unlock();
-        }
+        cancelled = true;
+        doClose();
+        downstream.onError(throwable);
+    }
+
+    @Override
+    public void cancel() {
+        cancelled = true;
+        doClose();
     }
 
     private void doClose() {
@@ -163,11 +166,5 @@ public class ServletInputStreamSubscription implements Flow.Subscription, ReadLi
         } catch (final IOException e) {
             LOGGER.log(Level.SEVERE, e, e::getMessage);
         }
-    }
-
-    @Override
-    public void cancel() {
-        cancelled = true;
-        doClose();
     }
 }
