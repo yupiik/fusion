@@ -15,14 +15,15 @@
  */
 package io.yupiik.fusion.http.server.impl.flow;
 
+import io.yupiik.fusion.http.server.impl.servlet.ByteBufferPool;
 import jakarta.servlet.ReadListener;
 import jakarta.servlet.ServletInputStream;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.channels.Channels;
-import java.nio.channels.ReadableByteChannel;
 import java.util.concurrent.Flow;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
@@ -31,25 +32,27 @@ import java.util.logging.Logger;
 public class ServletInputStreamSubscription implements Flow.Subscription, ReadListener {
     private static final Logger LOGGER = Logger.getLogger(ServletInputStreamSubscription.class.getName());
 
-    private static final int DEFAULT_BUFFER_SIZE = 8 * 1024; // org.apache.catalina.connector.InputBuffer.DEFAULT_BUFFER_SIZE
-
     private final ServletInputStream inputStream;
-    private final ReadableByteChannel channel;
     private final Flow.Subscriber<? super ByteBuffer> downstream;
-    private final Lock lock = new ReentrantLock();
+    private final ByteBufferPool pool;
 
     private volatile boolean cancelled = false;
-    private volatile long requested = 0;
+    private volatile boolean ready = false;
+    private final AtomicLong requested = new AtomicLong();
+    private final AtomicBoolean reading = new AtomicBoolean();
 
-    public ServletInputStreamSubscription(final ServletInputStream inputStream, final Flow.Subscriber<? super ByteBuffer> downstream) {
+    public ServletInputStreamSubscription(
+            final ByteBufferPool pool,
+            final ServletInputStream inputStream,
+            final Flow.Subscriber<? super ByteBuffer> downstream) {
+        this.pool = pool;
         this.inputStream = inputStream;
-        this.channel = Channels.newChannel(inputStream);
         this.downstream = downstream;
         inputStream.setReadListener(this);
     }
 
     private void readIfPossible() {
-        if (cancelled || requested == 0) {
+        if (cancelled) {
             return;
         }
 
@@ -58,51 +61,57 @@ public class ServletInputStreamSubscription implements Flow.Subscription, ReadLi
                 return;
             }
 
-            long loop = requested;
-            while (loop > 0) {
+            if (!reading.compareAndSet(false, true)) {
+                return;
+            }
+            while (true) {
                 if (!inputStream.isReady()) {
                     break;
                 }
 
-                final var buffer = ByteBuffer.allocate(DEFAULT_BUFFER_SIZE); // todo: reuse buffers to limit allocations
-                final var read = channel.read(buffer);
+                if (requested.getAndUpdate(i -> i > 0 ? i - 1 : 0) == 0) {
+                    break;
+                }
+
+                final var buffer = pool.get();
+                final var read = inputStream.read(buffer);
                 if (read <= 0) {
                     break;
                 }
 
-                buffer.position(0).limit(read);
-                downstream.onNext(buffer);
-                loop--;
+                if (!pool.needsRelease()) {
+                    downstream.onNext(buffer);
+                } else {
+                    try { // copy cause we return early the buffer, fixme: enhance it by using reference counting instead of this simple pattern?
+                        downstream.onNext(ByteBuffer.allocate(buffer.remaining()).put(buffer).flip());
+                    } finally {
+                        pool.release(buffer); // note that we assume release calls flip()
+                    }
+                }
             }
         } catch (final IOException | RuntimeException re) {
             onError(re);
+        } finally {
+            reading.set(false);
         }
     }
 
     @Override
     public void onDataAvailable() {
-        lock.lock();
-        try {
-            readIfPossible();
-        } finally {
-            lock.unlock();
-        }
+        ready = true;
+        readIfPossible();
     }
 
     @Override
     public void onAllDataRead() {
+        ready = true;
         if (cancelled) {
             return;
         }
-        lock.lock();
-        try {
-            readIfPossible();
-            if (!cancelled) {
-                downstream.onComplete();
-                doClose();
-            }
-        } finally {
-            lock.unlock();
+        readIfPossible();
+        if (!cancelled) {
+            downstream.onComplete();
+            doClose();
         }
     }
 
@@ -114,12 +123,22 @@ public class ServletInputStreamSubscription implements Flow.Subscription, ReadLi
         if (cancelled) {
             return;
         }
-        lock.lock();
-        try {
-            requested += n;
+        if (n == Long.MAX_VALUE) { // no backpressure caller
+            requested.set(Long.MAX_VALUE);
+        } else {
+            requested.updateAndGet(i -> {
+                if (i == Long.MAX_VALUE) {
+                    return i;
+                }
+                try {
+                    return Math.addExact(i, n);
+                } catch (final ArithmeticException e) {
+                    return Long.MAX_VALUE;
+                }
+            });
+        }
+        if (ready) {
             readIfPossible();
-        } finally {
-            lock.unlock();
         }
     }
 
@@ -130,28 +149,22 @@ public class ServletInputStreamSubscription implements Flow.Subscription, ReadLi
             return;
         }
 
-        lock.lock();
-        try {
-            doClose();
-            downstream.onError(throwable);
-            cancelled = true;
-        } finally {
-            lock.unlock();
-        }
-    }
-
-    private void doClose() {
-        if (channel.isOpen()) {
-            try {
-                channel.close();
-            } catch (final IOException e) {
-                LOGGER.log(Level.SEVERE, e, e::getMessage);
-            }
-        }
+        cancelled = true;
+        doClose();
+        downstream.onError(throwable);
     }
 
     @Override
     public void cancel() {
         cancelled = true;
+        doClose();
+    }
+
+    private void doClose() {
+        try {
+            inputStream.close();
+        } catch (final IOException e) {
+            LOGGER.log(Level.SEVERE, e, e::getMessage);
+        }
     }
 }
