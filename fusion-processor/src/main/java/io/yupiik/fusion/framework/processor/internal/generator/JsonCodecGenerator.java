@@ -452,28 +452,14 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
                         .collect(joining(", ")))
                 .append(":\n");
         out.append("          key = null;\n          break;\n");
-        if (models.isEmpty() && genericObjects.isEmpty() && maps.isEmpty() && mapLists.isEmpty()) {
+        if (models.isEmpty() && genericObjects.isEmpty() && maps.isEmpty() && mapLists.isEmpty() && fallbacks.isEmpty()) {
             out.append("        case START_OBJECT:\n");
-            if (fallbacks.isEmpty()) {
-                out.append("          parser.skipObject();\n");
-            } else {
-                out.append(createIfNullFallbackMap.indent(10));
-                out.append("          parser.rewind(event);\n");
-                out.append("          param__").append(fallbacks.get(0).javaName())
-                        .append(".put(key, context.codec(").append(Object.class.getName()).append(".class).read(context));\n");
-            }
+            out.append("          parser.skipObject();\n");
             out.append("          key = null;\n          break;\n");
         }
-        if (collections.isEmpty() && genericObjects.isEmpty()) {
+        if (collections.isEmpty() && genericObjects.isEmpty() && fallbacks.isEmpty()) {
             out.append("        case START_ARRAY:\n");
-            if (fallbacks.isEmpty()) {
-                out.append("          parser.skipArray();\n");
-            } else {
-                out.append(createIfNullFallbackMap.indent(10));
-                out.append("          parser.rewind(event);\n");
-                out.append("          param__").append(fallbacks.get(0).javaName())
-                        .append(".put(key, context.codec(").append(Object.class.getName()).append(".class).read(context));\n");
-            }
+            out.append("          parser.skipArray();\n");
             out.append("          key = null;\n          break;\n");
         }
         out.append("        // case END_ARRAY: fallthrough\n");
