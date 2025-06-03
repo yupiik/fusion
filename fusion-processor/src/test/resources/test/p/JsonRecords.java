@@ -68,6 +68,11 @@ public interface JsonRecords {
     }
 
     @JsonModel
+    public record OthersOnly(
+            @JsonOthers Map<String, Object> others
+    ){}
+
+    @JsonModel
     public record StrongTyping(
             boolean aBool,
             @JsonProperty("bigNumber") BigDecimal bigDecimal,

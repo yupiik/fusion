@@ -932,6 +932,22 @@ class FusionProcessorTest {
                                                       },
                                                       "$id": "test.p.JsonRecords.AllInOne"
                                                     },
+                                                    "test.p.JsonRecords.OthersOnly": {
+                                                      "title": "OthersOnly",
+                                                      "type": "object",
+                                                      "properties": {
+                                                        "others": {
+                                                          "nullable": true,
+                                                          "additionalProperties": {
+                                                            "nullable": true,
+                                                            "additionalProperties": true,
+                                                            "type": "object"
+                                                          },
+                                                          "type": "object"
+                                                        }
+                                                      },
+                                                      "$id": "test.p.JsonRecords.OthersOnly"
+                                                    },
                                                     "test.p.JsonRecords.StringHolder": {
                                                       "title": "StringHolder",
                                                       "type": "object",
