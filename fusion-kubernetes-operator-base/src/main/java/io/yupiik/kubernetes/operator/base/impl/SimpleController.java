@@ -33,7 +33,7 @@ public abstract class SimpleController<T extends ObjectLike> {
     private final ScheduledExecutorService threads;
     private final JsonMapper jsonMapper;
     private final int threadCount;
-    private final Operator<T> operator;
+    protected final Operator<T> operator;
 
     protected final OperatorState<T> state = new OperatorState<>();
     protected final BlockingQueue<String> queue = new LinkedBlockingQueue<>();

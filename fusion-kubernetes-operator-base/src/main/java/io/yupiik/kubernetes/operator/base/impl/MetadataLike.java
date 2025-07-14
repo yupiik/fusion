@@ -17,4 +17,8 @@ package io.yupiik.kubernetes.operator.base.impl;
 
 public interface MetadataLike {
     String uid();
+
+    default String resourceVersion() {
+        return null;
+    }
 }

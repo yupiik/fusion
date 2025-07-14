@@ -240,6 +240,27 @@ It is at least the permissions to `get`, `list`, `watch` the custom resources we
 
 TIP: you can use `ClusterRole` but it is good to ensure it is namespaces to avoid the operator to break something in other namespaces - at least while testing or until your operator is cluster wide (like an observability one for ex).
 
+--
+TIP: you can also use `@CustomResourceDefinition` to generate a default descriptor in your jar:
+
+[source,java]
+----
+@CustomResourceDefinition(
+        group = "test.yupiik.io",
+        name = "MyCrd",
+        description = "",
+        shortNames = "mcrd",
+        spec = MyOperator.MySpec.class,
+        status = MyOperator.MyStatus.class,
+        selectableFields = ".spec.type",
+        additionalPrinterColumns = @CustomResourceDefinition.PrinterColumn(name = "Type", jsonPath = ".spec.type", type = "string"))
+public class ....
+----
+--
+
+NOTE: we decided to not generate the role/cluster role since except the default `list` and `watch` (optionally `status`) permissions on your CRD,
+it 100% depends on what you're doing so would be 1-1 with defining the role.
+
 ==== Creating the service account
 
 NOTE: this part is mainly to give you an entry point but it will need customization depending your case.
@@ -471,6 +492,15 @@ Here is what it can look like in your manifest.json assuming you have previous r
   ]
 }
 ----
+
+== Operator and persistence
+
+If you configure `storage` property of the operator, the operator (or CRD watchers) will persist the latest seen `resourceVersion`.
+It enables to limit the effects of replay of events which can happen.
+
+Note that when bookmarks are enabled, only bookmarks are persisted else any new event can lead to an update to the persistence.
+
+The persistence is on the local storage so implies a single replica of the operator as of today.
 
 == TIP
 
