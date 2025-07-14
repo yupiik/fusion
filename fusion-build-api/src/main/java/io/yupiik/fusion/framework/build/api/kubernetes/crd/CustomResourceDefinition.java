@@ -88,5 +88,6 @@ public @interface CustomResourceDefinition {
         String name();
         String type();
         String jsonPath();
+        int priority() default 0;
     }
 }

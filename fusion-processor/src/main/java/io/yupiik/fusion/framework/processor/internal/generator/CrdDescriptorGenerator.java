@@ -87,10 +87,15 @@ public class CrdDescriptorGenerator implements Supplier<String> {
                                 .collect(toMap(
                                         i -> i.getKey().getSimpleName().toString(),
                                         i -> i.getValue().getValue()));
-                        return new TreeMap<String, Object>(Map.of(
+                        final var map = new TreeMap<>(Map.of(
                                 "name", values.get("name").toString(),
                                 "type", values.get("type").toString(),
                                 "jsonPath", values.get("jsonPath").toString()));
+                        final var priority = values.get("priority");
+                        if (priority instanceof Number n && n.intValue() > 0) {
+                            map.put("priority", Integer.toString(n.intValue()));
+                        }
+                        return map;
                     })
                     .toList());
         }
