@@ -17,6 +17,7 @@ package io.yupiik.fusion.framework.processor.internal.generator;
 
 import io.yupiik.fusion.framework.processor.internal.GeneratedJsonSchema;
 import io.yupiik.fusion.framework.processor.internal.json.JsonMapperFacade;
+import io.yupiik.fusion.json.internal.formatter.SimplePrettyFormatter;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.AnnotationValue;
@@ -129,7 +130,12 @@ public class CrdDescriptorGenerator implements Supplier<String> {
                         "names", names,
                         // todo: enhance to make @CustomResourceDefinition repeatable
                         "versions", List.of(version)))));
-        return json.write(schema);
+        final var inline = json.write(schema);
+        try {
+            return new SimplePrettyFormatter(json.getMapper()).apply(inline);
+        } catch (final Error | Exception e) {
+            return inline;
+        }
     }
 
     // todo: make this more effective even if not important for this part

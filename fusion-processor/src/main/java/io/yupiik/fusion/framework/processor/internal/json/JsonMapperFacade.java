@@ -41,4 +41,8 @@ public final class JsonMapperFacade {
             mapper = new JsonMapperImpl(List.of(), c -> Optional.empty());
         }
     }
+
+    public JsonMapper getMapper() {
+        return mapper;
+    }
 }
