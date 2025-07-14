@@ -31,6 +31,7 @@ import io.yupiik.fusion.framework.build.api.json.JsonModel;
 import io.yupiik.fusion.framework.build.api.json.JsonOthers;
 import io.yupiik.fusion.framework.build.api.json.JsonProperty;
 import io.yupiik.fusion.framework.build.api.jsonrpc.JsonRpc;
+import io.yupiik.fusion.framework.build.api.kubernetes.crd.CustomResourceDefinition;
 import io.yupiik.fusion.framework.build.api.lifecycle.Destroy;
 import io.yupiik.fusion.framework.build.api.lifecycle.Init;
 import io.yupiik.fusion.framework.build.api.order.Order;
@@ -46,6 +47,7 @@ import io.yupiik.fusion.framework.processor.internal.generator.BeanConfiguration
 import io.yupiik.fusion.framework.processor.internal.generator.BeanGenerator;
 import io.yupiik.fusion.framework.processor.internal.generator.CliCommandGenerator;
 import io.yupiik.fusion.framework.processor.internal.generator.ConfigurationFactoryGenerator;
+import io.yupiik.fusion.framework.processor.internal.generator.CrdDescriptorGenerator;
 import io.yupiik.fusion.framework.processor.internal.generator.HttpEndpointGenerator;
 import io.yupiik.fusion.framework.processor.internal.generator.JsonCodecBeanGenerator;
 import io.yupiik.fusion.framework.processor.internal.generator.JsonCodecEnumBeanGenerator;
@@ -70,6 +72,7 @@ import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
 import javax.annotation.processing.SupportedOptions;
 import javax.lang.model.SourceVersion;
+import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.PackageElement;
@@ -182,7 +185,9 @@ import static javax.tools.StandardLocation.CLASS_OUTPUT;
         "io.yupiik.fusion.framework.build.api.event.OnEvent",
         // these ones are build API but they are used as Class<?> marker at runtime so in main api module
         "io.yupiik.fusion.framework.api.scope.ApplicationScoped",
-        "io.yupiik.fusion.framework.api.scope.DefaultScoped"
+        "io.yupiik.fusion.framework.api.scope.DefaultScoped",
+        // CRD
+        "io.yupiik.fusion.framework.build.api.kubernetes.crd.CustomResourceDefinition"
 })
 public class InternalFusionProcessor extends AbstractProcessor {
     private TypeMirror init;
@@ -203,6 +208,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
     private String docsMetadataLocation;
     private String jsonSchemaLocation;
     private String openrpcLocation;
+    private String crdLocation;
     private boolean generateNativeImage;
     private boolean debugTime;
     private Clock clock;
@@ -233,6 +239,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
     private String module;
     private Path outputRoot;
     private Path workdir;
+    private TypeMirror objectType;
 
     @Override
     public SourceVersion getSupportedSourceVersion() {
@@ -270,6 +277,9 @@ public class InternalFusionProcessor extends AbstractProcessor {
         onLoad = asTypeElement(OnLoad.class).asType();
         onUpdate = asTypeElement(OnUpdate.class).asType();
         onDelete = asTypeElement(OnDelete.class).asType();
+        objectType = processingEnv.getElementUtils()
+                .getTypeElement(Object.class.getCanonicalName())
+                .asType();
 
         emitNotes = !Boolean.parseBoolean(processingEnv.getOptions().getOrDefault("fusion.skipNotes", "true"));
         generateNativeImage = Boolean.parseBoolean(processingEnv.getOptions().getOrDefault("fusion.generateNativeImage", "true"));
@@ -290,6 +300,10 @@ public class InternalFusionProcessor extends AbstractProcessor {
         openrpcLocation = ofNullable(processingEnv.getOptions().getOrDefault("fusion.generatePartialOpenRPC", "true"))
                 .filter(it -> !"false".equals(it))
                 .map(it -> "true".equals(it) ? "META-INF/fusion/jsonrpc/openrpc.json" : it)
+                .orElse(null);
+        crdLocation = ofNullable(processingEnv.getOptions().getOrDefault("fusion.generateCRD", "true"))
+                .filter(it -> !"false".equals(it))
+                .map(it -> "true".equals(it) ? "META-INF/fusion/kubernetes/crd/" : it)
                 .orElse(null);
 
         knownJsonModels = Boolean.parseBoolean(processingEnv.getOptions().getOrDefault("fusion.skipLoadingModules", "false")) ?
@@ -396,6 +410,9 @@ public class InternalFusionProcessor extends AbstractProcessor {
     private void doProcess(final RoundEnvironment roundEnv) {
         final var start = debugStart();
 
+        // find CRD - here we do not care of the underlying type (enhancement: extract the spec type from the generic?)
+        final var crds = roundEnv.getElementsAnnotatedWith(CustomResourceDefinition.class);
+
         // find CLI commands
         final var cliCommands = roundEnv.getElementsAnnotatedWith(Command.class).stream()
                 .filter(it -> (it.getKind() == CLASS || it.getKind() == RECORD) && it instanceof TypeElement)
@@ -490,6 +507,16 @@ public class InternalFusionProcessor extends AbstractProcessor {
         final var startBean = debugStart();
         beans.forEach(this::generateBean);
         debugEnd("  generateBean (#" + beans.size() + ")", processingEnv, startBean);
+
+        final var startCrd = debugStart();
+        final var crdAnnotationType = processingEnv
+                .getElementUtils()
+                .getTypeElement(CustomResourceDefinition.class.getCanonicalName());
+        crds.stream()
+                .flatMap(it -> it.getAnnotationMirrors().stream()
+                        .filter(m -> m.getAnnotationType().asElement().equals(crdAnnotationType)))
+                .forEach(this::generateCrdDescriptor);
+        debugEnd("  generateCrds (#" + crds.size() + ")", processingEnv, startCrd);
 
         final var startProducer = debugStart();
         explicitBeans.stream()
@@ -1097,6 +1124,33 @@ public class InternalFusionProcessor extends AbstractProcessor {
             final var bean = new BeanGenerator(processingEnv, elements, injections, names.packageName(), names.className(), src.enclosing(), data, init, destroy).get();
             writeGeneratedClass(src.enclosing(), bean);
             allBeans.add(bean.name());
+        } catch (final IOException | RuntimeException e) {
+            processingEnv.getMessager().printMessage(ERROR, e.getMessage());
+        }
+    }
+
+    private void generateCrdDescriptor(final AnnotationMirror src) {
+        final var indexed = processingEnv.getElementUtils().getElementValuesWithDefaults(src).entrySet().stream()
+                .collect(toMap(
+                        it -> it.getKey().getSimpleName().toString(),
+                        it -> it.getValue().getValue()));
+        final var output = crdLocation +
+                indexed.get("group") + '/' +
+                indexed.get("version") + '/' +
+                indexed.get("name") + ".json";
+        try {
+            final var json = new CrdDescriptorGenerator(
+                    processingEnv.getElementUtils(),
+                    processingEnv.getTypeUtils(),
+                    indexed, allJsonSchemas, objectType).get();
+            final var filer = processingEnv.getFiler();
+            try (final var out = filer.createResource(CLASS_OUTPUT, "", output).openWriter()) {
+                out.write(json);
+            }
+
+            if (emitNotes) {
+                processingEnv.getMessager().printMessage(NOTE, "Generated '" + output + "'.");
+            }
         } catch (final IOException | RuntimeException e) {
             processingEnv.getMessager().printMessage(ERROR, e.getMessage());
         }

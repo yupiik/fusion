@@ -24,7 +24,7 @@ import java.util.Map;
 @JsonModel
 public record SampleResource(Metadata metadata, Spec spec) implements ObjectLike {
     @JsonModel
-    public record Metadata(String uid,
+    public record Metadata(String uid, String resourceVersion,
                            String name, String namespace,
                            Map<String, String> labels, Map<String, Object> annotations) implements MetadataLike {
     }

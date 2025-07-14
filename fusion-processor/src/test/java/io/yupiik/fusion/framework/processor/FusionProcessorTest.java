@@ -1157,6 +1157,106 @@ class FusionProcessorTest {
     }
 
     @Test
+    void crd(@TempDir final Path work) throws IOException {
+        new Compiler(work, "crd.MyOperator")
+                .compileAndAsserts(
+                        (loader, mapper) -> { // ensure JSON-Schemas are generated
+                            try (final var in = requireNonNull(Thread.currentThread().getContextClassLoader()
+                                    .getResourceAsStream("META-INF/fusion/kubernetes/crd/test.yupiik.io/v1/MyCrd.json"))) {
+                                assertEquals("""
+                                                {
+                                                  "apiVersion": "apiextensions.k8s.io/v1",
+                                                  "kind": "CustomResourceDefinition",
+                                                  "metadata": {
+                                                    "name": "mycrds.test.yupiik.io"
+                                                  },
+                                                  "spec": {
+                                                    "group": "test.yupiik.io",
+                                                    "names": {
+                                                      "kind": "MyCrd",
+                                                      "plural": "mycrds",
+                                                      "shortNames": [
+                                                        "mcrd"
+                                                      ],
+                                                      "singular": "mycrd"
+                                                    },
+                                                    "scope": "Namespaced",
+                                                    "versions": [
+                                                      {
+                                                        "additionalPrinterColumns": [
+                                                          {
+                                                            "jsonPath": ".spec.type",
+                                                            "name": "Type",
+                                                            "type": "string"
+                                                          }
+                                                        ],
+                                                        "name": "v1",
+                                                        "schema": {
+                                                          "openAPIV3Schema": {
+                                                            "spec": {
+                                                              "title": "MySpec",
+                                                              "type": "object",
+                                                              "properties": {
+                                                                "count": {
+                                                                  "nullable": false,
+                                                                  "format": "int32",
+                                                                  "type": "integer"
+                                                                },
+                                                                "nested": {
+                                                                  "nullable": true,
+                                                                  "title": "MyNestedSpec",
+                                                                  "type": "object",
+                                                                  "properties": {
+                                                                    "type": {
+                                                                      "nullable": true,
+                                                                      "type": "string"
+                                                                    },
+                                                                    "values": {
+                                                                      "type": "array",
+                                                                      "items": {
+                                                                        "nullable": true,
+                                                                        "type": "string"
+                                                                      }
+                                                                    }
+                                                                  }
+                                                                }
+                                                              }
+                                                            },
+                                                            "status": {
+                                                              "title": "MyStatus",
+                                                              "type": "object",
+                                                              "properties": {
+                                                                "state": {
+                                                                  "nullable": true,
+                                                                  "type": "string"
+                                                                }
+                                                              }
+                                                            }
+                                                          },
+                                                          "subresources": {
+                                                            "status": {}
+                                                          }
+                                                        },
+                                                        "selectableFields": [
+                                                          {
+                                                            "jsonPath": ".spec.type"
+                                                          }
+                                                        ],
+                                                        "served": true,
+                                                        "storage": true
+                                                      }
+                                                    ]
+                                                  }
+                                                }""",
+                                        new SimplePrettyFormatter(new JsonMapperImpl(List.of(new ObjectJsonCodec()), c -> empty()))
+                                                .apply(new String(in.readAllBytes(), UTF_8)));
+                            } catch (final IOException e) {
+                                fail(e);
+                            }
+                        });
+    }
+
+    @Test
     void jsonObjectMapping(@TempDir final Path work) throws IOException {
         new Compiler(work, "json.GenericlyTyped").compileAndAsserts((loader, container) -> {
             final var recordType = loader.apply("test.p.json.GenericlyTyped");

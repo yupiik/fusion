@@ -17,10 +17,10 @@ package io.yupiik.kubernetes.operator.base.impl;
 
 import com.sun.net.httpserver.HttpServer;
 import io.yupiik.fusion.framework.api.lifecycle.Start;
+import io.yupiik.fusion.framework.api.lifecycle.Stop;
 import io.yupiik.fusion.framework.api.main.Awaiter;
 import io.yupiik.fusion.framework.api.scope.ApplicationScoped;
 import io.yupiik.fusion.framework.build.api.event.OnEvent;
-import io.yupiik.fusion.framework.build.api.lifecycle.Destroy;
 import io.yupiik.fusion.json.JsonMapper;
 import io.yupiik.fusion.kubernetes.client.KubernetesClient;
 import io.yupiik.kubernetes.operator.base.spi.Operator;
@@ -103,8 +103,8 @@ public class OperatorsLifecycle implements Awaiter {
         }
     }
 
-    @Destroy
-    public void onStop() { // cleanup
+    // @Destroy // stop earlier to stop watching before the http client is closed and avoid exception at shutdown
+    public void onStop(@OnEvent final Stop stop) {
         final var errors = new IllegalStateException("Some error occurred");
         operators.forEach(o -> {
             try {

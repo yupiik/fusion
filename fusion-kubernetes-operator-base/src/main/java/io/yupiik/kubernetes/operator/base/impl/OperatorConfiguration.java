@@ -39,7 +39,11 @@ public record OperatorConfiguration(
 
         @Property(defaultValue = "true",
                 documentation = "Should operator await process termination, keep it `true` until you embed it.")
-        boolean await
+        boolean await,
+
+        @Property(defaultValue = "null",
+                documentation = "Operator can store locally (on the filesystem) the latest resource version it saw. This must be a directory, ignored if `null`.")
+        String storage
 ) {
 
     public record Kubernetes(
@@ -47,7 +51,7 @@ public record OperatorConfiguration(
                     documentation = "The kubernetes API base URL",
                     defaultValue = "java.util.Optional.ofNullable(System.getenv(\"KUBERNETES_SERVICE_HOST\"))" +
                             ".map(host -> \"https://\" + host + ':' + java.util.Optional.ofNullable(System.getenv(\"KUBERNETES_SERVICE_PORT\")).orElse(\"443\"))" +
-                            ".orElse(null)")
+                            ".orElse(\"https://kubernetes.default.svc\")")
             String master,
 
             @Property(

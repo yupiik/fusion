@@ -23,7 +23,7 @@ import static java.util.concurrent.TimeUnit.MINUTES;
 public record Threads(ScheduledExecutorService executor) implements AutoCloseable {
     @Override
     public void close() throws Exception {
-        executor.shutdownNow();
+        executor.shutdownNow().forEach(Runnable::run);
         if (!executor.awaitTermination(1, MINUTES)) {
             Logger.getLogger(getClass().getName()).warning("Can't stop thread pool in 1mn, giving up");
         }
