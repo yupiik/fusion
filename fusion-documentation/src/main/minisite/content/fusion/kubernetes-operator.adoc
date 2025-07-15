@@ -1,5 +1,5 @@
 = Fusion Kubernetes Operator Base
-:partialsdir: /opt/rmannibucau/dev/fusion/fusion-documentation/src/main/minisite/content/_partials
+:partialsdir: content/_partials
 
 [abstract]
 Fusion Kubernetes operator base module provides a simple backbone to build a custom operator.
