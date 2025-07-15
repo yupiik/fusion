@@ -99,7 +99,7 @@
         }
     </style>
     
-    <link id="theme-style" rel="stylesheet" href="//www.yupiik.io/fusion/css/theme.css?v=1.0.24-SNAPSHOT">
+    <link id="theme-style" rel="stylesheet" href="//www.yupiik.io/fusion/css/theme.css?v=1.0.28-SNAPSHOT">
 </head>
 <body>
     <header class="header fixed-top">
@@ -182,21 +182,6 @@
                             <div class="card-body">
                                 <h4 class="card-title mb-3">
                                     <span class="theme-icon-holder card-icon-holder mr-2 category-default">
-                                        <i class="fas fa-terminal"></i>
-                                    </span>
-                                    <span class="card-title-text">CLI</span>
-                                </h4>
-                                <div class="card-text">
-                                    Write CLI applications.
-                                </div>
-                                <a title="Fusion CLI" class="card-link-mask" href="//www.yupiik.io/fusion/fusion/cli.html"></a>
-                            </div>
-                        </div>
-                    </div>                    <div class="col-12 col-lg-4 py-3">
-                        <div class="card shadow-sm">
-                            <div class="card-body">
-                                <h4 class="card-title mb-3">
-                                    <span class="theme-icon-holder card-icon-holder mr-2 category-default">
                                         <i class="fas fa-wifi"></i>
                                     </span>
                                     <span class="card-title-text">JSON</span>
@@ -205,6 +190,21 @@
                                     Json Mapper.
                                 </div>
                                 <a title="Fusion JSON support" class="card-link-mask" href="//www.yupiik.io/fusion/fusion/json.html"></a>
+                            </div>
+                        </div>
+                    </div>                    <div class="col-12 col-lg-4 py-3">
+                        <div class="card shadow-sm">
+                            <div class="card-body">
+                                <h4 class="card-title mb-3">
+                                    <span class="theme-icon-holder card-icon-holder mr-2 category-default">
+                                        <i class="fas fa-terminal"></i>
+                                    </span>
+                                    <span class="card-title-text">CLI</span>
+                                </h4>
+                                <div class="card-text">
+                                    Write CLI applications.
+                                </div>
+                                <a title="Fusion CLI" class="card-link-mask" href="//www.yupiik.io/fusion/fusion/cli.html"></a>
                             </div>
                         </div>
                     </div>                    <div class="col-12 col-lg-4 py-3">
@@ -278,7 +278,7 @@ function addCopyButtons(clipboard) {
   document.querySelectorAll('pre > code').forEach(function (codeBlock) {
   var button = document.createElement('button');  button.className = 'copy-code-button';  button.type = 'button';  button.innerText = 'Copy';  button.addEventListener('click', function () {   clipboard.writeText(codeBlock.innerText).then(function () {   button.blur();   button.innerText = 'Copied!';   setTimeout(function () { button.innerText = 'Copy'; }, 2000); }, function (error) { button.innerText = 'Error'; });  });  var pre = codeBlock.parentNode;  if (pre.parentNode.classList.contains('highlight')) {   var highlight = pre.parentNode; highlight.parentNode.insertBefore(button, highlight);  } else { pre.parentNode.insertBefore(button, pre); } });}
 if (navigator && navigator.clipboard) { addCopyButtons(navigator.clipboard);} else { var script = document.createElement('script'); script.src = '//cdnjs.cloudflare.com/ajax/libs/clipboard-polyfill/2.7.0/clipboard-polyfill.promise.js'; script.integrity = 'sha256-waClS2re9NUbXRsryKoof+F9qc1gjjIhc2eT7ZbIv94='; script.crossOrigin = 'anonymous'; script.onload = function() {addCopyButtons(clipboard);}; document.body.appendChild(script);} }</script>
-    <script src="//www.yupiik.io/fusion/js/minisite.js?v=1.0.24-SNAPSHOT"></script>
+    <script src="//www.yupiik.io/fusion/js/minisite.js?v=1.0.28-SNAPSHOT"></script>
     <script>$('.page-content-body').generatedNavMenu();</script>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fuse.js/6.4.3/fuse.min.js" integrity="sha512-neoBxVNv0UMXjoilAYGxfWrSsW6iAVclx7vQKdPJ9Peet1bM5YQjU0aIB8LtH8iNPa+pAyMZprBBw2ZQ/Q1LjQ==" crossorigin="anonymous"></script>

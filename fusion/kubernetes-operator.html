@@ -98,7 +98,7 @@
         }
     </style>
     
-    <link id="theme-style" rel="stylesheet" href="//www.yupiik.io/fusion/css/theme.css?v=1.0.24-SNAPSHOT">
+    <link id="theme-style" rel="stylesheet" href="//www.yupiik.io/fusion/css/theme.css?v=1.0.28-SNAPSHOT">
 </head>
 <body>
     <header class="header fixed-top">
@@ -140,12 +140,12 @@
                         <i class="fas fa-building"></i>Setup
                     </a>
                 </li>                <li>
-                    <a title="Fusion CLI" href="//www.yupiik.io/fusion/fusion/cli.html">
-                        <i class="fas fa-terminal"></i>CLI
-                    </a>
-                </li>                <li>
                     <a title="Fusion JSON support" href="//www.yupiik.io/fusion/fusion/json.html">
                         <i class="fas fa-wifi"></i>JSON
+                    </a>
+                </li>                <li>
+                    <a title="Fusion CLI" href="//www.yupiik.io/fusion/fusion/cli.html">
+                        <i class="fas fa-terminal"></i>CLI
                     </a>
                 </li>                <li>
                     <a title="framework and GraalVM (native-image)" href="//www.yupiik.io/fusion/fusion/graalvm.html">
@@ -575,6 +575,54 @@ Here is an example for the API CRD we took as an example:
       </tbody>
   </table>
  </div>
+  <div class="content">
+ <div class="admonitionblock tip">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">TIP</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p>you can also use <code>@CustomResourceDefinition</code> to generate a default descriptor in your jar:</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@CustomResourceDefinition(
+        group = &quot;test.yupiik.io&quot;,
+        name = &quot;MyCrd&quot;,
+        description = &quot;&quot;,
+        shortNames = &quot;mcrd&quot;,
+        spec = MyOperator.MySpec.class,
+        status = MyOperator.MyStatus.class,
+        selectableFields = &quot;.spec.type&quot;,
+        additionalPrinterColumns = @CustomResourceDefinition.PrinterColumn(name = &quot;Type&quot;, jsonPath = &quot;.spec.type&quot;, type = &quot;string&quot;))
+public class ....</code></pre>
+ </div>
+ </div>
+  </div>
+ <div class="admonitionblock note">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">NOTE</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p>we decided to not generate the role/cluster role since except the default <code>list</code> and <code>watch</code> (optionally <code>status</code>) permissions on your CRD, it 100% depends on what you're doing so would be 1-1 with defining the role.</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
  <div class="sect3" id="_creating_the_service_account">
   <h4>Creating the service account</h4>
  <div class="sectionbody">
@@ -902,6 +950,24 @@ An alveolus for both.
  </div>
  </div>
  </div>
+ <div class="sect1" id="_operator_and_persistence">
+  <h2>Operator and persistence</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>If you configure <code>storage</code> property of the operator, the operator (or CRD watchers) will persist the latest seen <code>resourceVersion</code>. It enables to limit the effects of replay of events which can happen.</p>
+ </div>
+ <div class="paragraph">
+ <p>
+Note that when bookmarks are enabled, only bookmarks are persisted else any new event can lead to an update to the persistence.
+ </p>
+ </div>
+ <div class="paragraph">
+ <p>
+The persistence is on the local storage so implies a single replica of the operator as of today.
+ </p>
+ </div>
+ </div>
+ </div>
  <div class="sect1" id="_tip">
   <h2>TIP</h2>
  <div class="sectionbody">
@@ -968,7 +1034,7 @@ function addCopyButtons(clipboard) {
   document.querySelectorAll('pre > code').forEach(function (codeBlock) {
   var button = document.createElement('button');  button.className = 'copy-code-button';  button.type = 'button';  button.innerText = 'Copy';  button.addEventListener('click', function () {   clipboard.writeText(codeBlock.innerText).then(function () {   button.blur();   button.innerText = 'Copied!';   setTimeout(function () { button.innerText = 'Copy'; }, 2000); }, function (error) { button.innerText = 'Error'; });  });  var pre = codeBlock.parentNode;  if (pre.parentNode.classList.contains('highlight')) {   var highlight = pre.parentNode; highlight.parentNode.insertBefore(button, highlight);  } else { pre.parentNode.insertBefore(button, pre); } });}
 if (navigator && navigator.clipboard) { addCopyButtons(navigator.clipboard);} else { var script = document.createElement('script'); script.src = '//cdnjs.cloudflare.com/ajax/libs/clipboard-polyfill/2.7.0/clipboard-polyfill.promise.js'; script.integrity = 'sha256-waClS2re9NUbXRsryKoof+F9qc1gjjIhc2eT7ZbIv94='; script.crossOrigin = 'anonymous'; script.onload = function() {addCopyButtons(clipboard);}; document.body.appendChild(script);} }</script>
-    <script src="//www.yupiik.io/fusion/js/minisite.js?v=1.0.24-SNAPSHOT"></script>
+    <script src="//www.yupiik.io/fusion/js/minisite.js?v=1.0.28-SNAPSHOT"></script>
     <script>$('.page-content-body').generatedNavMenu();</script>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fuse.js/6.4.3/fuse.min.js" integrity="sha512-neoBxVNv0UMXjoilAYGxfWrSsW6iAVclx7vQKdPJ9Peet1bM5YQjU0aIB8LtH8iNPa+pAyMZprBBw2ZQ/Q1LjQ==" crossorigin="anonymous"></script>
