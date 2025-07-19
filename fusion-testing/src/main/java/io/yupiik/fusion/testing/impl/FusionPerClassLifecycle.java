@@ -18,6 +18,8 @@ package io.yupiik.fusion.testing.impl;
 import io.yupiik.fusion.framework.api.ConfiguringContainer;
 import io.yupiik.fusion.framework.api.RuntimeContainer;
 import io.yupiik.fusion.framework.api.container.FusionModule;
+import io.yupiik.fusion.framework.api.container.bean.ProvidedInstanceBean;
+import io.yupiik.fusion.framework.api.scope.DefaultScoped;
 import io.yupiik.fusion.testing.FusionSupport;
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
@@ -25,6 +27,7 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.platform.commons.util.AnnotationUtils;
 
 import java.lang.reflect.InvocationTargetException;
+import java.util.Properties;
 import java.util.stream.Stream;
 
 import static java.util.Optional.ofNullable;
@@ -49,6 +52,7 @@ public class FusionPerClassLifecycle extends FusionParameterResolver implements 
                                     }
                                 })
                                 .toArray(FusionModule[]::new));
+                        container.register(new ProvidedInstanceBean<>(DefaultScoped.class, ExtensionContext.class, () -> context));
                     });
             return container.start();
         });
