@@ -137,8 +137,11 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
                     "    }\n" +
                     "\n" +
                     "    private static " + List.class.getName() + "<" + typeName + "> list(final " +
-                    Configuration.class.getName() + " configuration, final String prefix) {\n" +
-                    "        final int length = configuration.get(prefix + \".length\").map(Integer::parseInt).orElse(0);\n" +
+                    Configuration.class.getName() + " configuration, final String prefix, final " + Supplier.class.getName() + "<" + List.class.getName() + "<" + typeName + ">> defaultProvider) {\n" +
+                    "        final int length = configuration.get(prefix + \".length\").map(Integer::parseInt).orElse(-1);\n" +
+                    "        if (length < 0) {\n" +
+                    "          return defaultProvider == null ? null : defaultProvider.get();\n" +
+                    "        }\n" +
                     "        final var list = new " + ArrayList.class.getName() + "<" + typeName + ">(length);\n" +
                     "        for (int index = 0; index < length; index++) {\n" +
                     "          list.add(new " + name + "(configuration, prefix + \".\" + index).get());\n" +
@@ -147,8 +150,11 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
                     "    }\n" +
                     "\n" +
                     "    private static " + Map.class.getName() + "<String, " + typeName + "> map(final " +
-                    Configuration.class.getName() + " configuration, final String prefix) {\n" +
-                    "        final int length = configuration.get(prefix + \".length\").map(Integer::parseInt).orElse(0);\n" +
+                    Configuration.class.getName() + " configuration, final String prefix, final " + Supplier.class.getName() + "<" + Map.class.getName() + "<String, " + typeName + ">> defaultProvider) {\n" +
+                    "        final int length = configuration.get(prefix + \".length\").map(Integer::parseInt).orElse(-1);\n" +
+                    "        if (length < 0) {\n" +
+                    "          return defaultProvider == null ? null : defaultProvider.get();\n" +
+                    "        }\n" +
                     "        final var map = new " + LinkedHashMap.class.getName() + "<String, " + typeName + ">(length);\n" +
                     "        for (int index = 0; index < length; index++) {\n" +
                     "          map.put(configuration.get(prefix + \".\" + index + \".key\").orElseThrow(), new " + name + "(configuration, prefix + \".\" + index + \".value\").get());\n" +
@@ -260,7 +266,7 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
             }
 
             this.docStack.getLast().items().add(new Docs.DocItem(docName + ".$index", desc, required, itemString, defaultValue));
-            return nestedFactory(itemString) + ".list(configuration, " + name + ")";
+            return nestedFactory(itemString) + ".list(configuration, " + name + ", " + (defaultValue == null ? "null" : ("() -> " + defaultValue)) + ")";
         }
 
         //
@@ -316,7 +322,7 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
             this.docStack.getLast().items().addAll(List.of(
                 new Docs.DocItem(docName + ".$index.key", desc + " (Key).", required, "java.lang.String", "null"),
                 new Docs.DocItem(docName + ".$index.value", desc + " (Value).", required, valueTypeString, "null")));
-            return nestedFactory(valueTypeString) + ".map(configuration, " + name + ")";
+            return nestedFactory(valueTypeString) + ".map(configuration, " + name + ", " + (defaultValue == null ? "null" : ("() -> " + defaultValue)) + ")";
         }
 
         if (typeStr.startsWith("java.")) { // unsupported
@@ -331,6 +337,10 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
         }
 
         this.docStack.getLast().items().add(new Docs.DocItem(docName, desc, required, typeStr, defaultValue));
+        if (defaultValue != null) {
+            nestedFactory(typeStr); // visit doc
+            return defaultValue;
+        }
         return "new " + nestedFactory(typeStr) + "(configuration, " + name + ").get()";
     }
 

@@ -682,6 +682,16 @@ class FusionProcessorTest {
     }
 
     @Test
+    void respectNullDefault(@TempDir final Path work) throws IOException {
+        final var clazz = "configuration.ConfigurationWithNullNested";
+        new Compiler(work, clazz).compileAndAsserts((loader, container) -> {
+            try (final var i = container.lookup(loader.apply("test.p." + clazz))) {
+                assertEquals("ConfigurationWithNullNested[nested=null, int64=null, nesteds=null, values=null]", i.instance().toString());
+            }
+        });
+    }
+
+    @Test
     @Disabled("private injections not yet implemented, requires hacks to annotation processors lifecycle which are not great framework wise (see lombok for an ex)")
     void privateInjection(@TempDir final Path work) throws IOException {
         new Compiler(work, "Bean1Private", "Bean2").compileAndAsserts(instance -> assertEquals("bean1[bean2[]]", instance.instance().toString()));
