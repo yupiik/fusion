@@ -40,6 +40,7 @@ import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toMap;
 
+// prefer ConfigurationDocumentationGenerator since its name is more expressive, kept for backward compat
 public class DocumentationGenerator implements Runnable {
     private final Path sourceBase;
     private final Map<String, String> configuration;
