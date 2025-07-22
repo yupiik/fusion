@@ -40,6 +40,12 @@
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
+      <artifactId>fusion-cli</artifactId>
+      <version>${project.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
       <artifactId>fusion-tracing</artifactId>
       <version>${project.version}</version>
       <scope>provided</scope>

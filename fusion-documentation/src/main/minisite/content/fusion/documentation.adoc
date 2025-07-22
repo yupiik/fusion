@@ -83,7 +83,7 @@ Configuration:
 
 == Format documentation in Asciidoc
 
-`io.yupiik.fusion.documentation.DocumentationGenerator` enables to format the documentation in asciidoc.
+`io.yupiik.fusion.documentation.ConfigurationDocumentationGenerator` enables to format the documentation in asciidoc.
 
 If you use Yupiik tools minisite, configuration will often look like:
 
@@ -91,7 +91,7 @@ If you use Yupiik tools minisite, configuration will often look like:
 ----
 <preActions>
   <preAction>
-    <type>io.yupiik.fusion.documentation.DocumentationGenerator</type>
+    <type>io.yupiik.fusion.documentation.ConfigurationDocumentationGenerator</type>
   </preAction>
 </preActions>
 ----
@@ -108,4 +108,32 @@ Configuration:
 | urls | If not set `META-INF/fusion/configuration/documentation.json` is loaded from the classpath else the url to convert to asciidoc (same format).
 | roots | If you don't want to generate the configuration for all classes, the root classes to include from the JSON file (urls).
 |===
+
+
+== CLI documentation
+
+`io.yupiik.fusion.documentation.CliDocumentationGenerator` enables to generate documentation in asciidoc for CLI modules.
+
+If you use Yupiik tools minisite, configuration will often look like:
+
+[source,xml]
+----
+<preActions>
+  <preAction>
+    <type>io.yupiik.fusion.documentation.CliDocumentationGenerator</type>
+  </preAction>
+</preActions>
+----
+
+Configuration:
+
+[opts="header",cols="^,^"]
+|===
+| Name | Description
+| package | If set enables to filter the commands included by package.
+| outputBase | Base directory where to generate the commands and command index documents.
+|===
+
+NOTE: the generator starts a fusion container disabling `Start` and `Stop` events so take care if it needs some caution (static code for example).
+To know you are in this mode you can use `Configuration` and `io.yupiik.fusion.documentation.CliDocumentationGenerator` key, if set you are in generator mode.
 
