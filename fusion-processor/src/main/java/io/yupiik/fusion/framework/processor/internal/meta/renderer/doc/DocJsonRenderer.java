@@ -50,6 +50,7 @@ public class DocJsonRenderer implements Supplier<String> {
                                         .map(it -> Stream.of(
                                                         it.ref() != null ? "\"ref\":" + JsonStrings.escape(it.ref()) : null,
                                                         "\"name\":" + JsonStrings.escape(it.name()),
+                                                        "\"javaName\":" + JsonStrings.escape(it.javaName()),
                                                         it.doc() != null ? "\"documentation\":" + JsonStrings.escape(it.doc()) : null,
                                                         it.defaultValue() != null ? "\"defaultValue\":" + jsonDefaultValue(it.defaultValue()) : null,
                                                         "\"required\":" + it.required())

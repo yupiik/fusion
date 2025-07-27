@@ -22,6 +22,7 @@ import io.yupiik.fusion.framework.api.container.context.subclass.DelegatingConte
 import io.yupiik.fusion.framework.api.scope.ApplicationScoped;
 import io.yupiik.fusion.framework.api.scope.DefaultScoped;
 import io.yupiik.fusion.framework.build.api.cli.Command;
+import io.yupiik.fusion.framework.build.api.configuration.ConfigurationModel;
 import io.yupiik.fusion.framework.build.api.configuration.Property;
 import io.yupiik.fusion.framework.build.api.configuration.RootConfiguration;
 import io.yupiik.fusion.framework.build.api.container.LazyContext;
@@ -63,6 +64,7 @@ import io.yupiik.fusion.framework.processor.internal.json.JsonStrings;
 import io.yupiik.fusion.framework.processor.internal.meta.Docs;
 import io.yupiik.fusion.framework.processor.internal.meta.JsonSchema;
 import io.yupiik.fusion.framework.processor.internal.meta.PartialOpenRPC;
+import io.yupiik.fusion.framework.processor.internal.meta.ReusableDoc;
 import io.yupiik.fusion.framework.processor.internal.meta.renderer.doc.DocJsonRenderer;
 import io.yupiik.fusion.framework.processor.internal.persistence.SimpleEntity;
 
@@ -177,6 +179,7 @@ import static javax.tools.StandardLocation.CLASS_OUTPUT;
         "io.yupiik.fusion.framework.build.api.persistence.Table",
         // CONFIGURATION
         "io.yupiik.fusion.framework.build.api.configuration.RootConfiguration",
+        "io.yupiik.fusion.framework.build.api.configuration.ConfigurationModel",
         "io.yupiik.fusion.framework.build.api.configuration.Property",
         // framework
         "io.yupiik.fusion.framework.build.api.scanning.Bean",
@@ -197,6 +200,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
     private TypeMirror onUpdate;
     private TypeMirror onDelete;
     private Set<String> knownJsonModels;
+    private Map<String, Map<String, ReusableDoc>> knownDocs = Map.of();
 
     private boolean emitNotes;
     private boolean generateBeansForConfiguration;
@@ -330,6 +334,10 @@ public class InternalFusionProcessor extends AbstractProcessor {
                             }
                         }));
 
+        if (docsMetadataLocation != null) {
+            loadKnownDocs(processingEnv);
+        }
+
         if (jsonSchemaLocation != null) {
             allJsonSchemas = new TreeMap<>(String.CASE_INSENSITIVE_ORDER) {
                 @Override
@@ -390,6 +398,51 @@ public class InternalFusionProcessor extends AbstractProcessor {
             partialOpenRPC = new PartialOpenRPC(new TreeMap<>(String.CASE_INSENSITIVE_ORDER), new TreeMap<>(String.CASE_INSENSITIVE_ORDER));
         }
         debugEnd("init", processingEnv, start);
+    }
+
+    private void loadKnownDocs(ProcessingEnvironment processingEnv) {
+        knownDocs = new HashMap<>();
+
+        // for now we bypass the workaround of json schema since it is less impacting - breaks defaults and doc,
+        // not generation
+        // also IDEA is supposed to have fixed its bug about annotation processor and incremental compilation
+
+        try {
+            final var loader = Thread.currentThread().getContextClassLoader();
+            final var resource = loader.getResources(docsMetadataLocation);
+            final var lightMapper = new JsonMapperFacade();
+            while (resource.hasMoreElements()) {
+                final var url = resource.nextElement();
+                try (final var in = url.openStream()) {
+                    final var classes = lightMapper.read(new String(in.readAllBytes(), UTF_8)).get("classes");
+                    if (classes instanceof Map<?, ?> map) {
+                        map.entrySet().stream()
+                                .filter(it -> it.getValue() instanceof List<?>)
+                                .forEach(e -> {
+                                    @SuppressWarnings("unchecked") final var items = (List<Map<String, Object>>) e.getValue();
+                                    final var container = knownDocs.computeIfAbsent(e.getKey().toString(), k -> new HashMap<>());
+                                    items.stream()
+                                            .filter(it -> it.containsKey("javaName"))
+                                            .forEach(it -> container.putIfAbsent(
+                                                    it.get("javaName").toString(), new ReusableDoc(
+                                                            it.get("required") instanceof Boolean b && b,
+                                                            it.get("name").toString(),
+                                                            it.get("defaultValue") instanceof String s ? s : null,
+                                                            it.get("documentation") instanceof String s ? s : null,
+                                                            it.get("ref") instanceof String s ? s : null
+                                                    )));
+                                });
+                    }
+                } catch (final IOException | RuntimeException e) {
+                    processingEnv.getMessager().printMessage(
+                            NOTE,
+                            "Ignoring json schema loading from '" + url + "' (" + e.getClass().getSimpleName() + "): " + e.getMessage());
+                }
+            }
+        } catch (final IOException | Error e) {
+            processingEnv.getMessager().printMessage(
+                    NOTE, "Ignoring json schema loading (" + e.getClass().getSimpleName() + "): " + e.getMessage());
+        }
     }
 
     @Override
@@ -458,7 +511,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
 
         // find configurations
         final var configurations = roundEnv.getElementsAnnotatedWith(RootConfiguration.class);
-
+        final var reusableConfigurations = roundEnv.getElementsAnnotatedWith(ConfigurationModel.class);
         // find beans created because they have at least an injection
         final var beans = findInjections(roundEnv);
 
@@ -482,6 +535,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
         // generate beans, listeners, ...
         final var startConf = debugStart();
         configurations.forEach(this::generateConfigurationFactory);
+        reusableConfigurations.forEach(this::generateReusableConfigurationDoc);
         debugEnd("  generateConf (#" + configurations.size() + ")", processingEnv, startConf);
 
         final var startJsonModel = debugStart();
@@ -869,6 +923,31 @@ public class InternalFusionProcessor extends AbstractProcessor {
         }
     }
 
+    // todo: make it faster by bypassing class generation?
+    private void generateReusableConfigurationDoc(final Element confElt) {
+        if (docsMetadataLocation == null) {
+            processingEnv.getMessager().printMessage(ERROR, "'" + confElt + "' but metadata generation not enabled for the doc models.");
+            return;
+        }
+        if (!(confElt instanceof TypeElement element) || element.getKind() != RECORD) {
+            processingEnv.getMessager().printMessage(ERROR, "'" + confElt + "' not a record.");
+            return;
+        }
+
+        final var names = ParsedName.of(element);
+        try {
+            // reuse root configuration generator but ignore the generated class
+            final var generation = new ConfigurationFactoryGenerator(
+                    processingEnv, elements, names.packageName(), names.className(), element,
+                    configurationEnumValueOfCache, false, knownDocs).get();
+            if (generation.docs() != null && docsMetadataLocation != null) {
+                allConfigurationsDocs.addAll(generation.docs());
+            }
+        } catch (final RuntimeException e) {
+            processingEnv.getMessager().printMessage(ERROR, e.getMessage());
+        }
+    }
+
     private void generateConfigurationFactory(final Element confElt) {
         if (!(confElt instanceof TypeElement element) || element.getKind() != RECORD) {
             processingEnv.getMessager().printMessage(ERROR, "'" + confElt + "' not a record.");
@@ -879,7 +958,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
         try {
             final var generation = new ConfigurationFactoryGenerator(
                     processingEnv, elements, names.packageName(), names.className(), element,
-                    configurationEnumValueOfCache).get();
+                    configurationEnumValueOfCache, true, knownDocs).get();
             writeGeneratedClass(confElt, generation.generatedClass());
             if (generation.docs() != null && docsMetadataLocation != null) {
                 allConfigurationsDocs.addAll(generation.docs());
