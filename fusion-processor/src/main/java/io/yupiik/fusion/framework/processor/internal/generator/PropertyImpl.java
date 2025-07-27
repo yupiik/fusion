@@ -34,7 +34,17 @@ public class PropertyImpl implements Property {
 
     @Override
     public String value() {
-        return prop.propName();
+        var name = prop.propName();
+        if (name.endsWith(".$value")) {
+            name = name.substring(0, name.length() - ".$value".length());
+        }
+        if (name.endsWith(".$key")) {
+            name = name.substring(0, name.length() - ".$key".length());
+        }
+        if (name.endsWith(".$index")) {
+            name = name.substring(0, name.length() - ".$index".length());
+        }
+        return name;
     }
 
     @Override
@@ -49,6 +59,6 @@ public class PropertyImpl implements Property {
 
     @Override
     public String documentation() {
-        return prop.documentation()==null?"":prop.documentation();
+        return prop.documentation() == null ? "" : prop.documentation();
     }
 }

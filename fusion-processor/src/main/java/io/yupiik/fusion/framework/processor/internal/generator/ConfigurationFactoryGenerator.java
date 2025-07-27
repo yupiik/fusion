@@ -195,10 +195,8 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
                 .map(Property::defaultValue)
                 .filter(it -> !Property.NO_VALUE.equals(it))
                 .orElse(null);
-        final var name = (propPrefix == null ? "prefix + \"" : ("\"" + propPrefix)) +
-                (propPrefix != null && propPrefix.isBlank() ? "" : ".") +
-                selfName + "\"";
-        final var docName = (docPrefix == null ? "" : (docPrefix + '.')) + selfName;
+        final var name = (propPrefix == null ? "prefix + \"" : ("\"" + propPrefix)) + '.' + selfName + "\"";
+        final var docName = (docPrefix == null || docPrefix.isBlank() ? "" : (docPrefix + '.')) + selfName;
         final boolean required = property.map(Property::required).orElse(false);
         final var desc = property.map(Property::documentation).orElse("");
 
