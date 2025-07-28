@@ -482,6 +482,7 @@ class FusionProcessorTest {
                                         "    \"test.p.NestedConf\": [\n" +
                                         "      {\n" +
                                         "        \"name\": \"nestedValue\",\n" +
+                                        "        \"javaName\": \"nestedValue\",\n" +
                                         "        \"documentation\": \"The nested main value.\",\n" +
                                         "        \"defaultValue\": null,\n" +
                                         "        \"required\": false\n" +
@@ -489,6 +490,7 @@ class FusionProcessorTest {
                                         "      {\n" +
                                         "        \"ref\": \"test.p.NestedConf.Nest2\",\n" +
                                         "        \"name\": \"second\",\n" +
+                                        "        \"javaName\": \"second\",\n" +
                                         "        \"documentation\": \"\",\n" +
                                         "        \"required\": false\n" +
                                         "      }\n" +
@@ -496,6 +498,7 @@ class FusionProcessorTest {
                                         "    \"test.p.NestedConf.Nest2\": [\n" +
                                         "      {\n" +
                                         "        \"name\": \"value\",\n" +
+                                        "        \"javaName\": \"value\",\n" +
                                         "        \"documentation\": \"Some int.\",\n" +
                                         "        \"defaultValue\": 0,\n" +
                                         "        \"required\": false\n" +
@@ -504,42 +507,49 @@ class FusionProcessorTest {
                                         "    \"test.p.RecordConfiguration\": [\n" +
                                         "      {\n" +
                                         "        \"name\": \"app.age\",\n" +
+                                        "        \"javaName\": \"age\",\n" +
                                         "        \"documentation\": \"\",\n" +
                                         "        \"defaultValue\": 0,\n" +
                                         "        \"required\": false\n" +
                                         "      },\n" +
                                         "      {\n" +
                                         "        \"name\": \"app.bigInt\",\n" +
+                                        "        \"javaName\": \"aLong\",\n" +
                                         "        \"documentation\": \"\",\n" +
                                         "        \"defaultValue\": 0,\n" +
                                         "        \"required\": false\n" +
                                         "      },\n" +
                                         "      {\n" +
                                         "        \"name\": \"app.bigNumber\",\n" +
+                                        "        \"javaName\": \"bigNumber\",\n" +
                                         "        \"documentation\": \"\",\n" +
                                         "        \"defaultValue\": null,\n" +
                                         "        \"required\": false\n" +
                                         "      },\n" +
                                         "      {\n" +
                                         "        \"name\": \"app.intWithDefault\",\n" +
+                                        "        \"javaName\": \"intWithDefault\",\n" +
                                         "        \"documentation\": \"\",\n" +
                                         "        \"defaultValue\": 100,\n" +
                                         "        \"required\": false\n" +
                                         "      },\n" +
                                         "      {\n" +
                                         "        \"name\": \"app.list\",\n" +
+                                        "        \"javaName\": \"list\",\n" +
                                         "        \"documentation\": \"\",\n" +
                                         "        \"defaultValue\": null,\n" +
                                         "        \"required\": false\n" +
                                         "      },\n" +
                                         "      {\n" +
                                         "        \"name\": \"app.listStrWithDefault\",\n" +
+                                        "        \"javaName\": \"listStrWithDefault\",\n" +
                                         "        \"documentation\": \"\",\n" +
                                         "        \"defaultValue\": \"java.util.List.of(\\\"bump\\\",\\\"bump2\\\")\",\n" +
                                         "        \"required\": false\n" +
                                         "      },\n" +
                                         "      {\n" +
                                         "        \"name\": \"app.name\",\n" +
+                                        "        \"javaName\": \"name\",\n" +
                                         "        \"documentation\": \"The app name\",\n" +
                                         "        \"defaultValue\": null,\n" +
                                         "        \"required\": false\n" +
@@ -547,35 +557,41 @@ class FusionProcessorTest {
                                         "      {\n" +
                                         "        \"ref\": \"test.p.NestedConf\",\n" +
                                         "        \"name\": \"app.nested\",\n" +
+                                        "        \"javaName\": \"nested\",\n" +
                                         "        \"documentation\": \"\",\n" +
                                         "        \"required\": false\n" +
                                         "      },\n" +
                                         "      {\n" +
                                         "        \"ref\": \"test.p.NestedConf\",\n" +
                                         "        \"name\": \"app.nesteds.$index\",\n" +
+                                        "        \"javaName\": \"nesteds\",\n" +
                                         "        \"documentation\": \"\",\n" +
                                         "        \"required\": false\n" +
                                         "      },\n" +
                                         "      {\n" +
                                         "        \"name\": \"app.number\",\n" +
+                                        "        \"javaName\": \"number\",\n" +
                                         "        \"documentation\": \"\",\n" +
                                         "        \"defaultValue\": 0,\n" +
                                         "        \"required\": false\n" +
                                         "      },\n" +
                                         "      {\n" +
                                         "        \"name\": \"app.strWithDefault\",\n" +
+                                        "        \"javaName\": \"strWithDefault\",\n" +
                                         "        \"documentation\": \"\",\n" +
                                         "        \"defaultValue\": \"\\\"bump\\\"\",\n" +
                                         "        \"required\": false\n" +
                                         "      },\n" +
                                         "      {\n" +
                                         "        \"name\": \"app.toggle\",\n" +
+                                        "        \"javaName\": \"toggle\",\n" +
                                         "        \"documentation\": \"\",\n" +
                                         "        \"defaultValue\": false,\n" +
                                         "        \"required\": false\n" +
                                         "      },\n" +
                                         "      {\n" +
                                         "        \"name\": \"app.type\",\n" +
+                                        "        \"javaName\": \"type\",\n" +
                                         "        \"documentation\": \"\",\n" +
                                         "        \"defaultValue\": null,\n" +
                                         "        \"required\": false\n" +
@@ -640,6 +656,7 @@ class FusionProcessorTest {
                                                 "test.p.MapConfiguration": [
                                                   {
                                                     "name": "conf.keyValues",
+                                                    "javaName": "keyValues",
                                                     "documentation": "",
                                                     "defaultValue": null,
                                                     "required": false

@@ -186,6 +186,8 @@ Finally, you can register you own source of values creating a bean of type `Conf
 IMPORTANT: `List<OtherConfig>` are supported, but you must set in the configuration `<prefix for this list>.length` to the length value of the list then the nested instances are configured using `<prefix>.<index>` starting at index 0. Ex: `myconf.mylist.0.name=foo`.
 Similarly, `Map<String,X>` are supported. For primitives, it uses properties syntax and when X is another configuration model you must use an index based notation with `length` property and `key`, `value` suffixes.
 
+TIP: if you do use a nested model coming from another jar, ensure it is flagged `@ConfigurationModel` and annotation processing is enabled on this other module otherwise you'll loose default values, custom names and documentation.
+
 === Example
 
 Here is an example of a simple configuration model using both `List` and `Map` of properties.

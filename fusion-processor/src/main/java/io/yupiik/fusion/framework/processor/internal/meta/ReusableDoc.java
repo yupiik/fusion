@@ -15,25 +15,5 @@
  */
 package io.yupiik.fusion.framework.processor.internal.meta;
 
-import java.util.List;
-
-public record Docs(List<ClassDoc> docs) {
-    @Override
-    public int hashCode() {
-        return 0; // don't be dependent of docs size
-    }
-
-    public record DocItem(String javaName, String name, String doc, boolean required, String ref, String defaultValue) {
-        @Override
-        public int hashCode() {
-            return name.hashCode();
-        }
-    }
-
-    public record ClassDoc(boolean root, String name, List<DocItem> items) {
-        @Override
-        public int hashCode() {
-            return name.hashCode();  // don't be dependent of items size
-        }
-    }
+public record ReusableDoc(boolean required, String propName, String defaultValue, String documentation, String ref) {
 }

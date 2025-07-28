@@ -16,10 +16,12 @@
 package io.yupiik.fusion.framework.processor.internal.generator;
 
 import io.yupiik.fusion.framework.api.configuration.Configuration;
+import io.yupiik.fusion.framework.build.api.configuration.ConfigurationModel;
 import io.yupiik.fusion.framework.build.api.configuration.Property;
 import io.yupiik.fusion.framework.build.api.configuration.RootConfiguration;
 import io.yupiik.fusion.framework.processor.internal.Elements;
 import io.yupiik.fusion.framework.processor.internal.meta.Docs;
+import io.yupiik.fusion.framework.processor.internal.meta.ReusableDoc;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
@@ -36,6 +38,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -43,6 +46,8 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static java.util.Optional.empty;
+import static java.util.Optional.of;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.joining;
 import static javax.lang.model.element.ElementKind.ENUM;
@@ -55,6 +60,7 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
     private final String packageName;
     private final String className;
     private final TypeElement element;
+    private final Map<String, Map<String, ReusableDoc>> knownDocs;
 
     private final Collection<Docs.ClassDoc> docs = new ArrayList<>();
     private final LinkedList<Docs.ClassDoc> docStack = new LinkedList<>();
@@ -62,14 +68,17 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
 
     public ConfigurationFactoryGenerator(final ProcessingEnvironment processingEnv, final Elements elements,
                                          final String packageName, final String className, final TypeElement element,
-                                         final Map<String, String> enumValueOfCache) {
+                                         final Map<String, String> enumValueOfCache,
+                                         final boolean root,
+                                         final Map<String, Map<String, ReusableDoc>> knownDocs) {
         super(processingEnv, elements);
         this.packageName = packageName;
         this.className = className;
         this.element = element;
         this.enumValueOfCache = enumValueOfCache;
+        this.knownDocs = knownDocs;
 
-        final var doc = new Docs.ClassDoc(true, (packageName.isBlank() ? "" : (packageName + '.')) + className, new ArrayList<>());
+        final var doc = new Docs.ClassDoc(root, (packageName.isBlank() ? "" : (packageName + '.')) + className, new ArrayList<>());
         this.docs.add(doc);
         this.docStack.add(doc);
     }
@@ -86,6 +95,8 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
         final var propPrefix = ofNullable(element.getAnnotation(RootConfiguration.class))
                 .map(RootConfiguration::value)
                 .filter(Predicate.not(String::isBlank))
+                .or(() -> ofNullable(element.getAnnotation(ConfigurationModel.class))
+                        .map(it -> ""))
                 .orElse(element.getSimpleName().toString());
 
         final var nestedClasses = new HashMap<String, String>();
@@ -168,21 +179,24 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
     }
 
     private String newParamInstance(final Element param, final String propPrefix,
+                                    final String parentType,
                                     final String docPrefix,
                                     final Map<String, String> nestedClasses) {
         final var type = param.asType();
         final var typeStr = type.toString();
-        final var property = ofNullable(param.getAnnotation(Property.class));
+        final var javaName = param.getSimpleName().toString();
+        final var property = ofNullable(param.getAnnotation(Property.class))
+                .or(() -> findKnownProperty(parentType, javaName));
         final var selfName = property
                 .map(Property::value)
                 .filter(Predicate.not(String::isBlank))
-                .orElseGet(() -> param.getSimpleName().toString());
+                .orElse(javaName);
         final var defaultValue = property
                 .map(Property::defaultValue)
                 .filter(it -> !Property.NO_VALUE.equals(it))
                 .orElse(null);
         final var name = (propPrefix == null ? "prefix + \"" : ("\"" + propPrefix)) + '.' + selfName + "\"";
-        final var docName = (docPrefix == null ? "" : (docPrefix + '.')) + selfName;
+        final var docName = (docPrefix == null || docPrefix.isBlank() ? "" : (docPrefix + '.')) + selfName;
         final boolean required = property.map(Property::required).orElse(false);
         final var desc = property.map(Property::documentation).orElse("");
 
@@ -191,32 +205,32 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
         //
 
         if (String.class.getName().equals(typeStr) || CharSequence.class.getName().equals(typeStr)) {
-            return lookup(name, required, "", defaultValue != null ? defaultValue : "null", docName, desc);
+            return lookup(javaName, name, required, "", defaultValue != null ? defaultValue : "null", docName, desc);
         }
         if (boolean.class.getName().equals(typeStr) || Boolean.class.getName().equals(typeStr)) {
-            return lookup(name, required, ".map(Boolean::parseBoolean)", defaultValue != null ? defaultValue : "false", docName, desc);
+            return lookup(javaName, name, required, ".map(Boolean::parseBoolean)", defaultValue != null ? defaultValue : "false", docName, desc);
         }
         if (int.class.getName().equals(typeStr) || Integer.class.getName().equals(typeStr)) {
-            return lookup(name, required, ".map(Integer::parseInt)", defaultValue != null ? defaultValue : "0", docName, desc);
+            return lookup(javaName, name, required, ".map(Integer::parseInt)", defaultValue != null ? defaultValue : "0", docName, desc);
         }
         if (long.class.getName().equals(typeStr) || Long.class.getName().equals(typeStr)) {
-            return lookup(name, required, ".map(Long::parseLong)", defaultValue != null ? defaultValue : "0L", docName, desc);
+            return lookup(javaName, name, required, ".map(Long::parseLong)", defaultValue != null ? defaultValue : "0L", docName, desc);
         }
         if (float.class.getName().equals(typeStr) || Float.class.getName().equals(typeStr)) {
-            return lookup(name, required, ".map(Float::parseFloat)", defaultValue != null ? defaultValue : "0.f", docName, desc);
+            return lookup(javaName, name, required, ".map(Float::parseFloat)", defaultValue != null ? defaultValue : "0.f", docName, desc);
         }
         if (double.class.getName().equals(typeStr) || Double.class.getName().equals(typeStr)) {
-            return lookup(name, required, ".map(Double::parseDouble)", defaultValue != null ? defaultValue : "0.", docName, desc);
+            return lookup(javaName, name, required, ".map(Double::parseDouble)", defaultValue != null ? defaultValue : "0.", docName, desc);
         }
         if (BigInteger.class.getName().equals(typeStr)) {
-            return lookup(name, required, ".map(" + BigInteger.class.getName() + "::new)", defaultValue != null ? defaultValue : "null", docName, desc);
+            return lookup(javaName, name, required, ".map(" + BigInteger.class.getName() + "::new)", defaultValue != null ? defaultValue : "null", docName, desc);
         }
         if (BigDecimal.class.getName().equals(typeStr)) {
-            return lookup(name, required, ".map(" + BigDecimal.class.getName() + "::new)", defaultValue != null ? defaultValue : "null", docName, desc);
+            return lookup(javaName, name, required, ".map(" + BigDecimal.class.getName() + "::new)", defaultValue != null ? defaultValue : "null", docName, desc);
         }
         final var asElement = processingEnv.getTypeUtils().asElement(type);
         if (asElement != null && asElement.getKind() == ENUM) {
-            return lookup(name, required, ".map(" + typeStr + "::" + enumValueOf(asElement) + ")", defaultValue != null ? defaultValue : "null", docName, desc);
+            return lookup(javaName, name, required, ".map(" + typeStr + "::" + enumValueOf(asElement) + ")", defaultValue != null ? defaultValue : "null", docName, desc);
         }
 
         //
@@ -227,32 +241,32 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
             final var itemType = dt.getTypeArguments().get(0);
             final var itemString = itemType.toString();
             if (String.class.getName().equals(itemString) || CharSequence.class.getName().equals(itemString)) {
-                return lookup(name, required, listOf(""), defaultValue != null ? defaultValue : "null", docName, desc);
+                return lookup(javaName, name, required, listOf(""), defaultValue != null ? defaultValue : "null", docName, desc);
             }
             if (boolean.class.getName().equals(itemString) || Boolean.class.getName().equals(itemString)) {
-                return lookup(name, required, listOf(".map(Boolean::parseBoolean)"), defaultValue != null ? defaultValue : "null", docName, desc);
+                return lookup(javaName, name, required, listOf(".map(Boolean::parseBoolean)"), defaultValue != null ? defaultValue : "null", docName, desc);
             }
             if (int.class.getName().equals(itemString) || Integer.class.getName().equals(itemString)) {
-                return lookup(name, required, listOf(".map(Integer::parseInt)"), defaultValue != null ? defaultValue : "null", docName, desc);
+                return lookup(javaName, name, required, listOf(".map(Integer::parseInt)"), defaultValue != null ? defaultValue : "null", docName, desc);
             }
             if (long.class.getName().equals(itemString) || Long.class.getName().equals(itemString)) {
-                return lookup(name, required, listOf(".map(Long::parseLong)"), defaultValue != null ? defaultValue : "null", docName, desc);
+                return lookup(javaName, name, required, listOf(".map(Long::parseLong)"), defaultValue != null ? defaultValue : "null", docName, desc);
             }
             if (float.class.getName().equals(itemString) || Float.class.getName().equals(itemString)) {
-                return lookup(name, required, listOf(".map(Float::parseFloat)"), defaultValue != null ? defaultValue : "null", docName, desc);
+                return lookup(javaName, name, required, listOf(".map(Float::parseFloat)"), defaultValue != null ? defaultValue : "null", docName, desc);
             }
             if (double.class.getName().equals(itemString) || Double.class.getName().equals(itemString)) {
-                return lookup(name, required, listOf(".map(Double::parseDouble)"), defaultValue != null ? defaultValue : "null", docName, desc);
+                return lookup(javaName, name, required, listOf(".map(Double::parseDouble)"), defaultValue != null ? defaultValue : "null", docName, desc);
             }
             if (BigInteger.class.getName().equals(itemString)) {
-                return lookup(name, required, listOf(".map(" + BigInteger.class.getName() + "::new)"), defaultValue != null ? defaultValue : "null", docName, desc);
+                return lookup(javaName, name, required, listOf(".map(" + BigInteger.class.getName() + "::new)"), defaultValue != null ? defaultValue : "null", docName, desc);
             }
             if (BigDecimal.class.getName().equals(itemString)) {
-                return lookup(name, required, listOf(".map(" + BigDecimal.class.getName() + "::new)"), defaultValue != null ? defaultValue : "null", docName, desc);
+                return lookup(javaName, name, required, listOf(".map(" + BigDecimal.class.getName() + "::new)"), defaultValue != null ? defaultValue : "null", docName, desc);
             }
             final var dtElt = processingEnv.getTypeUtils().asElement(itemType);
             if (dtElt != null && dtElt.getKind() == ENUM) {
-                return lookup(name, required, listOf(".map(" + itemString + "::" + enumValueOf(dtElt) + ")"), defaultValue != null ? defaultValue : "null", docName, desc);
+                return lookup(javaName, name, required, listOf(".map(" + itemString + "::" + enumValueOf(dtElt) + ")"), defaultValue != null ? defaultValue : "null", docName, desc);
             }
             if (itemString.startsWith("java.")) { // unsupported
                 processingEnv.getMessager().printMessage(ERROR, "Type not supported: '" + typeStr + "' (" + element + "." + param.getSimpleName() + ")");
@@ -265,7 +279,7 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
                         (TypeElement) processingEnv.getTypeUtils().asElement(itemType), itemString, null, nestedClasses));
             }
 
-            this.docStack.getLast().items().add(new Docs.DocItem(docName + ".$index", desc, required, itemString, defaultValue));
+            this.docStack.getLast().items().add(new Docs.DocItem(javaName, docName + ".$index", desc, required, itemString, defaultValue));
             return nestedFactory(itemString) + ".list(configuration, " + name + ", " + (defaultValue == null ? "null" : ("() -> " + defaultValue)) + ")";
         }
 
@@ -281,32 +295,32 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
             final var valueType = dt.getTypeArguments().get(1);
             final var valueTypeString = valueType.toString();
             if (String.class.getName().equals(valueTypeString) || CharSequence.class.getName().equals(valueTypeString)) {
-                return lookup(name, required, mapOf(""), defaultValue != null ? defaultValue : "null", docName, desc);
+                return lookup(javaName, name, required, mapOf(""), defaultValue != null ? defaultValue : "null", docName, desc);
             }
             if (boolean.class.getName().equals(valueTypeString) || Boolean.class.getName().equals(valueTypeString)) {
-                return lookup(name, required, mapOf(".map(Boolean::parseBoolean)"), defaultValue != null ? defaultValue : "null", docName, desc);
+                return lookup(javaName, name, required, mapOf(".map(Boolean::parseBoolean)"), defaultValue != null ? defaultValue : "null", docName, desc);
             }
             if (int.class.getName().equals(valueTypeString) || Integer.class.getName().equals(valueTypeString)) {
-                return lookup(name, required, mapOf(".map(Integer::parseInt)"), defaultValue != null ? defaultValue : "null", docName, desc);
+                return lookup(javaName, name, required, mapOf(".map(Integer::parseInt)"), defaultValue != null ? defaultValue : "null", docName, desc);
             }
             if (long.class.getName().equals(valueTypeString) || Long.class.getName().equals(valueTypeString)) {
-                return lookup(name, required, mapOf(".map(Long::parseLong)"), defaultValue != null ? defaultValue : "null", docName, desc);
+                return lookup(javaName, name, required, mapOf(".map(Long::parseLong)"), defaultValue != null ? defaultValue : "null", docName, desc);
             }
             if (float.class.getName().equals(valueTypeString) || Float.class.getName().equals(valueTypeString)) {
-                return lookup(name, required, mapOf(".map(Float::parseFloat)"), defaultValue != null ? defaultValue : "null", docName, desc);
+                return lookup(javaName, name, required, mapOf(".map(Float::parseFloat)"), defaultValue != null ? defaultValue : "null", docName, desc);
             }
             if (double.class.getName().equals(valueTypeString) || Double.class.getName().equals(valueTypeString)) {
-                return lookup(name, required, mapOf(".map(Double::parseDouble)"), defaultValue != null ? defaultValue : "null", docName, desc);
+                return lookup(javaName, name, required, mapOf(".map(Double::parseDouble)"), defaultValue != null ? defaultValue : "null", docName, desc);
             }
             if (BigInteger.class.getName().equals(valueTypeString)) {
-                return lookup(name, required, mapOf(".map(" + BigInteger.class.getName() + "::new)"), defaultValue != null ? defaultValue : "null", docName, desc);
+                return lookup(javaName, name, required, mapOf(".map(" + BigInteger.class.getName() + "::new)"), defaultValue != null ? defaultValue : "null", docName, desc);
             }
             if (BigDecimal.class.getName().equals(valueTypeString)) {
-                return lookup(name, required, mapOf(".map(" + BigDecimal.class.getName() + "::new)"), defaultValue != null ? defaultValue : "null", docName, desc);
+                return lookup(javaName, name, required, mapOf(".map(" + BigDecimal.class.getName() + "::new)"), defaultValue != null ? defaultValue : "null", docName, desc);
             }
             final var dtElt = processingEnv.getTypeUtils().asElement(valueType);
             if (dtElt != null && dtElt.getKind() == ENUM) {
-                return lookup(name, required, mapOf(".map(" + valueTypeString + "::" + enumValueOf(dtElt) + ")"), defaultValue != null ? defaultValue : "null", docName, desc);
+                return lookup(javaName, name, required, mapOf(".map(" + valueTypeString + "::" + enumValueOf(dtElt) + ")"), defaultValue != null ? defaultValue : "null", docName, desc);
             }
             if (valueTypeString.startsWith("java.")) { // unsupported
                 processingEnv.getMessager().printMessage(ERROR, "Type not supported: '" + typeStr + "' (" + element + "." + param.getSimpleName() + ")");
@@ -320,8 +334,8 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
             }
 
             this.docStack.getLast().items().addAll(List.of(
-                new Docs.DocItem(docName + ".$index.key", desc + " (Key).", required, "java.lang.String", "null"),
-                new Docs.DocItem(docName + ".$index.value", desc + " (Value).", required, valueTypeString, "null")));
+                new Docs.DocItem(javaName + ".$key", docName + ".$index.key", desc + " (Key).", required, "java.lang.String", "null"),
+                new Docs.DocItem(javaName +  ".$value", docName + ".$index.value", desc + " (Value).", required, valueTypeString, "null")));
             return nestedFactory(valueTypeString) + ".map(configuration, " + name + ", " + (defaultValue == null ? "null" : ("() -> " + defaultValue)) + ")";
         }
 
@@ -336,12 +350,30 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
                     (TypeElement) processingEnv.getTypeUtils().asElement(type), typeStr, null, nestedClasses));
         }
 
-        this.docStack.getLast().items().add(new Docs.DocItem(docName, desc, required, typeStr, defaultValue));
+        this.docStack.getLast().items().add(new Docs.DocItem(javaName, docName, desc, required, typeStr, defaultValue));
         if (defaultValue != null) {
             nestedFactory(typeStr); // visit doc
             return defaultValue;
         }
         return "new " + nestedFactory(typeStr) + "(configuration, " + name + ").get()";
+    }
+
+    private Optional<Property> findKnownProperty(final String parentType, final String javaName) {
+        final var knownType = knownDocs.get(parentType.replace('$', '.'));
+        if (knownType == null) {
+            return Optional.empty();
+        }
+        var prop = knownType.get(javaName);
+        if (prop == null) { // blind try on list and maps, FIXME: test type before?
+            prop = knownType.get(javaName + ".$index");
+            if (prop == null) { // blind try on list and maps
+                prop = knownType.get(javaName + ".$key");
+            }
+        }
+        if (prop == null) {
+            return empty();
+        }
+        return of(new PropertyImpl(prop));
     }
 
     private String enumValueOf(final Element asElement) {
@@ -359,9 +391,10 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
                 });
     }
 
-    private String lookup(final String name, final boolean required, final String mapper, final String defaultValue,
+    private String lookup(final String javaName,
+                          final String name, final boolean required, final String mapper, final String defaultValue,
                           final String docName, final String desc) {
-        this.docStack.getLast().items().add(new Docs.DocItem(docName, desc, required, null, defaultValue));
+        this.docStack.getLast().items().add(new Docs.DocItem(javaName, docName, desc, required, null, defaultValue));
         return "configuration.get(" + name + ")" +
                 mapper +
                 (required ?
@@ -403,10 +436,11 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
     private String createRecordInstance(final TypeElement element, final String fqn,
                                         final String propPrefix, final String docPrefix,
                                         final Map<String, String> nested) {
+        final var name = element.getQualifiedName().toString();
         return selectConstructor(element)
                 .map(constructor -> {
                     final var args = constructor.getParameters().stream()
-                            .map(it -> newParamInstance(it, propPrefix, docPrefix, nested))
+                            .map(it -> newParamInstance(it, propPrefix, name, docPrefix, nested))
                             .collect(joining(",\n      "));
                     return "    return new " + fqn + "(" + args + ");\n";
                 })
