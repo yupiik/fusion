@@ -101,12 +101,7 @@ public class OperatorRuntime<T extends ObjectLike> extends SimpleController<T> i
 
     @Override
     public void stop() {
-        super.stop();
-
-        final var subscription = this.subscription;
-        if (subscription != null) {
-            subscription.cancel();
-        }
+        stopWatching();
 
         // ensure http client request (watch) is done
         await();
@@ -118,12 +113,21 @@ public class OperatorRuntime<T extends ObjectLike> extends SimpleController<T> i
 
     public void doStop() {
         try {
-            super.stop();
+            stopWatching();
             operator.onStop();
         } finally {
             if (awaiter.getCount() > 0) {
                 awaiter.countDown();
             }
+        }
+    }
+
+    private void stopWatching() {
+        super.stop();
+
+        final var subscription = this.subscription;
+        if (subscription != null) {
+            subscription.cancel();
         }
     }
 
