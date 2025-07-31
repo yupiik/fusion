@@ -1220,48 +1220,48 @@ class FusionProcessorTest {
                                                         "name": "v1",
                                                         "schema": {
                                                           "openAPIV3Schema": {
-                                                            "spec": {
-                                                              "title": "MySpec",
-                                                              "type": "object",
-                                                              "properties": {
-                                                                "count": {
-                                                                  "nullable": false,
-                                                                  "format": "int32",
-                                                                  "type": "integer"
-                                                                },
-                                                                "nested": {
-                                                                  "nullable": true,
-                                                                  "title": "MyNestedSpec",
-                                                                  "type": "object",
-                                                                  "properties": {
-                                                                    "type": {
-                                                                      "nullable": true,
-                                                                      "type": "string"
-                                                                    },
-                                                                    "values": {
-                                                                      "type": "array",
-                                                                      "items": {
+                                                            "properties": {
+                                                              "spec": {
+                                                                "title": "MySpec",
+                                                                "type": "object",
+                                                                "properties": {
+                                                                  "count": {
+                                                                    "nullable": false,
+                                                                    "format": "int32",
+                                                                    "type": "integer"
+                                                                  },
+                                                                  "nested": {
+                                                                    "nullable": true,
+                                                                    "title": "MyNestedSpec",
+                                                                    "type": "object",
+                                                                    "properties": {
+                                                                      "type": {
                                                                         "nullable": true,
                                                                         "type": "string"
+                                                                      },
+                                                                      "values": {
+                                                                        "type": "array",
+                                                                        "items": {
+                                                                          "nullable": true,
+                                                                          "type": "string"
+                                                                        }
                                                                       }
                                                                     }
                                                                   }
                                                                 }
-                                                              }
-                                                            },
-                                                            "status": {
-                                                              "title": "MyStatus",
-                                                              "type": "object",
-                                                              "properties": {
-                                                                "state": {
-                                                                  "nullable": true,
-                                                                  "type": "string"
+                                                              },
+                                                              "status": {
+                                                                "title": "MyStatus",
+                                                                "type": "object",
+                                                                "properties": {
+                                                                  "state": {
+                                                                    "nullable": true,
+                                                                    "type": "string"
+                                                                  }
                                                                 }
                                                               }
-                                                            }
-                                                          },
-                                                          "subresources": {
-                                                            "status": {}
+                                                            },
+                                                            "type": "object"
                                                           }
                                                         },
                                                         "selectableFields": [
@@ -1270,7 +1270,10 @@ class FusionProcessorTest {
                                                           }
                                                         ],
                                                         "served": true,
-                                                        "storage": true
+                                                        "storage": true,
+                                                        "subresources": {
+                                                          "status": {}
+                                                        }
                                                       }
                                                     ]
                                                   }

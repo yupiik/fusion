@@ -76,9 +76,12 @@ public class CrdDescriptorGenerator implements Supplier<String> {
                 "served", true,
                 "storage", true,
                 "schema", new TreeMap<String, Object>(Map.of(
-                        "openAPIV3Schema", jsonSchema,
-                        "subresources", subResources
-                ))
+                        "openAPIV3Schema", new TreeMap<>(Map.of(
+                                "type", "object",
+                                "properties", jsonSchema
+                        ))
+                )),
+                "subresources", subResources
         ));
 
         if (crd.get("additionalPrinterColumns") instanceof List<?> l && !l.isEmpty()) {
