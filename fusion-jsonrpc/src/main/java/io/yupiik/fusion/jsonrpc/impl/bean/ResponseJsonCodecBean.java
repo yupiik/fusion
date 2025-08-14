@@ -67,7 +67,7 @@ public class ResponseJsonCodecBean extends BaseBean<ResponseJsonCodecBean.Impl> 
                     first = false;
                 }
                 out.write("\"id\":");
-                out.write(JsonStrings.escape(value.id()));
+                out.write(value.id() instanceof String s ? JsonStrings.escape(s) : String.valueOf(value.id()));
             }
             if (value.result() != null) {
                 if (!first) {

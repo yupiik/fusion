@@ -179,7 +179,7 @@ public class JsonRpcHandler {
     }
 
     public Response createResponse(final Object request, final int code, final String message) {
-        final var id = request instanceof Map<?, ?> map ? ofNullable(map.get("id")).map(Object::toString).orElse(null) : null;
+        final var id = request instanceof Map<?, ?> map ? map.get("id") : null;
         return new Response("2.0", id, null, new Response.ErrorResponse(code, message, null));
     }
 
