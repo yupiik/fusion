@@ -43,7 +43,6 @@ import java.util.stream.Stream;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Optional.empty;
 import static java.util.Optional.of;
-import static java.util.Optional.ofNullable;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 
 public class JsonRpcHandler {
@@ -89,17 +88,16 @@ public class JsonRpcHandler {
             return fn
                     .invoke(new JsonRpcMethod.Context(httpRequest, params))
                     .handle((result, error) -> {
-                        final var reqId = id != null ? id.toString() : null;
                         if (error != null) {
                             return toErrorResponse(
-                                    reqId,
+                                    id,
                                     error instanceof CompletionException && error.getCause() != null ? error.getCause() : error,
                                     request);
                         }
-                        return new Response("2.0", reqId, unwrapResult(result, httpRequest), null);
+                        return new Response("2.0", id, unwrapResult(result, httpRequest), null);
                     }).toCompletableFuture();
         } catch (final RuntimeException re) {
-            return completedFuture(toErrorResponse(id == null ? null : id.toString(), re, request));
+            return completedFuture(toErrorResponse(id, re, request));
         }
     }
 
@@ -130,7 +128,7 @@ public class JsonRpcHandler {
         }
     }
 
-    public Response toErrorResponse(final String id, final Throwable re, final Object request) {
+    public Response toErrorResponse(final Object id, final Throwable re, final Object request) {
         final Response.ErrorResponse errorResponse;
         if (re instanceof JsonRpcException jre) {
             errorResponse = new Response.ErrorResponse(jre.code(), re.getMessage(), unwrapResult(jre.data(), null));
@@ -139,9 +137,9 @@ public class JsonRpcHandler {
         }
 
         if (logger.isLoggable(Level.FINEST)) { // log the stack too, else just the origin method
-            logger.log(Level.SEVERE, "An error occured calling /jsonrpc '" + request + "'", re);
+            logger.log(Level.SEVERE, "An error occurred calling /jsonrpc '" + request + "'", re);
         } else {
-            logger.log(Level.SEVERE, "An error occured calling /jsonrpc, " +
+            logger.log(Level.SEVERE, "An error occurred calling /jsonrpc, " +
                     (request instanceof Map<?, ?> map ? "method=" + map.get("method") : request), re);
         }
 
