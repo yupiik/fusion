@@ -15,7 +15,7 @@
  */
 package io.yupiik.fusion.jsonrpc;
 
-public record Response(String jsonrpc, String id, Object result, ErrorResponse error) {
+public record Response(String jsonrpc, Object id, Object result, ErrorResponse error) {
     public record ErrorResponse(int code, String message, Object data) {
     }
 }
