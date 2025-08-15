@@ -13,25 +13,31 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package io.yupiik.fusion.jsonrpc.impl;
+package test.p;
 
-import io.yupiik.fusion.http.server.api.Request;
+import io.yupiik.fusion.framework.build.api.jsonrpc.JsonRpc;
 
 import java.util.concurrent.CompletionStage;
+import java.util.function.Supplier;
 
-public interface JsonRpcMethod {
-    default int priority() {
-        return 1000;
+import static java.util.concurrent.CompletableFuture.completedFuture;
+
+public class JsonRpcNotifications implements Supplier<String> {
+    public static String last = null;
+
+    @Override
+    public String get() {
+        return last;
     }
 
-    String name();
-
-    default boolean isNotification() {
-        return false;
+    @JsonRpc("notification1")
+    public void result() {
+        last = "notification1";
     }
 
-    CompletionStage<?> invoke(Context context);
-
-    record Context(Request request, Object params) {
+    @JsonRpc("notification2")
+    public CompletionStage<Void> asynResult() {
+        last = "notification2";
+        return completedFuture(null);
     }
 }

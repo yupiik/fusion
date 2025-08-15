@@ -27,11 +27,22 @@ public class DefaultJsonRpcMethod implements JsonRpcMethod {
     private final int priority;
     private final String jsonRpcMethod;
     private final Function<Context, CompletionStage<?>> invoker;
+    private final boolean isNotification;
 
     public DefaultJsonRpcMethod(final int priority, final String jsonRpcMethod, final Function<Context, CompletionStage<?>> invoker) {
+        this(priority, jsonRpcMethod, invoker, false);
+    }
+
+    public DefaultJsonRpcMethod(final int priority, final String jsonRpcMethod, final Function<Context, CompletionStage<?>> invoker, final boolean isNotification) {
         this.priority = priority;
         this.jsonRpcMethod = jsonRpcMethod;
         this.invoker = invoker;
+        this.isNotification = isNotification;
+    }
+
+    @Override
+    public boolean isNotification() {
+        return isNotification;
     }
 
     @Override
