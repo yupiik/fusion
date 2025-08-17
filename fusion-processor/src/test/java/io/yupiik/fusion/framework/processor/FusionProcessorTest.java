@@ -1459,6 +1459,7 @@ class FusionProcessorTest {
         new Compiler(work, "Bean21")
                 .compileAndAsserts((loader, container) -> assertEquals(7, container.getBeans().getBeans().size()));
     }
+
     @Test
     void jsonRpcMetadata(@TempDir final Path work) throws IOException {
         final var compiler = new Compiler(work, "JsonRpcEndpoints");
@@ -1676,7 +1677,9 @@ class FusionProcessorTest {
                                               "params": [
                                                 {
                                                   "name": "wrapper",
+                                                  "required": true,
                                                   "schema": {
+                                                    "nullable": false,
                                                     "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyInput"
                                                   }
                                                 }

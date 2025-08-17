@@ -815,7 +815,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
                                     }
 
                                     if (it instanceof ExecutableElement ee) {
-                                        if (ee.getParameters().size() == 0) {
+                                        if (ee.getParameters().isEmpty()) {
                                             processingEnv.getMessager().printMessage(ERROR, "Unsupported listener, should get exactly at least one parameter: '" + it.getEnclosingElement() + "." + it + "'");
                                         }
                                     } else {

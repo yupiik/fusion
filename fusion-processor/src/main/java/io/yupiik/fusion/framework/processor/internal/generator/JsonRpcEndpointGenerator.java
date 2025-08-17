@@ -106,10 +106,15 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
                             .filter(it -> !"context.request()".equals(it.invocation()))
                             .map(it -> {
                                 final var meta = jsonRpcParams.get(counter.getAndIncrement());
+                                final var paramElement = method.getParameters().get(counter.get() - 1);
+                                final var jsonRpcParam = ofNullable(paramElement.getAnnotation(JsonRpcParam.class));
+                                final var required = jsonRpcParam.map(JsonRpcParam::required).filter(b -> b).orElse(null);
                                 return new PartialOpenRPC.Value(
                                         meta.name(),
-                                        null, null, null,
-                                        getSchema(meta.type()));
+                                        jsonRpcParam.map(JsonRpcParam::documentation).filter(Predicate.not(String::isBlank)).orElse(null),
+                                        required,
+                                        paramElement.getAnnotation(Deprecated.class) != null ? true : null,
+                                        getSchema(meta.type(), required));
                             })
                             .toList(),
                     new PartialOpenRPC.Value(
@@ -117,7 +122,7 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
                             null, null, null,
                             isVoid ?
                                     new JsonSchema(null, null, "null", true, null, null, null, null, null) :
-                                    getSchema(new EnrichedParsedType(returnType))),
+                                    getSchema(new EnrichedParsedType(returnType), null)),
                     Stream.of(endpoint.errors())
                             .map(it -> new PartialOpenRPC.ErrorValue(it.code(), it.documentation(), null))
                             .toList()));
@@ -247,34 +252,33 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
                 ofNullable(read.get("items")).map(Map.class::cast).map(it -> toSchema((Map<String, Object>) it)).orElse(null),
                 ofNullable(read.get("title")).map(String::valueOf).orElse(null),
                 ofNullable(read.get("description")).map(String::valueOf).orElse(null),
-                ofNullable(read.get("enum")).map(List.class::cast).orElse(null));
+                ofNullable(read.get("enum")).map(List.class::cast).orElse(null),
+                ofNullable(read.get("required")).map(List.class::cast).orElse(null));
     }
 
-    private JsonSchema getSchema(final EnrichedParsedType enrichedParsedType) {
+    private JsonSchema getSchema(final EnrichedParsedType enrichedParsedType, final Boolean required) {
         final var type = enrichedParsedType.type();
         switch (type.type()) {
             case CLASS -> {
                 return switch (type.className()) {
-                    case "java.lang.Object" -> new JsonSchema(null, null, "object", true, null, null, true, null, null);
+                    case "java.lang.Object" -> new JsonSchema(null, null, "object", !(required != null && required), null, null, true, null, null);
                     case "boolean", "java.lang.Boolean" ->
-                            new JsonSchema(null, null, "boolean", !"boolean".equals(type.className()), null, null, null, null, null);
+                            new JsonSchema(null, null, "boolean", !(required != null && required) && !"boolean".equals(type.className()), null, null, null, null, null);
                     case "int", "java.lang.Integer" ->
-                            new JsonSchema(null, null, "integer", !"int".equals(type.className()), "int32", null, null, null, null);
+                            new JsonSchema(null, null, "integer", !(required != null && required) && !"int".equals(type.className()), "int32", null, null, null, null);
                     case "long", "java.lang.Long" ->
-                            new JsonSchema(null, null, "integer", !"long".equals(type.className()), "int64", null, null, null, null);
-                    case "java.time.OffsetDateTime" ->
-                            new JsonSchema(null, null, "string", true, "date-time", null, null, null, null);
-                    case "java.time.ZoneOffset" ->
-                            new JsonSchema(null, null, "string", true, "date-time", null, null, null, null);
+                            new JsonSchema(null, null, "integer", !(required != null && required) && !"long".equals(type.className()), "int64", null, null, null, null);
+                    case "java.time.OffsetDateTime", "java.time.ZoneOffset" ->
+                            new JsonSchema(null, null, "string", !(required != null && required), "date-time", null, null, null, null);
                     case "java.time.LocalDate" ->
-                            new JsonSchema(null, null, "string", true, "date", null, null, null, null);
-                    case "java.lang.String" -> new JsonSchema(null, null, "string", true, null, null, null, null, null);
+                            new JsonSchema(null, null, "string", !(required != null && required), "date", null, null, null, null);
+                    case "java.lang.String" -> new JsonSchema(null, null, "string", !(required != null && required), null, null, null, null, null);
                     default -> {
                         if (type.enumValues() != null) {
                             yield new JsonSchema(
                                     null, null,
                                     "string",
-                                    null, null, null, null, null, null, null, null,
+                                    required != null && required ? false : null, null, null, null, null, null, null, null,
                                     type.enumValues());
                         }
                         final var schema = openRPC.schemas().computeIfAbsent(
@@ -283,7 +287,7 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
                         final var id = schema.id() == null ? schema.ref() : schema.id();
                         yield new JsonSchema(
                                 "#/schemas/" + requireNonNull(id, "missing id/ref: " + id),
-                                null, null, null, null, null, null, null, null);
+                                null, null, (required != null && required) ? false : null, null, null, null, null, null);
                     }
                 };
             }
@@ -292,20 +296,20 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
                     case "java.util.Collection", "java.util.List", "java.util.Set" -> {
                         return new JsonSchema(
                                 null, null,
-                                "array", true,
+                                "array", !(required != null && required),
                                 null, null,
                                 null, null,
                                 switch (type.args().get(0)) {
                                     case "java.lang.Object" ->
-                                            new JsonSchema(null, null, "object", true, null, null, true, null, null);
+                                            new JsonSchema(null, null, "object", !(required != null && required), null, null, true, null, null);
                                     case "boolean", "java.lang.Boolean" ->
-                                            new JsonSchema(null, null, "boolean", !"boolean".equals(type.args().get(0)), null, null, null, null, null);
+                                            new JsonSchema(null, null, "boolean", !(required != null && required) && !"boolean".equals(type.args().get(0)), null, null, null, null, null);
                                     case "int", "java.lang.Integer" ->
-                                            new JsonSchema(null, null, "integer", !"int".equals(type.args().get(0)), "int32", null, null, null, null);
+                                            new JsonSchema(null, null, "integer", !(required != null && required) && !"int".equals(type.args().get(0)), "int32", null, null, null, null);
                                     case "long", "java.lang.Long" ->
-                                            new JsonSchema(null, null, "integer", !"long".equals(type.args().get(0)), "int64", null, null, null, null);
+                                            new JsonSchema(null, null, "integer", !(required != null && required) && !"long".equals(type.args().get(0)), "int64", null, null, null, null);
                                     case "java.lang.String" ->
-                                            new JsonSchema(null, null, "string", true, null, null, null, null, null);
+                                            new JsonSchema(null, null, "string", !(required != null && required), null, null, null, null, null);
                                     default -> {
                                         final var schema = openRPC.schemas().computeIfAbsent(
                                                 type.args().get(0).replace('$', '.'),
@@ -313,24 +317,24 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
                                         final var id = schema.id() == null ? schema.ref() : schema.id();
                                         yield new JsonSchema(
                                                 "#/schemas/" + requireNonNull(id, "missing id/ref: " + schema),
-                                                null, null, null, null, null, null, null, null);
+                                                null, null, (required != null && required) ? false : null, null, null, null, null, null);
                                     }
                                 });
                     }
                     case "java.util.Map" -> {
                         return new JsonSchema(
                                 null, null,
-                                "object", true,
+                                "object", !(required != null && required),
                                 null, null,
                                 (switch (type.args().get(1)) {
                                     case "java.lang.Object" ->
-                                            new JsonSchema(null, null, "object", true, null, null, true, null, null);
+                                            new JsonSchema(null, null, "object", !(required != null && required), null, null, true, null, null);
                                     case "boolean", "java.lang.Boolean" ->
-                                            new JsonSchema(null, null, "boolean", !"boolean".equals(type.args().get(1)), null, null, null, null, null);
+                                            new JsonSchema(null, null, "boolean", !(required != null && required) && !"boolean".equals(type.args().get(1)), null, null, null, null, null);
                                     case "int", "java.lang.Integer" ->
-                                            new JsonSchema(null, null, "integer", !"int".equals(type.args().get(1)), "int32", null, null, null, null);
+                                            new JsonSchema(null, null, "integer", !(required != null && required) && !"int".equals(type.args().get(1)), "int32", null, null, null, null);
                                     case "long", "java.lang.Long" ->
-                                            new JsonSchema(null, null, "integer", !"long".equals(type.args().get(1)), "int64", null, null, null, null);
+                                            new JsonSchema(null, null, "integer", !(required != null && required) && !"long".equals(type.args().get(1)), "int64", null, null, null, null);
                                     case "java.lang.String" ->
                                             new JsonSchema(null, null, "string", true, null, null, null, null, null);
                                     default -> {
@@ -340,7 +344,7 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
                                         final var id = schema.id() == null ? schema.ref() : schema.id();
                                         yield new JsonSchema(
                                                 "#/schemas/" + requireNonNull(id, "missing id/ref: " + schema),
-                                                null, null, null, null, null, null, null, null);
+                                                null, null, (required != null && required) ? false : null, null, null, null, null, null);
                                     }
                                 }).asMap(),
                                 null, null);
@@ -348,19 +352,19 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
                     case "java.util.Optional", "java.util.concurrent.CompletionStage" -> {
                         return new JsonSchema(
                                 null, null,
-                                "object", true,
+                                "object", !(required != null && required),
                                 null, null,
                                 (switch (type.args().get(0)) {
                                     case "java.lang.Object" ->
-                                            new JsonSchema(null, null, "object", true, null, null, true, null, null);
+                                            new JsonSchema(null, null, "object", !(required != null && required), null, null, true, null, null);
                                     case "boolean", "java.lang.Boolean" ->
-                                            new JsonSchema(null, null, "boolean", !"boolean".equals(type.args().get(0)), null, null, null, null, null);
+                                            new JsonSchema(null, null, "boolean", !(required != null && required) && !"boolean".equals(type.args().get(0)), null, null, null, null, null);
                                     case "int", "java.lang.Integer" ->
-                                            new JsonSchema(null, null, "integer", !"int".equals(type.args().get(0)), "int32", null, null, null, null);
+                                            new JsonSchema(null, null, "integer", !(required != null && required) && !"int".equals(type.args().get(0)), "int32", null, null, null, null);
                                     case "long", "java.lang.Long" ->
-                                            new JsonSchema(null, null, "integer", !"long".equals(type.args().get(0)), "int64", null, null, null, null);
+                                            new JsonSchema(null, null, "integer", !(required != null && required) && !"long".equals(type.args().get(0)), "int64", null, null, null, null);
                                     case "java.lang.String" ->
-                                            new JsonSchema(null, null, "string", true, null, null, null, null, null);
+                                            new JsonSchema(null, null, "string", !(required != null && required), null, null, null, null, null);
                                     default -> {
                                         final var schema = openRPC.schemas().computeIfAbsent(
                                                 type.args().get(0).replace('$', '.'),
@@ -368,7 +372,7 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
                                         final var id = schema.id() == null ? schema.ref() : schema.id();
                                         yield new JsonSchema(
                                                 "#/schemas/" + requireNonNull(id, "missing id/ref: " + schema),
-                                                null, null, null, null, null, null, null, null);
+                                                null, null, (required != null && required) ? false : null, null, null, null, null, null);
                                     }
                                 }).asMap(),
                                 null, null);
