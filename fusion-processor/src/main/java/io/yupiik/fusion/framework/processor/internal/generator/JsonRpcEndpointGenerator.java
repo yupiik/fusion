@@ -141,9 +141,9 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
 
                         replace("\n", "\\n") + "\",\n" +
                         "      " +
-
                         invocation(params, returnType) + ",\n" +
-                        "      " + isVoid + ");\n" +
+                        "      " + isVoid + ",\n" +
+                        "      " + metadata(method) + ");\n" +
                         "  }\n" +
                         "}\n" +
                         "\n"),
@@ -167,9 +167,7 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
 
                                 findScope(method) + ".class,\n" +
                                 "      " + priority + ",\n" +
-                                "      " + Map.class.
-
-                                getName() + ".of());\n" +
+                                "      " + metadata(method) + ");\n" +
                                 "  }\n" +
                                 "\n" +
                                 "  @Override\n" +

@@ -112,7 +112,7 @@ public class MethodBeanGenerator extends BaseGenerator implements Supplier<BaseG
         out.append(", ")
                 .append(scope).append(".class, ")
                 .append(priority).append(", ")
-                .append(Map.class.getName()).append(".of());\n");
+                .append(metadata(element)).append(");\n");
         out.append("  }\n");
         out.append("\n");
         out.append("  @Override\n");

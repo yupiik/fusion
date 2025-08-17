@@ -38,6 +38,11 @@ public interface RuntimeContainer extends Emitter, AutoCloseable {
     <A, T> Instance<T> lookups(Class<A> type,
                                Function<List<Instance<A>>, T> postProcessor);
 
+
+    default <T> Instance<List<T>> lookups(final Class<T> type) {
+        return lookups(type, i -> i.stream().map(Instance::instance).toList());
+    }
+
     @Override
     void close();
 }

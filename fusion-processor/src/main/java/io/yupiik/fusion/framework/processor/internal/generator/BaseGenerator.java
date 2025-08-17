@@ -19,6 +19,7 @@ import io.yupiik.fusion.framework.api.Instance;
 import io.yupiik.fusion.framework.api.container.Generation;
 import io.yupiik.fusion.framework.api.container.Types;
 import io.yupiik.fusion.framework.api.scope.DefaultScoped;
+import io.yupiik.fusion.framework.build.api.metadata.BeanMetadata;
 import io.yupiik.fusion.framework.build.api.order.Order;
 import io.yupiik.fusion.framework.processor.internal.Bean;
 import io.yupiik.fusion.framework.processor.internal.Elements;
@@ -40,12 +41,14 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static java.util.Comparator.comparing;
+import static java.util.Map.entry;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.joining;
 import static javax.lang.model.element.ElementKind.CONSTRUCTOR;
@@ -79,6 +82,40 @@ public abstract class BaseGenerator {
         this.elements = elements;
         this.comparable = asElement(processingEnv, Comparable.class);
         this.autocloseable = asElement(processingEnv, AutoCloseable.class).asType();
+    }
+
+    protected String metadata(final Element element) {
+        return metadata(element, Map.of());
+    }
+
+    protected String metadata(final Element element, final Map<String, String> custom) {
+        final var meta = element.getAnnotationsByType(BeanMetadata.class);
+        if (meta == null && custom.isEmpty()) {
+            return Map.class.getName() + ".of()";
+        }
+
+        final var entries =  Stream.concat(
+                (meta == null ? Stream.<BeanMetadata>of() : Stream.of(meta))
+                        .map(it -> entry(it.name(), '"' + prepareStringEmbedding(it.value()) + '"')),
+                custom.entrySet().stream());
+        if ((meta == null ? 0 : meta.length) + custom.size() < 5) {
+            return Map.class.getName() +
+                    ".of(" +
+                   entries
+                            .map(it -> '"' + prepareStringEmbedding(it.getKey()) + "\", " + it.getValue())
+                            .collect(joining(", "))
+                    + ')';
+        }
+        return Map.class.getName() +
+                ".ofEntries(" +
+                entries
+                        .map(it -> Map.class.getName() + ".entry(\"" + prepareStringEmbedding(it.getKey()) + "\", " + it.getValue() + ")")
+                        .collect(joining(", "))
+                + ')';
+    }
+
+    private String prepareStringEmbedding(final String name) {
+        return name.replace("\"", "\\\"").replace("\n", "\\n");
     }
 
     protected String visibilityFrom(final Set<Modifier> modifiers) {

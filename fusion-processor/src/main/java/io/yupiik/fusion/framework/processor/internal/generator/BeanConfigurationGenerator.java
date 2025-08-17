@@ -58,7 +58,7 @@ public class BeanConfigurationGenerator extends BaseGenerator implements Supplie
                 .append(pckPrefix).append(className.replace('$', '.')).append(".class, ")
                 .append(findScope(element)).append(".class, ")
                 .append(findPriority(element)).append(", ")
-                .append(Map.class.getName()).append(".of());\n");
+                .append(metadata(element)).append(");\n");
         out.append("  }\n");
         out.append("\n");
         out.append("  @Override\n");

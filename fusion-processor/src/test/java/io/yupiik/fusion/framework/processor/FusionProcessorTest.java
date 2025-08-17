@@ -46,6 +46,7 @@ import io.yupiik.fusion.json.internal.JsonMapperImpl;
 import io.yupiik.fusion.json.internal.codec.ObjectJsonCodec;
 import io.yupiik.fusion.json.internal.formatter.SimplePrettyFormatter;
 import io.yupiik.fusion.jsonrpc.JsonRpcEndpoint;
+import io.yupiik.fusion.jsonrpc.impl.JsonRpcMethod;
 import io.yupiik.fusion.persistence.api.Database;
 import io.yupiik.fusion.persistence.api.Entity;
 import io.yupiik.fusion.persistence.impl.DatabaseConfiguration;
@@ -89,6 +90,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 import static java.util.Optional.empty;
 import static java.util.Optional.of;
+import static java.util.stream.Collectors.toMap;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -147,10 +149,7 @@ class FusionProcessorTest {
                         @io.yupiik.fusion.framework.api.container.Generation(version = 1)
                         public class Bean1$FusionBean extends io.yupiik.fusion.framework.api.container.bean.BaseBean<Bean1> {
                           public Bean1$FusionBean() {
-                            super(Bean1.class, io.yupiik.fusion.framework.api.scope.ApplicationScoped.class, 1000, java.util.Map.of("fusion.framework.subclasses.delegate",
-                        (java.util.function.Function<io.yupiik.fusion.framework.api.container.context.subclass.DelegatingContext<Bean1>, Bean1>)
-                          context -> new test.p.Bean1$FusionSubclass(context)
-                        ));
+                            super(Bean1.class, io.yupiik.fusion.framework.api.scope.ApplicationScoped.class, 1000, java.util.Map.of("fusion.framework.subclasses.delegate", (java.util.function.Function<io.yupiik.fusion.framework.api.container.context.subclass.DelegatingContext<Bean1>, Bean1>) context -> new test.p.Bean1$FusionSubclass(context)));
                           }
                         
                           @Override
@@ -1459,6 +1458,21 @@ class FusionProcessorTest {
         // reuse the same dir and build something new, ensure we don't loose beans
         new Compiler(work, "Bean21")
                 .compileAndAsserts((loader, container) -> assertEquals(7, container.getBeans().getBeans().size()));
+    }
+    @Test
+    void jsonRpcMetadata(@TempDir final Path work) throws IOException {
+        final var compiler = new Compiler(work, "JsonRpcEndpoints");
+        compiler.compileAndAsserts((loader, container) -> {
+            try (final var bean = container.lookup(JsonRpcEndpoint.class)) {
+                assertEquals(Map.of(), bean.bean().data());
+            }
+            try (final var methods = container.lookups(JsonRpcMethod.class)) {
+                final var index = methods.instance().stream().collect(toMap(JsonRpcMethod::name, JsonRpcMethod::metadata));
+                assertEquals(Map.of(), index.get("arg"));
+                assertEquals(Map.of("k11", "v11"), index.get("test1"));
+                assertEquals(Map.of("k1", "v1", "k2", "v2"), index.get("test2"));
+            }
+        });
     }
 
     @Test

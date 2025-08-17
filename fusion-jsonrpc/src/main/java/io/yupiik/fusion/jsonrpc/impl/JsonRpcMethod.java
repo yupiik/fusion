@@ -17,6 +17,7 @@ package io.yupiik.fusion.jsonrpc.impl;
 
 import io.yupiik.fusion.http.server.api.Request;
 
+import java.util.Map;
 import java.util.concurrent.CompletionStage;
 
 public interface JsonRpcMethod {
@@ -31,6 +32,10 @@ public interface JsonRpcMethod {
     }
 
     CompletionStage<?> invoke(Context context);
+
+    default Map<String, String> metadata() {
+        return Map.of();
+    }
 
     record Context(Request request, Object params) {
     }

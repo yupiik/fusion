@@ -40,13 +40,13 @@ public class BeanGenerator extends BaseGenerator implements Supplier<BaseGenerat
     private final String packageName;
     private final String className;
     private final Element element;
-    private final String data;
+    private final Map<String, String> data;
     private final TypeMirror init;
     private final TypeMirror destroy;
 
     public BeanGenerator(final ProcessingEnvironment processingEnv, final Elements elements,
                          final List<Bean.FieldInjection> injections, final String packageName,
-                         final String className, final Element element, final String data,
+                         final String className, final Element element, final Map<String, String> data,
                          final TypeMirror init, final TypeMirror destroy) {
         super(processingEnv, elements);
         this.injections = injections;
@@ -81,7 +81,7 @@ public class BeanGenerator extends BaseGenerator implements Supplier<BaseGenerat
                 .append(className.replace('$', '.')).append(".class, ")
                 .append(scope).append(".class, ")
                 .append(priority).append(", ")
-                .append(Map.class.getName()).append(".of(").append(data).append("));\n");
+                .append(metadata(element, data)).append(");\n");
         out.append("  }\n");
         out.append("\n");
         out.append("  @Override\n");

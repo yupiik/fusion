@@ -84,7 +84,7 @@ public class HttpEndpointGenerator extends BaseHttpEndpointGenerator implements 
                                 "      " + endpointClassName + ".class,\n" +
                                 "      " + findScope(method) + ".class,\n" +
                                 "      " + findPriority(method) + ",\n" +
-                                "      " + Map.class.getName() + ".of());\n" +
+                                "      " + metadata(method) + ");\n" +
                                 "  }\n" +
                                 "\n" +
                                 "  @Override\n" +

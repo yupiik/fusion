@@ -18,6 +18,7 @@ package test.p;
 import io.yupiik.fusion.framework.build.api.json.JsonModel;
 import io.yupiik.fusion.framework.build.api.jsonrpc.JsonRpc;
 import io.yupiik.fusion.framework.build.api.jsonrpc.JsonRpcParam;
+import io.yupiik.fusion.framework.build.api.metadata.BeanMetadata;
 import io.yupiik.fusion.http.server.api.Request;
 
 import java.time.OffsetDateTime;
@@ -32,11 +33,14 @@ import static java.util.stream.Collectors.joining;
 
 public class JsonRpcEndpoints {
     @JsonRpc("test1")
+    @BeanMetadata(name = "k11", value = "v11")
     public MyResult result() {
         return new MyResult("test1");
     }
 
     @JsonRpc("test2")
+    @BeanMetadata(name = "k1", value = "v1")
+    @BeanMetadata(name = "k2", value = "v2")
     public CompletionStage<MyResult> asynResult() {
         return completedFuture(new MyResult("test2"));
     }

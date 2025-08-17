@@ -300,7 +300,7 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
                                 "      " + tableClassName + ".class,\n" +
                                 "      " + DefaultScoped.class.getName() + ".class,\n" +
                                 "      " + findPriority(type) + ",\n" +
-                                "      " + Map.class.getName() + ".of());\n" +
+                                "      " + metadata(type) + ");\n" +
                                 "  }\n" +
                                 "\n" +
                                 "  @Override\n" +
