@@ -32,14 +32,26 @@ public record JsonSchema(
         Map<String, JsonSchema> properties,
         JsonSchema items,
         String title, String description,
-        List<String> enumeration) implements GenericObjectJsonSerializationLike {
+        List<String> enumeration,
+        List<String> required) implements GenericObjectJsonSerializationLike {
+    public JsonSchema(final String ref, final String id,
+                      final String type, final Boolean nullable,
+                      final String format, final String pattern,
+                      final Object additionalProperties,
+                      final Map<String, JsonSchema> properties,
+                      final JsonSchema items,
+                      final String title, final String description,
+                      final List<String> enumeration) { // backward compat
+        this(ref, id, type, nullable, format, pattern, additionalProperties, properties, items, title, description, enumeration, null);
+    }
+
     public JsonSchema(final String ref, final String id,
                       final String type, final Boolean nullable,
                       final String format, final String pattern,
                       final Object additionalProperties,
                       final Map<String, JsonSchema> properties,
                       final JsonSchema items) { // backward compat
-        this(ref, id, type, nullable, format, pattern, additionalProperties, properties, items, null, null, null);
+        this(ref, id, type, nullable, format, pattern, additionalProperties, properties, items, null, null, null, null);
     }
 
     @Override
@@ -54,6 +66,7 @@ public record JsonSchema(
                         pattern == null ? null : entry("pattern", pattern),
                         additionalProperties == null ? null : entry("additionalProperties", additionalProperties),
                         nullable == null ? null : entry("nullable", nullable),
+                        required == null || required.isEmpty() ? null : entry("required", required),
                         items == null ? null : entry("items", items.asMap()),
                         enumeration == null ? null : entry("enum", enumeration()),
                         properties == null ? null : entry("properties", properties.entrySet().stream()
