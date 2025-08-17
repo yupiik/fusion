@@ -22,6 +22,7 @@ import io.yupiik.fusion.framework.api.configuration.MissingRequiredParameterExce
 import io.yupiik.fusion.framework.api.container.DefaultInstance;
 
 import java.util.List;
+import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
@@ -34,16 +35,30 @@ public class BaseCliCommand<CF, C extends Runnable> implements CliCommand<C> {
     private final Function<Configuration, CF> configurationProvider;
     private final BiFunction<CF, List<Instance<?>>, C> constructor;
     private final List<Parameter> parameters;
+    private final Map<String, String> metadata;
 
     public BaseCliCommand(final String name, final String description,
                           final Function<Configuration, CF> configurationProvider,
                           final BiFunction<CF, List<Instance<?>>, C> constructor,
                           final List<Parameter> parameters) {
+        this(name, description, configurationProvider, constructor, parameters, Map.of());
+    }
+
+    public BaseCliCommand(final String name, final String description,
+                          final Function<Configuration, CF> configurationProvider,
+                          final BiFunction<CF, List<Instance<?>>, C> constructor,
+                          final List<Parameter> parameters, final Map<String, String> metadata) {
         this.name = name;
         this.description = description;
         this.configurationProvider = configurationProvider;
         this.constructor = constructor;
         this.parameters = parameters;
+        this.metadata = metadata;
+    }
+
+    @Override
+    public Map<String, String> metadata() {
+        return metadata;
     }
 
     @Override
@@ -86,6 +101,11 @@ public class BaseCliCommand<CF, C extends Runnable> implements CliCommand<C> {
     }
 
     public static class ContainerBaseCliCommand<CF, C extends Runnable> extends BaseCliCommand<CF, C> {
+        public ContainerBaseCliCommand(final String name, final String description, final Function<Configuration, CF> configurationProvider,
+                                       final BiFunction<CF, List<Instance<?>>, C> constructor, final List<Parameter> parameters, final Map<String, String> metadata) {
+            super(name, description, configurationProvider, constructor, parameters, metadata);
+        }
+
         public ContainerBaseCliCommand(final String name, final String description, final Function<Configuration, CF> configurationProvider,
                                        final BiFunction<CF, List<Instance<?>>, C> constructor, final List<Parameter> parameters) {
             super(name, description, configurationProvider, constructor, parameters);

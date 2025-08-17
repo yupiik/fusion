@@ -1187,17 +1187,16 @@ public class InternalFusionProcessor extends AbstractProcessor {
     private void generateBean(final Bean src, final List<FieldInjection> injections) {
         final var names = ParsedName.of(src.enclosing());
         try {
-            final String data;
+            final Map<String, String> data;
             if (isLazy(src.enclosing()) && src.enclosing() instanceof TypeElement te && src.enclosing().getKind() != RECORD) {
                 final var subclass = new SubclassGenerator(processingEnv, elements, names.packageName(), names.className(), te).get();
                 writeGeneratedClass(src.enclosing(), subclass);
-                data = "" +
-                        "\"fusion.framework.subclasses.delegate\",\n" +
+                data = Map.of("fusion.framework.subclasses.delegate",
                         "(" + Function.class.getName() + "<" + DelegatingContext.class.getName() + "<" +
-                        names.className().replace('$', '.') + ">, " + names.className().replace('$', '.') + ">)\n" +
-                        "  context -> new " + subclass.name() + "(context)\n";
+                        names.className().replace('$', '.') + ">, " + names.className().replace('$', '.') + ">)" +
+                        " context -> new " + subclass.name() + "(context)");
             } else {
-                data = "";
+                data = Map.of();
             }
 
             final var bean = new BeanGenerator(processingEnv, elements, injections, names.packageName(), names.className(), src.enclosing(), data, init, destroy).get();

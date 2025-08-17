@@ -19,6 +19,7 @@ import io.yupiik.fusion.framework.api.Instance;
 import io.yupiik.fusion.framework.api.configuration.Configuration;
 
 import java.util.List;
+import java.util.Map;
 
 public interface CliCommand<C extends Runnable> {
     String name();
@@ -28,6 +29,10 @@ public interface CliCommand<C extends Runnable> {
     List<Parameter> parameters();
 
     Instance<C> create(Configuration configuration, List<Instance<?>> dependents);
+
+    default Map<String, String> metadata() {
+        return Map.of();
+    }
 
     record Parameter(String configName, String cliName, String description) {}
 }

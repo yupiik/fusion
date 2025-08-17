@@ -94,6 +94,7 @@ public class CliCommandGenerator extends BaseGenerator implements Supplier<CliCo
 
         final var hasInjections = beanForCliCommands && constructorParameters.size() != 1;
 
+        final String metadata = metadata(type);
         return new Output(
                 new GeneratedClass(packagePrefix + commandClassName, packageLine +
                         generationVersion() +
@@ -110,7 +111,8 @@ public class CliCommandGenerator extends BaseGenerator implements Supplier<CliCo
                                 .skip(1) // configuration by convention
                                 .map(param -> "lookup(container, " + toFqnName(processingEnv.getTypeUtils().asElement(param.asType())).replace('$', '.') + ".class, deps)")
                                 .collect(joining(", ", configurationType == null ? "" : ", ", "")) : "") + ")," +
-                        "      " + List.class.getName() + ".of(" + (configurationType == null ? "" : parameters(configurationType, null)) + "));\n" +
+                        "      " + List.class.getName() + ".of(" + (configurationType == null ? "" : parameters(configurationType, null)) + "),\n" +
+                        "      "+ metadata + ");\n" +
                         "  }\n" +
                         "}\n" +
                         "\n"),
@@ -123,7 +125,7 @@ public class CliCommandGenerator extends BaseGenerator implements Supplier<CliCo
                                 "      " + commandClassName + ".class,\n" +
                                 "      " + findScope(type) + ".class,\n" +
                                 "      " + findPriority(type) + ",\n" +
-                                "      " + Map.class.getName() + ".of());\n" +
+                                "      " + metadata + ");\n" +
                                 "  }\n" +
                                 "\n" +
                                 "  @Override\n" +

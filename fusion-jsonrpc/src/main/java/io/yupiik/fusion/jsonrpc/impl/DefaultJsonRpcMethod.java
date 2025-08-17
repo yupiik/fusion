@@ -27,17 +27,19 @@ public class DefaultJsonRpcMethod implements JsonRpcMethod {
     private final int priority;
     private final String jsonRpcMethod;
     private final Function<Context, CompletionStage<?>> invoker;
+    private final Map<String, String> metadata;
     private final boolean isNotification;
 
     public DefaultJsonRpcMethod(final int priority, final String jsonRpcMethod, final Function<Context, CompletionStage<?>> invoker) {
-        this(priority, jsonRpcMethod, invoker, false);
+        this(priority, jsonRpcMethod, invoker, false, Map.of());
     }
 
-    public DefaultJsonRpcMethod(final int priority, final String jsonRpcMethod, final Function<Context, CompletionStage<?>> invoker, final boolean isNotification) {
+    public DefaultJsonRpcMethod(final int priority, final String jsonRpcMethod, final Function<Context, CompletionStage<?>> invoker, final boolean isNotification, final Map<String, String> metadata) {
         this.priority = priority;
         this.jsonRpcMethod = jsonRpcMethod;
         this.invoker = invoker;
         this.isNotification = isNotification;
+        this.metadata = metadata;
     }
 
     @Override
@@ -58,6 +60,11 @@ public class DefaultJsonRpcMethod implements JsonRpcMethod {
     @Override
     public CompletionStage<?> invoke(final Context context) {
         return invoker.apply(context);
+    }
+
+    @Override
+    public Map<String, String> metadata() {
+        return metadata;
     }
 
     // todo: we can handle it as a bulk lookup which can be a bit faster (not critical at all, very very minor)
