@@ -94,7 +94,7 @@ public class JsonRpcHandler {
                                     error instanceof CompletionException && error.getCause() != null ? error.getCause() : error,
                                     request);
                         }
-                        return new Response("2.0", id, unwrapResult(result, httpRequest), null);
+                        return fn.isNotification() ? null : new Response("2.0", id, unwrapResult(result, httpRequest), null);
                     }).toCompletableFuture();
         } catch (final RuntimeException re) {
             return completedFuture(toErrorResponse(id, re, request));
@@ -228,6 +228,7 @@ public class JsonRpcHandler {
                 .allOf(futures)
                 .thenApply(ignored -> Stream.of(futures)
                         .map(f -> (Response) f.getNow(null))
+                        .filter(Objects::nonNull) // drop notifications
                         .toList());
     }
 

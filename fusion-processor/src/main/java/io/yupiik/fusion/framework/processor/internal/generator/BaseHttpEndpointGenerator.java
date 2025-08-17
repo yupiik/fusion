@@ -60,6 +60,11 @@ public abstract class BaseHttpEndpointGenerator extends BaseGenerator {
         this.knownJsonModels = knownJsonModels;
     }
 
+    protected boolean isDirectVoid(final ParsedType returnType) {
+        return "void".equals(returnType.className()) ||
+                Void.class.getName().equals(returnType.className());
+    }
+
     protected String forceCompletionStageResult(final ParsedType returnType, final String call) {
         return (switch (returnType.type()) {
             case PARAMETERIZED_TYPE -> {
@@ -69,7 +74,12 @@ public abstract class BaseHttpEndpointGenerator extends BaseGenerator {
                 // unlikely for now but once we open returned types it will be possible
                 yield CompletableFuture.class.getName() + ".completedStage(" + call + ")";
             }
-            case CLASS -> CompletableFuture.class.getName() + ".completedStage(" + call + ")";
+            case CLASS -> {
+                if (isDirectVoid(returnType)) {
+                    yield call + "; return " + CompletableFuture.class.getName() + ".completedStage(null);";
+                }
+                yield CompletableFuture.class.getName() + ".completedStage(" + call + ")";
+            }
         });
     }
 

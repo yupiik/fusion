@@ -46,6 +46,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -77,7 +79,8 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
     public BaseHttpEndpointGenerator.Generation get() {
         final var returnType = unwrapReturnedType(method.getReturnType(), ParsedType.of(method.getReturnType()));
         final boolean isReturnTypeJson = isJson(returnType) || method.getReturnType().getAnnotation(JsonModel.class) != null;
-        if (!isReturnTypeJson) {
+        final boolean isVoid = isVoidLike(returnType);
+        if (!isVoid && !isReturnTypeJson) {
             throw new IllegalArgumentException("JSON-RPC method must return a JSON instance, invalid type: '" + method.getReturnType() + "'");
         }
 
@@ -112,7 +115,9 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
                     new PartialOpenRPC.Value(
                             "result",
                             null, null, null,
-                            getSchema(new EnrichedParsedType(returnType))),
+                            isVoid ?
+                                    new JsonSchema(null, null, "null", true, null, null, null, null, null) :
+                                    getSchema(new EnrichedParsedType(returnType))),
                     Stream.of(endpoint.errors())
                             .map(it -> new PartialOpenRPC.ErrorValue(it.code(), it.documentation(), null))
                             .toList()));
@@ -137,7 +142,8 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
                         replace("\n", "\\n") + "\",\n" +
                         "      " +
 
-                        invocation(params, returnType) + ");\n" +
+                        invocation(params, returnType) + ",\n" +
+                        "      " + isVoid + ");\n" +
                         "  }\n" +
                         "}\n" +
                         "\n"),
@@ -181,6 +187,14 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
                                 "}\n" +
                                 "\n") :
                         null);
+    }
+
+    private boolean isVoidLike(final ParsedType returnType) {
+        return isDirectVoid(returnType) ||
+                (returnType.type() == ParsedType.Type.PARAMETERIZED_TYPE &&
+                        returnType.args().size() == 1 &&
+                        (CompletionStage.class.getName().equals(returnType.raw()) || CompletableFuture.class.getName().equals(returnType.raw())) &&
+                        Void.class.getName().equals(returnType.args().get(0)));
     }
 
     private ParsedType unwrapReturnedType(final TypeMirror typeMirror, final ParsedType type) {
@@ -375,7 +389,7 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
         final var delegation = forceCompletionStageResult(returnType, params.stream()
                 .map(it -> it.promiseName() != null ? it.promiseName() : it.invocation())
                 .collect(joining(", ", "root." + method.getSimpleName() + "(", ")")));
-        return "context -> " + delegation;
+        return "context -> { " + (delegation.contains("; return ") ? delegation : ("return " + delegation + ";")) + "}";
     }
 
     @Override

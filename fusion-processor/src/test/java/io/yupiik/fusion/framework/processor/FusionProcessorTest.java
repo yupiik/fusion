@@ -21,7 +21,6 @@ import io.yupiik.fusion.framework.api.Instance;
 import io.yupiik.fusion.framework.api.RuntimeContainer;
 import io.yupiik.fusion.framework.api.configuration.Configuration;
 import io.yupiik.fusion.framework.api.configuration.ConfigurationSource;
-import io.yupiik.fusion.framework.api.container.FusionBean;
 import io.yupiik.fusion.framework.api.container.FusionListener;
 import io.yupiik.fusion.framework.api.container.FusionModule;
 import io.yupiik.fusion.framework.api.container.RuntimeContainerImpl;
@@ -110,22 +109,22 @@ class FusionProcessorTest {
             try {
                 assertEquals("""
                         package test.p;
-                                                
+                        
                         @io.yupiik.fusion.framework.api.container.Generation(version = 1)
                         class AppScopedBeanWithoutSubClassFriendlyConstructor$FusionSubclass extends AppScopedBeanWithoutSubClassFriendlyConstructor {
                           private final io.yupiik.fusion.framework.api.container.context.subclass.DelegatingContext<AppScopedBeanWithoutSubClassFriendlyConstructor> fusionContext;
-                                                
+                        
                           AppScopedBeanWithoutSubClassFriendlyConstructor$FusionSubclass(final io.yupiik.fusion.framework.api.container.context.subclass.DelegatingContext<AppScopedBeanWithoutSubClassFriendlyConstructor> context) {
                             super(null);
                             this.fusionContext = context;
                           }
-                                                
+                        
                           @Override
                           public java.lang.String get() {
                             return this.fusionContext.instance().get();
                           }
                         }
-                                                
+                        
                         """, Files.readString(compiler.getGeneratedSources().resolve("test/p/AppScopedBeanWithoutSubClassFriendlyConstructor$FusionSubclass.java")));
             } catch (final IOException e) {
                 fail(e);
@@ -144,7 +143,7 @@ class FusionProcessorTest {
             try {
                 assertEquals("""
                         package test.p;
-                                                
+                        
                         @io.yupiik.fusion.framework.api.container.Generation(version = 1)
                         public class Bean1$FusionBean extends io.yupiik.fusion.framework.api.container.bean.BaseBean<Bean1> {
                           public Bean1$FusionBean() {
@@ -153,46 +152,46 @@ class FusionProcessorTest {
                           context -> new test.p.Bean1$FusionSubclass(context)
                         ));
                           }
-                                                
+                        
                           @Override
                           public Bean1 create(final io.yupiik.fusion.framework.api.RuntimeContainer container, final java.util.List<io.yupiik.fusion.framework.api.Instance<?>> dependents) {
                             final var instance = new Bean1();
                             inject(container, dependents, instance);
                             return instance;
                           }
-                                                
+                        
                           @Override
                           public void inject(final io.yupiik.fusion.framework.api.RuntimeContainer container, final java.util.List<io.yupiik.fusion.framework.api.Instance<?>> dependents, final Bean1 instance) {
                             instance.bean2 = lookup(container, test.p.Bean2.class, dependents);
                           }
                         }
-                                                
+                        
                         """, Files.readString(compiler.getGeneratedSources().resolve("test/p/Bean1$FusionBean.java")));
                 assertEquals("""
                         package test.p;
-                                        
+                        
                         @io.yupiik.fusion.framework.api.container.Generation(version = 1)
                         class Bean1$FusionSubclass extends Bean1 {
                           private final io.yupiik.fusion.framework.api.container.context.subclass.DelegatingContext<Bean1> fusionContext;
-                                        
+                        
                           Bean1$FusionSubclass(final io.yupiik.fusion.framework.api.container.context.subclass.DelegatingContext<Bean1> context) {
                             this.fusionContext = context;
                           }
-                                        
+                        
                           @Override
                           public java.lang.String toString() {
                             return this.fusionContext.instance().toString();
                           }
                         }
-                                        
+                        
                         """, Files.readString(compiler.getGeneratedSources().resolve("test/p/Bean1$FusionSubclass.java")));
                 assertEquals("""
                         package test.p;
-                                        
+                        
                         import java.util.stream.Stream;
                         import io.yupiik.fusion.framework.api.container.FusionBean;
                         import io.yupiik.fusion.framework.api.container.FusionModule;
-                                        
+                        
                         public class FusionGeneratedModule implements FusionModule {
                             @Override
                             public Stream<FusionBean<?>> beans() {
@@ -201,9 +200,9 @@ class FusionProcessorTest {
                                     new test.p.Bean2$FusionBean()
                                 );
                             }
-                            
+                        
                         }
-                                        
+                        
                         """, Files.readString(compiler.getGeneratedSources().resolve("test/p/FusionGeneratedModule.java")));
                 assertEquals("test.p.FusionGeneratedModule", Files.readString(compiler.getClasses().resolve("META-INF/services/" + FusionModule.class.getName())));
             } catch (final IOException ioe) {
@@ -633,7 +632,7 @@ class FusionProcessorTest {
                         }
                     });
                     // clean the bean to use our custom config source
-                    if (container.getContexts().findContext(ApplicationScoped.class).orElseThrow() instanceof  ApplicationFusionContext ac){
+                    if (container.getContexts().findContext(ApplicationScoped.class).orElseThrow() instanceof ApplicationFusionContext ac) {
                         ac.clean(container.lookup(Configuration.class).bean());
                     }
                     if (container instanceof RuntimeContainerImpl r) {
@@ -1462,6 +1461,43 @@ class FusionProcessorTest {
                 .compileAndAsserts((loader, container) -> assertEquals(7, container.getBeans().getBeans().size()));
     }
 
+    @Test
+    @SuppressWarnings("unchecked")
+    void jsonRpcNotifications(@TempDir final Path work) throws IOException {
+        new Compiler(work, "JsonRpcNotifications")
+                .compileAndAssertsInstance((container, instance) -> {
+                    final var provider = (Supplier<String>) instance.instance();
+                    assertNull(provider.get());
+
+                    try (final var endpointInstance = container.lookup(JsonRpcEndpoint.class)) {
+
+                        // direct (returns void)
+                        assertJsonRpc(
+                                endpointInstance.instance(), """
+                                        {
+                                          "jsonrpc": "2.0",
+                                          "method": "notification1"
+                                        }
+                                        """,
+                                "",
+                                202);
+                        assertEquals("notification1", provider.get());
+
+                        // promise form
+                        assertJsonRpc(
+                                endpointInstance.instance(), """
+                                        {
+                                          "jsonrpc": "2.0",
+                                          "method": "notification2"
+                                        }
+                                        """,
+                                "",
+                                202);
+                        assertEquals("notification2", provider.get());
+                    }
+                });
+    }
+
     @TestFactory
     Stream<DynamicTest> jsonRpc(@TempDir final Path work) throws IOException {
         final var compiler = new Compiler(work, "JsonRpcEndpoints").assertCompiles(0);
@@ -2096,8 +2132,8 @@ class FusionProcessorTest {
             assertEquals(
                     """
                             package test.p.persistence;
-                                                    
-                                                    
+                            
+                            
                             @io.yupiik.fusion.framework.api.container.Generation(version = 1)
                             public class SimpleFlatEntity$FusionPersistenceEntity extends io.yupiik.fusion.persistence.impl.BaseEntity<SimpleFlatEntity, java.lang.String> {
                                 public SimpleFlatEntity$FusionPersistenceEntity(final io.yupiik.fusion.persistence.impl.DatabaseConfiguration configuration) {
@@ -2155,7 +2191,7 @@ class FusionProcessorTest {
                                       });
                                 }
                             }
-                                                    
+                            
                             """,
                     compiler.readGeneratedSource(entity + "$FusionPersistenceEntity"));
 
@@ -2185,8 +2221,8 @@ class FusionProcessorTest {
         compiler.compileAndAsserts((loader, container) -> assertEquals(
                 """
                         package test.p.persistence;
-                                                
-                                                
+                        
+                        
                         @io.yupiik.fusion.framework.api.container.Generation(version = 1)
                         public class OnDeleteEntity$FusionPersistenceEntity extends io.yupiik.fusion.persistence.impl.BaseEntity<OnDeleteEntity, java.lang.String> {
                             public OnDeleteEntity$FusionPersistenceEntity(final io.yupiik.fusion.persistence.impl.DatabaseConfiguration configuration) {
@@ -2203,7 +2239,7 @@ class FusionProcessorTest {
                                     return instance;
                                   },
                                   (instance, statement) -> {
-                                                
+                        
                                     if (instance.id() == null) { statement.setNull(1, java.sql.Types.VARCHAR); } else { statement.setString(1, instance.id()); }
                                     return instance;
                                   },
@@ -2227,7 +2263,7 @@ class FusionProcessorTest {
                                   });
                             }
                         }
-                                                
+                        
                         """,
                 compiler.readGeneratedSource(entity + "$FusionPersistenceEntity")));
     }
@@ -2239,8 +2275,8 @@ class FusionProcessorTest {
         compiler.compileAndAsserts((loader, container) -> assertEquals(
                 """
                         package test.p.persistence;
-                                                
-                                                
+                        
+                        
                         @io.yupiik.fusion.framework.api.container.Generation(version = 1)
                         public class CallbackWithInjections$FusionPersistenceEntity extends io.yupiik.fusion.persistence.impl.BaseEntity<CallbackWithInjections, java.lang.String> {
                             public CallbackWithInjections$FusionPersistenceEntity(final io.yupiik.fusion.persistence.impl.DatabaseConfiguration configuration, final io.yupiik.fusion.framework.api.RuntimeContainer main__container) {
@@ -2265,7 +2301,7 @@ class FusionProcessorTest {
                                     try (final var bean = main__container.lookup(test.p.Bean2.class)) {
                                       instance = entity.onUpdate(bean.instance());
                                     }
-                                                
+                        
                                     if (instance.id() == null) { statement.setNull(1, java.sql.Types.VARCHAR); } else { statement.setString(1, instance.id()); }
                                     return instance;
                                   },
@@ -2295,7 +2331,7 @@ class FusionProcessorTest {
                                   });
                             }
                         }
-                                                
+                        
                         """,
                 compiler.readGeneratedSource(entity + "$FusionPersistenceEntity")));
     }
@@ -2308,8 +2344,8 @@ class FusionProcessorTest {
             assertEquals(
                     """
                             package test.p.persistence;
-                                                        
-                                                        
+                            
+                            
                             @io.yupiik.fusion.framework.api.container.Generation(version = 1)
                             public class NestedEntity$FusionPersistenceEntity extends io.yupiik.fusion.persistence.impl.BaseEntity<NestedEntity, java.lang.String> {
                                 public NestedEntity$FusionPersistenceEntity(final io.yupiik.fusion.persistence.impl.DatabaseConfiguration configuration) {
@@ -2371,7 +2407,7 @@ class FusionProcessorTest {
                                       });
                                 }
                             }
-                                                        
+                            
                             """,
                     compiler.readGeneratedSource(entity + "$FusionPersistenceEntity"));
 
@@ -2403,11 +2439,15 @@ class FusionProcessorTest {
     }
 
     private void assertJsonRpc(final JsonRpcEndpoint instance, final String request, final String response) {
+        assertJsonRpc(instance, request, response, 200);
+    }
+
+    private void assertJsonRpc(final JsonRpcEndpoint instance, final String request, final String response, final int status) {
         final var handled = assertDoesNotThrow(() -> instance.handle(jsonRpc(request))
                 .toCompletableFuture().get());
-        assertEquals(200, handled.status());
+        assertEquals(status, handled.status());
         assertEquals(Map.of("content-type", List.of("application/json;charset=utf-8")), handled.headers());
-        assertEquals(response, assertDoesNotThrow(() -> new String(new RequestBodyAggregator(handled.body(), UTF_8).promise().toCompletableFuture().get())));
+        assertEquals(response, handled.body() == null ? "" : assertDoesNotThrow(() -> new String(new RequestBodyAggregator(handled.body(), UTF_8).promise().toCompletableFuture().get())));
     }
 
     private Request jsonRpc(final String payload) {

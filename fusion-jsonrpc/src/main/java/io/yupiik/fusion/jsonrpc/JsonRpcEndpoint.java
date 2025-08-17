@@ -38,8 +38,15 @@ public class JsonRpcEndpoint extends DefaultEndpoint {
     private final JsonRpcHandler handler;
     private final JsonMapper mapper;
     private final boolean useInputStream;
+    private final int voidStatus;
+    private final String contentType;
 
     public JsonRpcEndpoint(final JsonRpcHandler handler, final JsonMapper mapper, final String path, final boolean useInputStream) {
+        this(handler, mapper, path, useInputStream, 202, "application/json;charset=utf-8");
+    }
+
+    public JsonRpcEndpoint(final JsonRpcHandler handler, final JsonMapper mapper, final String path,
+                           final boolean useInputStream, final int voidStatus, final String contentType) {
         super(
                 1000,
                 r -> "POST".equals(r.method()) && path.equals(r.path()),
@@ -47,6 +54,8 @@ public class JsonRpcEndpoint extends DefaultEndpoint {
         this.useInputStream = useInputStream;
         this.handler = handler;
         this.mapper = mapper;
+        this.voidStatus = voidStatus;
+        this.contentType = contentType;
     }
 
     @Override
@@ -92,17 +101,22 @@ public class JsonRpcEndpoint extends DefaultEndpoint {
     @SuppressWarnings("unchecked")
     private Response response(final Object payload, final Request request) {
         final var attribute = request.attribute(RESPONSE_HEADERS, Map.class);
-        final var res = Response.of()
-                .status(200)
-                .header("content-type", "application/json;charset=utf-8");
+        final var res = Response.of();
+        res.header("content-type", contentType);
         if (attribute != null) {
             ((Map<String, String>) attribute).forEach(res::header);
         }
-        return res.body((IOConsumer<Writer>) writer -> {
-                    try (writer) {
-                        mapper.write(payload, writer);
-                    }
-                })
-                .build();
+        if (payload == null) {
+            res.status(voidStatus);
+        } else {
+            res
+                    .status(200)
+                    .body((IOConsumer<Writer>) writer -> {
+                        try (writer) {
+                            mapper.write(payload, writer);
+                        }
+                    });
+        }
+        return res.build();
     }
 }
