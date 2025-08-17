@@ -18,6 +18,7 @@ package io.yupiik.fusion.framework.processor.internal.generator;
 import io.yupiik.fusion.framework.api.container.context.subclass.DelegatingContext;
 import io.yupiik.fusion.framework.processor.internal.Elements;
 import io.yupiik.fusion.framework.processor.internal.ParsedType;
+import io.yupiik.fusion.framework.processor.internal.metadata.MetadataContributorRegistry;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.ExecutableElement;
@@ -50,9 +51,9 @@ public class SubclassGenerator extends BaseGenerator implements Supplier<BaseGen
     private final TypeElement typeElement;
 
     public SubclassGenerator(final ProcessingEnvironment processingEnvironment,
-                             final Elements elements,
+                             final Elements elements, final MetadataContributorRegistry metadataContributorRegistry,
                              final String packageName, final String className, final TypeElement te) {
-        super(processingEnvironment, elements);
+        super(processingEnvironment, elements, metadataContributorRegistry);
         this.packageName = packageName;
         this.className = className;
         this.typeElement = te;

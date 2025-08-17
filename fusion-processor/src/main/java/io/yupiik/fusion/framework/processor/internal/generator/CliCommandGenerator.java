@@ -24,6 +24,7 @@ import io.yupiik.fusion.framework.api.container.bean.BaseBean;
 import io.yupiik.fusion.framework.build.api.cli.Command;
 import io.yupiik.fusion.framework.processor.internal.Elements;
 import io.yupiik.fusion.framework.processor.internal.meta.Docs;
+import io.yupiik.fusion.framework.processor.internal.metadata.MetadataContributorRegistry;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
@@ -53,10 +54,11 @@ public class CliCommandGenerator extends BaseGenerator implements Supplier<CliCo
     private final Collection<Docs.ClassDoc> docs;
 
     public CliCommandGenerator(final ProcessingEnvironment processingEnv, final Elements elements,
+                               final MetadataContributorRegistry metadataContributorRegistry,
                                final boolean beanForCliCommands, final String packageName,
                                final String className, final Command command, final TypeElement type,
                                final Collection<Docs.ClassDoc> docs) {
-        super(processingEnv, elements);
+        super(processingEnv, elements, metadataContributorRegistry);
         this.command = command;
         this.beanForCliCommands = beanForCliCommands;
         this.packageName = packageName;

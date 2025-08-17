@@ -21,6 +21,7 @@ import io.yupiik.fusion.framework.api.configuration.Configuration;
 import io.yupiik.fusion.framework.api.container.FusionBean;
 import io.yupiik.fusion.framework.api.container.bean.BaseBean;
 import io.yupiik.fusion.framework.processor.internal.Elements;
+import io.yupiik.fusion.framework.processor.internal.metadata.MetadataContributorRegistry;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
@@ -34,8 +35,9 @@ public class BeanConfigurationGenerator extends BaseGenerator implements Supplie
     private final Element element;
 
     public BeanConfigurationGenerator(final ProcessingEnvironment processingEnv, final Elements elements,
+                                      final MetadataContributorRegistry metadataContributorRegistry,
                                       final String packageName, final String className, final Element element) {
-        super(processingEnv, elements);
+        super(processingEnv, elements, metadataContributorRegistry);
         this.packageName = packageName;
         this.className = className;
         this.element = element;

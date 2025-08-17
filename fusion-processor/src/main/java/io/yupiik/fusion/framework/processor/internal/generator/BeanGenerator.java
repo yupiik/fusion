@@ -21,6 +21,7 @@ import io.yupiik.fusion.framework.api.container.FusionBean;
 import io.yupiik.fusion.framework.api.container.bean.BaseBean;
 import io.yupiik.fusion.framework.processor.internal.Bean;
 import io.yupiik.fusion.framework.processor.internal.Elements;
+import io.yupiik.fusion.framework.processor.internal.metadata.MetadataContributorRegistry;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
@@ -45,10 +46,11 @@ public class BeanGenerator extends BaseGenerator implements Supplier<BaseGenerat
     private final TypeMirror destroy;
 
     public BeanGenerator(final ProcessingEnvironment processingEnv, final Elements elements,
+                         final MetadataContributorRegistry metadataContributorRegistry,
                          final List<Bean.FieldInjection> injections, final String packageName,
                          final String className, final Element element, final Map<String, String> data,
                          final TypeMirror init, final TypeMirror destroy) {
-        super(processingEnv, elements);
+        super(processingEnv, elements, metadataContributorRegistry);
         this.injections = injections;
         this.packageName = packageName;
         this.className = className;

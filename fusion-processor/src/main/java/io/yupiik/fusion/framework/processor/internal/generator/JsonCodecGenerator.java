@@ -22,6 +22,7 @@ import io.yupiik.fusion.framework.build.api.json.JsonProperty;
 import io.yupiik.fusion.framework.processor.internal.Elements;
 import io.yupiik.fusion.framework.processor.internal.ParsedType;
 import io.yupiik.fusion.framework.processor.internal.meta.JsonSchema;
+import io.yupiik.fusion.framework.processor.internal.metadata.MetadataContributorRegistry;
 import io.yupiik.fusion.json.internal.JsonStrings;
 import io.yupiik.fusion.json.internal.codec.BaseJsonCodec;
 import io.yupiik.fusion.json.internal.codec.CollectionJsonCodec;
@@ -70,9 +71,10 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
     private final Map<String, JsonSchema> jsonSchemas;
 
     public JsonCodecGenerator(final ProcessingEnvironment processingEnv, final Elements elements,
+                              final MetadataContributorRegistry metadataContributorRegistry,
                               final String packageName, final String className, final TypeElement element,
                               final Collection<String> models, final Map<String, JsonSchema> jsonSchemasCollector) {
-        super(processingEnv, elements);
+        super(processingEnv, elements, metadataContributorRegistry);
         this.packageName = packageName;
         this.className = className;
         this.element = element;

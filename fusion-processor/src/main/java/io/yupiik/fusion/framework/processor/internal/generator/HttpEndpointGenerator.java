@@ -23,6 +23,7 @@ import io.yupiik.fusion.framework.build.api.http.HttpMatcher;
 import io.yupiik.fusion.framework.build.api.json.JsonModel;
 import io.yupiik.fusion.framework.processor.internal.Elements;
 import io.yupiik.fusion.framework.processor.internal.ParsedType;
+import io.yupiik.fusion.framework.processor.internal.metadata.MetadataContributorRegistry;
 import io.yupiik.fusion.http.server.api.Request;
 import io.yupiik.fusion.http.server.api.Response;
 import io.yupiik.fusion.http.server.impl.DefaultEndpoint;
@@ -45,9 +46,10 @@ public class HttpEndpointGenerator extends BaseHttpEndpointGenerator implements 
     private static final String SUFFIX = "$FusionHttpEndpoint";
 
     public HttpEndpointGenerator(final ProcessingEnvironment processingEnv, final Elements elements,
+                                 final MetadataContributorRegistry metadataContributorRegistry,
                                  final boolean generateBean, final String packageName, final String className,
                                  final ExecutableElement method, final Predicate<String> knownJsonModels) {
-        super(processingEnv, elements, generateBean, packageName, className, method, knownJsonModels);
+        super(processingEnv, elements, metadataContributorRegistry, generateBean, packageName, className, method, knownJsonModels);
     }
 
     @Override
