@@ -19,6 +19,7 @@ import io.yupiik.fusion.framework.api.container.FusionBean;
 import io.yupiik.fusion.framework.api.container.FusionListener;
 import io.yupiik.fusion.framework.api.container.FusionModule;
 import io.yupiik.fusion.framework.processor.internal.Elements;
+import io.yupiik.fusion.framework.processor.internal.metadata.MetadataContributorRegistry;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import java.util.Collection;
@@ -34,9 +35,10 @@ public class ModuleGenerator extends BaseGenerator implements Supplier<BaseGener
     private final Collection<String> allListeners;
 
     public ModuleGenerator(final ProcessingEnvironment processingEnv, final Elements elements,
+                           final MetadataContributorRegistry metadataContributorRegistry,
                            final String packageName, final String className,
                            final Collection<String> allBeans, final Collection<String> allListeners) {
-        super(processingEnv, elements);
+        super(processingEnv, elements, metadataContributorRegistry);
         this.packageName = packageName;
         this.className = className;
         this.allBeans = allBeans;

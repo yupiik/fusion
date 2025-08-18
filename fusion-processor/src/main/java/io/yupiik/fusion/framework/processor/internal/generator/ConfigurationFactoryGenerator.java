@@ -22,6 +22,7 @@ import io.yupiik.fusion.framework.build.api.configuration.RootConfiguration;
 import io.yupiik.fusion.framework.processor.internal.Elements;
 import io.yupiik.fusion.framework.processor.internal.meta.Docs;
 import io.yupiik.fusion.framework.processor.internal.meta.ReusableDoc;
+import io.yupiik.fusion.framework.processor.internal.metadata.MetadataContributorRegistry;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
@@ -67,11 +68,12 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
     private final Map<String, String> enumValueOfCache;
 
     public ConfigurationFactoryGenerator(final ProcessingEnvironment processingEnv, final Elements elements,
+                                         final MetadataContributorRegistry metadataContributorRegistry,
                                          final String packageName, final String className, final TypeElement element,
                                          final Map<String, String> enumValueOfCache,
                                          final boolean root,
                                          final Map<String, Map<String, ReusableDoc>> knownDocs) {
-        super(processingEnv, elements);
+        super(processingEnv, elements, metadataContributorRegistry);
         this.packageName = packageName;
         this.className = className;
         this.element = element;

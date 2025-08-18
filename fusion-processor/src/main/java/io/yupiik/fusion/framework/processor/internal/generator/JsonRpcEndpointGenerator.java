@@ -27,6 +27,7 @@ import io.yupiik.fusion.framework.processor.internal.GeneratedJsonSchema;
 import io.yupiik.fusion.framework.processor.internal.ParsedType;
 import io.yupiik.fusion.framework.processor.internal.meta.JsonSchema;
 import io.yupiik.fusion.framework.processor.internal.meta.PartialOpenRPC;
+import io.yupiik.fusion.framework.processor.internal.metadata.MetadataContributorRegistry;
 import io.yupiik.fusion.json.JsonMapper;
 import io.yupiik.fusion.json.internal.codec.ObjectJsonCodec;
 import io.yupiik.fusion.json.internal.parser.BufferProvider;
@@ -67,10 +68,11 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
     private final List<ParamMeta> jsonRpcParams = new ArrayList<>();
 
     public JsonRpcEndpointGenerator(final ProcessingEnvironment processingEnv, final Elements elements,
+                                    final MetadataContributorRegistry metadataContributorRegistry,
                                     final boolean beanForJsonRpcEndpoints, final String packageName, final String className,
                                     final ExecutableElement method, final Predicate<String> knownJsonModels,
                                     final PartialOpenRPC openRPC, final Map<String, GeneratedJsonSchema> allJsonSchemas) {
-        super(processingEnv, elements, beanForJsonRpcEndpoints, packageName, className, method, knownJsonModels);
+        super(processingEnv, elements, metadataContributorRegistry, beanForJsonRpcEndpoints, packageName, className, method, knownJsonModels);
         this.openRPC = openRPC;
         this.allJsonSchemas = allJsonSchemas;
     }

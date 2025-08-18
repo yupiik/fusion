@@ -21,6 +21,7 @@ import io.yupiik.fusion.framework.api.container.Types;
 import io.yupiik.fusion.framework.api.container.bean.BaseBean;
 import io.yupiik.fusion.framework.processor.internal.Elements;
 import io.yupiik.fusion.framework.processor.internal.ParsedType;
+import io.yupiik.fusion.framework.processor.internal.metadata.MetadataContributorRegistry;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.ExecutableElement;
@@ -41,9 +42,10 @@ public class MethodBeanGenerator extends BaseGenerator implements Supplier<BaseG
     private final ExecutableElement element;
 
     public MethodBeanGenerator(final ProcessingEnvironment processingEnvironment, final Elements elements,
+                               final MetadataContributorRegistry metadataContributorRegistry,
                                final String enclosingClass, final String packageName,
                                final String beanClassName, final ExecutableElement element) {
-        super(processingEnvironment, elements);
+        super(processingEnvironment, elements, metadataContributorRegistry);
         this.enclosingClass = enclosingClass;
         this.packageName = packageName;
         this.beanClassName = beanClassName;

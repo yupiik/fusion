@@ -35,6 +35,8 @@ import io.yupiik.fusion.framework.build.api.jsonrpc.JsonRpc;
 import io.yupiik.fusion.framework.build.api.kubernetes.crd.CustomResourceDefinition;
 import io.yupiik.fusion.framework.build.api.lifecycle.Destroy;
 import io.yupiik.fusion.framework.build.api.lifecycle.Init;
+import io.yupiik.fusion.framework.build.api.metadata.BeanMetadataAlias;
+import io.yupiik.fusion.framework.build.api.metadata.spi.MetadataContributor;
 import io.yupiik.fusion.framework.build.api.order.Order;
 import io.yupiik.fusion.framework.build.api.persistence.OnDelete;
 import io.yupiik.fusion.framework.build.api.persistence.OnInsert;
@@ -55,6 +57,7 @@ import io.yupiik.fusion.framework.processor.internal.generator.JsonCodecEnumBean
 import io.yupiik.fusion.framework.processor.internal.generator.JsonCodecGenerator;
 import io.yupiik.fusion.framework.processor.internal.generator.JsonRpcEndpointGenerator;
 import io.yupiik.fusion.framework.processor.internal.generator.ListenerGenerator;
+import io.yupiik.fusion.framework.processor.internal.generator.MetadataContributorGenerator;
 import io.yupiik.fusion.framework.processor.internal.generator.MethodBeanGenerator;
 import io.yupiik.fusion.framework.processor.internal.generator.ModuleGenerator;
 import io.yupiik.fusion.framework.processor.internal.generator.PersistenceEntityGenerator;
@@ -66,6 +69,7 @@ import io.yupiik.fusion.framework.processor.internal.meta.JsonSchema;
 import io.yupiik.fusion.framework.processor.internal.meta.PartialOpenRPC;
 import io.yupiik.fusion.framework.processor.internal.meta.ReusableDoc;
 import io.yupiik.fusion.framework.processor.internal.meta.renderer.doc.DocJsonRenderer;
+import io.yupiik.fusion.framework.processor.internal.metadata.MetadataContributorRegistry;
 import io.yupiik.fusion.framework.processor.internal.persistence.SimpleEntity;
 
 import javax.annotation.processing.AbstractProcessor;
@@ -122,6 +126,7 @@ import static java.util.stream.Collectors.toCollection;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 import static java.util.stream.Collectors.toSet;
+import static javax.lang.model.element.ElementKind.ANNOTATION_TYPE;
 import static javax.lang.model.element.ElementKind.CLASS;
 import static javax.lang.model.element.ElementKind.ENUM;
 import static javax.lang.model.element.ElementKind.ENUM_CONSTANT;
@@ -190,7 +195,9 @@ import static javax.tools.StandardLocation.CLASS_OUTPUT;
         "io.yupiik.fusion.framework.api.scope.ApplicationScoped",
         "io.yupiik.fusion.framework.api.scope.DefaultScoped",
         // CRD
-        "io.yupiik.fusion.framework.build.api.kubernetes.crd.CustomResourceDefinition"
+        "io.yupiik.fusion.framework.build.api.kubernetes.crd.CustomResourceDefinition",
+        // metadata
+        "io.yupiik.fusion.framework.build.api.metadata.BeanMetadataAlias"
 })
 public class InternalFusionProcessor extends AbstractProcessor {
     private TypeMirror init;
@@ -201,6 +208,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
     private TypeMirror onDelete;
     private Set<String> knownJsonModels;
     private Map<String, Map<String, ReusableDoc>> knownDocs = Map.of();
+    private MetadataContributorRegistry metadataContributorRegistry;
 
     private boolean emitNotes;
     private boolean generateBeansForConfiguration;
@@ -235,6 +243,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
     private final Collection<String> allBeans = new HashSet<>();
     private final Collection<String> allListeners = new HashSet<>();
     private final Collection<Docs.ClassDoc> allConfigurationsDocs = new HashSet<>();
+    private final Collection<String> metadataContributors = new HashSet<>();
     private Map<String, GeneratedJsonSchema> allJsonSchemas; // if null don't store them
     private PartialOpenRPC partialOpenRPC; // if null don't store them
 
@@ -397,6 +406,9 @@ public class InternalFusionProcessor extends AbstractProcessor {
         if (openrpcLocation != null) {
             partialOpenRPC = new PartialOpenRPC(new TreeMap<>(String.CASE_INSENSITIVE_ORDER), new TreeMap<>(String.CASE_INSENSITIVE_ORDER));
         }
+
+        metadataContributorRegistry = new MetadataContributorRegistry(processingEnv);
+
         debugEnd("init", processingEnv, start);
     }
 
@@ -462,6 +474,9 @@ public class InternalFusionProcessor extends AbstractProcessor {
 
     private void doProcess(final RoundEnvironment roundEnv) {
         final var start = debugStart();
+
+        // find metadata aliases
+        final var metadataAliases = roundEnv.getElementsAnnotatedWith(BeanMetadataAlias.class);
 
         // find CRD - here we do not care of the underlying type (enhancement: extract the spec type from the generic?)
         final var crds = roundEnv.getElementsAnnotatedWith(CustomResourceDefinition.class);
@@ -532,7 +547,10 @@ public class InternalFusionProcessor extends AbstractProcessor {
 
         final var startGenerate = debugStart();
 
-        // generate beans, listeners, ...
+        final var startMetadataAliases = debugStart();
+        metadataAliases.forEach(this::generateMetadataContributor);
+        debugEnd("  generateMetadataContributor (#" + metadataAliases.size() + ")", processingEnv, startMetadataAliases);
+
         final var startConf = debugStart();
         configurations.forEach(this::generateConfigurationFactory);
         reusableConfigurations.forEach(this::generateReusableConfigurationDoc);
@@ -639,8 +657,29 @@ public class InternalFusionProcessor extends AbstractProcessor {
             generateJsonMetadata();
             generateOpenRPCMetadata();
             generateNativeImageProperties();
+            generateMetadataContributorSPI();
         } catch (final IOException | RuntimeException e) {
             processingEnv.getMessager().printMessage(ERROR, e.getMessage());
+        }
+    }
+
+    private void generateMetadataContributorSPI() throws IOException {
+        if (metadataContributors.isEmpty()) {
+            return;
+        }
+
+        final var file = "META-INF/services/" + MetadataContributor.class.getName();
+        final var nativeImageProperties = processingEnv
+                .getFiler()
+                .createResource(CLASS_OUTPUT, "", file);
+        try (final var out = nativeImageProperties.openWriter()) {
+            out.write(metadataContributors.stream()
+                    .sorted()
+                    .collect(joining("\n")));
+        }
+
+        if (emitNotes) {
+            processingEnv.getMessager().printMessage(NOTE, "Generated '" + file + "'");
         }
     }
 
@@ -873,7 +912,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
                     return;
                 }
                 final var generation = new JsonCodecEnumBeanGenerator(
-                        processingEnv, elements, names.packageName(), names.className(), element.asType()).get();
+                        processingEnv, elements, metadataContributorRegistry, names.packageName(), names.className(), element.asType()).get();
                 writeGeneratedClass(element, generation);
                 allBeans.add(generation.name());
 
@@ -900,7 +939,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
 
             final var schemas = allJsonSchemas == null ? null : new HashMap<String, JsonSchema>();
             final var generator = new JsonCodecGenerator(
-                    processingEnv, elements, names.packageName(), names.className(), element, knownJsonModels, schemas);
+                    processingEnv, elements, metadataContributorRegistry, names.packageName(), names.className(), element, knownJsonModels, schemas);
             final var generation = generator.get();
             if (schemas != null && !schemas.isEmpty()) {
                 allJsonSchemas.putAll(schemas.entrySet().stream()
@@ -911,7 +950,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
             if (beanForJsonCodecs) {
                 final var beanName = ParsedName.of(generation.name());
                 try {
-                    final var beanGen = new JsonCodecBeanGenerator(processingEnv, elements, beanName.packageName(), beanName.className()).get();
+                    final var beanGen = new JsonCodecBeanGenerator(processingEnv, elements, metadataContributorRegistry, beanName.packageName(), beanName.className()).get();
                     writeGeneratedClass(element, beanGen);
                     allBeans.add(beanGen.name());
                 } catch (final IOException | RuntimeException e) {
@@ -938,12 +977,31 @@ public class InternalFusionProcessor extends AbstractProcessor {
         try {
             // reuse root configuration generator but ignore the generated class
             final var generation = new ConfigurationFactoryGenerator(
-                    processingEnv, elements, names.packageName(), names.className(), element,
+                    processingEnv, elements, metadataContributorRegistry, names.packageName(), names.className(), element,
                     configurationEnumValueOfCache, false, knownDocs).get();
             if (generation.docs() != null && docsMetadataLocation != null) {
                 allConfigurationsDocs.addAll(generation.docs());
             }
         } catch (final RuntimeException e) {
+            processingEnv.getMessager().printMessage(ERROR, e.getMessage());
+        }
+    }
+
+    private void generateMetadataContributor(final Element elt) {
+        if (!(elt instanceof TypeElement element) || element.getKind() != ANNOTATION_TYPE) {
+            processingEnv.getMessager().printMessage(ERROR, "'" + elt + "' not an annotation.");
+            return;
+        }
+
+        final var names = ParsedName.of(element);
+        try {
+            final var generation = new MetadataContributorGenerator(
+                    processingEnv, elements, names.packageName(), names.className(),
+                    elt.getAnnotation(BeanMetadataAlias.class), element).get();
+            writeGeneratedClass(elt, generation.generatedClass());
+            metadataContributors.add(generation.generatedClass().name());
+            metadataContributorRegistry.register(generation.contributor());
+        } catch (final IOException | RuntimeException e) {
             processingEnv.getMessager().printMessage(ERROR, e.getMessage());
         }
     }
@@ -957,7 +1015,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
         final var names = ParsedName.of(element);
         try {
             final var generation = new ConfigurationFactoryGenerator(
-                    processingEnv, elements, names.packageName(), names.className(), element,
+                    processingEnv, elements, metadataContributorRegistry, names.packageName(), names.className(), element,
                     configurationEnumValueOfCache, true, knownDocs).get();
             writeGeneratedClass(confElt, generation.generatedClass());
             if (generation.docs() != null && docsMetadataLocation != null) {
@@ -965,7 +1023,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
             }
 
             if (generateBeansForConfiguration) {
-                final var bean = new BeanConfigurationGenerator(processingEnv, elements, names.packageName(), names.className(), element).get();
+                final var bean = new BeanConfigurationGenerator(processingEnv, elements, metadataContributorRegistry, names.packageName(), names.className(), element).get();
                 writeGeneratedClass(confElt, bean);
                 allBeans.add(bean.name());
             }
@@ -983,7 +1041,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
         final var names = ParsedName.of(method.getEnclosingElement());
         try {
             final var generation = new JsonRpcEndpointGenerator(
-                    processingEnv, elements, beanForJsonRpcEndpoints,
+                    processingEnv, elements, metadataContributorRegistry, beanForJsonRpcEndpoints,
                     names.packageName(), names.className() + "$" + method.getSimpleName(), method,
                     this::isJsonModelKnown, partialOpenRPC,
                     allJsonSchemas.entrySet().stream()
@@ -1013,7 +1071,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
         final var names = ParsedName.of(entity);
         try {
             final var generation = new PersistenceEntityGenerator(
-                    processingEnv, elements, beanForPersistenceEntities,
+                    processingEnv, elements, metadataContributorRegistry, beanForPersistenceEntities,
                     names.packageName(), names.className(),
                     entity.getAnnotation(Table.class), entity,
                     onDelete, onInsert, onLoad, onUpdate,
@@ -1040,7 +1098,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
         final var names = ParsedName.of(method.getEnclosingElement());
         try {
             final var generation = new HttpEndpointGenerator(
-                    processingEnv, elements, beanForHttpEndpoints,
+                    processingEnv, elements, metadataContributorRegistry, beanForHttpEndpoints,
                     names.packageName(), names.className() + "$" + method.getSimpleName(), method,
                     this::isJsonModelKnown).get();
             writeGeneratedClass(method, generation.endpoint());
@@ -1067,7 +1125,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
         final var names = ParsedName.of(runnable);
         try {
             final var generation = new CliCommandGenerator(
-                    processingEnv, elements, beanForCliCommands,
+                    processingEnv, elements, metadataContributorRegistry, beanForCliCommands,
                     names.packageName(), names.className(),
                     runnable.getAnnotation(Command.class), runnable,
                     allConfigurationsDocs)
@@ -1088,7 +1146,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
         final var names = ParsedName.of(listener.getEnclosingElement());
         try {
             final var generation = new ListenerGenerator(
-                    processingEnv, elements,
+                    processingEnv, elements, metadataContributorRegistry,
                     names.packageName(), names.className(), "$" + FusionListener.class.getSimpleName() + "$" + listener.getSimpleName(),
                     listener)
                     .get();
@@ -1132,7 +1190,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
             }
 
             final var names = ParsedName.of(moduleName);
-            final var module = new ModuleGenerator(processingEnv, elements, names.packageName(), names.className(),
+            final var module = new ModuleGenerator(processingEnv, elements, metadataContributorRegistry, names.packageName(), names.className(),
                     allBeans.stream()
                             .distinct()
                             .sorted()
@@ -1176,7 +1234,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
         final var suffix = "$" + FusionBean.class.getSimpleName() + "$" + method.getSimpleName().toString();
 
         try {
-            final var bean = new MethodBeanGenerator(processingEnv, elements, enclosingName, names.packageName(), names.className() + suffix, method).get();
+            final var bean = new MethodBeanGenerator(processingEnv, elements, metadataContributorRegistry, enclosingName, names.packageName(), names.className() + suffix, method).get();
             writeGeneratedClass(method, bean);
             allBeans.add(bean.name());
         } catch (final IOException | RuntimeException e) {
@@ -1189,7 +1247,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
         try {
             final Map<String, String> data;
             if (isLazy(src.enclosing()) && src.enclosing() instanceof TypeElement te && src.enclosing().getKind() != RECORD) {
-                final var subclass = new SubclassGenerator(processingEnv, elements, names.packageName(), names.className(), te).get();
+                final var subclass = new SubclassGenerator(processingEnv, elements, metadataContributorRegistry, names.packageName(), names.className(), te).get();
                 writeGeneratedClass(src.enclosing(), subclass);
                 data = Map.of("fusion.framework.subclasses.delegate",
                         "(" + Function.class.getName() + "<" + DelegatingContext.class.getName() + "<" +
@@ -1199,7 +1257,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
                 data = Map.of();
             }
 
-            final var bean = new BeanGenerator(processingEnv, elements, injections, names.packageName(), names.className(), src.enclosing(), data, init, destroy).get();
+            final var bean = new BeanGenerator(processingEnv, elements, metadataContributorRegistry, injections, names.packageName(), names.className(), src.enclosing(), data, init, destroy).get();
             writeGeneratedClass(src.enclosing(), bean);
             allBeans.add(bean.name());
         } catch (final IOException | RuntimeException e) {
@@ -1241,8 +1299,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
     }
 
     private TypeElement asTypeElement(final Class<?> type) {
-        return (TypeElement) processingEnv.getTypeUtils().asElement(
-                processingEnv.getElementUtils().getTypeElement(type.getName()).asType());
+        return processingEnv.getElementUtils().getTypeElement(type.getName());
     }
 
     private void writeGeneratedClass(final Element relatedTo, final BaseGenerator.GeneratedClass generated) throws IOException {

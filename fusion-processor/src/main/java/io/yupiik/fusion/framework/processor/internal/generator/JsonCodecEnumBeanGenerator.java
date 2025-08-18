@@ -22,6 +22,7 @@ import io.yupiik.fusion.framework.api.container.Types;
 import io.yupiik.fusion.framework.api.container.bean.BaseBean;
 import io.yupiik.fusion.framework.api.scope.DefaultScoped;
 import io.yupiik.fusion.framework.processor.internal.Elements;
+import io.yupiik.fusion.framework.processor.internal.metadata.MetadataContributorRegistry;
 import io.yupiik.fusion.json.internal.codec.EnumJsonCodec;
 
 import javax.annotation.processing.ProcessingEnvironment;
@@ -43,8 +44,9 @@ public class JsonCodecEnumBeanGenerator extends BaseGenerator implements Supplie
     private final TypeMirror type;
 
     public JsonCodecEnumBeanGenerator(final ProcessingEnvironment processingEnv, final Elements elements,
+                                      final MetadataContributorRegistry metadataContributorRegistry,
                                       final String packageName, final String className, final TypeMirror type) {
-        super(processingEnv, elements);
+        super(processingEnv, elements, metadataContributorRegistry);
         this.packageName = packageName;
         this.className = className;
         this.type = type;

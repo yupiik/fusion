@@ -18,6 +18,7 @@ package io.yupiik.fusion.framework.processor.internal.generator;
 import io.yupiik.fusion.framework.build.api.json.JsonModel;
 import io.yupiik.fusion.framework.processor.internal.Elements;
 import io.yupiik.fusion.framework.processor.internal.ParsedType;
+import io.yupiik.fusion.framework.processor.internal.metadata.MetadataContributorRegistry;
 import io.yupiik.fusion.http.server.api.Request;
 import io.yupiik.fusion.http.server.impl.io.RequestBodyAggregator;
 import io.yupiik.fusion.json.JsonMapper;
@@ -50,9 +51,10 @@ public abstract class BaseHttpEndpointGenerator extends BaseGenerator {
     protected final Predicate<String> knownJsonModels;
 
     public BaseHttpEndpointGenerator(final ProcessingEnvironment processingEnv, final Elements elements,
+                                     final MetadataContributorRegistry metadataContributorRegistry,
                                      final boolean generateBean, final String packageName, final String className,
                                      final ExecutableElement method, final Predicate<String> knownJsonModels) {
-        super(processingEnv, elements);
+        super(processingEnv, elements, metadataContributorRegistry);
         this.generateBean = generateBean;
         this.method = method;
         this.packageName = packageName;

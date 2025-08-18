@@ -24,6 +24,7 @@ import io.yupiik.fusion.framework.build.api.order.Order;
 import io.yupiik.fusion.framework.processor.internal.Bean;
 import io.yupiik.fusion.framework.processor.internal.Elements;
 import io.yupiik.fusion.framework.processor.internal.ParsedType;
+import io.yupiik.fusion.framework.processor.internal.metadata.MetadataContributorRegistry;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
@@ -50,6 +51,7 @@ import java.util.stream.Stream;
 import static java.util.Comparator.comparing;
 import static java.util.Map.entry;
 import static java.util.Optional.ofNullable;
+import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.joining;
 import static javax.lang.model.element.ElementKind.CONSTRUCTOR;
 import static javax.lang.model.element.Modifier.PRIVATE;
@@ -76,10 +78,12 @@ public abstract class BaseGenerator {
 
     private final TypeElement comparable;
     private final TypeMirror autocloseable;
+    private final MetadataContributorRegistry metadataContributorRegistry;
 
-    protected BaseGenerator(final ProcessingEnvironment processingEnv, final Elements elements) {
+    protected BaseGenerator(final ProcessingEnvironment processingEnv, final Elements elements, final MetadataContributorRegistry metadataContributorRegistry) {
         this.processingEnv = processingEnv;
         this.elements = elements;
+        this.metadataContributorRegistry = metadataContributorRegistry;
         this.comparable = asElement(processingEnv, Comparable.class);
         this.autocloseable = asElement(processingEnv, AutoCloseable.class).asType();
     }
@@ -90,18 +94,22 @@ public abstract class BaseGenerator {
 
     protected String metadata(final Element element, final Map<String, String> custom) {
         final var meta = element.getAnnotationsByType(BeanMetadata.class);
-        if (meta == null && custom.isEmpty()) {
+        final var customMeta = metadataContributorRegistry.compute(element);
+        if (meta == null && custom.isEmpty() && customMeta.isEmpty()) {
             return Map.class.getName() + ".of()";
         }
 
-        final var entries =  Stream.concat(
-                (meta == null ? Stream.<BeanMetadata>of() : Stream.of(meta))
-                        .map(it -> entry(it.name(), '"' + prepareStringEmbedding(it.value()) + '"')),
-                custom.entrySet().stream());
+        final var entries = Stream.concat(
+                custom.entrySet().stream(),
+                Stream.concat(
+                        customMeta.entrySet().stream(),
+                        (meta == null ? Stream.<BeanMetadata>of() : Stream.of(meta))
+                                .map(t -> entry(t.name(), t.value())))
+                                .map(it -> entry(it.getKey(), '"' + prepareStringEmbedding(it.getValue()) + '"')));
         if ((meta == null ? 0 : meta.length) + custom.size() < 5) {
             return Map.class.getName() +
                     ".of(" +
-                   entries
+                    entries
                             .map(it -> '"' + prepareStringEmbedding(it.getKey()) + "\", " + it.getValue())
                             .collect(joining(", "))
                     + ')';

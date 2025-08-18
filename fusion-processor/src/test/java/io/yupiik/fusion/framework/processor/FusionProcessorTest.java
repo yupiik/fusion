@@ -713,6 +713,12 @@ class FusionProcessorTest {
     }
 
     @Test
+    void customMetadata(@TempDir final Path work) throws IOException {
+        new Compiler(work, "metadata.SimpleBean", "metadata.SimpleFlag")
+                .compileAndAsserts(instance -> assertEquals("true", instance.bean().data().get("flag")));
+    }
+
+    @Test
     void jsonEmptyRecord(@TempDir final Path work) throws IOException {
         new Compiler(work, "EmptyRecord").jsonRoundTripAsserts("test.p.EmptyRecord", "{}", "EmptyRecord[]");
     }

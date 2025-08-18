@@ -19,6 +19,7 @@ import io.yupiik.fusion.framework.api.RuntimeContainer;
 import io.yupiik.fusion.framework.api.container.FusionListener;
 import io.yupiik.fusion.framework.processor.internal.Bean;
 import io.yupiik.fusion.framework.processor.internal.Elements;
+import io.yupiik.fusion.framework.processor.internal.metadata.MetadataContributorRegistry;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.ExecutableElement;
@@ -33,8 +34,9 @@ public class ListenerGenerator extends BaseGenerator implements Supplier<BaseGen
     private final ExecutableElement element;
 
     public ListenerGenerator(final ProcessingEnvironment processingEnv, final Elements elements,
+                             final MetadataContributorRegistry metadataContributorRegistry,
                              final String packageName, final String className, final String suffix, final ExecutableElement element) {
-        super(processingEnv, elements);
+        super(processingEnv, elements, metadataContributorRegistry);
         this.packageName = packageName;
         this.className = className;
         this.suffix = suffix;

@@ -26,6 +26,7 @@ import io.yupiik.fusion.framework.build.api.persistence.Table;
 import io.yupiik.fusion.framework.processor.internal.Bean;
 import io.yupiik.fusion.framework.processor.internal.Elements;
 import io.yupiik.fusion.framework.processor.internal.ParsedType;
+import io.yupiik.fusion.framework.processor.internal.metadata.MetadataContributorRegistry;
 import io.yupiik.fusion.framework.processor.internal.persistence.SimpleEntity;
 import io.yupiik.fusion.persistence.api.PersistenceException;
 import io.yupiik.fusion.persistence.impl.BaseEntity;
@@ -80,12 +81,13 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
     private final Map<String, SimpleEntity> entities;
 
     public PersistenceEntityGenerator(final ProcessingEnvironment processingEnv, final Elements elements,
+                                      final MetadataContributorRegistry metadataContributorRegistry,
                                       final boolean beanForPersistenceEntities, final String packageName,
                                       final String className, final Table table, final TypeElement type,
                                       final TypeMirror onDelete, final TypeMirror onInsert,
                                       final TypeMirror onLoad, final TypeMirror onUpdate,
                                       final Map<String, SimpleEntity> entities) {
-        super(processingEnv, elements);
+        super(processingEnv, elements, metadataContributorRegistry);
         this.table = table;
         this.beanForPersistenceEntities = beanForPersistenceEntities;
         this.packageName = packageName;
