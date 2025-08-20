@@ -21,8 +21,10 @@ import io.yupiik.fusion.json.spi.Parser;
 
 import java.io.IOException;
 import java.lang.reflect.Type;
+import java.math.BigDecimal;
 
 import static io.yupiik.fusion.json.spi.Parser.Event.VALUE_NUMBER;
+import static io.yupiik.fusion.json.spi.Parser.Event.VALUE_STRING;
 
 public abstract class NumberJsonCodec<A> implements JsonCodec<A> {
     private final Class<A> type;
@@ -32,6 +34,8 @@ public abstract class NumberJsonCodec<A> implements JsonCodec<A> {
     }
 
     protected abstract A read(final Parser parser);
+
+    protected abstract A mapBigDecimal(BigDecimal bigDecimal);
 
     @Override
     public Type type() {
@@ -46,6 +50,9 @@ public abstract class NumberJsonCodec<A> implements JsonCodec<A> {
         }
         final JsonParser.Event event = parser.next();
         if (event != VALUE_NUMBER) {
+            if (event == VALUE_STRING) { // assume it was a BigDecimal serialized so try to deserialize it
+                return mapBigDecimal(new BigDecimal(parser.getString()));
+            }
             throw new IllegalStateException("Expected VALUE_NUMBER but got: " + event);
         }
         return read(parser);

@@ -23,6 +23,7 @@ import io.yupiik.fusion.json.internal.codec.BooleanJsonCodec;
 import io.yupiik.fusion.json.internal.codec.CollectionJsonCodec;
 import io.yupiik.fusion.json.internal.codec.DoubleJsonCodec;
 import io.yupiik.fusion.json.internal.codec.EnumJsonCodec;
+import io.yupiik.fusion.json.internal.codec.FloatJsonCodec;
 import io.yupiik.fusion.json.internal.codec.IntegerJsonCodec;
 import io.yupiik.fusion.json.internal.codec.LocalDateJsonCodec;
 import io.yupiik.fusion.json.internal.codec.LocalDateTimeJsonCodec;
@@ -93,6 +94,11 @@ public class JsonMapperImpl implements JsonMapper {
         this.codecs = new ConcurrentHashMap<>();
         this.codecs.putAll(toCodecMap(jsonCodecs.stream()));
         this.codecs.putAll(toCodecMap(builtInCodecs().filter(it -> !this.codecs.containsKey(it.type()))));
+        this.codecs.putIfAbsent(double.class, this.codecs.get(Double.class));
+        this.codecs.putIfAbsent(float.class, this.codecs.get(Float.class));
+        this.codecs.putIfAbsent(int.class, this.codecs.get(Integer.class));
+        this.codecs.putIfAbsent(long.class, this.codecs.get(Long.class));
+        this.codecs.putIfAbsent(boolean.class, this.codecs.get(Boolean.class));
         if (!this.codecs.containsKey(Map.class)) {
             final var object = this.codecs.get(Object.class);
             if (object != null) {
@@ -107,6 +113,7 @@ public class JsonMapperImpl implements JsonMapper {
                 new IntegerJsonCodec(),
                 new LongJsonCodec(),
                 new DoubleJsonCodec(),
+                new FloatJsonCodec(),
                 new BigDecimalJsonCodec(),
                 new BooleanJsonCodec(),
                 new LocalDateJsonCodec(),

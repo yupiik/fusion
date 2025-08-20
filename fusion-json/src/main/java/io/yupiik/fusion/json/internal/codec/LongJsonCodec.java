@@ -17,6 +17,8 @@ package io.yupiik.fusion.json.internal.codec;
 
 import io.yupiik.fusion.json.spi.Parser;
 
+import java.math.BigDecimal;
+
 public class LongJsonCodec extends NumberJsonCodec<Long> {
     public LongJsonCodec() {
         super(Long.class);
@@ -25,5 +27,10 @@ public class LongJsonCodec extends NumberJsonCodec<Long> {
     @Override
     protected Long read(final Parser parser) {
         return parser.getLong();
+    }
+
+    @Override
+    protected Long mapBigDecimal(final BigDecimal bigDecimal) {
+        return bigDecimal.longValue();
     }
 }

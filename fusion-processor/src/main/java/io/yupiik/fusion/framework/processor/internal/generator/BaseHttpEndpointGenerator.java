@@ -169,12 +169,16 @@ public abstract class BaseHttpEndpointGenerator extends BaseGenerator {
                     int.class.getName().equals(param.className()) ||
                     long.class.getName().equals(param.className()) ||
                     boolean.class.getName().equals(param.className()) ||
+                    double.class.getName().equals(param.className()) ||
+                    float.class.getName().equals(param.className()) ||
                     String.class.getName().equals(param.className()) ||
                     OffsetDateTime.class.getName().equals(param.className()) ||
                     ZoneOffset.class.getName().equals(param.className()) ||
                     LocalDate.class.getName().equals(param.className()) ||
                     Integer.class.getName().equals(param.className()) ||
                     Long.class.getName().equals(param.className()) ||
+                    Double.class.getName().equals(param.className()) ||
+                    Float.class.getName().equals(param.className()) ||
                     Boolean.class.getName().equals(param.className()) ||
                     "io.yupiik.fusion.jsonrpc.api.PartialResponse".equals(param.className()) ||
                     Object.class.getName().equals(param.className());

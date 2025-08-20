@@ -19,18 +19,18 @@ import io.yupiik.fusion.json.spi.Parser;
 
 import java.math.BigDecimal;
 
-public class IntegerJsonCodec extends NumberJsonCodec<Integer> {
-    public IntegerJsonCodec() {
-        super(Integer.class);
+public class FloatJsonCodec extends NumberJsonCodec<Float> {
+    public FloatJsonCodec() {
+        super(Float.class);
     }
 
     @Override
-    protected Integer read(final Parser parser) {
-        return parser.getInt();
+    protected Float read(final Parser parser) {
+        return (float) parser.getDouble();
     }
 
     @Override
-    protected Integer mapBigDecimal(final BigDecimal bigDecimal) {
-        return bigDecimal.intValue();
+    protected Float mapBigDecimal(final BigDecimal bigDecimal) {
+        return bigDecimal.floatValue();
     }
 }
