@@ -1519,6 +1519,53 @@ class FusionProcessorTest {
                 });
     }
 
+    @Test
+    @SuppressWarnings("unchecked")
+    void jsonRpcEnumParams(@TempDir final Path work) throws IOException {
+        new Compiler(work, "JsonRpcEnumParam")
+                .compileAndAssertsInstance((container, instance) -> {
+                    final var provider = (Supplier<String>) instance.instance();
+                    assertNull(provider.get());
+
+                    try (final var endpointInstance = container.lookup(JsonRpcEndpoint.class)) {
+                        assertJsonRpc(
+                                endpointInstance.instance(), """
+                                        {
+                                          "jsonrpc": "2.0",
+                                          "method": "param",
+                                          "params": { "par": "in" }
+                                        }
+                                        """,
+                                "",
+                                202);
+                        assertEquals("in", provider.get());
+                    }
+                });
+    }
+    @Test
+    @SuppressWarnings("unchecked")
+    void jsonRpcDoubleParams(@TempDir final Path work) throws IOException {
+        new Compiler(work, "JsonRpcDoubleParam")
+                .compileAndAssertsInstance((container, instance) -> {
+                    final var provider = (Supplier<String>) instance.instance();
+                    assertNull(provider.get());
+
+                    try (final var endpointInstance = container.lookup(JsonRpcEndpoint.class)) {
+                        assertJsonRpc(
+                                endpointInstance.instance(), """
+                                        {
+                                          "jsonrpc": "2.0",
+                                          "method": "param",
+                                          "params": { "par": 1.2, "par2": 1.2 }
+                                        }
+                                        """,
+                                "",
+                                202);
+                        assertEquals("1.2", provider.get());
+                    }
+                });
+    }
+
     @TestFactory
     Stream<DynamicTest> jsonRpc(@TempDir final Path work) throws IOException {
         final var compiler = new Compiler(work, "JsonRpcEndpoints").assertCompiles(0);

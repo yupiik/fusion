@@ -13,24 +13,32 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package io.yupiik.fusion.json.internal.codec;
+package test.p;
 
-import io.yupiik.fusion.json.spi.Parser;
+import io.yupiik.fusion.framework.build.api.json.JsonModel;
+import io.yupiik.fusion.framework.build.api.jsonrpc.JsonRpc;
+import io.yupiik.fusion.framework.build.api.jsonrpc.JsonRpcParam;
 
-import java.math.BigDecimal;
+import java.util.concurrent.CompletionStage;
+import java.util.function.Supplier;
 
-public class IntegerJsonCodec extends NumberJsonCodec<Integer> {
-    public IntegerJsonCodec() {
-        super(Integer.class);
-    }
+import static java.util.concurrent.CompletableFuture.completedFuture;
 
-    @Override
-    protected Integer read(final Parser parser) {
-        return parser.getInt();
-    }
+public class JsonRpcEnumParam implements Supplier<String> {
+    public static String last = null;
 
     @Override
-    protected Integer mapBigDecimal(final BigDecimal bigDecimal) {
-        return bigDecimal.intValue();
+    public String get() {
+        return last;
+    }
+
+    @JsonRpc("param")
+    public void call(@JsonRpcParam final Par par) {
+        last = par.name();
+    }
+
+    @JsonModel
+    public enum Par {
+        in, out
     }
 }
