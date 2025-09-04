@@ -98,7 +98,7 @@
         }
     </style>
     
-    <link id="theme-style" rel="stylesheet" href="//www.yupiik.io/fusion/css/theme.css?v=1.0.28-SNAPSHOT">
+    <link id="theme-style" rel="stylesheet" href="//www.yupiik.io/fusion/css/theme.css?v=1.0.30-SNAPSHOT">
 </head>
 <body>
     <header class="header fixed-top">
@@ -140,12 +140,12 @@
                         <i class="fas fa-building"></i>Setup
                     </a>
                 </li>                <li>
-                    <a title="Fusion JSON support" href="//www.yupiik.io/fusion/fusion/json.html">
-                        <i class="fas fa-wifi"></i>JSON
-                    </a>
-                </li>                <li>
                     <a title="Fusion CLI" href="//www.yupiik.io/fusion/fusion/cli.html">
                         <i class="fas fa-terminal"></i>CLI
+                    </a>
+                </li>                <li>
+                    <a title="Fusion JSON support" href="//www.yupiik.io/fusion/fusion/json.html">
+                        <i class="fas fa-wifi"></i>JSON
                     </a>
                 </li>                <li>
                     <a title="framework and GraalVM (native-image)" href="//www.yupiik.io/fusion/fusion/graalvm.html">
@@ -387,7 +387,7 @@ Configuration:
   <h2>Format documentation in Asciidoc</h2>
  <div class="sectionbody">
  <div class="paragraph">
- <p><code>io.yupiik.fusion.documentation.DocumentationGenerator</code> enables to format the documentation in asciidoc.</p>
+ <p><code>io.yupiik.fusion.documentation.ConfigurationDocumentationGenerator</code> enables to format the documentation in asciidoc.</p>
  </div>
  <div class="paragraph">
  <p>
@@ -398,7 +398,7 @@ If you use Yupiik tools minisite, configuration will often look like:
  <div class="content">
  <pre class="highlightjs highlight"><code class="language-xml hljs" data-lang="xml">&lt;preActions&gt;
   &lt;preAction&gt;
-    &lt;type&gt;io.yupiik.fusion.documentation.DocumentationGenerator&lt;/type&gt;
+    &lt;type&gt;io.yupiik.fusion.documentation.ConfigurationDocumentationGenerator&lt;/type&gt;
   &lt;/preAction&gt;
 &lt;/preActions&gt;</code></pre>
  </div>
@@ -477,6 +477,77 @@ Configuration:
  </table>
  </div>
  </div>
+ <div class="sect1" id="_cli_documentation">
+  <h2>CLI documentation</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p><code>io.yupiik.fusion.documentation.CliDocumentationGenerator</code> enables to generate documentation in asciidoc for CLI modules.</p>
+ </div>
+ <div class="paragraph">
+ <p>
+If you use Yupiik tools minisite, configuration will often look like:
+ </p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-xml hljs" data-lang="xml">&lt;preActions&gt;
+  &lt;preAction&gt;
+    &lt;type&gt;io.yupiik.fusion.documentation.CliDocumentationGenerator&lt;/type&gt;
+  &lt;/preAction&gt;
+&lt;/preActions&gt;</code></pre>
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>
+Configuration:
+ </p>
+ </div>
+ <table class="tableblock frame-all grid-all stretch">
+  <colgroup>
+   <col width="50%">
+   <col width="50%">
+  </colgroup>
+  <thead>
+   <tr>
+    <th>
+ Name     </th>
+    <th>
+ Description    </th>
+   </tr>
+  </thead>
+  <tbody>
+   <tr>
+    <td>
+ package     </td>
+    <td>
+ If set enables to filter the commands included by package.    </td>
+   </tr>
+   <tr>
+    <td>
+ outputBase     </td>
+    <td>
+ Base directory where to generate the commands and command index documents.    </td>
+   </tr>
+  </tbody>
+ </table>
+ <div class="admonitionblock note">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">NOTE</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p>the generator starts a fusion container disabling <code>Start</code> and <code>Stop</code> events so take care if it needs some caution (static code for example). To know you are in this mode you can use <code>Configuration</code> and <code>io.yupiik.fusion.documentation.CliDocumentationGenerator</code> key, if set you are in generator mode.</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ </div>
+ </div>
                 
                 
             </div>
@@ -535,7 +606,7 @@ function addCopyButtons(clipboard) {
   document.querySelectorAll('pre > code').forEach(function (codeBlock) {
   var button = document.createElement('button');  button.className = 'copy-code-button';  button.type = 'button';  button.innerText = 'Copy';  button.addEventListener('click', function () {   clipboard.writeText(codeBlock.innerText).then(function () {   button.blur();   button.innerText = 'Copied!';   setTimeout(function () { button.innerText = 'Copy'; }, 2000); }, function (error) { button.innerText = 'Error'; });  });  var pre = codeBlock.parentNode;  if (pre.parentNode.classList.contains('highlight')) {   var highlight = pre.parentNode; highlight.parentNode.insertBefore(button, highlight);  } else { pre.parentNode.insertBefore(button, pre); } });}
 if (navigator && navigator.clipboard) { addCopyButtons(navigator.clipboard);} else { var script = document.createElement('script'); script.src = '//cdnjs.cloudflare.com/ajax/libs/clipboard-polyfill/2.7.0/clipboard-polyfill.promise.js'; script.integrity = 'sha256-waClS2re9NUbXRsryKoof+F9qc1gjjIhc2eT7ZbIv94='; script.crossOrigin = 'anonymous'; script.onload = function() {addCopyButtons(clipboard);}; document.body.appendChild(script);} }</script>
-    <script src="//www.yupiik.io/fusion/js/minisite.js?v=1.0.28-SNAPSHOT"></script>
+    <script src="//www.yupiik.io/fusion/js/minisite.js?v=1.0.30-SNAPSHOT"></script>
     <script>$('.page-content-body').generatedNavMenu();</script>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fuse.js/6.4.3/fuse.min.js" integrity="sha512-neoBxVNv0UMXjoilAYGxfWrSsW6iAVclx7vQKdPJ9Peet1bM5YQjU0aIB8LtH8iNPa+pAyMZprBBw2ZQ/Q1LjQ==" crossorigin="anonymous"></script>
