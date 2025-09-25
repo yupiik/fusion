@@ -21,7 +21,7 @@
   <parent>
     <groupId>io.yupiik.fusion</groupId>
     <artifactId>fusion</artifactId>
-    <version>1.0.30-SNAPSHOT</version>
+    <version>1.0.30</version>
   </parent>
 
   <artifactId>fusion-handlebars</artifactId>
