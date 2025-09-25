@@ -128,7 +128,7 @@
           <indexSubTitle>Fusion framework aims at providing a very light java framework and graal native.</indexSubTitle>
           <logoText>Fusion</logoText>
           <logoSideText>Documentation</logoSideText>
-          <copyright>© 2024 &lt;strong&gt;&lt;a href="https://www.yupiik.com"&gt;Yupiik&lt;/a&gt;&lt;/strong&gt;. All Rights Reserved</copyright>
+          <copyright>© 2025 &lt;strong&gt;&lt;a href="https://www.yupiik.com"&gt;Yupiik&lt;/a&gt;&lt;/strong&gt;. All Rights Reserved</copyright>
           <attributes>
             <partialsdir>${project.basedir}/src/main/minisite/content/_partials</partialsdir>
           </attributes>
