@@ -16,6 +16,7 @@
 package io.yupiik.fusion.framework.processor;
 
 import io.yupiik.fusion.cli.CliAwaiter;
+import io.yupiik.fusion.cli.internal.CliCommand;
 import io.yupiik.fusion.framework.api.ConfiguringContainer;
 import io.yupiik.fusion.framework.api.Instance;
 import io.yupiik.fusion.framework.api.RuntimeContainer;
@@ -2146,6 +2147,27 @@ class FusionProcessorTest {
                         "--c1-nesteds-length", "1",
                         "--c1-nesteds-0-lower", "123",
                         "--c1-list", "first,second"));
+            }
+        });
+    }
+
+    @Test
+    void nestedCommandParameters(@TempDir final Path work) throws IOException {
+        final var compiler = new Compiler(work, "NestedCommand");
+        compiler.compileAndAsserts((loader, container) -> withInstance(
+                container, loader, "test.p.NestedCommand$FusionCliCommand", CliCommand.class, c -> {
+                    final var params = c.parameters();
+                    assertEquals(2, params.size());
+                    assertEquals(
+                            List.of(
+                                    "Parameter[configName=c1.first.lower, cliName=--c1-first-lower, description=]",
+                                    "Parameter[configName=c1.nested.$index.other.lower, cliName=--c1-nested-$index-other-lower, description=]"
+                            ),
+                            params.stream().map(Object::toString).toList());
+                }), new BaseBean<Args>(Args.class, DefaultScoped.class, 1000, Map.of()) {
+            @Override
+            public Args create(final RuntimeContainer container, final List<Instance<?>> dependents) {
+                return new Args(List.of());
             }
         });
     }
