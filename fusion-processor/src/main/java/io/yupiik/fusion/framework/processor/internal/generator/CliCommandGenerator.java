@@ -151,7 +151,7 @@ public class CliCommandGenerator extends BaseGenerator implements Supplier<CliCo
         return findConf(configurationType)
                 .mapMulti((it, out) -> {
                     if (it.ref() != null) {
-                        final var prefix = (parentPrefix == null ? "" : (parentPrefix + '.')) + it.name() + '.';
+                        final var prefix = (parentPrefix == null ? "" : (parentPrefix + '.')) + it.name();
                         doFindParameters(it.ref(), prefix).forEach(out);
                     } else {
                         out.accept(parameter(parentPrefix, it));
@@ -160,7 +160,7 @@ public class CliCommandGenerator extends BaseGenerator implements Supplier<CliCo
     }
 
     private static String parameter(final String parentPrefix, final Docs.DocItem item) {
-        final var javaName = (parentPrefix == null ? "" : parentPrefix) + item.name();
+        final var javaName = (parentPrefix == null ? "" : (parentPrefix + '.')) + item.name();
         final var cliName = (javaName.startsWith("-.") ? "" : "--") + javaName.replace('.', '-');
         return "new " + CliCommand.Parameter.class.getName().replace('$', '.') + "(" +
                 "\"" + javaName.replace("\"", "\\\"").replace("\n", "\\n") + "\", " +
