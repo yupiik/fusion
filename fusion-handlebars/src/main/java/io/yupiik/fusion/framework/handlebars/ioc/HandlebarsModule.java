@@ -22,18 +22,19 @@ import io.yupiik.fusion.framework.api.container.FusionModule;
 import io.yupiik.fusion.framework.api.container.bean.BaseBean;
 import io.yupiik.fusion.framework.api.scope.ApplicationScoped;
 import io.yupiik.fusion.framework.handlebars.HandlebarsCompiler;
-
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
 public class HandlebarsModule implements FusionModule {
+
     @Override
     public Stream<FusionBean<?>> beans() {
         return Stream.of(new HandlebarsCompilerBean());
     }
 
     private static class HandlebarsCompilerBean extends BaseBean<HandlebarsCompiler> {
+
         private HandlebarsCompilerBean() {
             super(HandlebarsCompiler.class, ApplicationScoped.class, 1000, Map.of());
         }

@@ -17,7 +17,25 @@ package io.yupiik.fusion.framework.handlebars.compiler.part;
 
 import io.yupiik.fusion.framework.handlebars.spi.Accessor;
 
-public record UnescapedVariablePart(String name, Accessor accessor) implements Part {
+public final class UnescapedVariablePart implements Part {
+
+    private final String name;
+
+    private final Accessor accessor;
+
+    public UnescapedVariablePart(String name, Accessor accessor) {
+        this.name = name;
+        this.accessor = accessor;
+    }
+
+    public String name() {
+        return name;
+    }
+
+    public Accessor accessor() {
+        return accessor;
+    }
+
     @Override
     public String apply(final RenderContext context, final Object currentData) {
         final var value = accessor.find(currentData, name);

@@ -16,12 +16,22 @@
 package io.yupiik.fusion.framework.handlebars.compiler.part;
 
 import java.util.List;
-
 import static java.util.stream.Collectors.joining;
 
-public record PartListPart(List<Part> delegates) implements Part {
+public final class PartListPart implements Part {
+
+    private final List<Part> delegates;
+
+    public PartListPart(List<Part> delegates) {
+        this.delegates = delegates;
+    }
+
     @Override
     public String apply(final RenderContext context, final Object data) {
         return delegates.stream().map(p -> p.apply(context, data)).collect(joining());
+    }
+
+    public List<Part> delegates() {
+        return delegates;
     }
 }

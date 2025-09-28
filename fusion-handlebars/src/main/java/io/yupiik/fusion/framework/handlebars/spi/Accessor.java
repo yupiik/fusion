@@ -16,5 +16,6 @@
 package io.yupiik.fusion.framework.handlebars.spi;
 
 public interface Accessor {
+
     Object find(Object data, String name);
 }

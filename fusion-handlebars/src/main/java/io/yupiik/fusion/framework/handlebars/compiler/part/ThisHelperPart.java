@@ -17,7 +17,14 @@ package io.yupiik.fusion.framework.handlebars.compiler.part;
 
 import java.util.function.Function;
 
-public record ThisHelperPart(Function<Object, String> helper) implements Part {
+public final class ThisHelperPart implements Part {
+
+    private final Function<Object, String> helper;
+
+    public ThisHelperPart(Function<Object, String> helper) {
+        this.helper = helper;
+    }
+
     @Override
     public String apply(final RenderContext context, final Object currentData) {
         return helper.apply(currentData);

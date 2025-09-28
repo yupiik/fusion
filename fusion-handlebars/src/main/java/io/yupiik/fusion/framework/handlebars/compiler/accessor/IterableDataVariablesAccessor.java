@@ -16,13 +16,16 @@
 package io.yupiik.fusion.framework.handlebars.compiler.accessor;
 
 import io.yupiik.fusion.framework.handlebars.spi.Accessor;
-
 import java.util.Iterator;
 
 public class IterableDataVariablesAccessor implements Accessor, Iterator<Object> {
+
     private final Iterator<?> iterator;
+
     private int index = 0;
+
     private final Accessor delegate;
+
     private Object current;
 
     public IterableDataVariablesAccessor(final Iterator<?> iterator, final Accessor delegate) {
@@ -36,15 +39,17 @@ public class IterableDataVariablesAccessor implements Accessor, Iterator<Object>
 
     @Override
     public Object find(final Object data, final String name) {
-        return switch (name) {
-            case "@first" -> index == 0;
-            case "@index" -> index;
-            case "@last" -> !iterator.hasNext();
-            default -> {
+        switch(name) {
+            case "@first" :
+                return index == 0;
+            case "@index" :
+                return index;
+            case "@last":
+                return!iterator.hasNext();
+            default :
                 final var extracted = delegate.find(data, name);
-                yield extracted == null ? delegate.find(current, name) : extracted;
-            }
-        };
+                return extracted == null ? delegate.find(current, name) : extracted;
+        }
     }
 
     public IterableDataVariablesAccessor of(final Accessor delegate) {

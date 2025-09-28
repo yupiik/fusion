@@ -18,6 +18,7 @@ package io.yupiik.fusion.framework.handlebars.spi;
 import io.yupiik.fusion.framework.handlebars.compiler.part.Part;
 
 public interface Template {
+
     Part part();
 
     default String render(Object data) {

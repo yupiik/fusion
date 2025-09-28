@@ -18,7 +18,9 @@ package io.yupiik.fusion.framework.handlebars.compiler.accessor;
 import io.yupiik.fusion.framework.handlebars.spi.Accessor;
 
 public class DataAwareAccessor implements Accessor {
+
     private final Object data;
+
     private final Accessor delegating;
 
     public DataAwareAccessor(final Object data, final Accessor delegating) {

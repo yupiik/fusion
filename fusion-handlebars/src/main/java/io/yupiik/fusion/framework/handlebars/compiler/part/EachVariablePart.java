@@ -20,28 +20,59 @@ import io.yupiik.fusion.framework.handlebars.compiler.accessor.DataAwareAccessor
 import io.yupiik.fusion.framework.handlebars.compiler.accessor.IterableDataVariablesAccessor;
 import io.yupiik.fusion.framework.handlebars.compiler.accessor.MapEntryDataVariablesAccessor;
 import io.yupiik.fusion.framework.handlebars.spi.Accessor;
-
 import java.util.Collection;
 import java.util.Map;
 import java.util.function.Function;
-
 import static java.util.function.Function.identity;
 
-public record EachVariablePart(String name, Function<Accessor, Part> itemPartFactory,
-                               Accessor accessor, Accessor itemDefaultAccessor) implements Part {
+public final class EachVariablePart implements Part {
+
+    private final String name;
+
+    private final Function<Accessor, Part> itemPartFactory;
+
+    private final Accessor accessor;
+
+    private final Accessor itemDefaultAccessor;
+
+    public EachVariablePart(String name, Function<Accessor, Part> itemPartFactory, Accessor accessor, Accessor itemDefaultAccessor) {
+        this.name = name;
+        this.itemPartFactory = itemPartFactory;
+        this.accessor = accessor;
+        this.itemDefaultAccessor = itemDefaultAccessor;
+    }
+
+    public String name() {
+        return name;
+    }
+
+    public Function<Accessor, Part> itemPartFactory() {
+        return itemPartFactory;
+    }
+
+    public Accessor accessor() {
+        return accessor;
+    }
+
+    public Accessor itemDefaultAccessor() {
+        return itemDefaultAccessor;
+    }
+
     @Override
     public String apply(final RenderContext context, final Object currentData) {
         final var value = ".".equals(name) || "this".equals(name) ? currentData : accessor.find(currentData, name);
         if (value == null) {
             return "";
         }
-        if (value instanceof Collection<?> collection) {
+        if (value instanceof Collection<?>) {
+            Collection<?> collection = (Collection<?>) value;
             if (collection.isEmpty()) {
                 return "";
             }
             return doApply(context, collection, identity(), currentData);
         }
-        if (value instanceof Map<?, ?> nestedMap) {
+        if (value instanceof Map<?, ?>) {
+            Map<?, ?> nestedMap = (Map<?, ?>) value;
             if (nestedMap.isEmpty()) {
                 return "";
             }
@@ -50,14 +81,10 @@ public record EachVariablePart(String name, Function<Accessor, Part> itemPartFac
         throw new IllegalArgumentException("Unsupported each for " + value);
     }
 
-    private String doApply(final RenderContext context, final Collection<?> collection,
-                           final Function<Accessor, Accessor> partsAccessor,
-                           final Object root) {
+    private String doApply(final RenderContext context, final Collection<?> collection, final Function<Accessor, Accessor> partsAccessor, final Object root) {
         final var iterator = collection.iterator();
         final var iterableDataVariablesAccessor = new IterableDataVariablesAccessor(iterator, itemDefaultAccessor);
-        final var dataVariableAccessor = new ChainedAccessor(
-                iterableDataVariablesAccessor,
-                new DataAwareAccessor(root, itemDefaultAccessor));
+        final var dataVariableAccessor = new ChainedAccessor(iterableDataVariablesAccessor, new DataAwareAccessor(root, itemDefaultAccessor));
         final var item = itemPartFactory.apply(partsAccessor.apply(dataVariableAccessor));
         final var out = new StringBuilder();
         while (iterableDataVariablesAccessor.hasNext()) {

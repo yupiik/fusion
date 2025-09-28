@@ -35,7 +35,6 @@ import io.yupiik.fusion.framework.handlebars.compiler.part.UnescapedVariablePart
 import io.yupiik.fusion.framework.handlebars.compiler.part.UnlessVariablePart;
 import io.yupiik.fusion.framework.handlebars.spi.Accessor;
 import io.yupiik.fusion.framework.handlebars.spi.Template;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -44,16 +43,18 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.Stream;
-
 import static java.util.Objects.requireNonNull;
 import static java.util.Optional.of;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.joining;
+import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 
 // todo: better cache for partials? enables to pre-register them on the compiler?
 public class HandlebarsCompiler {
+
     private final Accessor defaultAccessor;
+
     private final Map<String, Part> partialsGlobalCache = new ConcurrentHashMap<>();
 
     public HandlebarsCompiler() {
@@ -66,72 +67,60 @@ public class HandlebarsCompiler {
 
     public Template compile(final CompilationContext context) {
         final var partialsCache = context.settings.cachePartials ? partialsGlobalCache : new HashMap<String, Part>();
-        final var part = doCompile(
-                context.content(),
-                context.settings.helpers,
-                name -> partialsCache.computeIfAbsent(
-                        name,
-                        k -> ofNullable(context.settings.partials.get(name))
-                                .map(tpl -> compile(new CompilationContext(context.settings, tpl)))
-                                .orElseThrow(() -> new IllegalArgumentException("No partials '" + name + "'"))
-                                .part()));
+        final var part = doCompile(context.content(), context.settings.helpers, name -> partialsCache.computeIfAbsent(name, k -> ofNullable(context.settings.partials.get(name)).map(tpl -> compile(new CompilationContext(context.settings, tpl))).orElseThrow(() -> new IllegalArgumentException("No partials '" + name + "'")).part()));
         return new TemplateImpl(part);
     }
 
-    private Part doCompile(final String content,
-                           final Map<String, Function<Object, String>> helpers,
-                           final Function<String, Part> partials) {
+    private Part doCompile(final String content, final Map<String, Function<Object, String>> helpers, final Function<String, Part> partials) {
         return optimizePart(optimize(parse(content, helpers, partials)));
     }
 
     private Part optimizePart(final List<Part> optimized) {
-        return switch (optimized.size()) {
-            case 0 -> EmptyPart.INSTANCE;
-            case 1 -> optimized.get(0);
-            default -> new PartListPart(optimized);
-        };
+        switch(optimized.size()) {
+            case 0 :
+                return EmptyPart.INSTANCE;
+            case 1 :
+                return optimized.get(0);
+            default :
+                return new PartListPart(optimized);
+        }
     }
 
-    private List<Part> parse(final String content,
-                             final Map<String, Function<Object, String>> helpers,
-                             final Function<String, Part> partials) {
+    private List<Part> parse(final String content, final Map<String, Function<Object, String>> helpers, final Function<String, Part> partials) {
         final var out = new ArrayList<Part>();
         final var chars = content.toCharArray();
-
         final var buffer = new StringBuilder();
         for (int i = 0; i < chars.length; ) {
             final var c = chars[i];
-            switch (c) {
-                case '{' -> i = onOpeningBrace(content, out, chars, buffer, i, c, helpers, partials);
-                default -> {
-                    buffer.append(c);
-                    i++;
-                }
+            if (c == '{') {
+                i = onOpeningBrace(content, out, chars, buffer, i, c, helpers, partials);
+            } else {
+                buffer.append(c);
+                i++;
             }
         }
-
         flushBuffer(out, buffer);
-
         return out;
     }
 
-    private int onOpeningBrace(final String content, final List<Part> out,
-                               final char[] chars, final StringBuilder buffer,
-                               final int i, final char c,
-                               final Map<String, Function<Object, String>> helpers,
-                               final Function<String, Part> partials) {
+    private int onOpeningBrace(final String content, final List<Part> out, final char[] chars, final StringBuilder buffer, final int i, final char c, final Map<String, Function<Object, String>> helpers, final Function<String, Part> partials) {
         if (i < chars.length - 1) {
             final var next1 = chars[i + 1];
             if (next1 == '{') {
                 if (i < chars.length - 2) {
                     final var next2 = chars[i + 2];
-                    return switch (next2) {
-                        case '{' -> onTripleBrackets(content, out, buffer, i);
-                        case '#' -> onDoubleBracketsAndHash(content, out, buffer, i, helpers, partials);
-                        case '!' -> onComment(content, i);
-                        case '>' -> onPartials(content, out, buffer, i, partials);
-                        default -> onDoubleBrackets(content, out, buffer, i, helpers);
-                    };
+                    switch(next2) {
+                        case '{' :
+                            return onTripleBrackets(content, out, buffer, i);
+                        case '#' :
+                            return onDoubleBracketsAndHash(content, out, buffer, i, helpers, partials);
+                        case '!' :
+                            return onComment(content, i);
+                        case '>' :
+                            return onPartials(content, out, buffer, i, partials);
+                        default :
+                            return onDoubleBrackets(content, out, buffer, i, helpers);
+                    }
                 }
             }
         }
@@ -139,27 +128,20 @@ public class HandlebarsCompiler {
         return i + 1;
     }
 
-    private int onDoubleBrackets(final String content, final List<Part> out, final StringBuilder buffer, final int i,
-                                 final Map<String, Function<Object, String>> helpers) {
+    private int onDoubleBrackets(final String content, final List<Part> out, final StringBuilder buffer, final int i, final Map<String, Function<Object, String>> helpers) {
         final int end = content.indexOf("}}", i);
         if (end < 0) {
             throw new IllegalArgumentException("Unclosed expression at index " + i);
         }
-
         flushBuffer(out, buffer);
-
         final int space = content.indexOf(' ', i);
-        if (space < end && space > 0) { // helper
+        if (space < end && space > 0) {
+            // helper
             final var helperName = content.substring(i + "{{".length(), space);
-            out.add(new InlineHelperPart(
-                    requireNonNull(helpers.get(helperName), () -> "No helper '" + helperName + "'"),
-                    content.substring(space + 1, end).strip(),
-                    defaultAccessor));
+            out.add(new InlineHelperPart(requireNonNull(helpers.get(helperName), () -> "No helper '" + helperName + "'"), content.substring(space + 1, end).strip(), defaultAccessor));
         } else {
             final var name = content.substring(i + "{{".length(), end);
-            out.add(ofNullable(helpers.get(name))
-                    .<Part>map(ThisHelperPart::new)
-                    .orElseGet(() -> new EscapedPart(toVariable(name))));
+            out.add(ofNullable(helpers.get(name)).<Part>map(ThisHelperPart::new).orElseGet(() -> new EscapedPart(toVariable(name))));
         }
         return end + "}}".length();
     }
@@ -169,7 +151,6 @@ public class HandlebarsCompiler {
         if (end < 0) {
             throw new IllegalArgumentException("Unclosed expression at index " + i);
         }
-
         flushBuffer(out, buffer);
         out.add(toVariable(content.substring(i + "{{{".length(), end)));
         return end + "}}}".length();
@@ -180,9 +161,7 @@ public class HandlebarsCompiler {
         if (end < 0) {
             throw new IllegalArgumentException("Unclosed expression at index " + i);
         }
-
         flushBuffer(out, buffer);
-
         final var string = content.substring(i + "{{>".length(), end);
         final int space = string.indexOf(' ');
         if (space < 0) {
@@ -194,86 +173,61 @@ public class HandlebarsCompiler {
             out.add(partial);
             return end + "}}".length();
         }
-
         final var name = string.substring(0, space);
         final var partial = partials.apply(name);
         if (partial == null) {
             throw new IllegalArgumentException("Missing partial '" + name + "'");
         }
-
         final var value = string.substring(space).strip();
-        final var mapping = Stream.of(value.split(" "))
-                .map(it -> {
-                    final int equal = it.indexOf('=');
-                    return new String[]{
-                            it.substring(0, equal).strip(),
-                            it.substring(equal + 1).strip()
-                    };
-                })
-                .collect(toMap(it -> it[0], it -> it[1]));
-        final var thisName = mapping.entrySet().stream()
-                .filter(e -> ".".equals(e.getValue()))
-                .findFirst()
-                .map(Map.Entry::getKey)
-                .orElse(null);
+        final var mapping = Stream.of(value.split(" ")).map(it -> {
+            final int equal = it.indexOf('=');
+            return new String[] { it.substring(0, equal).strip(), it.substring(equal + 1).strip() };
+        }).collect(toMap(it -> it[0], it -> it[1]));
+        final var thisName = mapping.entrySet().stream().filter(e -> ".".equals(e.getValue())).findFirst().map(Map.Entry::getKey).orElse(null);
         if (thisName != null) {
             mapping.remove(thisName);
         }
-
         out.add(remapParts(partial, mapping, thisName));
-
         return end + "}}".length();
     }
 
     // this works because Part is a sealed interface
-    private Part remapParts(final Part partial,
-                            final Map<String, String> remapped,
-                            final String thisName) {
+    private Part remapParts(final Part partial, final Map<String, String> remapped, final String thisName) {
         // for now we just remap "next" level and ignore nested ones using another level (each will use N+1 for ex)
-        if (partial instanceof EmptyPart ||
-                partial instanceof ConstantPart ||
-                partial instanceof ThisHelperPart ||
-                partial instanceof UnescapedThisPart ||
-                partial instanceof EachVariablePart) {
+        if (partial instanceof EmptyPart || partial instanceof ConstantPart || partial instanceof ThisHelperPart || partial instanceof UnescapedThisPart || partial instanceof EachVariablePart) {
             return partial;
         }
-
-        if (partial instanceof PartListPart p) {
-            return optimizePart(optimize(p.delegates().stream().map(it -> remapParts(it, remapped, thisName)).toList()));
+        if (partial instanceof PartListPart) {
+            PartListPart p = (PartListPart) partial;
+            return optimizePart(optimize(p.delegates().stream().map(it -> remapParts(it, remapped, thisName)).collect(toList())));
         }
-        if (partial instanceof EscapedPart p) {
+        if (partial instanceof EscapedPart) {
+            EscapedPart p = (EscapedPart) partial;
             return new EscapedPart(remapParts(p.delegate(), remapped, thisName));
         }
-        if (partial instanceof BlockHelperPart p) {
-            return findRemappedName(p.name(), remapped, thisName)
-                    .<Part>map(name -> new BlockHelperPart(p.helper(), name, p.subPart(), p.accessor()))
-                    .orElse(EmptyPart.INSTANCE);
+        if (partial instanceof BlockHelperPart) {
+            BlockHelperPart p = (BlockHelperPart) partial;
+            return findRemappedName(p.name(), remapped, thisName).<Part>map(name -> new BlockHelperPart(p.helper(), name, p.subPart(), p.accessor())).orElse(EmptyPart.INSTANCE);
         }
-        if (partial instanceof IfVariablePart p) {
-            return findRemappedName(p.name(), remapped, thisName)
-                    .<Part>map(name -> new IfVariablePart(name, p.next(), p.accessor()))
-                    .orElse(EmptyPart.INSTANCE);
+        if (partial instanceof IfVariablePart) {
+            IfVariablePart p = (IfVariablePart) partial;
+            return findRemappedName(p.name(), remapped, thisName).<Part>map(name -> new IfVariablePart(name, p.next(), p.accessor())).orElse(EmptyPart.INSTANCE);
         }
-        if (partial instanceof InlineHelperPart p) {
-            return findRemappedName(p.name(), remapped, thisName)
-                    .<Part>map(name -> new InlineHelperPart(p.helper(), name, p.accessor()))
-                    .orElse(EmptyPart.INSTANCE);
+        if (partial instanceof InlineHelperPart) {
+            InlineHelperPart p = (InlineHelperPart) partial;
+            return findRemappedName(p.name(), remapped, thisName).<Part>map(name -> new InlineHelperPart(p.helper(), name, p.accessor())).orElse(EmptyPart.INSTANCE);
         }
-        if (partial instanceof NestedVariablePart p) {
-            return findRemappedName(p.name(), remapped, thisName)
-                    .<Part>map(name -> new NestedVariablePart(name, p.next(), p.accessor()))
-                    .orElse(EmptyPart.INSTANCE);
-
+        if (partial instanceof NestedVariablePart) {
+            NestedVariablePart p = (NestedVariablePart) partial;
+            return findRemappedName(p.name(), remapped, thisName).<Part>map(name -> new NestedVariablePart(name, p.next(), p.accessor())).orElse(EmptyPart.INSTANCE);
         }
-        if (partial instanceof UnescapedVariablePart p) {
-            return findRemappedName(p.name(), remapped, thisName)
-                    .<Part>map(name -> new UnescapedVariablePart(name, p.accessor()))
-                    .orElse(EmptyPart.INSTANCE);
+        if (partial instanceof UnescapedVariablePart) {
+            UnescapedVariablePart p = (UnescapedVariablePart) partial;
+            return findRemappedName(p.name(), remapped, thisName).<Part>map(name -> new UnescapedVariablePart(name, p.accessor())).orElse(EmptyPart.INSTANCE);
         }
-        if (partial instanceof UnlessVariablePart p) {
-            return findRemappedName(p.name(), remapped, thisName)
-                    .<Part>map(name -> new UnlessVariablePart(name, p.next(), p.accessor()))
-                    .orElse(EmptyPart.INSTANCE);
+        if (partial instanceof UnlessVariablePart) {
+            UnlessVariablePart p = (UnlessVariablePart) partial;
+            return findRemappedName(p.name(), remapped, thisName).<Part>map(name -> new UnlessVariablePart(name, p.next(), p.accessor())).orElse(EmptyPart.INSTANCE);
         }
         throw new IllegalArgumentException("Unknown part type, update code please: " + partial);
     }
@@ -281,65 +235,66 @@ public class HandlebarsCompiler {
     // todo: optimize since there are several cases we know which are just constant (most of them)
     private Function<Accessor, Part> toPartFactory(final Part part) {
         // for now we just remap "next" level and ignore nested ones using another level (each will use N+1 for ex)
-        if (part instanceof EmptyPart ||
-                part instanceof ConstantPart ||
-                part instanceof ThisHelperPart ||
-                part instanceof UnescapedThisPart) {
+        if (part instanceof EmptyPart || part instanceof ConstantPart || part instanceof ThisHelperPart || part instanceof UnescapedThisPart) {
             return a -> part;
         }
-
-        if (part instanceof EachVariablePart p) {
+        if (part instanceof EachVariablePart) {
+            EachVariablePart p = (EachVariablePart) part;
             final var accessor = p.accessor();
-            if (!(accessor instanceof PrecomputedChainAccessor ca)) {
+            if (!(accessor instanceof PrecomputedChainAccessor)) {
                 return a -> new EachVariablePart(p.name(), p.itemPartFactory(), a, a);
             }
+            final PrecomputedChainAccessor ca = (PrecomputedChainAccessor) accessor;
             return acc -> {
                 final var nameAccessor = new ByNameAccessor(Map.of(ca.getSupportedName(), ca), acc);
                 return new EachVariablePart(p.name(), p.itemPartFactory(), nameAccessor, nameAccessor);
             };
         }
-        if (part instanceof PartListPart p) {
-            if (p.delegates().stream().allMatch(it -> it instanceof EmptyPart ||
-                    it instanceof ConstantPart ||
-                    it instanceof ThisHelperPart ||
-                    it instanceof UnescapedThisPart)) {
-                return acc -> p; // no need of any recomputation
+        if (part instanceof PartListPart) {
+            PartListPart p = (PartListPart) part;
+            if (p.delegates().stream().allMatch(it -> it instanceof EmptyPart || it instanceof ConstantPart || it instanceof ThisHelperPart || it instanceof UnescapedThisPart)) {
+                // no need of any recomputation
+                return acc -> p;
             }
-            final var delegates = p.delegates().stream().map(this::toPartFactory).toList();
+            final var delegates = p.delegates().stream().map(this::toPartFactory).collect(toList());
             return acc -> {
-                final var newDelegates = delegates.stream().map(it -> it.apply(acc)).toList();
+                final var newDelegates = delegates.stream().map(it -> it.apply(acc)).collect(toList());
                 return new PartListPart(newDelegates);
             };
         }
-        if (part instanceof EscapedPart p) {
-            if (p.delegate() instanceof EmptyPart ||
-                    p.delegate() instanceof ConstantPart ||
-                    p.delegate() instanceof ThisHelperPart ||
-                    p.delegate() instanceof UnescapedThisPart) {
+        if (part instanceof EscapedPart) {
+            EscapedPart p = (EscapedPart) part;
+            if (p.delegate() instanceof EmptyPart || p.delegate() instanceof ConstantPart || p.delegate() instanceof ThisHelperPart || p.delegate() instanceof UnescapedThisPart) {
                 return acc -> p;
             }
             final var delegate = toPartFactory(p.delegate());
             return acc -> new EscapedPart(delegate.apply(acc));
         }
-        if (part instanceof BlockHelperPart p) {
+        if (part instanceof BlockHelperPart) {
+            BlockHelperPart p = (BlockHelperPart) part;
             final var dynamicSub = toPartFactory(p.subPart());
             return acc -> new BlockHelperPart(p.helper(), p.name(), dynamicSub.apply(acc), acc);
         }
-        if (part instanceof IfVariablePart p) {
+        if (part instanceof IfVariablePart) {
+            IfVariablePart p = (IfVariablePart) part;
             final var dynamicNext = toPartFactory(p.next());
             return acc -> new IfVariablePart(p.name(), dynamicNext.apply(acc), acc);
         }
-        if (part instanceof InlineHelperPart p) {
+        if (part instanceof InlineHelperPart) {
+            InlineHelperPart p = (InlineHelperPart) part;
             return acc -> new InlineHelperPart(p.helper(), p.name(), acc);
         }
-        if (part instanceof NestedVariablePart p) {
+        if (part instanceof NestedVariablePart) {
+            NestedVariablePart p = (NestedVariablePart) part;
             final var dynamicNext = toPartFactory(p.next());
             return acc -> new NestedVariablePart(p.name(), dynamicNext.apply(acc), acc);
         }
-        if (part instanceof UnescapedVariablePart p) {
+        if (part instanceof UnescapedVariablePart) {
+            UnescapedVariablePart p = (UnescapedVariablePart) part;
             return acc -> new UnescapedVariablePart(p.name(), acc);
         }
-        if (part instanceof UnlessVariablePart p) {
+        if (part instanceof UnlessVariablePart) {
+            UnlessVariablePart p = (UnlessVariablePart) part;
             final var dynamicNext = toPartFactory(p.next());
             return acc -> new UnlessVariablePart(p.name(), dynamicNext.apply(acc), acc);
         }
@@ -361,7 +316,6 @@ public class HandlebarsCompiler {
             }
             return toNextInterestingChar(content, end + "--}}".length());
         }
-
         final int end = content.indexOf("}}", i);
         if (end < 0) {
             throw new IllegalArgumentException("Unclosed expression at index " + i);
@@ -369,16 +323,12 @@ public class HandlebarsCompiler {
         return toNextInterestingChar(content, end + "}}".length());
     }
 
-    private int onDoubleBracketsAndHash(final String content, final List<Part> out, final StringBuilder buffer, final int i,
-                                        final Map<String, Function<Object, String>> helpers,
-                                        final Function<String, Part> partials) {
+    private int onDoubleBracketsAndHash(final String content, final List<Part> out, final StringBuilder buffer, final int i, final Map<String, Function<Object, String>> helpers, final Function<String, Part> partials) {
         final int end = content.indexOf("}}", i);
         if (end < 0) {
             throw new IllegalArgumentException("Unclosed expression at index " + i);
         }
-
         flushBuffer(out, buffer);
-
         final var string = content.substring(i + "{{#".length(), end);
         final int space = string.indexOf(' ');
         final String keyword;
@@ -391,70 +341,72 @@ public class HandlebarsCompiler {
             value = string.substring(space).strip();
         }
         final int nextIndex = end + "}}".length();
-        return switch (keyword) {
-            case "" -> {
-                final var endBlockMarker = "{{/" + value + "}}";
-                final int endBlock = findEndBlock("{{#" + value, endBlockMarker, content, nextIndex);
-                if (endBlock < 0) {
-                    throw new IllegalArgumentException("Missing " + endBlockMarker + " at index " + nextIndex + "'");
+        switch(keyword) {
+            case "" :
+                {
+                    final var endBlockMarker = "{{/" + value + "}}";
+                    final int endBlock = findEndBlock("{{#" + value, endBlockMarker, content, nextIndex);
+                    if (endBlock < 0) {
+                        throw new IllegalArgumentException("Missing " + endBlockMarker + " at index " + nextIndex + "'");
+                    }
+                    final var itemPart = doCompile(stripSurroundingEol(content.substring(nextIndex, endBlock)), helpers, partials);
+                    out.add(new IfVariablePart(value, itemPart, toAccessor(value)));
+                    return endBlock + "{{/}}".length() + value.length();
                 }
-                final var itemPart = doCompile(stripSurroundingEol(content.substring(nextIndex, endBlock)), helpers, partials);
-                out.add(new IfVariablePart(value, itemPart, toAccessor(value)));
-                yield endBlock + "{{/}}".length() + value.length();
-            }
-            case "with" -> {
-                final int endBlock = findEndBlock("{{#with", "{{/with}}", content, nextIndex);
-                if (endBlock < 0) {
-                    throw new IllegalArgumentException("Missing {{/with}} at index " + nextIndex + "'");
+            case "with" :
+                {
+                    final int endBlock = findEndBlock("{{#with", "{{/with}}", content, nextIndex);
+                    if (endBlock < 0) {
+                        throw new IllegalArgumentException("Missing {{/with}} at index " + nextIndex + "'");
+                    }
+                    final var substring = stripSurroundingEol(content.substring(nextIndex, endBlock));
+                    out.add(new NestedVariablePart(value, doCompile(substring, helpers, partials), toAccessor(value)));
+                    return endBlock + "{{/with}}".length();
                 }
-                final var substring = stripSurroundingEol(content.substring(nextIndex, endBlock));
-                out.add(new NestedVariablePart(value, doCompile(substring, helpers, partials), toAccessor(value)));
-                yield endBlock + "{{/with}}".length();
-            }
-            case "each" -> {
-                final int endBlock = findEndBlock("{{#each", "{{/each}}", content, nextIndex);
-                if (endBlock < 0) {
-                    throw new IllegalArgumentException("Missing {{/each}} at index " + nextIndex + "'");
+            case "each" :
+                {
+                    final int endBlock = findEndBlock("{{#each", "{{/each}}", content, nextIndex);
+                    if (endBlock < 0) {
+                        throw new IllegalArgumentException("Missing {{/each}} at index " + nextIndex + "'");
+                    }
+                    final var eachContent = stripSurroundingEol(content.substring(nextIndex, endBlock)).stripTrailing();
+                    final var itemPart = doCompile(eachContent, helpers, partials);
+                    final var accessor = toAccessor(value);
+                    out.add(new EachVariablePart(value, toPartFactory(itemPart), accessor,
+                            accessor instanceof PrecomputedChainAccessor ? new ChainedAccessor(accessor, ((PrecomputedChainAccessor) accessor).getDelegating()) : accessor));
+                    return endBlock + "{{/each}}".length();
                 }
-                final var eachContent = stripSurroundingEol(content.substring(nextIndex, endBlock)).stripTrailing();
-                final var itemPart = doCompile(eachContent, helpers, partials);
-                final var accessor = toAccessor(value);
-                out.add(new EachVariablePart(
-                        value, toPartFactory(itemPart), accessor,
-                        accessor instanceof PrecomputedChainAccessor pca ?
-                                new ChainedAccessor(accessor, pca.getDelegating()) : accessor));
-                yield endBlock + "{{/each}}".length();
-            }
-            case "if" -> {
-                final int endBlock = findEndBlock("{{#if", "{{/if}}", content, nextIndex);
-                if (endBlock < 0) {
-                    throw new IllegalArgumentException("Missing {{/if}} at index " + nextIndex + "'");
+            case "if" :
+                {
+                    final int endBlock = findEndBlock("{{#if", "{{/if}}", content, nextIndex);
+                    if (endBlock < 0) {
+                        throw new IllegalArgumentException("Missing {{/if}} at index " + nextIndex + "'");
+                    }
+                    final var itemPart = doCompile(stripSurroundingEol(content.substring(nextIndex, endBlock)), helpers, partials);
+                    out.add(new IfVariablePart(value, itemPart, toAccessor(value)));
+                    return endBlock + "{{/if}}".length();
                 }
-                final var itemPart = doCompile(stripSurroundingEol(content.substring(nextIndex, endBlock)), helpers, partials);
-                out.add(new IfVariablePart(value, itemPart, toAccessor(value)));
-                yield endBlock + "{{/if}}".length();
-            }
-            case "unless" -> {
-                final int endBlock = findEndBlock("{{#unless", "{{/unless}}", content, nextIndex);
-                if (endBlock < 0) {
-                    throw new IllegalArgumentException("Missing {{/unless}} at index " + nextIndex + "'");
+            case "unless" :
+                {
+                    final int endBlock = findEndBlock("{{#unless", "{{/unless}}", content, nextIndex);
+                    if (endBlock < 0) {
+                        throw new IllegalArgumentException("Missing {{/unless}} at index " + nextIndex + "'");
+                    }
+                    final var itemPart = doCompile(stripSurroundingEol(content.substring(nextIndex, endBlock)), helpers, partials);
+                    out.add(new UnlessVariablePart(value, itemPart, toAccessor(value)));
+                    return endBlock + "{{/unless}}".length();
                 }
-                final var itemPart = doCompile(stripSurroundingEol(content.substring(nextIndex, endBlock)), helpers, partials);
-                out.add(new UnlessVariablePart(value, itemPart, toAccessor(value)));
-                yield endBlock + "{{/unless}}".length();
-            }
-            default -> ofNullable(helpers.get(keyword))
-                    .map(helper -> {
-                        final int endBlock = findEndBlock("{{#" + keyword, "{{/" + keyword + "}}", content, nextIndex);
-                        if (endBlock < 0) {
-                            throw new IllegalArgumentException("Missing {{/" + keyword + "}} at index " + nextIndex + "'");
-                        }
-                        final var itemPart = doCompile(stripSurroundingEol(content.substring(nextIndex, endBlock)), helpers, partials);
-                        out.add(new BlockHelperPart(helper, value, itemPart, toAccessor(value)));
-                        return endBlock + "{{/}}".length() + keyword.length();
-                    })
-                    .orElseThrow(() -> new IllegalArgumentException("Unknown keyword '" + keyword + "'"));
-        };
+            default :
+                return ofNullable(helpers.get(keyword)).map(helper -> {
+                    final int endBlock = findEndBlock("{{#" + keyword, "{{/" + keyword + "}}", content, nextIndex);
+                    if (endBlock < 0) {
+                        throw new IllegalArgumentException("Missing {{/" + keyword + "}} at index " + nextIndex + "'");
+                    }
+                    final var itemPart = doCompile(stripSurroundingEol(content.substring(nextIndex, endBlock)), helpers, partials);
+                    out.add(new BlockHelperPart(helper, value, itemPart, toAccessor(value)));
+                    return endBlock + "{{/}}".length() + keyword.length();
+                }).orElseThrow(() -> new IllegalArgumentException("Unknown keyword '" + keyword + "'"));
+        }
     }
 
     private Accessor toAccessor(final String value) {
@@ -470,7 +422,8 @@ public class HandlebarsCompiler {
         final int endBlock = content.indexOf(end, nextIndex);
         if (endBlock > 0) {
             final int endBlock2 = content.indexOf(start, nextIndex);
-            if (endBlock2 > 0 && endBlock2 < endBlock) { // has a nested opening tag
+            if (endBlock2 > 0 && endBlock2 < endBlock) {
+                // has a nested opening tag
                 return findEndBlock(start, end, content, endBlock + end.length());
             }
         }
@@ -504,16 +457,18 @@ public class HandlebarsCompiler {
     }
 
     private Part toVariable(final String name) {
-        return switch (name) {
-            case "this" -> new UnescapedThisPart();
-            default -> {
-                final int split = name.indexOf('.');
-                if (split < 0) {
-                    yield new UnescapedVariablePart(name, defaultAccessor);
+        switch(name) {
+            case "this" :
+                return new UnescapedThisPart();
+            default :
+                {
+                    final int split = name.indexOf('.');
+                    if (split < 0) {
+                        return new UnescapedVariablePart(name, defaultAccessor);
+                    }
+                    return new NestedVariablePart(name.substring(0, split), toVariable(name.substring(split + 1)), defaultAccessor);
                 }
-                yield new NestedVariablePart(name.substring(0, split), toVariable(name.substring(split + 1)), defaultAccessor);
-            }
-        };
+        }
     }
 
     private List<Part> optimize(final List<Part> parts) {
@@ -523,37 +478,49 @@ public class HandlebarsCompiler {
             if (current instanceof EmptyPart) {
                 continue;
             }
-            if (current instanceof ConstantPart cp) {
+            if (current instanceof ConstantPart) {
+                ConstantPart cp = (ConstantPart) current;
                 constants.add(cp);
                 continue;
             }
-
             flush(constants, out);
             out.add(current);
         }
-
         flush(constants, out);
         return out;
     }
 
     private void flush(final List<ConstantPart> constants, final ArrayList<Part> out) {
         if (!constants.isEmpty()) {
-            out.add(switch (constants.size()) {
-                case 1 -> constants.get(0);
-                default -> new ConstantPart(constants.stream().map(ConstantPart::value).collect(joining()));
-            });
+            out.add(constants.size() == 1 ?
+                    constants.get(0):
+                    new ConstantPart(constants.stream().map(ConstantPart::value).collect(joining())));
             constants.clear();
         }
     }
 
-    private record TemplateImpl(Part part) implements Template {
+    private static final class TemplateImpl implements Template {
+
+        private final Part part;
+
+        public TemplateImpl(Part part) {
+            this.part = part;
+        }
+
+        @Override
+        public Part part() {
+            return part;
+        }
     }
 
     public static class Settings {
+
         private static final Settings DEFAULTS = new Settings();
 
         private boolean cachePartials = false;
+
         private Map<String, Function<Object, String>> helpers = Map.of();
+
         private Map<String, String> partials = Map.of();
 
         public Settings cachePartials(final boolean cachePartials) {
@@ -572,9 +539,23 @@ public class HandlebarsCompiler {
         }
     }
 
-    public record CompilationContext(Settings settings, String content) {
-        public CompilationContext(final String content) {
-            this(Settings.DEFAULTS, content);
+    public static final class CompilationContext {
+
+        private final Settings settings;
+
+        private final String content;
+
+        public CompilationContext(Settings settings, String content) {
+            this.settings = settings;
+            this.content = content;
+        }
+
+        public Settings settings() {
+            return settings;
+        }
+
+        public String content() {
+            return content;
         }
     }
 }

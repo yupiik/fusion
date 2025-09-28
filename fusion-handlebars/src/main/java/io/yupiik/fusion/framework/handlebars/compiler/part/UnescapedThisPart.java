@@ -15,7 +15,11 @@
  */
 package io.yupiik.fusion.framework.handlebars.compiler.part;
 
-public record UnescapedThisPart() implements Part {
+public final class UnescapedThisPart implements Part {
+
+    public UnescapedThisPart() {
+    }
+
     @Override
     public String apply(final RenderContext context, final Object currentData) {
         return String.valueOf(currentData);

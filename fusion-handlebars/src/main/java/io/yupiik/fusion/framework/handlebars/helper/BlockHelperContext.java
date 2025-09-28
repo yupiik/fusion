@@ -17,5 +17,22 @@ package io.yupiik.fusion.framework.handlebars.helper;
 
 import java.util.function.Function;
 
-public record BlockHelperContext(Object data, Function<Object, String> blockRenderer) {
+public final class BlockHelperContext {
+
+    private final Object data;
+
+    private final Function<Object, String> blockRenderer;
+
+    public BlockHelperContext(Object data, Function<Object, String> blockRenderer) {
+        this.data = data;
+        this.blockRenderer = blockRenderer;
+    }
+
+    public Object data() {
+        return data;
+    }
+
+    public Function<Object, String> blockRenderer() {
+        return blockRenderer;
+    }
 }

@@ -16,17 +16,41 @@
 package io.yupiik.fusion.framework.handlebars.compiler.part;
 
 import io.yupiik.fusion.framework.handlebars.spi.Accessor;
-
 import java.util.Collection;
 
-public record UnlessVariablePart(String name, Part next, Accessor accessor) implements Part {
+public final class UnlessVariablePart implements Part {
+
+    private final String name;
+
+    private final Part next;
+
+    private final Accessor accessor;
+
+    public UnlessVariablePart(String name, Part next, Accessor accessor) {
+        this.name = name;
+        this.next = next;
+        this.accessor = accessor;
+    }
+
+    public String name() {
+        return name;
+    }
+
+    public Part next() {
+        return next;
+    }
+
+    public Accessor accessor() {
+        return accessor;
+    }
+
     @Override
     public String apply(final RenderContext context, final Object currentData) {
         final var value = ".".equals(name) || "this".equals(name) ? currentData : accessor.find(currentData, name);
         if (!(value == null ||
-                (value instanceof String s && s.isBlank()) ||
-                (value instanceof Number n && n.doubleValue() == 0) ||
-                (value instanceof Collection<?> c && c.isEmpty()))) {
+                (value instanceof String && ((String )value).isBlank()) ||
+                (value instanceof Number && ((Number) value).doubleValue() == 0) ||
+                (value instanceof Collection<?> && ((Collection<?>) value).isEmpty()))) {
             return "";
         }
         return next.apply(context, currentData);

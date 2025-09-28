@@ -18,7 +18,9 @@ package io.yupiik.fusion.framework.handlebars.compiler.accessor;
 import io.yupiik.fusion.framework.handlebars.spi.Accessor;
 
 public class ChainedAccessor implements Accessor {
+
     private final Accessor first;
+
     private final Accessor second;
 
     public ChainedAccessor(final Accessor first, final Accessor second) {

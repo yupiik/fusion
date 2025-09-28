@@ -16,10 +16,22 @@
 package io.yupiik.fusion.framework.handlebars.compiler.part;
 
 import io.yupiik.fusion.framework.handlebars.spi.Accessor;
-
 import java.util.function.Function;
 
-public record InlineHelperPart(Function<Object, String> helper, String name, Accessor accessor) implements Part {
+public final class InlineHelperPart implements Part {
+
+    private final Function<Object, String> helper;
+
+    private final String name;
+
+    private final Accessor accessor;
+
+    public InlineHelperPart(Function<Object, String> helper, String name, Accessor accessor) {
+        this.helper = helper;
+        this.name = name;
+        this.accessor = accessor;
+    }
+
     @Override
     public String apply(final RenderContext context, final Object currentData) {
         final var value = ".".equals(name) || "this".equals(name) ? currentData : accessor.find(currentData, name);
@@ -27,5 +39,17 @@ public record InlineHelperPart(Function<Object, String> helper, String name, Acc
             return "";
         }
         return helper.apply(value);
+    }
+
+    public Function<Object, String> helper() {
+        return helper;
+    }
+
+    public String name() {
+        return name;
+    }
+
+    public Accessor accessor() {
+        return accessor;
     }
 }

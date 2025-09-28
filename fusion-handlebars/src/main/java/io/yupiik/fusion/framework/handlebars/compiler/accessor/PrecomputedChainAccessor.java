@@ -18,9 +18,13 @@ package io.yupiik.fusion.framework.handlebars.compiler.accessor;
 import io.yupiik.fusion.framework.handlebars.spi.Accessor;
 
 public class PrecomputedChainAccessor implements Accessor {
+
     private final String key;
+
     private final String supportedName;
+
     private final Accessor delegating;
+
     private final Accessor next;
 
     public PrecomputedChainAccessor(final String key, final String supportedName, final Accessor delegating, final Accessor next) {

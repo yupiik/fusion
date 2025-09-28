@@ -17,9 +17,21 @@ package io.yupiik.fusion.framework.handlebars.compiler.part;
 
 import io.yupiik.fusion.framework.handlebars.compiler.escaping.Escaper;
 
-public record EscapedPart(Part delegate) implements Part, Escaper {
+import java.util.List;
+
+public final class EscapedPart implements Part, Escaper {
+
+    private final Part delegate;
+
+    public EscapedPart(Part delegate) {
+        this.delegate = delegate;
+    }
+
     @Override
     public String apply(final RenderContext context, final Object currentData) {
         return escape(delegate.apply(context, currentData));
+    }
+    public Part delegate() {
+        return delegate;
     }
 }

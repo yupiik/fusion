@@ -17,7 +17,32 @@ package io.yupiik.fusion.framework.handlebars.compiler.part;
 
 import io.yupiik.fusion.framework.handlebars.spi.Accessor;
 
-public record NestedVariablePart(String name, Part next, Accessor accessor) implements Part {
+public final class NestedVariablePart implements Part {
+
+    private final String name;
+
+    private final Part next;
+
+    private final Accessor accessor;
+
+    public NestedVariablePart(String name, Part next, Accessor accessor) {
+        this.name = name;
+        this.next = next;
+        this.accessor = accessor;
+    }
+
+    public String name() {
+        return name;
+    }
+
+    public Part next() {
+        return next;
+    }
+
+    public Accessor accessor() {
+        return accessor;
+    }
+
     @Override
     public String apply(final RenderContext context, final Object currentData) {
         final var value = ".".equals(name) || "this".equals(name) ? currentData : accessor.find(currentData, name);

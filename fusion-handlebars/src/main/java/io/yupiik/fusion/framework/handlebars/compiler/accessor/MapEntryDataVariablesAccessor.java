@@ -16,10 +16,10 @@
 package io.yupiik.fusion.framework.handlebars.compiler.accessor;
 
 import io.yupiik.fusion.framework.handlebars.spi.Accessor;
-
 import java.util.Map;
 
 public class MapEntryDataVariablesAccessor implements Accessor {
+
     private final Accessor delegate;
 
     public MapEntryDataVariablesAccessor(final Accessor delegate) {
@@ -28,10 +28,13 @@ public class MapEntryDataVariablesAccessor implements Accessor {
 
     @Override
     public Object find(final Object data, final String name) {
-        return switch (name) {
-            case "@key" -> data instanceof Map.Entry<?, ?> e ? e.getKey() : null;
-            case "@value" -> data instanceof Map.Entry<?, ?> e ? e.getValue() : null;
-            default -> delegate.find(data, name);
-        };
+        switch(name) {
+            case "@key" :
+                return data instanceof Map.Entry<?, ?> ? ((Map.Entry<?, ?>) data).getKey() : null;
+            case "@value" :
+                return data instanceof Map.Entry<?, ?> ? ((Map.Entry<?, ?>) data).getValue() : null;
+            default :
+                return delegate.find(data, name);
+        }
     }
 }

@@ -16,11 +16,12 @@
 package io.yupiik.fusion.framework.handlebars.compiler.accessor;
 
 import io.yupiik.fusion.framework.handlebars.spi.Accessor;
-
 import java.util.Map;
 
 public class ByNameAccessor implements Accessor {
+
     private final Map<String, Accessor> byName;
+
     private final Accessor fallback;
 
     public ByNameAccessor(final Map<String, Accessor> byName, final Accessor fallback) {

@@ -15,7 +15,18 @@
  */
 package io.yupiik.fusion.framework.handlebars.compiler.part;
 
-public record ConstantPart(String value) implements Part {
+public final class ConstantPart implements Part {
+
+    private final String value;
+
+    public ConstantPart(String value) {
+        this.value = value;
+    }
+
+    public String value() {
+        return value;
+    }
+
     @Override
     public String apply(final RenderContext context, final Object currentData) {
         return value;

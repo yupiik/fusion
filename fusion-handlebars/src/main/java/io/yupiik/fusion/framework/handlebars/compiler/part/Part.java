@@ -17,11 +17,10 @@ package io.yupiik.fusion.framework.handlebars.compiler.part;
 
 import java.util.function.BiFunction;
 
-public sealed interface Part extends BiFunction<Part.RenderContext, Object, String> permits
-        BlockHelperPart, ConstantPart, EachVariablePart, EscapedPart, IfVariablePart, InlineHelperPart,
-        NestedVariablePart, ThisHelperPart, UnescapedThisPart, UnescapedVariablePart, UnlessVariablePart,
-        EmptyPart, PartListPart {
+public interface Part extends BiFunction<Part.RenderContext, Object, String> {
+
     interface RenderContext {
+
         RenderContext DEFAULT = new RenderContext() {
         };
     }

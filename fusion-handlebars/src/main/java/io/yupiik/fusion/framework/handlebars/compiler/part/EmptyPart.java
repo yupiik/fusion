@@ -15,7 +15,7 @@
  */
 package io.yupiik.fusion.framework.handlebars.compiler.part;
 
-public record EmptyPart() implements Part {
+public final class EmptyPart implements Part {
     public static final EmptyPart INSTANCE = new EmptyPart();
 
     @Override
