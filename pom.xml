@@ -97,7 +97,7 @@
       <plugin>
         <groupId>io.github.git-commit-id</groupId>
         <artifactId>git-commit-id-maven-plugin</artifactId>
-        <version>9.0.1</version>
+        <version>9.0.2</version>
         <configuration>
           <injectAllReactorProjects>true</injectAllReactorProjects>
           <generateGitPropertiesFile>false</generateGitPropertiesFile>
@@ -120,7 +120,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-clean-plugin</artifactId>
-        <version>3.4.1</version>
+        <version>3.5.0</version>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -215,7 +215,7 @@
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>exec-maven-plugin</artifactId>
-        <version>3.5.0</version>
+        <version>3.5.1</version>
       </plugin>
       <plugin>
         <groupId>com.mycila</groupId>
@@ -306,7 +306,7 @@ under the License.
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-javadoc-plugin</artifactId>
-            <version>3.10.1</version>
+            <version>3.11.3</version>
             <executions>
               <execution>
                 <id>attach-javadocs</id>
