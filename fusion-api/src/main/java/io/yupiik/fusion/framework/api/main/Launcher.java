@@ -53,7 +53,7 @@ public class Launcher implements AutoCloseable {
 
     @Override
     public void close() {
-        if (!isClosing.compareAndSet(false, true)) {
+        if (isClosing.compareAndSet(false, true)) {
             container.close();
         }
     }
