@@ -31,8 +31,11 @@ import static java.util.stream.Collectors.joining;
  * Converts a partial fusion openrpc to an asciidoctor content.
  */
 public class OpenRPC2Adoc extends BaseOpenRPCConverter {
+    private final String tableAttributes;
+
     public OpenRPC2Adoc(final Map<String, String> configuration) {
         super(configuration);
+        this.tableAttributes = configuration.getOrDefault("tableAttributes", "");
     }
 
     @Override
@@ -70,7 +73,7 @@ public class OpenRPC2Adoc extends BaseOpenRPCConverter {
 
         return "=== " + schema.getOrDefault("title", name) + " (" + name + ") schema\n" +
                 "\n" +
-                "[cols=\"m,1a,m,3a\"]\n" +
+                "[cols=\"m,1a,m,3a\",opts=header" + (tableAttributes.isEmpty() ? "" : (',' + tableAttributes)) + "]\n" +
                 "|===\n" +
                 "|Name |Type |Nullable |Description\n" +
                 properties.entrySet().stream()
@@ -129,7 +132,10 @@ public class OpenRPC2Adoc extends BaseOpenRPCConverter {
             case "date" -> "`date`";
             case "array" ->
                     "array with items of type " + ofNullable(type(schemas, asObject(schema.getOrDefault("items", Map.of())), visited)).orElse("unknown");
-            case "object" -> "object of type ``";
+            case "object" ->
+                    "object" + ofNullable(schema.get("$id"))
+                            .map(it -> " of type `" + it + "`")
+                            .orElse("");
             default -> type;
         };
     }

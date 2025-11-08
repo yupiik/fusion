@@ -77,23 +77,23 @@ class OpenRPC2AdocTest {
         new OpenRPC2Adoc(Map.of("input", spec.toString(), "output", out.toString())).run();
         assertEquals("""
                 == Methods
-                                
+                
                 === greet
-                                
+                
                 Parameter structure: either.
-                                
+                
                 Returns some greeting.
-                                
+                
                 Parameters:
                 * `name` (`string`)
-                                
-                                
-                                
+                
+                
+                
                 == Schemas
                                 
                 === Greeting (org.example.application.jsonrpc.Greeting) schema
                                 
-                [cols="m,1a,m,3a"]
+                [cols="m,1a,m,3a",opts=header]
                 |===
                 |Name |Type |Nullable |Description
                                 
