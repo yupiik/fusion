@@ -95,7 +95,7 @@ class OpenRPC2AdocTest {
                                 
                 [cols="m,1a,m,3a"]
                 |===
-                |Name|Type|Nullable|Description
+                |Name |Type |Nullable |Description
                                 
                 |message
                 |`string`
