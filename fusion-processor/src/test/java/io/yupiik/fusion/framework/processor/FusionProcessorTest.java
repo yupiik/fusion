@@ -1543,6 +1543,7 @@ class FusionProcessorTest {
                     }
                 });
     }
+
     @Test
     @SuppressWarnings("unchecked")
     void jsonRpcDoubleParams(@TempDir final Path work) throws IOException {
@@ -1565,6 +1566,59 @@ class FusionProcessorTest {
                         assertEquals("1.2", provider.get());
                     }
                 });
+    }
+
+    @Test
+    void jsonRpcTransitiveSchemas(@TempDir final Path work) throws IOException {
+        final var compiler = new Compiler(work, "JsonRpcNestedSchema");
+        compiler.assertCompiles(0);
+        try (final var in = requireNonNull(Files.newInputStream(compiler.getClasses().resolve("META-INF/fusion/jsonrpc/openrpc.json")))) {
+            assertEquals("""
+                            {
+                              "schemas": {
+                                "test.p.JsonRpcNestedSchema.MyResult": {
+                                  "title": "MyResult",
+                                  "type": "object",
+                                  "properties": {
+                                    "result": {
+                                      "nullable": true,
+                                      "$ref": "#/schemas/test.p.JsonRpcNestedSchema.MyResult.NestedResult"
+                                    }
+                                  },
+                                  "$id": "test.p.JsonRpcNestedSchema.MyResult"
+                                },
+                                "test.p.JsonRpcNestedSchema.MyResult.NestedResult": {
+                                  "title": "NestedResult",
+                                  "type": "object",
+                                  "properties": {
+                                    "name": {
+                                      "nullable": true,
+                                      "type": "string"
+                                    }
+                                  },
+                                  "$id": "test.p.JsonRpcNestedSchema.MyResult.NestedResult"
+                                }
+                              },
+                              "methods": {
+                                "nested-schema": {
+                                  "description": "",
+                                  "errors": [],
+                                  "name": "nested-schema",
+                                  "paramStructure": "either",
+                                  "params": [],
+                                  "result": {
+                                    "name": "result",
+                                    "schema": {
+                                      "$ref": "#/schemas/test.p.JsonRpcNestedSchema.MyResult"
+                                    }
+                                  },
+                                  "summary": ""
+                                }
+                              }
+                            }""",
+                    new SimplePrettyFormatter(new JsonMapperImpl(List.of(new ObjectJsonCodec()), c -> empty()))
+                            .apply(new String(in.readAllBytes(), UTF_8)));
+        }
     }
 
     @TestFactory
