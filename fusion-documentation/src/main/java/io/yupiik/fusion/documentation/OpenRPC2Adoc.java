@@ -72,7 +72,7 @@ public class OpenRPC2Adoc extends BaseOpenRPCConverter {
                 "\n" +
                 "[cols=\"m,1a,m,3a\"]\n" +
                 "|===\n" +
-                "|Name|Type|Nullable|Description\n" +
+                "|Name |Type |Nullable |Description\n" +
                 properties.entrySet().stream()
                         .map(e -> {
                             final var model = asObject(e.getValue());

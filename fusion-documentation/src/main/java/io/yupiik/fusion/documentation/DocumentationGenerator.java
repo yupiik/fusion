@@ -130,7 +130,7 @@ public class DocumentationGenerator implements Runnable {
     protected String table(final List<Parameter> parameters, final boolean includeEnv) {
         return "[options=\"header\",cols=\"a,a,2a\"]\n" +
                 "|===\n" +
-                "|Name|" + (includeEnv ? "Env Variable|" : "") + "Description|Default\n" +
+                "|Name |" + (includeEnv ? "Env Variable |" : "") + "Description |Default\n" +
                 "\n" +
                 parameters.stream()
                         .map(e -> "| `" + e.name() + "` " + (e.required() ? "*" : "") + '\n' +

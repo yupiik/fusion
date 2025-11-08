@@ -654,8 +654,8 @@ public class InternalFusionProcessor extends AbstractProcessor {
     private void generateMetadata() {
         try {
             generateConfMetadata();
+            generateOpenRPCMetadata(); // before json metadata since we do use them
             generateJsonMetadata();
-            generateOpenRPCMetadata();
             generateNativeImageProperties();
             generateMetadataContributorSPI();
         } catch (final IOException | RuntimeException e) {
@@ -725,6 +725,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
 
         final var filer = processingEnv.getFiler();
         final var json = filer.createResource(CLASS_OUTPUT, "", openrpcLocation);
+        resolveOpenRpcRefSchemas();
         try (final var out = json.openWriter()) {
             out.write(partialOpenRPC.toJson());
         }
@@ -799,6 +800,91 @@ public class InternalFusionProcessor extends AbstractProcessor {
         }
 
         allConfigurationsDocs.clear();
+    }
+
+    private void resolveOpenRpcRefSchemas() {
+        if (!(partialOpenRPC != null && !partialOpenRPC.schemas().isEmpty() && allJsonSchemas != null && !allJsonSchemas.isEmpty())) {
+            return;
+        }
+        final var lightMapper = new JsonMapperFacade();
+        final var root = partialOpenRPC.schemas();
+        final var toVisit = new HashSet<>(root.values());
+        while (!toVisit.isEmpty()) {
+            final var copy = new ArrayList<>(toVisit);
+            toVisit.clear();
+            for (final var schema : copy) {
+                if (schema.ref() != null) {
+                    final var key = schema.ref().substring(schema.ref().lastIndexOf('/') + 1);
+                    if (root.containsKey(key)) {
+                        continue;
+                    }
+
+                    final var jsonSchema = allJsonSchemas.get(key);
+                    if (jsonSchema == null) {
+                        if (key.contains(".") /* avoid a warning for primitives */) {
+                            processingEnv.getMessager().printMessage(WARNING, "Can't resolve '" + key + "' JSON-Schema");
+                        }
+                    } else {
+                        var resolved = jsonSchema.content();
+                        if (resolved == null && jsonSchema.raw() != null) {
+                            try {
+                                resolved = generic2JsonSchema(lightMapper.read(jsonSchema.raw()));
+                            } catch (final RuntimeException e) {
+                                processingEnv.getMessager().printMessage(ERROR, e.getMessage());
+                            }
+                        }
+                        if (resolved != null) {
+                            root.putIfAbsent(key, resolved);
+                            toVisit.add(resolved);
+                        }
+                    }
+                    continue;
+                }
+                if (schema.type() == null) {
+                    continue;
+                }
+                switch (schema.type()) {
+                    case "object":
+                        if (schema.properties() != null) {
+                            toVisit.addAll(schema.properties().values());
+                        }
+                        if (schema.additionalProperties() instanceof JsonSchema js) {
+                            toVisit.add(js);
+                        }
+                        break;
+                    case "array":
+                        if (schema.items() != null) {
+                            toVisit.add(schema.items());
+                        }
+                        break;
+                    default:
+                        // no-op
+                }
+            }
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private JsonSchema generic2JsonSchema(final Map<String, Object> raw) {
+        final var properties = (Map<String, Object>) raw.get("properties");
+        final var items = (Map<String, Object>) raw.get("items");
+        final Map<String, JsonSchema> mappedProperties = properties == null ?
+                null :
+                properties.entrySet().stream()
+                        .collect(toMap(Map.Entry::getKey, e -> generic2JsonSchema((Map<String, Object>) e.getValue())));
+        return new JsonSchema(
+                (String) raw.get("$ref"),
+                (String) raw.get("$id"),
+                (String) raw.get("type"),
+                (Boolean) raw.get("nullable"),
+                (String) raw.get("format"),
+                (String) raw.get("pattern"),
+                raw.get("additionalProperties"),
+                mappedProperties,
+                items == null ? null : generic2JsonSchema(items),
+                (String) raw.get("title"),
+                (String) raw.get("description"),
+                (List<String>) raw.get("enumeration"));
     }
 
     private void handleSuperClassesInjections(final Map<Bean, List<FieldInjection>> beans, final Bean bean, final List<FieldInjection> injections) {
@@ -1251,8 +1337,8 @@ public class InternalFusionProcessor extends AbstractProcessor {
                 writeGeneratedClass(src.enclosing(), subclass);
                 data = Map.of("fusion.framework.subclasses.delegate",
                         "(" + Function.class.getName() + "<" + DelegatingContext.class.getName() + "<" +
-                        names.className().replace('$', '.') + ">, " + names.className().replace('$', '.') + ">)" +
-                        " context -> new " + subclass.name() + "(context)");
+                                names.className().replace('$', '.') + ">, " + names.className().replace('$', '.') + ">)" +
+                                " context -> new " + subclass.name() + "(context)");
             } else {
                 data = Map.of();
             }

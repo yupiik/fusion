@@ -118,7 +118,7 @@ class DocumentationGeneratorTest {
         assertEquals("""
                 [options="header",cols="a,a,2a"]
                 |===
-                |Name|Env Variable|Description|Default
+                |Name |Env Variable |Description |Default
                 
                 | `jwt.algo`\s
                 | `JWT_ALGO`
