@@ -13,7 +13,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package io.yupiik.fusion.observability.metrics;
+package io.yupiik.fusion.http.server.observability.metrics;
 
 import io.yupiik.fusion.http.server.api.Request;
 import io.yupiik.fusion.http.server.api.Response;
@@ -26,14 +26,16 @@ import static java.util.concurrent.CompletableFuture.completedFuture;
 public class Metrics implements Endpoint {
     private final MetricsRegistry registry;
     private final OpenMetricsFormatter formatter = new OpenMetricsFormatter();
+    private final String metricsPath;
 
-    public Metrics(final MetricsRegistry registry) {
+    public Metrics(final MetricsRegistry registry, final String metricsPath) {
         this.registry = registry;
+        this.metricsPath = metricsPath;
     }
 
     @Override
     public boolean matches(final Request request) {
-        return "GET".equalsIgnoreCase(request.method()) && "/metrics".equalsIgnoreCase(request.path());
+        return "GET".equalsIgnoreCase(request.method()) && metricsPath.equalsIgnoreCase(request.path());
     }
 
     @Override

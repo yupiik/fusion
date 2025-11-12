@@ -13,14 +13,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package io.yupiik.fusion.observability.http;
+package io.yupiik.fusion.http.server.observability.http;
 
 import io.yupiik.fusion.framework.api.scope.DefaultScoped;
 import io.yupiik.fusion.http.server.spi.Endpoint;
-import io.yupiik.fusion.observability.health.Health;
-import io.yupiik.fusion.observability.health.HealthRegistry;
-import io.yupiik.fusion.observability.metrics.Metrics;
-import io.yupiik.fusion.observability.metrics.MetricsRegistry;
+import io.yupiik.fusion.http.server.observability.health.Health;
+import io.yupiik.fusion.http.server.observability.health.HealthRegistry;
+import io.yupiik.fusion.http.server.observability.metrics.Metrics;
+import io.yupiik.fusion.http.server.observability.metrics.MetricsRegistry;
 
 import java.util.List;
 
