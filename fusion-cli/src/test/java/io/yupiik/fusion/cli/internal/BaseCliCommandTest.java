@@ -15,12 +15,21 @@
  */
 package io.yupiik.fusion.cli.internal;
 
+import com.sun.jdi.ArrayReference;
+import io.yupiik.fusion.cli.CliAwaiter;
+import io.yupiik.fusion.framework.api.Instance;
+import io.yupiik.fusion.framework.api.configuration.Configuration;
+import io.yupiik.fusion.framework.api.configuration.ConfigurationSource;
 import io.yupiik.fusion.framework.api.configuration.MissingRequiredParameterException;
+import io.yupiik.fusion.framework.api.container.DefaultInstance;
+import io.yupiik.fusion.framework.api.container.configuration.ConfigurationImpl;
+import io.yupiik.fusion.framework.api.main.Args;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -47,5 +56,40 @@ class BaseCliCommandTest {
                         List.of(new CliCommand.Parameter("test.dummy", "--test-dummy", "Some param.")))
                         .create(key -> Optional.empty(), List.of()))
                         .getMessage());
+    }
+
+    @Test
+    void envOverride() {
+        final var param = new AtomicReference<String>();
+        final var awaiter = new CliAwaiter(
+                new Args(List.of("test")),
+                new ConfigurationImpl(List.of(key -> "foo".equals(key) ? "ok" : null)),
+                List.of(new CliCommand<>() {
+                    @Override
+                    public String name() {
+                        return "test";
+                    }
+
+                    @Override
+                    public String description() {
+                        return "test";
+                    }
+
+                    @Override
+                    public List<Parameter> parameters() {
+                        return List.of(new Parameter("foo", "foo", "foo"));
+                    }
+
+                    @Override
+                    public Instance<Runnable> create(final Configuration configuration, final List<Instance<?>> dependents) {
+                        return new DefaultInstance<>(
+                                null, null,
+                                () -> param.set(configuration.get("foo").orElse("failed")),
+                                List.of());
+                    }
+                })
+        );
+        awaiter.await();
+        assertEquals("ok", param.get());
     }
 }
