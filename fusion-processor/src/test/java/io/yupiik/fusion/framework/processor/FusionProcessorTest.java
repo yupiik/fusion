@@ -140,6 +140,35 @@ class FusionProcessorTest {
     }
 
     @Test
+    void subClassGenerics(@TempDir final Path work) throws IOException {
+        final var compiler = new Compiler(work, "GenericInMethod");
+        compiler.compileAndAsserts((loader, container) -> {
+            try {
+                assertEquals("""
+                        package test.p;
+                        
+                        @io.yupiik.fusion.framework.api.container.Generation(version = 1)
+                        class GenericInMethod$FusionSubclass extends GenericInMethod {
+                          private final io.yupiik.fusion.framework.api.container.context.subclass.DelegatingContext<GenericInMethod> fusionContext;
+                        
+                          GenericInMethod$FusionSubclass(final io.yupiik.fusion.framework.api.container.context.subclass.DelegatingContext<GenericInMethod> context) {
+                            this.fusionContext = context;
+                          }
+                        
+                          @Override
+                          public <A> java.util.function.BiConsumer<test.p.GenericInMethod.Ctx<A>,A> foo(A a) {
+                            return this.fusionContext.instance().foo(a);
+                          }
+                        }
+                        
+                        """, Files.readString(compiler.getGeneratedSources().resolve("test/p/GenericInMethod$FusionSubclass.java")));
+            } catch (final IOException e) {
+                fail(e);
+            }
+        });
+    }
+
+    @Test
     void simple(@TempDir final Path work) throws IOException {
         final var compiler = new Compiler(work, "Bean1", "Bean2");
         compiler.compileAndAsserts((loader, container) -> {
