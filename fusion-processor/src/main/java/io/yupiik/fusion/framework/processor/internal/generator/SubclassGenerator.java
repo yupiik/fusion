@@ -24,11 +24,14 @@ import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Name;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.ExecutableType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.type.TypeVariable;
+import javax.lang.model.util.Types;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Optional;
@@ -73,6 +76,9 @@ public class SubclassGenerator extends BaseGenerator implements Supplier<BaseGen
         final var result = (DeclaredType) typeElement.asType();
         final var typeArgs = result.getTypeArguments();
         final var templatesDef = templates(typeArgs, result, alreadyHandled, templates);
+        final var genericType = processingEnv.getTypeUtils().getDeclaredType(typeElement, typeElement.getTypeParameters().stream()
+                .map(TypeParameterElement::asType)
+                .toArray(TypeMirror[]::new));
 
         appendGenerationVersion(out);
         out.append("class ").append(className).append(DELEGATING_CLASS_SUFFIX).append(templatesDef)
@@ -139,12 +145,13 @@ public class SubclassGenerator extends BaseGenerator implements Supplier<BaseGen
                                     .map(VariableElement::getSimpleName)
                                     .map(Name::toString)
                                     .collect(joining(", "));
-                    final var contextualMethod = (ExecutableType) elements.getTypeUtils().asMemberOf((DeclaredType) typeElement.asType(), m);
+                    final var contextualMethod = (ExecutableType) elements.getTypeUtils().asMemberOf(genericType, m);
                     final var paramIt = m.getParameters().iterator();
+                    final var returnType = contextualMethod.getReturnType();
                     return "@Override\n" +
                             visibilityFrom(m.getModifiers()) +
                             templateTypes(contextualMethod, typeArgs) +
-                            contextualMethod.getReturnType() + " " + methodName + "(" +
+                            returnType + " " + methodName + "(" +
                             contextualMethod.getParameterTypes().stream().map(p -> p + " " + paramIt.next().getSimpleName()).collect(joining(", ")) +
                             ")" + exceptions(m) + " {\n" +
                             (m.getReturnType().getKind() == TypeKind.VOID ?

@@ -33,10 +33,12 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.ExecutableType;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
+import javax.lang.model.type.WildcardType;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -348,9 +350,12 @@ public abstract class BaseGenerator {
     protected String templateTypes(final ExecutableType m, final Collection<? extends TypeMirror> classOnes) {
         final var templates = new LinkedHashSet<String>();
         final var alreadyHandled = new HashSet<TypeMirror>();
+        if (classOnes!=null){
+            alreadyHandled.addAll(classOnes);
+        }
         final var result = m.getReturnType();
         return templates(
-                m.getParameterTypes().stream()
+                m.getTypeVariables().stream()
                         .filter(it -> classOnes == null || !classOnes.contains(it))
                         .toList(),
                 result, alreadyHandled, templates);
@@ -364,7 +369,7 @@ public abstract class BaseGenerator {
         } else if (result instanceof DeclaredType dt) {
             templates.addAll(dt.getTypeArguments().stream()
                     .filter(it -> isTemplate(it, alreadyHandled))
-                    .map(it -> it + " " + templateBound((TypeVariable) it))
+                    .map(it -> (it + " " + templateBound((TypeVariable) it)).strip())
                     .toList());
         }
 
@@ -383,7 +388,7 @@ public abstract class BaseGenerator {
         if (templates.isEmpty()) {
             return "";
         }
-        return '<' + String.join(", ", templates) + "> ";
+        return '<' + String.join(", ", templates).strip() + "> ";
     }
 
     // todo: refine this
