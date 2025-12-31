@@ -16,9 +16,11 @@
 package io.yupiik.fusion.http.server.api;
 
 import io.yupiik.fusion.http.server.impl.FusionResponse;
+import io.yupiik.fusion.http.server.impl.HttpDates;
 
 import java.io.Writer;
 import java.nio.ByteBuffer;
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Flow;
@@ -36,6 +38,28 @@ public interface Response {
         Builder status(int value);
 
         Builder header(String key, String value);
+
+        default Builder header(final String key, final int value) {
+            return header(key, String.valueOf(value));
+        }
+
+        default Builder header(final String key, final long value) {
+            return header(key, String.valueOf(value));
+        }
+
+        default Builder header(final String key, final boolean value) {
+            return header(key, String.valueOf(value));
+        }
+
+        /**
+         * Will use RFC 5322 to format the date.
+         * @param key header name.
+         * @param value header value.
+         * @return this.
+         */
+        default Builder header(final String key, final ZonedDateTime value) {
+            return header(key, value.format(HttpDates.RFC5322));
+        }
 
         /**
          * Add a cookie to the response, use {@code Cookie.of()} to build it.

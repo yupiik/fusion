@@ -23,6 +23,7 @@ import io.yupiik.fusion.http.server.impl.flow.WriterPublisher;
 
 import java.io.Writer;
 import java.nio.ByteBuffer;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
