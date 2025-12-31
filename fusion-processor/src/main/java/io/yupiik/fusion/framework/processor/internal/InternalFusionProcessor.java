@@ -27,6 +27,7 @@ import io.yupiik.fusion.framework.build.api.configuration.Property;
 import io.yupiik.fusion.framework.build.api.configuration.RootConfiguration;
 import io.yupiik.fusion.framework.build.api.container.LazyContext;
 import io.yupiik.fusion.framework.build.api.event.OnEvent;
+import io.yupiik.fusion.framework.build.api.http.HttpJavaMatcher;
 import io.yupiik.fusion.framework.build.api.http.HttpMatcher;
 import io.yupiik.fusion.framework.build.api.json.JsonModel;
 import io.yupiik.fusion.framework.build.api.json.JsonOthers;
@@ -52,6 +53,7 @@ import io.yupiik.fusion.framework.processor.internal.generator.CliCommandGenerat
 import io.yupiik.fusion.framework.processor.internal.generator.ConfigurationFactoryGenerator;
 import io.yupiik.fusion.framework.processor.internal.generator.CrdDescriptorGenerator;
 import io.yupiik.fusion.framework.processor.internal.generator.HttpEndpointGenerator;
+import io.yupiik.fusion.framework.processor.internal.generator.HttpJavaEndpointGenerator;
 import io.yupiik.fusion.framework.processor.internal.generator.JsonCodecBeanGenerator;
 import io.yupiik.fusion.framework.processor.internal.generator.JsonCodecEnumBeanGenerator;
 import io.yupiik.fusion.framework.processor.internal.generator.JsonCodecGenerator;
@@ -169,6 +171,7 @@ import static javax.tools.StandardLocation.CLASS_OUTPUT;
         "io.yupiik.fusion.framework.build.api.json.JsonOthers",
         "io.yupiik.fusion.framework.build.api.json.JsonProperty",
         // HTTP
+        "io.yupiik.fusion.framework.build.api.http.HttpJavaMatcher",
         "io.yupiik.fusion.framework.build.api.http.HttpMatcher",
         // JSON-RPC
         "io.yupiik.fusion.framework.build.api.jsonrpc.JsonRpc",
@@ -492,6 +495,10 @@ public class InternalFusionProcessor extends AbstractProcessor {
                 .filter(it -> it.getKind() == METHOD && it instanceof ExecutableElement)
                 .map(ExecutableElement.class::cast)
                 .toList();
+        final var httpJavaEndpoints = roundEnv.getElementsAnnotatedWith(HttpJavaMatcher.class).stream()
+                .filter(it -> it.getKind() == METHOD && it instanceof ExecutableElement)
+                .map(ExecutableElement.class::cast)
+                .toList();
 
         // find JSON-RPC endpoints
         final var jsonRpcEndpoints = roundEnv.getElementsAnnotatedWith(JsonRpc.class).stream()
@@ -535,7 +542,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
         final var explicitBeans = roundEnv.getElementsAnnotatedWith(io.yupiik.fusion.framework.build.api.scanning.Bean.class);
         beans.putAll(findAllBeans(
                 roundEnv, listeners, explicitBeans,
-                Stream.concat(httpEndpoints.stream(), jsonRpcEndpoints.stream()).toList())
+                Stream.of(httpEndpoints, httpJavaEndpoints, jsonRpcEndpoints).flatMap(Collection::stream).toList())
                 .filter(it -> !beans.containsKey(it))
                 .collect(toMap(identity(), i -> new ArrayList<>( /* see handleSuperClassesInjections() */))));
 
@@ -566,7 +573,8 @@ public class InternalFusionProcessor extends AbstractProcessor {
 
         final var startHttp = debugStart();
         httpEndpoints.forEach(this::generateHttpEndpoint);
-        debugEnd("  generateHttp (#" + httpEndpoints.size() + ")", processingEnv, startHttp);
+        httpJavaEndpoints.forEach(this::generateHttpJavaEndpoint);
+        debugEnd("  generateHttp (#" + httpEndpoints.size() + " and #"+httpJavaEndpoints.size() + " java matchers)", processingEnv, startHttp);
 
         final var startJsonRpc = debugStart();
         jsonRpcEndpoints.forEach(this::generateJsonRpcEndpoint); // after json models to get schemas
@@ -1175,8 +1183,33 @@ public class InternalFusionProcessor extends AbstractProcessor {
         }
     }
 
+    private void generateHttpJavaEndpoint(final ExecutableElement method) {
+        if (method.getEnclosingElement().getKind() != CLASS) {
+            processingEnv.getMessager().printMessage(ERROR, "'" + method + "' is not enclosed by a class: '" + method.getEnclosingElement() + "'");
+            return;
+        }
+
+        final var names = ParsedName.of(method.getEnclosingElement());
+        try {
+            final var generation = new HttpJavaEndpointGenerator(
+                    processingEnv, elements, metadataContributorRegistry, beanForHttpEndpoints,
+                    names.packageName(), names.className() + "$" + method.getSimpleName(), method,
+                    this::isJsonModelKnown).get();
+            writeGeneratedClass(method, generation.endpoint());
+            // todo: openapi?
+
+            final var bean = generation.bean();
+            if (bean != null) {
+                writeGeneratedClass(method, bean);
+                allBeans.add(bean.name());
+            }
+        } catch (final IOException | RuntimeException e) {
+            processingEnv.getMessager().printMessage(ERROR, e.getMessage());
+        }
+    }
+
     private void generateHttpEndpoint(final ExecutableElement method) {
-        if (method.getEnclosingElement() == null || method.getEnclosingElement().getKind() != CLASS) {
+        if (method.getEnclosingElement().getKind() != CLASS) {
             processingEnv.getMessager().printMessage(ERROR, "'" + method + "' is not enclosed by a class: '" + method.getEnclosingElement() + "'");
             return;
         }
