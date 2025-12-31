@@ -20,8 +20,7 @@ import io.yupiik.fusion.http.server.impl.HttpDates;
 
 import java.io.Writer;
 import java.nio.ByteBuffer;
-import java.time.OffsetDateTime;
-import java.time.format.DateTimeFormatter;
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Flow;
@@ -40,15 +39,15 @@ public interface Response {
 
         Builder header(String key, String value);
 
-        default Builder header(String key, int value) {
+        default Builder header(final String key, final int value) {
             return header(key, String.valueOf(value));
         }
 
-        default Builder header(String key, long value) {
+        default Builder header(final String key, final long value) {
             return header(key, String.valueOf(value));
         }
 
-        default Builder header(String key, boolean value) {
+        default Builder header(final String key, final boolean value) {
             return header(key, String.valueOf(value));
         }
 
@@ -58,7 +57,7 @@ public interface Response {
          * @param value header value.
          * @return this.
          */
-        default Builder header(String key, OffsetDateTime value) {
+        default Builder header(final String key, final ZonedDateTime value) {
             return header(key, value.format(HttpDates.RFC5322));
         }
 

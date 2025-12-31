@@ -16,9 +16,10 @@
 package io.yupiik.fusion.http.server.impl;
 
 import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 
 public final class HttpDates {
-    public static final DateTimeFormatter RFC5322 = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss z");
+    public static final DateTimeFormatter RFC5322 = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss z", Locale.US);
 
     private HttpDates() {
         // no-op
