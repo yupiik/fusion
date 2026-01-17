@@ -81,7 +81,7 @@ class HandlebarsTest {
     void lazyExpressions() {
         assertRender(
                 "<p>{{firstname}} {{lastname}}</p>\n",
-                Map.of("firstname", (Supplier<String>) () -> "Yehuda", "lastname", (Supplier<String>) () -> "Katz"),
+                Map.of("firstname", () -> "Yehuda", "lastname", (Supplier<String>) () -> "Katz"),
                 "<p>Yehuda Katz</p>\n");
     }
 
@@ -218,6 +218,14 @@ class HandlebarsTest {
                 "{{firstname}} {{loud lastname}}",
                 Map.of("firstname", "Yehuda", "lastname", "Katz"),
                 "Yehuda KATZ");
+    }
+
+    @Test
+    void inlineHelperList() {
+        assertRender(
+                "{{list_helper lastname 3}}",
+                Map.of("lastname", "Katz"),
+                "[Katz, 3]: java.util.ImmutableCollections$ListN");
     }
 
     @Test
@@ -367,6 +375,7 @@ class HandlebarsTest {
         return Map.of(
                 "loud", o -> o.toString().toUpperCase(ROOT),
                 "print_person", o -> o instanceof Map<?, ?> map ? map.get("firstname") + " " + map.get("lastname") : "failed, not a map",
+                "list_helper", o -> o instanceof List<?> l ? l.stream().map(it -> it + ": " + it.getClass().getName()).collect(joining(", ")) : "failed, not a list",
                 "list", o -> o instanceof BlockHelperContext ctx && ctx.data() instanceof Collection<?> list ?
                         list.stream()
                                 .map(ctx.blockRenderer())

@@ -153,7 +153,7 @@ public class HandlebarsCompiler {
             final var helperName = content.substring(i + "{{".length(), space);
             out.add(new InlineHelperPart(
                     requireNonNull(helpers.get(helperName), () -> "No helper '" + helperName + "'"),
-                    content.substring(space + 1, end).strip(),
+                    InlineHelperPart.parseArgs(content.substring(space + 1, end).strip()),
                     defaultAccessor));
         } else {
             final var name = content.substring(i + "{{".length(), end);
@@ -255,9 +255,17 @@ public class HandlebarsCompiler {
                     .orElse(EmptyPart.INSTANCE);
         }
         if (partial instanceof InlineHelperPart p) {
-            return findRemappedName(p.name(), remapped, thisName)
-                    .<Part>map(name -> new InlineHelperPart(p.helper(), name, p.accessor()))
-                    .orElse(EmptyPart.INSTANCE);
+            final var parts = p.args().stream()
+                    .map(it -> {
+                        if (it instanceof InlineHelperPart.DynamicArgEvaluator dae) {
+                            return findRemappedName(dae.name(), remapped, thisName)
+                                    .map(InlineHelperPart.DynamicArgEvaluator::new)
+                                    .orElse(dae);
+                        }
+                        return it;
+                    })
+                    .toList();
+            return parts.equals(p.args()) ? p : new InlineHelperPart(p.helper(), parts, p.accessor());
         }
         if (partial instanceof NestedVariablePart p) {
             return findRemappedName(p.name(), remapped, thisName)
@@ -330,7 +338,7 @@ public class HandlebarsCompiler {
             return acc -> new IfVariablePart(p.name(), dynamicNext.apply(acc), acc);
         }
         if (part instanceof InlineHelperPart p) {
-            return acc -> new InlineHelperPart(p.helper(), p.name(), acc);
+            return acc -> new InlineHelperPart(p.helper(), p.args(), acc);
         }
         if (part instanceof NestedVariablePart p) {
             final var dynamicNext = toPartFactory(p.next());
