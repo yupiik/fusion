@@ -22,16 +22,16 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-class InlineHelperPartTest {
+class HelpersTest {
     @Test
     void singleArg() {
-        final var eval = InlineHelperPart.parseArgs("test");
+        final var eval = Helpers.parseArgs("test");
         assertEquals(1, eval.size());
         assertEquals("junit", eval.get(0).eval(new MapAccessor(), Map.of("test", "junit")));
     }
     @Test
     void oneDataOneNumber() {
-        final var eval = InlineHelperPart.parseArgs("test 3");
+        final var eval = Helpers.parseArgs("test 3");
         assertEquals(2, eval.size());
 
         final var accessor = new MapAccessor();
@@ -42,7 +42,7 @@ class InlineHelperPartTest {
 
     @Test
     void oneStringOneNumber() {
-        final var eval = InlineHelperPart.parseArgs("\"test\" 3");
+        final var eval = Helpers.parseArgs("\"test\" 3");
         assertEquals(2, eval.size());
 
         final var accessor = new MapAccessor();

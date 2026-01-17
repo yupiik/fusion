@@ -18,16 +18,29 @@ package io.yupiik.fusion.framework.handlebars.compiler.part;
 import io.yupiik.fusion.framework.handlebars.helper.BlockHelperContext;
 import io.yupiik.fusion.framework.handlebars.spi.Accessor;
 
+import java.util.List;
 import java.util.function.Function;
 
-public record BlockHelperPart(Function<Object, String> helper, String name, Part subPart,
+public record BlockHelperPart(Function<Object, String> helper,
+                              List<ArgEvaluator> args,
+                              Part subPart,
                               Accessor accessor) implements Part {
+    @Deprecated // for backward compatibility only
+    public BlockHelperPart(final Function<Object, String> helper, final String name, final Part subPart, final Accessor accessor) {
+        this(helper, List.of(new Helpers.DynamicArgEvaluator(name)), subPart, accessor);
+    }
+
     @Override
     public String apply(final RenderContext context, final Object currentData) {
-        final var value = ".".equals(name) || "this".equals(name) ? currentData : accessor.find(currentData, name);
-        if (value == null) {
-            return "";
+        if (args.size() == 1) {
+            final var value = args.get(0).eval(accessor, currentData);
+            if (value == null) {
+                return "";
+            }
+            return helper.apply(new BlockHelperContext(value, it -> subPart.apply(context, it)));
         }
-        return helper.apply(new BlockHelperContext(value, it -> subPart.apply(context, it)));
+        return helper.apply(new BlockHelperContext(
+                List.of(args.stream().map(it -> it.eval(accessor, currentData)).toList()),
+                it -> subPart.apply(context, it)));
     }
 }

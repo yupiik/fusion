@@ -24,6 +24,7 @@ import io.yupiik.fusion.framework.handlebars.compiler.part.ConstantPart;
 import io.yupiik.fusion.framework.handlebars.compiler.part.EachVariablePart;
 import io.yupiik.fusion.framework.handlebars.compiler.part.EmptyPart;
 import io.yupiik.fusion.framework.handlebars.compiler.part.EscapedPart;
+import io.yupiik.fusion.framework.handlebars.compiler.part.Helpers;
 import io.yupiik.fusion.framework.handlebars.compiler.part.IfVariablePart;
 import io.yupiik.fusion.framework.handlebars.compiler.part.InlineHelperPart;
 import io.yupiik.fusion.framework.handlebars.compiler.part.NestedVariablePart;
@@ -153,7 +154,7 @@ public class HandlebarsCompiler {
             final var helperName = content.substring(i + "{{".length(), space);
             out.add(new InlineHelperPart(
                     requireNonNull(helpers.get(helperName), () -> "No helper '" + helperName + "'"),
-                    InlineHelperPart.parseArgs(content.substring(space + 1, end).strip()),
+                    Helpers.parseArgs(content.substring(space + 1, end).strip()),
                     defaultAccessor));
         } else {
             final var name = content.substring(i + "{{".length(), end);
@@ -245,9 +246,17 @@ public class HandlebarsCompiler {
             return new EscapedPart(remapParts(p.delegate(), remapped, thisName));
         }
         if (partial instanceof BlockHelperPart p) {
-            return findRemappedName(p.name(), remapped, thisName)
-                    .<Part>map(name -> new BlockHelperPart(p.helper(), name, p.subPart(), p.accessor()))
-                    .orElse(EmptyPart.INSTANCE);
+            final var parts = p.args().stream()
+                    .map(it -> {
+                        if (it instanceof Helpers.DynamicArgEvaluator dae) {
+                            return findRemappedName(dae.name(), remapped, thisName)
+                                    .map(Helpers.DynamicArgEvaluator::new)
+                                    .orElse(dae);
+                        }
+                        return it;
+                    })
+                    .toList();
+            return parts.equals(p.args()) ? p : new BlockHelperPart(p.helper(), parts, p.subPart(), p.accessor());
         }
         if (partial instanceof IfVariablePart p) {
             return findRemappedName(p.name(), remapped, thisName)
@@ -257,9 +266,9 @@ public class HandlebarsCompiler {
         if (partial instanceof InlineHelperPart p) {
             final var parts = p.args().stream()
                     .map(it -> {
-                        if (it instanceof InlineHelperPart.DynamicArgEvaluator dae) {
+                        if (it instanceof Helpers.DynamicArgEvaluator dae) {
                             return findRemappedName(dae.name(), remapped, thisName)
-                                    .map(InlineHelperPart.DynamicArgEvaluator::new)
+                                    .map(Helpers.DynamicArgEvaluator::new)
                                     .orElse(dae);
                         }
                         return it;
@@ -331,7 +340,7 @@ public class HandlebarsCompiler {
         }
         if (part instanceof BlockHelperPart p) {
             final var dynamicSub = toPartFactory(p.subPart());
-            return acc -> new BlockHelperPart(p.helper(), p.name(), dynamicSub.apply(acc), acc);
+            return acc -> new BlockHelperPart(p.helper(), p.args(), dynamicSub.apply(acc), acc);
         }
         if (part instanceof IfVariablePart p) {
             final var dynamicNext = toPartFactory(p.next());
