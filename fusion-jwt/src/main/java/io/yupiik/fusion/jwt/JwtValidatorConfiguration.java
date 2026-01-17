@@ -35,8 +35,8 @@ public record JwtValidatorConfiguration(
         // iat/exp tolerance in seconds.
         @Property(documentation = "Tolerance for date validation (in seconds).", defaultValue = "30L") long tolerance,
 
-        // are exp/iat/nbf required or their absence can be ignored
-        @Property(documentation = "Is `jta` (expiry) validation required of can it be skipped if claim is missing.", defaultValue = "true") boolean jtiRequired,
+        // are jti/exp/iat/nbf required or their absence can be ignored
+        @Property(documentation = "Is `jti` (JWT ID) validation required of can it be skipped if claim is missing.", defaultValue = "true") boolean jtiRequired,
         @Property(documentation = "Is `exp` (expiry) validation required of can it be skipped if claim is missing.", defaultValue = "true") boolean expRequired,
         @Property(documentation = "Is `iat` (issued at) validation required of can it be skipped if claim is missing.", defaultValue = "false") boolean iatRequired,
         @Property(documentation = "Is `nbf` (not before) validation required of can it be skipped if claim is missing.", defaultValue = "false") boolean nbfRequired,
