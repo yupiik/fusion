@@ -57,7 +57,7 @@ public class Health implements Endpoint {
         final var checks = healthCheckStream
                 .collect(toMap(identity(), c -> c.check().toCompletableFuture()));
         return allOf(checks.values().toArray(new CompletableFuture<?>[0]))
-                .thenApply(success -> success(checks))
+                .thenApply(success -> success(checks, request))
                 .exceptionally(failed -> failure(checks));
     }
 
@@ -89,9 +89,10 @@ public class Health implements Endpoint {
         return response;
     }
 
-    private Response success(final Map<HealthCheck, CompletableFuture<HealthCheck.Result>> checks) {
+    private Response success(final Map<HealthCheck, CompletableFuture<HealthCheck.Result>> checks, final Request request) {
         final var hasFailure = checks.values().stream()
                 .anyMatch(it -> it.getNow(null).status() == HealthCheck.Status.KO);
+        if (!hasFailure) request.setAttribute("skip-access-log", true);
         return Response.of()
                 .status(hasFailure ? 503 : 200)
                 .header("content-type", "text/plain")
