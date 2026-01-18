@@ -17,15 +17,24 @@ package io.yupiik.fusion.framework.handlebars.compiler.part;
 
 import io.yupiik.fusion.framework.handlebars.spi.Accessor;
 
+import java.util.List;
 import java.util.function.Function;
 
-public record InlineHelperPart(Function<Object, String> helper, String name, Accessor accessor) implements Part {
+public record InlineHelperPart(Function<Object, String> helper, List<ArgEvaluator> args, Accessor accessor) implements Part {
+    @Deprecated // for backward compatibility only
+    public InlineHelperPart(final Function<Object, String> helper, final String name, final Accessor accessor) {
+        this(helper, List.of(new Helpers.DynamicArgEvaluator(name)), accessor);
+    }
+
     @Override
     public String apply(final RenderContext context, final Object currentData) {
-        final var value = ".".equals(name) || "this".equals(name) ? currentData : accessor.find(currentData, name);
-        if (value == null) {
-            return "";
+        if (args.size() == 1) {
+            final var value = args.get(0).eval(accessor, currentData);
+            if (value == null) {
+                return "";
+            }
+            return helper.apply(value);
         }
-        return helper.apply(value);
+        return helper.apply(List.of(args.stream().map(it -> it.eval(accessor, currentData)).toList()));
     }
 }
