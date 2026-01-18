@@ -103,7 +103,7 @@ public class DocumentationGenerator implements Runnable {
     }
 
     @SuppressWarnings("unchecked")
-    private List<Parameter> findParameters(final Map<?, ?> classes, final List<String> roots) {
+    protected List<Parameter> findParameters(final Map<?, ?> classes, final List<String> roots) {
         final var envPattern = Pattern.compile("[^A-Za-z0-9]");
         return roots.stream()
                 .flatMap(rootName -> {
@@ -258,7 +258,7 @@ public class DocumentationGenerator implements Runnable {
                 .flatMap(it -> flatten(classes, it));
     }
 
-    protected record Parameter(String name, String documentation,
+    public record Parameter(String name, String documentation,
                                Object defaultValue, boolean required,
                                String envName) {
     }
