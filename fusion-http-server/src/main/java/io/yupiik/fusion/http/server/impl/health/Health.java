@@ -18,6 +18,8 @@ package io.yupiik.fusion.http.server.impl.health;
 import io.yupiik.fusion.http.server.api.Request;
 import io.yupiik.fusion.http.server.api.Response;
 import io.yupiik.fusion.http.server.spi.Endpoint;
+import io.yupiik.fusion.http.server.impl.health.HealthCheck;
+import io.yupiik.fusion.http.server.impl.health.HealthRegistry;
 
 import java.util.Map;
 import java.util.Objects;

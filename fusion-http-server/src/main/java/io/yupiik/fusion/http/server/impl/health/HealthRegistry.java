@@ -16,7 +16,7 @@
 package io.yupiik.fusion.http.server.impl.health;
 
 import io.yupiik.fusion.framework.api.scope.ApplicationScoped;
-
+import io.yupiik.fusion.http.server.impl.health.HealthCheck;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
