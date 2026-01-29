@@ -17,7 +17,7 @@ package io.yupiik.fusion.http.server.impl.health;
 
 import io.yupiik.fusion.http.server.api.Request;
 import io.yupiik.fusion.http.server.api.Response;
-import io.yupiik.fusion.http.server.spi.Endpoint;
+import io.yupiik.fusion.http.server.spi.MonitoringEndpoint;
 import io.yupiik.fusion.http.server.impl.health.HealthCheck;
 import io.yupiik.fusion.http.server.impl.health.HealthRegistry;
 
@@ -34,7 +34,7 @@ import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toMap;
 
-public class Health implements Endpoint {
+public class Health implements MonitoringEndpoint {
     private final HealthRegistry healthChecks;
 
     public Health(final HealthRegistry healthChecks) {

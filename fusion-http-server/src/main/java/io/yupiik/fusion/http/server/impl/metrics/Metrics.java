@@ -17,13 +17,13 @@ package io.yupiik.fusion.http.server.impl.metrics;
 
 import io.yupiik.fusion.http.server.api.Request;
 import io.yupiik.fusion.http.server.api.Response;
-import io.yupiik.fusion.http.server.spi.Endpoint;
+import io.yupiik.fusion.http.server.spi.MonitoringEndpoint;
 
 import java.util.concurrent.CompletionStage;
 
 import static java.util.concurrent.CompletableFuture.completedFuture;
 
-public class Metrics implements Endpoint {
+public class Metrics implements MonitoringEndpoint {
     private final MetricsRegistry registry;
     private final OpenMetricsFormatter formatter = new OpenMetricsFormatter();
 

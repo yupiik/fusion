@@ -16,7 +16,7 @@
 package io.yupiik.fusion.http.server.impl.http;
 
 import io.yupiik.fusion.framework.api.scope.DefaultScoped;
-import io.yupiik.fusion.http.server.spi.Endpoint;
+import io.yupiik.fusion.http.server.spi.MonitoringEndpoint;
 import io.yupiik.fusion.http.server.impl.health.Health;
 import io.yupiik.fusion.http.server.impl.health.HealthRegistry;
 import io.yupiik.fusion.http.server.impl.metrics.Metrics;
@@ -26,13 +26,13 @@ import java.util.List;
 
 @DefaultScoped
 public class MonitoringEndpointRegistry {
-    private final List<Endpoint> endpoints;
+    private final List<MonitoringEndpoint> endpoints;
 
     public MonitoringEndpointRegistry(final HealthRegistry health, final MetricsRegistry metrics) {
         this.endpoints = List.of(new Health(health), new Metrics(metrics));
     }
 
-    public List<Endpoint> endpoints() {
+    public List<MonitoringEndpoint> endpoints() {
         return endpoints;
     }
 }
