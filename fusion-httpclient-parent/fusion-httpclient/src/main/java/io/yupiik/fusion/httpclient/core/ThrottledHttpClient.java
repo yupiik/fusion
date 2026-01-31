@@ -43,16 +43,14 @@ public class ThrottledHttpClient extends DelegatingHttpClient {
 
     @Override
     public <T> HttpResponse<T> send(final HttpRequest request, final HttpResponse.BodyHandler<T> responseBodyHandler) throws IOException, InterruptedException {
-        final var throttle = shouldThrottle(request);
-        if (throttle) {
-            semaphore.acquire();
-        } else {
+        if (!shouldThrottle(request)) {
             return super.send(request, responseBodyHandler);
         }
+        semaphore.acquire();
         try {
             return super.send(request, responseBodyHandler);
         } finally {
-            semaphore.release();
+            release();
         }
     }
 
