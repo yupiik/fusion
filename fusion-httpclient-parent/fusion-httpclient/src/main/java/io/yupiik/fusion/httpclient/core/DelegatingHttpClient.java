@@ -110,9 +110,15 @@ public class DelegatingHttpClient extends HttpClient implements AutoCloseable {
     }
 
     @Override
-    public void close() throws Exception {
+    public void close() {
         if (delegate instanceof AutoCloseable c) {
-            c.close();
+            try {
+                c.close();
+            } catch (final RuntimeException | Error e) {
+                throw e;
+            } catch (final Exception e) {
+                throw new IllegalStateException(e);
+            }
         }
     }
 
