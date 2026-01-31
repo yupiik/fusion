@@ -22,7 +22,9 @@ import java.net.http.HttpResponse;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static java.util.concurrent.CompletableFuture.completedFuture;
 
@@ -31,14 +33,14 @@ import static java.util.concurrent.CompletableFuture.completedFuture;
  * enforce to respect the HTTP/2.0 max concurrent stream value (even with a single connection).
  */
 public class ThrottledHttpClient extends DelegatingHttpClient {
-    private final Semaphore semaphore;
+    private final AsyncSemaphore semaphore;
     private final Queue<CompletableFuture<Void>> waitingQueue = new ConcurrentLinkedQueue<>();
     private final boolean onlyHttp2;
 
-    public ThrottledHttpClient(final HttpClient delegate, final Semaphore semaphore, final boolean onlyHttp2) {
+    public ThrottledHttpClient(final HttpClient delegate, final int maxConcurrency, final boolean onlyHttp2) {
         super(delegate);
         this.onlyHttp2 = onlyHttp2;
-        this.semaphore = semaphore;
+        this.semaphore = new AsyncSemaphore(maxConcurrency);
     }
 
     @Override
@@ -46,11 +48,16 @@ public class ThrottledHttpClient extends DelegatingHttpClient {
         if (!shouldThrottle(request)) {
             return super.send(request, responseBodyHandler);
         }
-        semaphore.acquire();
+        try {
+            semaphore.acquire().get();
+        } catch (final ExecutionException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(e);
+        }
         try {
             return super.send(request, responseBodyHandler);
         } finally {
-            release();
+            semaphore.release();
         }
     }
 
@@ -62,9 +69,10 @@ public class ThrottledHttpClient extends DelegatingHttpClient {
             return super.sendAsync(request, responseBodyHandler, pushPromiseHandler);
         }
 
-        return acquireAsync()
+        return semaphore
+                .acquire()
                 .thenCompose(v -> super.sendAsync(request, responseBodyHandler, pushPromiseHandler))
-                .whenComplete((ok, ko) -> release());
+                .whenComplete((ok, ko) -> semaphore.release());
     }
 
     @Override
@@ -74,9 +82,10 @@ public class ThrottledHttpClient extends DelegatingHttpClient {
             return super.sendAsync(request, responseBodyHandler);
         }
 
-        return acquireAsync()
+        return semaphore
+                .acquire()
                 .thenCompose(v -> super.sendAsync(request, responseBodyHandler))
-                .whenComplete((ok, ko) -> release());
+                .whenComplete((ok, ko) -> semaphore.release());
     }
 
     private boolean shouldThrottle(final HttpRequest request) {
@@ -86,32 +95,57 @@ public class ThrottledHttpClient extends DelegatingHttpClient {
                 .orElse(true);
     }
 
-    private CompletableFuture<Void> acquireAsync() {
-        if (semaphore.tryAcquire()) {
-            return completedFuture(null);
-        }
+    private static final class AsyncSemaphore {
+        private int permits;
+        private final Queue<CompletableFuture<Permit>> waiters = new ConcurrentLinkedQueue<>();
 
-        final var future = new CompletableFuture<Void>();
-        waitingQueue.offer(future);
-        // need to recheck to avoid the case
-        // where we put it in the queue, release() was called
-        // so it would just hang
-        if (!future.isDone() && semaphore.tryAcquire()) {
-            if (waitingQueue.remove(future)) {
-                future.complete(null);
-            } else {
-                release();
+        private AsyncSemaphore(final int permits) {
+            if (permits <= 0) {
+                throw new IllegalArgumentException("permits <= 0: " + permits);
             }
+            this.permits = permits;
         }
-        return future;
-    }
 
-    private void release() {
-        CompletableFuture<Void> waiting;
-        if ((waiting = waitingQueue.poll()) != null) {
-            waiting.complete(null);
-        } else {
-            semaphore.release();
+        private CompletableFuture<Permit> acquire() {
+            CompletableFuture<Permit> cf;
+            synchronized (this) {
+                if (permits > 0) {
+                    permits--;
+                    return CompletableFuture.completedFuture(new Permit(this));
+                }
+
+                cf = new CompletableFuture<>();
+            }
+            waiters.add(cf);
+            return cf;
+        }
+
+        private void release() {
+            CompletableFuture<Permit> next;
+            synchronized (this) {
+                next = waiters.poll();
+                if (next == null) {
+                    permits++;
+                    return;
+                }
+            }
+            next.complete(new Permit(this));
+        }
+
+        private static final class Permit implements AutoCloseable {
+            private final AsyncSemaphore semaphore;
+            private final AtomicBoolean released = new AtomicBoolean(false);
+
+            private Permit(final AsyncSemaphore semaphore) {
+                this.semaphore = semaphore;
+            }
+
+            @Override
+            public void close() {
+                if (released.compareAndSet(false, true)) {
+                    semaphore.release();
+                }
+            }
         }
     }
 }

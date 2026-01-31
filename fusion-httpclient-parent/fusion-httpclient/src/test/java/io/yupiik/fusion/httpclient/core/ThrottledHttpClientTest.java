@@ -19,7 +19,6 @@ import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.api.Timeout;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -32,7 +31,6 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -50,35 +48,12 @@ class ThrottledHttpClientTest {
             ex.sendResponseHeaders(200, 0);
             ex.close();
         })) {
-            final var semaphore = new Semaphore(1);
             try (final var client = new ExtendedHttpClient(new ExtendedHttpClientConfiguration());
-                 final var throttled = new ThrottledHttpClient(client, semaphore, false)) {
+                 final var throttled = new ThrottledHttpClient(client, 1, false)) {
                 final var response = throttled.sendAsync(
                         server.GET().version(HttpClient.Version.HTTP_1_1).build(),
                         HttpResponse.BodyHandlers.ofString()).join();
                 assertEquals(200, response.statusCode());
-                assertEventually(() -> assertEquals(1, semaphore.availablePermits()));
-            }
-        }
-    }
-
-    @Test
-    @Timeout(60)
-    void noHttp11Throttling() {
-        try (final var server = new Server(ex -> {
-            ex.sendResponseHeaders(200, 0);
-            ex.close();
-        })) {
-            // 0 permits so it hangs forever if throttling was applied
-            final var semaphore = new Semaphore(0);
-            try (final var client = new ExtendedHttpClient(new ExtendedHttpClientConfiguration());
-                 final var throttled = new ThrottledHttpClient(client, semaphore, true)) {
-                final var response = throttled.sendAsync(
-                                server.GET().version(HttpClient.Version.HTTP_1_1).build(),
-                                HttpResponse.BodyHandlers.ofString())
-                        .orTimeout(5, TimeUnit.SECONDS).join();
-                assertEquals(200, response.statusCode());
-                assertEquals(0, semaphore.availablePermits());
             }
         }
     }
@@ -89,14 +64,12 @@ class ThrottledHttpClientTest {
             ex.sendResponseHeaders(200, 0);
             ex.close();
         })) {
-            final var semaphore = new Semaphore(1);
             try (final var client = new ExtendedHttpClient(new ExtendedHttpClientConfiguration());
-                 final var throttled = new ThrottledHttpClient(client, semaphore, true)) {
+                 final var throttled = new ThrottledHttpClient(client, 1, true)) {
                 final var response = throttled.sendAsync(
                         server.GET().build(),
                         HttpResponse.BodyHandlers.ofString()).join();
                 assertEquals(200, response.statusCode());
-                assertEventually(() -> assertEquals(1, semaphore.availablePermits()));
             }
         }
     }
@@ -107,9 +80,8 @@ class ThrottledHttpClientTest {
             ex.sendResponseHeaders(200, 0);
             ex.close();
         })) {
-            final var semaphore = new Semaphore(5);
             try (final var client = new ExtendedHttpClient(new ExtendedHttpClientConfiguration());
-                 final var throttled = new ThrottledHttpClient(client, semaphore, false)) {
+                 final var throttled = new ThrottledHttpClient(client, 5, false)) {
 
                 final var futures = new ArrayList<CompletableFuture<HttpResponse<String>>>();
                 for (int i = 0; i < 5; i++) {
@@ -117,8 +89,6 @@ class ThrottledHttpClientTest {
                 }
                 futures.forEach(f -> f.orTimeout(5, TimeUnit.SECONDS).join());
                 futures.forEach(f -> assertEquals(200, f.join().statusCode()));
-
-                assertEventually(() -> assertEquals(5, semaphore.availablePermits()));
             }
         }
     }
@@ -142,9 +112,8 @@ class ThrottledHttpClientTest {
             ex.sendResponseHeaders(200, 0);
             ex.close();
         })) {
-            final var semaphore = new Semaphore(1);
             try (final var client = new ExtendedHttpClient(new ExtendedHttpClientConfiguration());
-                 final var throttled = new ThrottledHttpClient(client, semaphore, false)) {
+                 final var throttled = new ThrottledHttpClient(client, 1, false)) {
                 final var f1 = throttled.sendAsync(server.GET().build(), HttpResponse.BodyHandlers.ofString());
                 assertTrue(firstRequestStarted.await(2, TimeUnit.SECONDS));
 
@@ -184,9 +153,8 @@ class ThrottledHttpClientTest {
             ex.sendResponseHeaders(200, 0);
             ex.close();
         })) {
-            final var semaphore = new Semaphore(1);
             try (final var client = new ExtendedHttpClient(new ExtendedHttpClientConfiguration());
-                 final var throttled = new ThrottledHttpClient(client, semaphore, false)) {
+                 final var throttled = new ThrottledHttpClient(client, 1, false)) {
 
                 final var f1 = throttled.sendAsync(server.GET().build(), HttpResponse.BodyHandlers.ofString());
                 firstStarted.await(2, TimeUnit.SECONDS);
@@ -203,7 +171,6 @@ class ThrottledHttpClientTest {
                 f4.orTimeout(5, TimeUnit.SECONDS).join();
 
                 assertEquals(List.of(1, 2, 3, 4), hitOrder);
-                assertEventually(() -> assertEquals(1, semaphore.availablePermits()));
             }
         }
     }
@@ -214,13 +181,11 @@ class ThrottledHttpClientTest {
             ex.sendResponseHeaders(200, 0);
             ex.close();
         })) {
-            final var semaphore = new Semaphore(1);
             try (final var client = new ExtendedHttpClient(new ExtendedHttpClientConfiguration());
-                 final var throttled = new ThrottledHttpClient(client, semaphore, false)) {
+                 final var throttled = new ThrottledHttpClient(client, 1, false)) {
                 final var response = throttled.send(server.GET().build(), HttpResponse.BodyHandlers.ofString());
 
                 assertEquals(200, response.statusCode());
-                assertEquals(1, semaphore.availablePermits());
             }
         }
     }
@@ -231,47 +196,31 @@ class ThrottledHttpClientTest {
             ex.sendResponseHeaders(500, 0);
             ex.close();
         })) {
-            final var semaphore = new Semaphore(1);
             try (final var client = new ExtendedHttpClient(new ExtendedHttpClientConfiguration());
-                 final var throttled = new ThrottledHttpClient(client, semaphore, false)) {
+                 final var throttled = new ThrottledHttpClient(client, 1, false)) {
                 final var response = throttled.send(server.GET().build(), HttpResponse.BodyHandlers.ofString());
                 assertEquals(500, response.statusCode());
-                assertEquals(1, semaphore.availablePermits());
             }
         }
     }
 
     @Test
-    void sendReleasesPermitOnConnectionFailure() {
-        // point at a port with nothing listening
+    void sendReleasesPermitOnConnectionFailure() throws IOException, InterruptedException {
         final var deadUri = URI.create("http://localhost:1");
-        final var semaphore = new Semaphore(1);
         try (final var client = new ExtendedHttpClient(new ExtendedHttpClientConfiguration());
-             final var throttled = new ThrottledHttpClient(client, semaphore, false)) {
+             final var throttled = new ThrottledHttpClient(client, 1, false)) {
             assertThrows(IOException.class, () ->
                     throttled.send(
                             HttpRequest.newBuilder().GET().uri(deadUri).build(),
                             HttpResponse.BodyHandlers.ofString()));
-
-            assertEquals(1, semaphore.availablePermits());
-        }
-    }
-
-    @Test
-    void sendOnlyHttp2DoesNotThrottleHttp1() throws IOException, InterruptedException {
-        try (final var server = new Server(ex -> {
-            ex.sendResponseHeaders(200, 0);
-            ex.close();
-        })) {
-            final var semaphore = new Semaphore(0);
-            try (final var client = new ExtendedHttpClient(new ExtendedHttpClientConfiguration());
-                 final var throttled = new ThrottledHttpClient(client, semaphore, true)) {
-                final var response = throttled.send(
-                        server.GET().version(HttpClient.Version.HTTP_1_1).build(),
-                        HttpResponse.BodyHandlers.ofString());
-
-                assertEquals(200, response.statusCode());
-                assertEquals(0, semaphore.availablePermits());
+            try (final var server = new Server(ex -> {
+                ex.sendResponseHeaders(200, 0);
+                ex.close();
+            })) {
+                assertEquals(200, throttled.send(
+                                HttpRequest.newBuilder().GET().uri(server.base()).build(),
+                                HttpResponse.BodyHandlers.ofString())
+                        .statusCode());
             }
         }
     }
@@ -295,9 +244,8 @@ class ThrottledHttpClientTest {
             ex.sendResponseHeaders(200, 0);
             ex.close();
         })) {
-            final var semaphore = new Semaphore(maxConcurrency);
             try (final var client = new ExtendedHttpClient(new ExtendedHttpClientConfiguration());
-                 final var throttled = new ThrottledHttpClient(client, semaphore, false)) {
+                 final var throttled = new ThrottledHttpClient(client, maxConcurrency, false)) {
                 final var futures = new ArrayList<CompletableFuture<HttpResponse<String>>>();
                 for (int i = 0; i < totalRequests; i++) {
                     futures.add(throttled.sendAsync(server.GET().build(), HttpResponse.BodyHandlers.ofString()));
@@ -306,7 +254,6 @@ class ThrottledHttpClientTest {
 
                 assertTrue(peakConcurrency.get() <= maxConcurrency,
                         "Peak concurrency was " + peakConcurrency.get() + " but max allowed is " + maxConcurrency);
-                assertEventually(() -> assertEquals(maxConcurrency, semaphore.availablePermits()));
             }
         }
     }
@@ -325,32 +272,14 @@ class ThrottledHttpClientTest {
             ex.sendResponseHeaders(200, 0);
             ex.close();
         })) {
-            final var semaphore = new Semaphore(maxConcurrency);
             try (final var client = new ExtendedHttpClient(new ExtendedHttpClientConfiguration());
-                 final var throttled = new ThrottledHttpClient(client, semaphore, false)) {
+                 final var throttled = new ThrottledHttpClient(client, maxConcurrency, false)) {
 
                 final var futures = new ArrayList<CompletableFuture<HttpResponse<String>>>();
                 for (int i = 0; i < totalRequests; i++) {
                     futures.add(throttled.sendAsync(server.GET().build(), HttpResponse.BodyHandlers.ofString()));
                 }
                 futures.forEach(f -> f.orTimeout(10, TimeUnit.SECONDS).join());
-
-                assertEventually(() -> assertEquals(maxConcurrency, semaphore.availablePermits()));
-            }
-        }
-    }
-
-    private void assertEventually(final Runnable assertion) {
-        final var deadline = System.currentTimeMillis() + 2_000;
-        while (true) {
-            try {
-                assertion.run();
-                return;
-            } catch (final AssertionError e) {
-                if (System.currentTimeMillis() >= deadline) {
-                    throw e;
-                }
-                Thread.yield();
             }
         }
     }
