@@ -96,7 +96,7 @@ public class ThrottledHttpClient extends DelegatingHttpClient {
         // need to recheck to avoid the case
         // where we put it in the queue, release() was called
         // so it would just hang
-        if (semaphore.tryAcquire()) {
+        if (!future.isDone() && semaphore.tryAcquire()) {
             if (waitingQueue.remove(future)) {
                 future.complete(null);
             } else {
