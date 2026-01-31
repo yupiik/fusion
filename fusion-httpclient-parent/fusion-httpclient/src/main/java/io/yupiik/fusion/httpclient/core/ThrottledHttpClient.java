@@ -24,6 +24,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Semaphore;
 
+import static java.util.concurrent.CompletableFuture.completedFuture;
+
 /**
  * Throttles exchanges, this can be useful to control the load on a backend but also
  * enforce to respect the HTTP/2.0 max concurrent stream value (even with a single connection).
@@ -41,8 +43,11 @@ public class ThrottledHttpClient extends DelegatingHttpClient {
 
     @Override
     public <T> HttpResponse<T> send(final HttpRequest request, final HttpResponse.BodyHandler<T> responseBodyHandler) throws IOException, InterruptedException {
-        if (shouldThrottle(request)) {
+        final var throttle = shouldThrottle(request);
+        if (throttle) {
             semaphore.acquire();
+        } else {
+            return super.send(request, responseBodyHandler);
         }
         try {
             return super.send(request, responseBodyHandler);
@@ -85,28 +90,20 @@ public class ThrottledHttpClient extends DelegatingHttpClient {
 
     private CompletableFuture<Void> acquireAsync() {
         if (semaphore.tryAcquire()) {
-            return CompletableFuture.completedFuture(null);
+            return completedFuture(null);
         }
 
         final var future = new CompletableFuture<Void>();
         waitingQueue.offer(future);
-        if (semaphore.tryAcquire() && waitingQueue.remove(future)) {
-            future.complete(null);
-        }
-
         return future;
     }
 
     private void release() {
-        semaphore.release();
-
         CompletableFuture<Void> waiting;
         if ((waiting = waitingQueue.poll()) != null) {
-            if (semaphore.tryAcquire()) {
-                waiting.complete(null);
-            } else {
-                waitingQueue.offer(waiting);
-            }
+            waiting.complete(null);
+        } else {
+            semaphore.release();
         }
     }
 }
