@@ -23,10 +23,7 @@ import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-import static java.util.concurrent.CompletableFuture.completedFuture;
 
 /**
  * Throttles exchanges, this can be useful to control the load on a backend but also
@@ -34,7 +31,6 @@ import static java.util.concurrent.CompletableFuture.completedFuture;
  */
 public class ThrottledHttpClient extends DelegatingHttpClient {
     private final AsyncSemaphore semaphore;
-    private final Queue<CompletableFuture<Void>> waitingQueue = new ConcurrentLinkedQueue<>();
     private final boolean onlyHttp2;
 
     public ThrottledHttpClient(final HttpClient delegate, final int maxConcurrency, final boolean onlyHttp2) {
