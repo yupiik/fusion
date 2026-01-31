@@ -100,7 +100,7 @@ public class ThrottledHttpClient extends DelegatingHttpClient {
             if (waitingQueue.remove(future)) {
                 future.complete(null);
             } else {
-                semaphore.release();
+                release();
             }
         }
         return future;
