@@ -67,7 +67,7 @@ public class RateLimitedClient extends DelegatingHttpClient {
             }
             final var res = super.send(request, responseBodyHandler);
             if (isRateLimited(res)) {
-                Thread.sleep(findPause(res));
+                Thread.sleep(findPause(request, res));
                 return send(request, responseBodyHandler);
             }
             return res;
@@ -99,7 +99,7 @@ public class RateLimitedClient extends DelegatingHttpClient {
                     .whenComplete((ok, ko) -> clientRateLimiter.after())
                     .thenCompose(ok -> {
                         if (isRateLimited(ok)) {
-                            final long newPause = findPause(ok);
+                            final long newPause = findPause(request, ok);
                             return wrap(newPause, request, promise);
                         }
                         return completedFuture(ok);
@@ -117,7 +117,7 @@ public class RateLimitedClient extends DelegatingHttpClient {
                 () -> promise.get().whenComplete((ok, ko) -> {
                     try {
                         if (isRateLimited(ok)) {
-                            final long newPause = findPause(ok);
+                            final long newPause = findPause(request, ok);
                             wrap(newPause, request, promise);
                             return;
                         }
@@ -139,7 +139,8 @@ public class RateLimitedClient extends DelegatingHttpClient {
         scheduledExecutorService().schedule(delayedExecution, pause, MILLISECONDS);
     }
 
-    private <T> long findPause(final HttpResponse<T> res) {
+    // can be interesting to override to get a backoff/jitter for some cases
+    protected  <T> long findPause(final HttpRequest request, final HttpResponse<T> res) {
         final var headers = res.headers();
         return headers.firstValue("Retry-After")
                 .flatMap(a -> {
@@ -153,8 +154,8 @@ public class RateLimitedClient extends DelegatingHttpClient {
                 .or(() -> headers.firstValue("X-Rate-Limit-Reset-Ms")
                         .map(Long::parseLong))
                 .or(() -> headers.firstValue("X-Rate-Limit-Reset")
-                        .map(it -> TimeUnit.SECONDS.toMillis(Long.parseLong(it))))
-                .or(() -> headers.firstValue("Rate-Limit-Reset")
+                        .or(() -> headers.firstValue("Rate-Limit-Reset"))
+                        .or(() -> headers.firstValue("RateLimit-Reset"))
                         .map(it -> TimeUnit.SECONDS.toMillis(Long.parseLong(it))))
                 .orElse(window);
     }
@@ -182,7 +183,7 @@ public class RateLimitedClient extends DelegatingHttpClient {
     }
 
     @Override
-    public void close() throws Exception {
+    public void close() {
         stopped = true;
         final var ref = scheduler;
         if (ref != null) {

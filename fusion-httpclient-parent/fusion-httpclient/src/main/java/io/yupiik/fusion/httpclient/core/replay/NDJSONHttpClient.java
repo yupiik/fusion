@@ -94,9 +94,13 @@ public class NDJSONHttpClient extends DelegatingHttpClient.Synchronous implement
     }
 
     @Override
-    public void close() throws Exception {
+    public void close() {
         mapper.close();
-        stream.close();
+        try {
+            stream.close();
+        } catch (final IOException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     public static class Configuration {
