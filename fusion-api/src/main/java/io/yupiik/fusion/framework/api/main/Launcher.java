@@ -38,9 +38,13 @@ public class Launcher implements AutoCloseable {
     public Launcher(final String... args) {
         container = customize(ConfiguringContainer.of()
                 .register(new ProvidedInstanceBean<>(DefaultScoped.class, Args.class, () -> new Args(List.of(args))))
-                .register(new ProvidedInstanceBean<>(DefaultScoped.class, ArgsConfigSource.class, () -> new ArgsConfigSource(List.of(args)))))
+                .register(new ProvidedInstanceBean<>(DefaultScoped.class, ArgsConfigSource.class, () -> new ArgsConfigSource(prepareArgs(args)))))
                 .start();
         awaiters = lookupAwaiters();
+    }
+
+    protected List<String> prepareArgs(final String[] args) {
+        return List.of(args);
     }
 
     protected ConfiguringContainer customize(final ConfiguringContainer container) {
@@ -62,17 +66,16 @@ public class Launcher implements AutoCloseable {
         return container.lookups(Awaiter.class, list -> list.stream().map(Instance::instance).toList());
     }
 
-    public static void main(final String... args) {
-        boolean useHook = false;
+    protected void doMain(final Launcher launcher) {
         Thread hook = null;
-        try (final var launcher = new Launcher(args)) {
-            Configuration configuration = launcher.container.lookup(Configuration.class).instance();
 
-            useHook = Boolean.parseBoolean(configuration.get("fusion.launcher.useHook").orElse("false"));
-            if (useHook) {
-                hook = new Thread(launcher::close);
-                Runtime.getRuntime().addShutdownHook(hook);
-            }
+        final var configuration = launcher.container.lookup(Configuration.class).instance();
+        final var useHook = Boolean.parseBoolean(configuration.get("fusion.launcher.useHook").orElse("false"));
+        if (useHook) {
+            hook = new Thread(launcher::close);
+            Runtime.getRuntime().addShutdownHook(hook);
+        }
+        try {
             launcher.awaiters.instance().forEach(Awaiter::await);
         } finally {
             try {
@@ -83,6 +86,12 @@ public class Launcher implements AutoCloseable {
             } catch (IllegalStateException e) {
                 /* already shutting down */
             }
+        }
+    }
+
+    public static void main(final String... args) {
+        try (final var launcher = new Launcher(args)) {
+            launcher.doMain(launcher);
         }
     }
 }
