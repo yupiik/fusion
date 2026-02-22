@@ -456,7 +456,7 @@ try (
 <.> Get a `ConfiguringContainer` which enables you to disable bean autodiscovery, to replace beans etc...
 <.> Launch the runtime container (you can look up beans there).
 
-TIP: you can also just reuse `io.yupiik.fusion.framework.api.main.Launcher` main which will start the default container.
+TIP: you can also just reuse `io.yupiik.fusion.framework.api.main.Launcher` (or `io.yupiik.fusion.framework.api.main.CliLauncher` for CLI applications - which just skips the command when mapping args to `Configuration`) main which will start the default container.
 You can implement a custom `Awaiter` to not let the container shutdown immediately if you need - webserver does it by default.
 Finally you can also, using this launcher, inject `Args` to read the main arguments.
 
