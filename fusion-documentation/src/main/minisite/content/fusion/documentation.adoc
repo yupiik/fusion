@@ -129,9 +129,12 @@ Configuration:
 
 [opts="header",cols="^,^"]
 |===
-| Name | Description
-| package | If set enables to filter the commands included by package.
-| outputBase | Base directory where to generate the commands and command index documents.
+| Name               | Description
+| indexHeader        | Header - top content - of the index page.
+| indexName          | Name if the index page listing commands, defaults to `index.adoc`. Can also include some relative path to render it in another folder but ensure to adjus `indexRelativePath` then.
+| indexRelativePath  | Prefix to links to the command documentation, this is useful when the index page is generated in partials directory for example and you include it in another page.
+| package            | If set enables to filter the commands included by package.
+| outputBase         | Base directory where to generate the commands and command index documents.
 |===
 
 NOTE: the generator starts a fusion container disabling `Start` and `Stop` events so take care if it needs some caution (static code for example).
