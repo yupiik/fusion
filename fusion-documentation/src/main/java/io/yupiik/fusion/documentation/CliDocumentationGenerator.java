@@ -82,10 +82,20 @@ public class CliDocumentationGenerator implements Runnable {
                     .map(Path::of)
                     .orElseGet(() -> source.resolve("content/cli"));
             Files.createDirectories(base);
-            Files.writeString(base.resolve("index.adoc"), generateIndex(commands));
+
+            final var index = base.resolve(configuration.getOrDefault("indexName", "index.adoc")).normalize();
+            if (index.getParent() != null) {
+                Files.createDirectories(index.getParent());
+            }
+            Files.writeString(index, configuration.getOrDefault("indexHeader", "") + "\n\n" + generateIndex(commands));
+
+            var relativePathToIndex = base.relativize(index).toString();
+            if (relativePathToIndex.endsWith(".adoc")) {
+                relativePathToIndex = relativePathToIndex.substring(0, relativePathToIndex.length() - ".adoc".length()) + ".html";
+            }
             final var app = configuration.getOrDefault("application", "java ... io.yupiik.fusion.framework.api.main.Launcher");
             for (final var command : commands) {
-                Files.writeString(base.resolve(command.name() + ".adoc"), generateDetail(app, command));
+                Files.writeString(base.resolve(command.name() + ".adoc"), generateDetail(app, command, relativePathToIndex));
             }
 
         } catch (final IOException e) {
@@ -93,8 +103,10 @@ public class CliDocumentationGenerator implements Runnable {
         }
     }
 
-    private CharSequence generateDetail(final String app, final Command command) {
+    private CharSequence generateDetail(final String app, final Command command, final String relativePathToIndex) {
         return "= " + command.name() + "\n" +
+                ":minisite-nav-prev-link: " + relativePathToIndex + "\n" +
+                ":minisite-nav-prev-label: CLI\n" +
                 "\n" +
                 "== Description\n" +
                 "\n" +
@@ -115,13 +127,14 @@ public class CliDocumentationGenerator implements Runnable {
                 "== Parameters\n" +
                 "\n" +
                 (command.parameters().isEmpty() ? "No parameter." : command.parameters().stream()
-                        .map(p -> p.cliName() + "::\n" + p.description() + "\n")
-                        .collect(joining("\n")));
+                                                                    .map(p -> p.cliName() + "::\n" + p.description() + "\n")
+                                                                    .collect(joining("\n")));
     }
 
     private CharSequence generateIndex(final List<Command> commands) {
+        final var relativePath = configuration.getOrDefault("indexRelativePath", "");
         return commands.stream()
-                .map(it -> "== " + it.name() + "\n\n" + it.description() + "\n\nSee xref:" + it.name() + ".adoc[" + it.name() + "] detail page.\n")
+                .map(it -> "== " + it.name() + "\n\n" + it.description() + "\n\nSee xref:" + relativePath + it.name() + ".adoc[" + it.name() + "] detail page.\n")
                 .collect(joining("\n"));
     }
 
