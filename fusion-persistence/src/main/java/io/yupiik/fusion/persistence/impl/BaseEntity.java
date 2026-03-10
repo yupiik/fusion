@@ -271,6 +271,11 @@ public abstract class BaseEntity<A, B> extends BaseLookup implements Entity<A, B
         }).map(it -> it.toLowerCase(ROOT));
     }
 
+    @SuppressWarnings("unchecked")
+    protected static <T> T cast(final Object value) {
+        return (T) value;
+    }
+
     protected static SQLFunction<ResultSet, String> stringOf(final int index) {
         if (index < 0) {
             return r -> null;

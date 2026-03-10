@@ -275,18 +275,18 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
                         "          },\n" +
                         "          (entity, statement) -> " + (!autoIncremented ?
                         "entity" : "{\n" +
-                        "            try (final var rset = statement.getGeneratedKeys()) {\n" +
-                        "              if (!rset.next()) {\n" +
-                        "                throw new " + PersistenceException.class.getName() + "(\"No generated key available\");\n" +
-                        "              }\n" +
-                        // do a copy of all params except the generated id (can be only one for now)
-                        "              return new " + className + "(" + constructorParameters.stream()
-                        .map(it -> ids.contains(it) ?
-                                jdbcGetter(it, 1) :
-                                ("entity." + it.getSimpleName().toString() + "()"))
-                        .collect(joining(", ")) + ");\n" +
-                        "            }" +
-                        "          }") + ",\n" +
+                                   "            try (final var rset = statement.getGeneratedKeys()) {\n" +
+                                   "              if (!rset.next()) {\n" +
+                                   "                throw new " + PersistenceException.class.getName() + "(\"No generated key available\");\n" +
+                                   "              }\n" +
+                                   // do a copy of all params except the generated id (can be only one for now)
+                                   "              return new " + className + "(" + constructorParameters.stream()
+                                                                                   .map(it -> ids.contains(it) ?
+                                                                                           jdbcGetter(it, 1) :
+                                                                                              ("entity." + it.getSimpleName().toString() + "()"))
+                                                                                   .collect(joining(", ")) + ");\n" +
+                                   "            }" +
+                                   "          }") + ",\n" +
                         "          columns -> {\n" +
                         createFactory(constructorParameters, onLoadCb, loadInjections, columns, columnsMapping, "return", type) +
                         "          });\n" +
@@ -296,22 +296,22 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
                 beanForPersistenceEntities ?
                         new GeneratedClass(packagePrefix + tableClassName + '$' + FusionBean.class.getSimpleName(), packageLine +
                                 generationVersion() +
-                                "public class " + tableClassName + '$' + FusionBean.class.getSimpleName() + " extends " + BaseBean.class.getName() + "<" + tableClassName + "> {\n" +
-                                "  public " + tableClassName + '$' + FusionBean.class.getSimpleName() + "() {\n" +
-                                "    super(\n" +
-                                "      " + tableClassName + ".class,\n" +
-                                "      " + DefaultScoped.class.getName() + ".class,\n" +
-                                "      " + findPriority(type) + ",\n" +
-                                "      " + metadata(type) + ");\n" +
-                                "  }\n" +
-                                "\n" +
-                                "  @Override\n" +
-                                "  public " + tableClassName + " create(final " + RuntimeContainer.class.getName() + " container, final " +
+                                                                                                                    "public class " + tableClassName + '$' + FusionBean.class.getSimpleName() + " extends " + BaseBean.class.getName() + "<" + tableClassName + "> {\n" +
+                                                                                                                    "  public " + tableClassName + '$' + FusionBean.class.getSimpleName() + "() {\n" +
+                                                                                                                    "    super(\n" +
+                                                                                                                    "      " + tableClassName + ".class,\n" +
+                                                                                                                    "      " + DefaultScoped.class.getName() + ".class,\n" +
+                                                                                                                    "      " + findPriority(type) + ",\n" +
+                                                                                                                    "      " + metadata(type) + ");\n" +
+                                                                                                                    "  }\n" +
+                                                                                                                    "\n" +
+                                                                                                                    "  @Override\n" +
+                                                                                                                    "  public " + tableClassName + " create(final " + RuntimeContainer.class.getName() + " container, final " +
                                 List.class.getName() + "<" + Instance.class.getName() + "<?>> dependents) {\n" +
-                                "    return new " + tableClassName + "(lookup(container, " + DatabaseConfiguration.class.getName() + ".class, dependents)" + (hasCallbackInjection ? ", container" : "") + ");\n" +
-                                "  }\n" +
-                                "}\n" +
-                                "\n") :
+                                                                                                                    "    return new " + tableClassName + "(lookup(container, " + DatabaseConfiguration.class.getName() + ".class, dependents)" + (hasCallbackInjection ? ", container" : "") + ");\n" +
+                                                                                                                    "  }\n" +
+                                                                                                                    "}\n" +
+                                                                                                                    "\n") :
                         null);
     }
 
@@ -370,7 +370,14 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
                 "            " + resultPrefix + " rset -> {\n" +
                 "              try {\n" +
                 "                " + (onLoadCb.isEmpty() ? "return " : "final var entity = ") + "new " + recordType + "(" + constructorParameters.stream()
-                .map(it -> it.getSimpleName().toString() + ".apply(rset)")
+                .map(it -> {
+                    final var value = it.getSimpleName().toString() + ".apply(rset)";
+                    final var pt = ParsedType.of(it.asType());
+                    if (pt.type() == ParsedType.Type.PARAMETERIZED_TYPE) {
+                        return BaseEntity.class.getName() + ".<" + pt.raw() + pt.args().stream().collect(joining(", ", "<", ">")) + ">cast(" + value + ")";
+                    }
+                    return value;
+                })
                 .collect(joining(", ")) + ");\n" +
                 (onLoadCb.isEmpty() ?
                         "" :
@@ -395,18 +402,27 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
         final var javaName = simpleName.toString();
         final var leftSide = "            final var " + javaName + " = ";
         final var ofPart = "Of(columns.indexOf(\"" + columnsMapping.getOrDefault(javaName, javaName).toLowerCase(ROOT) + "\")";
-        final var name = ParsedType.of(type).className();
+        final var parsedType = ParsedType.of(type);
+        final var name = switch (parsedType.type()) {
+            case PARAMETERIZED_TYPE -> parsedType.raw() + parsedType.args().stream().collect(joining(", ", "<", ">"));
+            default -> parsedType.className();
+        };
 
         if (isEnum(type)) {
             return leftSide + "enum" + ofPart + ", " + name + ".class);\n";
         }
 
-        return leftSide + columnReaderPrefix(type, name) + ofPart + switch (name) {
+        final var prefix = columnReaderPrefix(name);
+        final var unknownType = "object".equals(prefix);
+        return leftSide + prefix + ofPart + switch (name) {
             case "int", "double", "float", "long", "boolean", "byte" -> ", true";
-            case "java.lang.Integer", "java.lang.Double", "java.lang.Float", "java.lang.Long", "java.lang.Boolean", "java.lang.Byte" ->
-                    ", false";
+            case "java.lang.Integer", "java.lang.Double", "java.lang.Float", "java.lang.Long", "java.lang.Boolean",
+                 "java.lang.Byte" -> ", false";
             default -> "";
-        } + ");\n";
+        } + (unknownType ? ", " + (switch (parsedType.type()) {
+            case PARAMETERIZED_TYPE -> parsedType.raw();
+            default -> parsedType.className();
+        }) + ".class" : "") + ");\n";
     }
 
     private List<? extends VariableElement> selectConstructorFor(final Supplier<String> clazz, final TypeElement type) {
@@ -438,7 +454,7 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
                         .collect(toMap(identity(), this::toSimpleColumn, (a, b) -> a, LinkedHashMap::new)));
     }
 
-    private String columnReaderPrefix(final TypeMirror typeMirror, final String name) {
+    private String columnReaderPrefix(final String name) {
         return switch (name) {
             case "java.util.Date", "java.sql.Date" -> "date";
             case "java.lang.String" -> "string";
@@ -452,9 +468,9 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
             case "java.math.BigDecimal" -> "bigdecimal";
             case "byte[]" -> "bytes";
             case "java.math.BigInteger", "java.time.LocalDate", "java.time.LocalDateTime",
-                    "java.time.OffsetDateTime", "java.time.ZonedDateTime", "java.time.LocalTime" ->
+                 "java.time.OffsetDateTime", "java.time.ZonedDateTime", "java.time.LocalTime" ->
                     name.substring(name.lastIndexOf('.') + 1).toLowerCase(ROOT); // object
-            default -> throw new IllegalArgumentException("Unsupported type: " + typeMirror);
+            default -> "object";
         };
     }
 
@@ -472,29 +488,37 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
     private String jdbcSetter(final Element elt, final int jdbcIndex, final String nullCheck, final String accessor) {
         final var type = elt.asType();
         final boolean isEnum = isEnum(type);
-        final var fqn = isEnum ? "java.lang.String" : ParsedType.of(type).className();
+        ParsedType parsedType = null;
+        var fqn = isEnum ? "java.lang.String" : (parsedType = ParsedType.of(type)).className();
+        if (fqn == null) {
+            if (parsedType.type() == ParsedType.Type.PARAMETERIZED_TYPE && !parsedType.args().isEmpty()) {
+                fqn = parsedType.raw() + parsedType.args().stream().collect(joining(", ", "<", ">"));
+            } else {
+                throw new IllegalArgumentException("Unsupported type: " + type);
+            }
+        }
         final var handleNull = !PRIMITIVES.contains(fqn);
         return (handleNull ?
                 "if (" + nullCheck + ") { " +
-                        "statement.setNull(" + jdbcIndex + ", " +
-                        switch (fqn) { // https://docs.oracle.com/cd/E19501-01/819-3659/gcmaz/
-                            case "java.lang.String" -> "java.sql.Types.VARCHAR";
-                            case "java.lang.Integer" -> "java.sql.Types.INTEGER";
-                            case "java.lang.Double" -> "java.sql.Types.DOUBLE";
-                            case "java.lang.Float" -> "java.sql.Types.FLOAT";
-                            case "java.lang.Long", "java.math.BigInteger" -> "java.sql.Types.BIGINT";
-                            case "java.lang.Boolean" -> "java.sql.Types.BOOLEAN";
-                            case "java.lang.Byte", "java.lang.Short" -> "java.sql.Types.SMALLINT";
-                            case "java.util.Date", "java.sql.Date", "java.time.LocalDate", "java.time.LocalDateTime" ->
-                                    "java.sql.Types.DATE";
-                            case "java.time.OffsetDateTime", "java.time.ZonedDateTime" ->
-                                    "java.sql.Types.TIMESTAMP_WITH_TIMEZONE";
-                            case "java.time.LocalTime" -> "java.sql.Types.TIME";
-                            case "java.math.BigDecimal" -> "java.sql.Types.DECIMAL";
-                            case "byte[]" -> "java.sql.Types.VARBINARY";
-                            default -> "java.sql.Types.OTHERS";
-                        } + "); " +
-                        "} else { " :
+                "statement.setNull(" + jdbcIndex + ", " +
+                switch (fqn) { // https://docs.oracle.com/cd/E19501-01/819-3659/gcmaz/
+                    case "java.lang.String" -> "java.sql.Types.VARCHAR";
+                    case "java.lang.Integer" -> "java.sql.Types.INTEGER";
+                    case "java.lang.Double" -> "java.sql.Types.DOUBLE";
+                    case "java.lang.Float" -> "java.sql.Types.FLOAT";
+                    case "java.lang.Long", "java.math.BigInteger" -> "java.sql.Types.BIGINT";
+                    case "java.lang.Boolean" -> "java.sql.Types.BOOLEAN";
+                    case "java.lang.Byte", "java.lang.Short" -> "java.sql.Types.SMALLINT";
+                    case "java.util.Date", "java.sql.Date", "java.time.LocalDate", "java.time.LocalDateTime" ->
+                            "java.sql.Types.DATE";
+                    case "java.time.OffsetDateTime", "java.time.ZonedDateTime" ->
+                            "java.sql.Types.TIMESTAMP_WITH_TIMEZONE";
+                    case "java.time.LocalTime" -> "java.sql.Types.TIME";
+                    case "java.math.BigDecimal" -> "java.sql.Types.DECIMAL";
+                    case "byte[]" -> "java.sql.Types.VARBINARY";
+                    default -> "java.sql.Types.OTHER";
+                } + "); " +
+                "} else { " :
                 "") +
                 "statement.set" + jdbcMarker(type, fqn) + "(" + jdbcIndex + ", " + accessor + (isEnum ? ".name()" : "") + ");" +
                 (handleNull ? " }" : "");
@@ -513,9 +537,7 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
             case "byte[]" -> "Bytes";
             case "java.math.BigDecimal" -> "BigDecimal";
             case "java.util.Date", "java.sql.Date" -> "Date";
-            case "java.math.BigInteger", "java.time.LocalDate", "java.time.LocalDateTime",
-                    "java.time.OffsetDateTime", "java.time.ZonedDateTime", "java.time.LocalTime" -> "Object";
-            default -> throw new IllegalArgumentException("Unsupported type: " + type);
+            default -> "Object";
         };
     }
 
@@ -532,10 +554,14 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
     }
 
     private String newColumnMetadataStart(final Element element) {
+        final var parsedType = ParsedType.of(element.asType());
         return "            " +
                 "new " + ColumnMetadataImpl.class.getName() + "(" +
                 "\"" + element.getSimpleName().toString() + "\", " +
-                ParsedType.of(element.asType()).className() + ".class, " +
+                (switch (parsedType.type()) {
+                    case PARAMETERIZED_TYPE -> parsedType.createParameterizedTypeImpl();
+                    default -> parsedType.className() + ".class";
+                }) + ", " +
                 "\"" + ofNullable(element.getAnnotation(Column.class))
                 .map(Column::name)
                 .map(this::escapeString)
