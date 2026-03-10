@@ -2519,6 +2519,16 @@ class FusionProcessorTest {
     }
 
     @Test
+    void listEntityColumn(@TempDir final Path work) {
+        new Compiler(work, "persistence.ListColumnEntity").assertCompiles(0);
+    }
+
+    @Test
+    void unsupportedEntityColumn(@TempDir final Path work) {
+        new Compiler(work, "persistence.UnsupportedColumnEntity").assertCompiles(1);
+    }
+
+    @Test
     void nestedRecordPersistence(@TempDir final Path work) throws IOException {
         final var entity = "persistence.NestedEntity";
         final var compiler = new Compiler(work, entity);
