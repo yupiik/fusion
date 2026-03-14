@@ -15,11 +15,9 @@
  */
 package io.yupiik.fusion.cli.internal;
 
-import com.sun.jdi.ArrayReference;
 import io.yupiik.fusion.cli.CliAwaiter;
 import io.yupiik.fusion.framework.api.Instance;
 import io.yupiik.fusion.framework.api.configuration.Configuration;
-import io.yupiik.fusion.framework.api.configuration.ConfigurationSource;
 import io.yupiik.fusion.framework.api.configuration.MissingRequiredParameterException;
 import io.yupiik.fusion.framework.api.container.DefaultInstance;
 import io.yupiik.fusion.framework.api.container.configuration.ConfigurationImpl;
@@ -48,7 +46,7 @@ class BaseCliCommandTest {
                         "...",
                         c -> {
                             // simulate a parameter required=true which is missing
-                            throw new MissingRequiredParameterException("No value for 'test.dummy'");
+                            throw new MissingRequiredParameterException("No value for '-.test.dummy'");
                         },
                         (conf, deps) -> {
                             throw new UnsupportedOperationException("shouldn't be called in this test");
