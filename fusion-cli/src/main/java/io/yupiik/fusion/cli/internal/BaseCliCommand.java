@@ -83,9 +83,10 @@ public class BaseCliCommand<CF, C extends Runnable> implements CliCommand<C> {
             conf = constructor.apply(configurationProvider.apply(configuration), dependents);
         } catch (final
         MissingRequiredParameterException missingRequiredParameterException) { // "No value for 'xxx.xxx'"
+            final var fixedDot = missingRequiredParameterException.getMessage().replace('.', '-');
             final var rewritten = new MissingRequiredParameterException(
                     // format as an option and not a config/system prop
-                    missingRequiredParameterException.getMessage().replace(" '", " '--").replace('.', '-') +
+                    (!fixedDot.contains("'--") ? fixedDot.replace(" '", " '--") : fixedDot) +
                             formatLightHelp());
             rewritten.setStackTrace(new StackTraceElement[0]);
             throw rewritten;
