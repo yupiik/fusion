@@ -15,7 +15,9 @@
  */
 package io.yupiik.fusion.kubernetes.client;
 
+import io.yupiik.fusion.json.JsonMapper;
 import io.yupiik.fusion.json.internal.JsonMapperImpl;
+import io.yupiik.fusion.json.internal.codec.ObjectJsonCodec;
 import io.yupiik.fusion.kubernetes.client.internal.LightYamlParser;
 import io.yupiik.fusion.kubernetes.client.internal.PrivateKeyReader;
 
@@ -26,9 +28,11 @@ import javax.net.ssl.SSLParameters;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.X509TrustManager;
+import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.Authenticator;
 import java.net.CookieHandler;
 import java.net.ProxySelector;
@@ -54,7 +58,9 @@ import java.security.cert.X509Certificate;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -85,6 +91,7 @@ public class KubernetesClient extends HttpClient implements AutoCloseable {
     private final Lock lock = new ReentrantLock();
     private volatile Instant lastRefresh;
     private volatile String authorization;
+    private JsonMapperImpl jsonMapper;
 
     public KubernetesClient(final KubernetesClientConfiguration configuration) {
         final var ns = fillFromKubeConfig(configuration.getKubeconfig(), configuration);
@@ -272,7 +279,9 @@ public class KubernetesClient extends HttpClient implements AutoCloseable {
 
     @Override
     public void close() {
-        // no-op for now
+        if (jsonMapper != null) {
+            jsonMapper.close();
+        }
     }
 
     // enables to not handle exceptions in caller code
@@ -487,37 +496,75 @@ public class KubernetesClient extends HttpClient implements AutoCloseable {
                             return null;
                         }
 
-                        var command = exec.get("command");
+                        final var command = exec.get("command");
                         if (!(command instanceof String cmd)) {
                             return null;
                         }
 
                         final var env = exec.get("env");
-                        final var prepareEnv = env instanceof List<?> e ?
+                        final var configuredEnv = env instanceof List<?> e ?
                                 e.stream()
                                         .map(eit -> (Map<String, Object>) eit)
                                         .collect(toMap(m -> m.get("name").toString(), m -> m.get("value").toString())):
                                 Map.<String, String>of();
+
+                        final var prepareEnv = new HashMap<String, String>(configuredEnv.size() + 1);
+                        prepareEnv.putAll(configuredEnv);
+
+                        final var spec = new HashMap<String, Object>(2);
+                        spec.put("interactive", !"Never".equals(exec.get("interactiveMode")));
+                        if (Boolean.TRUE.equals(exec.get("provideClusterInfo"))) {
+                            final var server = new HashMap<>(2);
+                            server.put("server", configuration.getMaster());
+                            if (configuration.getCertificates() != null) {
+                                server.put("certificate-authority-data", Base64.getMimeEncoder().encode(configuration.getCertificates().getBytes(UTF_8)));
+                            }
+                            spec.put("cluster", server);
+                        }
+                        ensureJsonMapper();
+                        prepareEnv.put("KUBERNETES_EXEC_INFO", jsonMapper.toString(Map.<String, Object>of(
+                                "apiVersion", "client.authentication.k8s.io/v1",
+                                "kind", "ExecCredential",
+                                "spec", spec)));
+
                         final var args = exec.get("args");
                         final var fullCommand = Stream.concat(
                                 Stream.of(cmd),
                                 !(args instanceof List<?> al) ? Stream.empty() : al.stream().map(String.class::cast))
                                 .toList();
-                        return (Supplier<String>) () -> {
-                            final var builder = new ProcessBuilder();
-                            builder.command(fullCommand);
-                            if (!prepareEnv.isEmpty()){
-                                builder.environment().putAll(prepareEnv);
-                            }
-                            // todo: do not make it synchronous?
-                            try {
-                                final var process = builder.start();
-                                final int exitCode = process.waitFor();
-                                if (exitCode != 0) {
-                                    try (final var s = process.getErrorStream()) {
-                                        throw new IllegalStateException("Can't obtain a token with '" + cmd + "': exitCode=" + exitCode + "\n" + new String(s.readAllBytes(), UTF_8));
-                                    }
+
+                        return new Supplier<String>() {
+                            private volatile LastToken last;
+                            private final Lock lock = new ReentrantLock();
+
+                            @Override
+                            public String get() {
+                                final var now = clock.instant();
+                                final var previous = last;
+                                if (previous != null && previous.expiry().isAfter(now)) {
+                                    return previous.value();
                                 }
+
+                                // todo: do not make it synchronous?
+                                lock.lock();
+                                try {
+                                    if (last != previous) { // it was updated
+                                        return last.value();
+                                    }
+
+                                    final var builder = new ProcessBuilder();
+                                    builder.command(fullCommand);
+                                    if (!prepareEnv.isEmpty()){
+                                        builder.environment().putAll(prepareEnv);
+                                    }
+
+                                    final var process = builder.start();
+                                    final int exitCode = process.waitFor();
+                                    if (exitCode != 0) {
+                                        try (final var s = process.getErrorStream()) {
+                                            throw new IllegalStateException("Can't obtain a token with '" + cmd + "': exitCode=" + exitCode + "\n" + new String(s.readAllBytes(), UTF_8));
+                                        }
+                                    }
                                 /* output looks like:
                                 {
                                     "kind": "ExecCredential",
@@ -529,35 +576,33 @@ public class KubernetesClient extends HttpClient implements AutoCloseable {
                                     }
                                 }
                                  */
-                                // todo: parse it properly and extract expiration timestamp to refresh it less often?
-                                //       -> todo when reworking the refresh interval of the token
+                                    Object output;
+                                    try (final var response = new InputStreamReader(process.getInputStream(), UTF_8)) {
+                                        output = jsonMapper.read(Object.class, response);
+                                    }
+                                    if (!(output instanceof Map<?,?> map) ||
+                                            !"ExecCredential".equals(map.get("kind")) ||
+                                            !(map.get("status") instanceof Map<?, ?> status) ||
+                                            !(status.get("token") instanceof String tkn)) {
+                                        throw new IllegalStateException("Invalid response: " + output);
+                                    }
 
-                                // for now a simplistic impl
-                                String output;
-                                try (final InputStream inputStream = process.getInputStream()) {
-                                    output = new String(inputStream.readAllBytes(), UTF_8);
-                                }
+                                    final var expiry = status.get("expirationTimestamp");
+                                    last = new LastToken(tkn, expiry == null ? now : OffsetDateTime.parse(expiry.toString()).minusSeconds(30).toInstant());
 
-                                final int tokenKey = output.indexOf("\"token\"");
-                                if (tokenKey < 0) {
-                                    throw new IllegalStateException("No token in exec result");
+                                    return tkn;
+                                } catch (final IOException e) {
+                                    throw new IllegalStateException("Can't obtain a token with '" + cmd + "'" +
+                                            ofNullable((Object) exec.get("installHint")).map(v -> "\n" + v).orElse(""), e);
+                                } catch (final InterruptedException e) {
+                                    Thread.currentThread().interrupt();
+                                    throw new IllegalStateException(e);
+                                } finally {
+                                    lock.unlock();
                                 }
-                                final int from = output.indexOf('"', tokenKey+"\"token\":".length());
-                                final int end = output.indexOf('"', from + 1);
-                                if (from < 0 || end < from) {
-                                    throw new IllegalStateException("No valid token in exec result");
-                                }
-                                // assume a bearer so no specific json character to decode
-                                return output.substring(from + 1, end).strip();
-                            } catch (final IOException e) {
-                                throw new IllegalStateException("Can't obtain a token with '" + cmd + "'", e);
-                            } catch (final InterruptedException e) {
-                                Thread.currentThread().interrupt();
-                                throw new IllegalStateException(e);
                             }
                         };
                     })
-                    .filter(Objects::nonNull)
                     .ifPresent(configuration::setTokenEvaluator);
         }
         selectedUser
@@ -596,6 +641,12 @@ public class KubernetesClient extends HttpClient implements AutoCloseable {
         return namespace;
     }
 
+    private void ensureJsonMapper() {
+        if (jsonMapper == null) {
+            jsonMapper = new JsonMapperImpl(List.of(), c -> empty());
+        }
+    }
+
     @SuppressWarnings("unchecked")
     private Optional<Map<String, Object>> findIn(final Map<String, Object> ctx, final String attribute,
                                                  final Map<String, Object> conf, final String list) {
@@ -622,4 +673,6 @@ public class KubernetesClient extends HttpClient implements AutoCloseable {
             throw new IllegalArgumentException("Can't parse kubeconfig: '" + kubeconfig + "'", e);
         }
     }
+
+    private record LastToken(String value, Instant expiry) {}
 }
