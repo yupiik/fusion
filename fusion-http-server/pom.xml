@@ -28,6 +28,12 @@
   <name>Fusion :: Http Server</name>
 
   <dependencies>
+      <dependency>
+          <groupId>${project.groupId}</groupId>
+          <artifactId>fusion-build-api</artifactId>
+          <version>${project.version}</version>
+          <scope>provided</scope>
+      </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>fusion-api</artifactId>
