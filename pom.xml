@@ -33,7 +33,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.build.outputTimestamp>2026-03-07T16:26:39Z</project.build.outputTimestamp>
 
-    <tomcat.version>11.0.18</tomcat.version>
+    <tomcat.version>11.0.20</tomcat.version>
     <yupiik-logging.version>1.0.8</yupiik-logging.version>
     <junit-jupiter.version>6.0.2</junit-jupiter.version>
   </properties>
