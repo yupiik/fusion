@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.zip.GZIPInputStream;
 
 import static java.time.LocalTime.MIN;
 import static java.time.ZoneOffset.UTC;
@@ -52,6 +53,37 @@ class OpenTelemetryFlusherTest {
             }
         });
 
+        final var configuration = new OpenTelemetryFlusherConfiguration();
+        configuration.setUrls(List.of("http://localhost:" + server.getAddress().getPort() + "/otlp"));
+
+        doTest(server, configuration, payloads);
+    }
+
+    @Test
+    void postGzip() throws Exception {
+        final var payloads = new ArrayList<String>();
+        final var server = HttpServer.create(new InetSocketAddress(0), 64);
+        server.createContext("/").setHandler(ex -> {
+            try {
+                try (final var reader = new GZIPInputStream(ex.getRequestBody())) {
+                    payloads.add(new String(reader.readAllBytes(), StandardCharsets.UTF_8));
+                }
+                ex.sendResponseHeaders(200, 0);
+            } finally {
+                ex.close();
+            }
+        });
+
+        final var configuration = new OpenTelemetryFlusherConfiguration();
+        configuration.setGzip(true);
+        configuration.setUrls(List.of("http://localhost:" + server.getAddress().getPort() + "/otlp"));
+
+        doTest(server, configuration, payloads);
+    }
+
+    private void doTest(final HttpServer server,
+                               final OpenTelemetryFlusherConfiguration configuration,
+                               final List<String> payloads) {
         final var endpoint = new Span.Endpoint("test", "1.2.3.4", null, 6543);
         final var span = new Span(
                 "ba8c19fd8b342b534a8dc212573c4055", null, "beeca1383d3dc369", "the span", "CLIENT",
@@ -59,9 +91,6 @@ class OpenTelemetryFlusherTest {
                 Map.of("foo", "bar"), null, null, null);
 
         server.start();
-
-        final var configuration = new OpenTelemetryFlusherConfiguration();
-        configuration.setUrls(List.of("http://localhost:" + server.getAddress().getPort() + "/otlp"));
 
         try (final var jsonMapper = new JsonMapperImpl(List.of(), c -> empty())) {
             new OpenTelemetryFlusher(jsonMapper, HttpClient.newHttpClient(), configuration).accept(List.of(span));
