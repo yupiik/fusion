@@ -35,7 +35,6 @@ import java.util.function.Consumer;
 import java.util.zip.GZIPOutputStream;
 
 import static java.net.http.HttpResponse.BodyHandlers.ofString;
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Locale.ROOT;
 import static java.util.stream.Collectors.groupingBy;
 
@@ -74,7 +73,7 @@ public class OpenTelemetryFlusher implements Consumer<Collection<Span>> {
                     final var endpoint = s.localEndpoint() == null ? s.remoteEndpoint() : s.localEndpoint();
                     return endpoint == null || endpoint.serviceName() == null || endpoint.serviceName().isBlank() ? "" : endpoint.serviceName();
                 }));
-        final byte[] payload = mapper.toBytes(Map.of(
+        byte[] payload = mapper.toBytes(Map.of(
                 "resourceSpans",
                 byService.entrySet().stream()
                         .map(e -> map(
@@ -86,6 +85,17 @@ public class OpenTelemetryFlusher implements Consumer<Collection<Span>> {
                                         "scope", Map.of("name", "fusion-tracing"),
                                         "spans", e.getValue().stream().map(this::toJson).toList()))))
                         .toList()));
+
+        if (configuration.isGzip()) {
+            final var gzipped = new ByteArrayOutputStream();
+            try (final var in = new ByteArrayInputStream(payload);
+                 final var gzipOutputStream = new GZIPOutputStream(gzipped)) {
+                in.transferTo(gzipOutputStream);
+            } catch (final IOException e) {
+                throw new IllegalStateException(e);
+            }
+            payload = gzipped.toByteArray();
+        }
 
         RuntimeException error = null;
         for (final var url : urls) {
@@ -116,25 +126,6 @@ public class OpenTelemetryFlusher implements Consumer<Collection<Span>> {
         throw error == null ?
                 new IllegalStateException("No opentelemtry url configured, either disable the collector or configure it properly") :
                 error;
-    }
-
-    private byte[] toJson(final Collection<Span> spans) throws IOException {
-        // todo: opt using a preallocated buffer instead of this autosizing
-        final var bytes = mapper.toString(spans.stream()
-                        .map(this::toJson)
-                        .toList())
-                .getBytes(UTF_8);
-
-        if (configuration.isGzip()) {
-            final var gzipped = new ByteArrayOutputStream();
-            try (final var in = new ByteArrayInputStream(bytes);
-                 final var gzipOutputStream = new GZIPOutputStream(gzipped)) {
-                in.transferTo(gzipOutputStream);
-            }
-            return gzipped.toByteArray();
-        }
-
-        return bytes;
     }
 
     private Map<String, Object> toJson(final Span span) {
