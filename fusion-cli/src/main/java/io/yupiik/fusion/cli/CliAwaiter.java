@@ -96,7 +96,8 @@ public class CliAwaiter implements Awaiter {
         if (cmd != null && key.startsWith("--" + cmd + '-') && key.length() > cmd.length() + 4) {
             return doFindConf(null, "--" + key.substring(cmd.length() + 3));
         }
-        return configuration.get(key);
+        return configuration.get(key)
+                .or(() -> key.startsWith("--") ? configuration.get(key.substring("--".length())) : empty());
     }
 
     // todo: reflow (max 100 chars of width?)
