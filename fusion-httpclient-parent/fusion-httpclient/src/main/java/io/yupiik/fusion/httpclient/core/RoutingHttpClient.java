@@ -31,6 +31,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.function.BiFunction;
+import java.util.logging.Logger;
 
 /**
  * Enables to use a facade in front of multiple clients as a http client and switch based on the request metadata.
@@ -38,6 +39,7 @@ import java.util.function.BiFunction;
  * @param <A> the type hosting the http clients this facade will switch between depending the request.
  */
 public class RoutingHttpClient<A> extends HttpClient implements AutoCloseable {
+    protected final Logger logger = Logger.getLogger(getClass().getName());
     protected final A clients;
     protected final BiFunction<A, HttpRequest, HttpClient> selector;
 
@@ -135,7 +137,7 @@ public class RoutingHttpClient<A> extends HttpClient implements AutoCloseable {
                     try {
                         i.close();
                     } catch (final Exception e) {
-                        // no-op
+                        logger.warning(() -> "Error closing client: " + e.getMessage());
                     }
                 });
             }

@@ -21,6 +21,7 @@ import io.yupiik.fusion.framework.api.container.FusionBean;
 
 import java.lang.reflect.Type;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Supplier;
 
 public class ProvidedInstanceBean<T> implements FusionBean<T> {
@@ -48,6 +49,6 @@ public class ProvidedInstanceBean<T> implements FusionBean<T> {
 
     @Override
     public T create(final RuntimeContainer container, final List<Instance<?>> dependents) {
-        return factory.get();
+        return Objects.requireNonNull(factory.get(), "ProvidedInstanceBean factory returned null");
     }
 }

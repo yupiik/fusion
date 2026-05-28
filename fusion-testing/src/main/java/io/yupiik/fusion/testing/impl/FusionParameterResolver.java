@@ -29,8 +29,8 @@ import org.junit.jupiter.api.extension.TestInstancePostProcessor;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Stream;
 
 import static java.util.Optional.ofNullable;
@@ -138,11 +138,11 @@ public class FusionParameterResolver implements ParameterResolver, BeforeEachCal
     }
 
     private static class LazyTasks {
-        protected final List<Runnable> instances = new ArrayList<>();
+        protected final List<Runnable> instances = new CopyOnWriteArrayList<>();
     }
 
     private static class CleanBag {
-        protected final List<Instance<?>> instances = new ArrayList<>();
+        protected final List<Instance<?>> instances = new CopyOnWriteArrayList<>();
     }
 
     private static class MethodCleanBag extends CleanBag {

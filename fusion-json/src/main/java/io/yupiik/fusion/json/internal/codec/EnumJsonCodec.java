@@ -72,7 +72,7 @@ public class EnumJsonCodec<A extends Enum<A>> implements JsonCodec<A> {
     public void write(final A value, final SerializationContext context) throws IOException {
         final var cbuf = toJson.get(value);
         if (cbuf == null) {
-            context.writer().write("null"); // todo: fail?
+            throw new IllegalArgumentException("Unsupported enum value: " + value);
         } else {
             context.writer().write(cbuf);
         }

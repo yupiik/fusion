@@ -41,7 +41,7 @@ public class SimpleDataSource implements DataSource {
 
     @Override
     public Connection getConnection(final String username, final String password) throws SQLException {
-        return getConnection();
+        return DriverManager.getConnection(url, username, password);
     }
 
     @Override

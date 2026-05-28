@@ -46,12 +46,16 @@ public class ListenerGenerator extends BaseGenerator implements Supplier<BaseGen
     @Override
     public GeneratedClass get() {
         final var method = element.getSimpleName().toString();
-        final var param = element.getParameters().get(0);
+        final var params = element.getParameters();
+        if (params.isEmpty()) {
+            throw new IllegalArgumentException(element + " has no parameters, @OnEvent method must have at least one parameter (the event type)");
+        }
+        final var param = params.get(0);
         final var enclosing = element.getEnclosingElement();
         final var priority = findPriority(param);
         final var eventType = param.asType().toString();
 
-        final var out = new StringBuilder();
+        final var out = new StringBuilder(1024);
         if (!packageName.isBlank()) {
             out.append("package ").append(packageName).append(";\n\n");
         }

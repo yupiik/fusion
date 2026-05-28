@@ -18,6 +18,7 @@ package io.yupiik.fusion.httpclient.core.client.ratelimiting;
 import io.yupiik.fusion.httpclient.core.DelegatingHttpClient;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -41,34 +42,51 @@ public class RateLimitedClient extends DelegatingHttpClient {
     private final Logger logger = Logger.getLogger(getClass().getName());
     private final ReentrantLock lock = new ReentrantLock();
 
+    private static final DateTimeFormatter RETRY_AFTER_FORMATTER = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss O");
+
     private final RateLimiter clientRateLimiter;
     private final long window;
+    private final int maxRetries;
     private final Clock clock;
 
     private volatile ScheduledExecutorService scheduler;
     private volatile boolean stopped = false;
 
     public RateLimitedClient(final HttpClient delegate, final RateLimiter clientRateLimiter,
-                             final long windowDuration, final Clock clock) {
+                             final long windowDuration, final Clock clock, final int maxRetries) {
         super(delegate);
         this.clientRateLimiter = clientRateLimiter;
         this.window = windowDuration;
         this.clock = clock;
+        this.maxRetries = maxRetries;
+    }
+
+    public RateLimitedClient(final HttpClient delegate, final RateLimiter clientRateLimiter,
+                             final long windowDuration, final Clock clock) {
+        this(delegate, clientRateLimiter, windowDuration, clock, 5);
     }
 
     @Override
     public <T> HttpResponse<T> send(final HttpRequest request, final HttpResponse.BodyHandler<T> responseBodyHandler) throws IOException, InterruptedException {
+        return send(request, responseBodyHandler, 0);
+    }
+
+    private <T> HttpResponse<T> send(final HttpRequest request, final HttpResponse.BodyHandler<T> responseBodyHandler, final int retry) throws IOException, InterruptedException {
+        if (maxRetries >= 0 && retry > maxRetries) {
+            throw new IllegalStateException("Max retries (" + maxRetries + ") exceeded for " + request.method() + " " + request.uri());
+        }
         final var pause = clientRateLimiter.before();
         try {
             if (pause > 0) {
                 log(request, pause);
                 Thread.sleep(pause);
-                return send(request, responseBodyHandler);
+                return send(request, responseBodyHandler, retry + 1);
             }
             final var res = super.send(request, responseBodyHandler);
             if (isRateLimited(res)) {
+                consumeBody(res);
                 Thread.sleep(findPause(request, res));
-                return send(request, responseBodyHandler);
+                return send(request, responseBodyHandler, retry + 1);
             }
             return res;
         } finally {
@@ -145,7 +163,7 @@ public class RateLimitedClient extends DelegatingHttpClient {
         return headers.firstValue("Retry-After")
                 .flatMap(a -> {
                     try { // RFC7231
-                        return Optional.of(OffsetDateTime.parse(a.strip(), DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss O")));
+                        return Optional.of(OffsetDateTime.parse(a.strip(), RETRY_AFTER_FORMATTER));
                     } catch (final RuntimeException re2) {
                         return Optional.empty();
                     }
@@ -160,11 +178,25 @@ public class RateLimitedClient extends DelegatingHttpClient {
                 .orElse(window);
     }
 
+    private static <T> void consumeBody(final HttpResponse<T> res) {
+        final var body = res.body();
+        if (body instanceof InputStream is) {
+            try {
+                is.readAllBytes();
+            } catch (final IOException ex) {
+                // ignore
+            }
+        }
+    }
+
     private <T> boolean isRateLimited(final HttpResponse<T> ok) {
         return ok.statusCode() == 429;
     }
 
     private ScheduledExecutorService scheduledExecutorService() { // lazy to avoid to create it if never needed
+        if (stopped && scheduler == null) {
+            throw new IllegalStateException("Client is stopped, cannot create scheduler");
+        }
         if (!stopped && scheduler == null) {
             lock.lock();
             try {

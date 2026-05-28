@@ -20,13 +20,14 @@ import io.yupiik.fusion.framework.api.RuntimeContainer;
 
 import java.lang.reflect.Type;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Function;
 
 public class DelegatingRuntimeContainer implements RuntimeContainer {
     private final RuntimeContainer delegate;
 
     public DelegatingRuntimeContainer(final RuntimeContainer delegate) {
-        this.delegate = delegate;
+        this.delegate = Objects.requireNonNull(delegate, "delegate must not be null");
     }
 
     @Override

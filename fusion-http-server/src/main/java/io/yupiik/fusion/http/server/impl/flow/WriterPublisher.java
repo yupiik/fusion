@@ -133,7 +133,7 @@ public class WriterPublisher implements Flow.Publisher<ByteBuffer> {
             }
 
             private void serveRequested() {
-                if (!available.isEmpty() && requested.get() > 0) {
+                while (!available.isEmpty() && requested.get() > 0) {
                     try {
                         subscriber.onNext(available.pollFirst());
                         requested.decrementAndGet();
@@ -142,6 +142,7 @@ public class WriterPublisher implements Flow.Publisher<ByteBuffer> {
                         subscriber.onError(re);
                         cancelled = true;
                         doClose();
+                        break;
                     }
                 }
             }

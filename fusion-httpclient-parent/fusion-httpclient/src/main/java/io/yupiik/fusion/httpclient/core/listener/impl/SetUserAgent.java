@@ -21,7 +21,6 @@ import io.yupiik.fusion.httpclient.core.request.UnlockedHttpRequest;
 import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
 import java.util.List;
-import java.util.Map;
 import java.util.TreeMap;
 
 public class SetUserAgent implements RequestListener<Void> {
@@ -41,6 +40,24 @@ public class SetUserAgent implements RequestListener<Void> {
 
     @Override
     public State<Void> before(final long count, final HttpRequest request) {
+        final var map = request.headers().map();
+        final var agent = map.get("user-agent");
+        if (agent == null || (!agent.isEmpty() && agent.stream().anyMatch(it -> it.contains("java")))) {
+            final var newMap = new TreeMap<String, List<String>>(String.CASE_INSENSITIVE_ORDER);
+            newMap.putAll(map);
+            newMap.remove("User-Agent");
+            newMap.put("User-Agent", value);
+            return new State<>(
+                    new UnlockedHttpRequest(
+                            request.bodyPublisher(),
+                            request.method(),
+                            request.timeout(),
+                            request.expectContinue(),
+                            request.uri(),
+                            request.version(),
+                            HttpHeaders.of(newMap, (k, v) -> true)),
+                    null);
+        }
         return new State<>(
                 new UnlockedHttpRequest(
                         request.bodyPublisher(),
@@ -49,19 +66,7 @@ public class SetUserAgent implements RequestListener<Void> {
                         request.expectContinue(),
                         request.uri(),
                         request.version(),
-                        HttpHeaders.of(addAgent(request.headers().map()), (k, v) -> true)),
+                        request.headers()),
                 null);
-    }
-
-    private Map<String, List<String>> addAgent(final Map<String, List<String>> map) {
-        final var agent = map.get("user-agent");
-        if (agent == null || (!agent.isEmpty() && agent.stream().anyMatch(it -> it.contains("java")))) {
-            final var newMap = new TreeMap<String, List<String>>(String.CASE_INSENSITIVE_ORDER);
-            newMap.putAll(map);
-            newMap.remove("User-Agent");
-            newMap.put("User-Agent", value);
-            return newMap;
-        }
-        return map;
     }
 }

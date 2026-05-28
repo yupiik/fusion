@@ -47,7 +47,11 @@ public class TestingModule extends ListingPredicateModule {
                 }
             }
         }
-        return Stream.of(System.getProperty(TestingModule.class.getName() + ".dirs", ".").split("\\."))
+        final var prop = System.getProperty(TestingModule.class.getName() + ".dirs");
+        if (prop == null || prop.isBlank()) {
+            return List.of(current);
+        }
+        return Stream.of(prop.split("\\."))
                 .map(String::strip)
                 .filter(Predicate.not(String::isBlank))
                 .map(Path::of)

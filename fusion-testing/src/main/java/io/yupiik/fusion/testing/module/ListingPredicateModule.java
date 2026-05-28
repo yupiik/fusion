@@ -30,16 +30,16 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.Objects;
 import java.util.function.BiPredicate;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 public class ListingPredicateModule implements FusionModule {
-    private final List<FusionBean<?>> beans = new ArrayList<>();
-    private final List<FusionListener<?>> listeners = new ArrayList<>();
+    private final List<FusionBean<?>> beans = new CopyOnWriteArrayList<>();
+    private final List<FusionListener<?>> listeners = new CopyOnWriteArrayList<>();
 
     public ListingPredicateModule(final Predicate<String> beanPredicate,
                                   final Predicate<String> listenerPredicate,

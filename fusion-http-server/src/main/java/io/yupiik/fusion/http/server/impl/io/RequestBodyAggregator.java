@@ -83,12 +83,9 @@ public class RequestBodyAggregator implements Flow.Subscriber<ByteBuffer> {
         } finally {
             lock.unlock();
         }
-        var decoded = charset.decode(ByteBuffer.wrap(res)).compact();
-        if (decoded.limit() != decoded.capacity()) {
-            final var tmp = new char[decoded.limit()];
-            System.arraycopy(decoded.array(), 0, tmp, 0, decoded.limit());
-            decoded = CharBuffer.wrap(tmp);
-        }
-        future.complete(decoded.array());
+        var decoded = charset.decode(ByteBuffer.wrap(res));
+        var chars = new char[decoded.limit()];
+        decoded.get(chars);
+        future.complete(chars);
     }
 }

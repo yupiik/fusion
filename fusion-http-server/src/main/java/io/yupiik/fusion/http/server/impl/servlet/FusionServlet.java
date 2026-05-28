@@ -38,7 +38,7 @@ import static java.util.Objects.requireNonNull;
 import static java.util.logging.Level.SEVERE;
 
 public class FusionServlet extends HttpServlet {
-    private final Logger logger = Logger.getLogger(getClass().getName());
+    private static final Logger logger = Logger.getLogger(FusionServlet.class.getName());
 
     private final List<? extends BaseEndpoint> endpoints;
 
@@ -119,7 +119,7 @@ public class FusionServlet extends HttpServlet {
     }
 
     private Throwable unwrap(final Throwable ex) {
-        if (ex instanceof CompletionException) {
+        if (ex instanceof CompletionException || ex instanceof java.util.concurrent.ExecutionException) {
             return ex.getCause();
         }
         return ex;

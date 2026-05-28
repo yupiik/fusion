@@ -95,15 +95,30 @@ public class SimpleTransactionManager implements TransactionManager {
 
     public <T> T executeWithoutAutoCommit(final Connection connection, final SQLFunction<Connection, T> task) throws SQLException {
         final var original = disableAutoCommit(connection);
+        Throwable suppressed = null;
         try {
             return task.apply(connection);
         } catch (final RuntimeException | Error re) {
+            suppressed = re;
             if (!connection.isClosed()) {
                 connection.rollback();
             }
             throw re;
+        } catch (final SQLException se) {
+            suppressed = se;
+            if (!connection.isClosed()) {
+                connection.rollback();
+            }
+            throw se;
         } finally {
-            restoreAutoCommit(connection, original);
+            try {
+                restoreAutoCommit(connection, original);
+            } catch (final SQLException se) {
+                if (suppressed == null) {
+                    throw se;
+                }
+                suppressed.addSuppressed(se);
+            }
         }
     }
 

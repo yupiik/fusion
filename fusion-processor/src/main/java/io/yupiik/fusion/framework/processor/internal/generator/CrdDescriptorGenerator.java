@@ -136,7 +136,7 @@ public class CrdDescriptorGenerator implements Supplier<String> {
         final var inline = json.write(schema);
         try {
             return new SimplePrettyFormatter(json.getMapper()).apply(inline);
-        } catch (final Error | Exception e) {
+        } catch (final Exception e) {
             return inline;
         }
     }

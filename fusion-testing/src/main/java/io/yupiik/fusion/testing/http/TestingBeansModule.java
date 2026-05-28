@@ -26,7 +26,9 @@ public class TestingBeansModule implements FusionModule {
     public Stream<FusionBean<?>> beans() {
         try {
             return Stream.of(new TestClientBean());
-        } catch (final Throwable t) {
+        } catch (final Error e) {
+            throw e;
+        } catch (final Exception t) {
             return Stream.empty(); // missing dep
         }
     }

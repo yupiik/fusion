@@ -66,7 +66,7 @@ public class SubclassGenerator extends BaseGenerator implements Supplier<BaseGen
     public GeneratedClass get() {
         final boolean useConstructorSuperNull = findNoArgConstructor().isEmpty();
 
-        final var out = new StringBuilder();
+        final var out = new StringBuilder(2048);
         if (!packageName.isBlank()) {
             out.append("package ").append(packageName).append(";\n\n");
         }

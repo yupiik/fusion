@@ -70,7 +70,7 @@ public class SqlBuilder {
     public boolean hasSegmentStartingWith(final String keyword) {
         return sql.stream().anyMatch(it -> {
             final var stripped = it.stripLeading();
-            return stripped.length() > keyword.length() && stripped.substring(0, keyword.length()).toLowerCase(ROOT).startsWith(keyword);
+            return stripped.length() >= keyword.length() && stripped.substring(0, keyword.length()).toLowerCase(ROOT).startsWith(keyword.toLowerCase(ROOT));
         });
     }
 

@@ -34,7 +34,7 @@ public class BufferProvider {
         if (buffer == null) {
             return new char[size];
         } else if (max >= 0) {
-            counter.decrementAndGet();
+            counter.updateAndGet(v -> Math.max(0, v - 1));
         }
         return buffer;
     }

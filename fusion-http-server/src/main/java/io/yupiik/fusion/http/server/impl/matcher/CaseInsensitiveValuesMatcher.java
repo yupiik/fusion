@@ -34,6 +34,6 @@ public class CaseInsensitiveValuesMatcher<A, B> implements Predicate<A> {
     @Override
     public boolean test(final A a) {
         final var value = accessor.apply(a);
-        return expectedValues.stream().anyMatch(m -> Objects.equals(m, value));
+        return expectedValues.contains(value);
     }
 }

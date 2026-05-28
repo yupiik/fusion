@@ -77,8 +77,11 @@ public class TaskExtension implements BeforeEachCallback, AfterEachCallback, Par
     }
 
     private Object resolveParam(final ParameterContext parameterContext, final ExtensionContext ctx) {
-        return ctx.getStore(NAMESPACE).get(Holder.class, Holder.class)
-                .params
+        final var holder = ctx.getStore(NAMESPACE).get(Holder.class, Holder.class);
+        if (holder == null) {
+            return null;
+        }
+        return holder.params
                 .get(parameterContext.getParameter().getAnnotation(TaskResult.class).value());
     }
 

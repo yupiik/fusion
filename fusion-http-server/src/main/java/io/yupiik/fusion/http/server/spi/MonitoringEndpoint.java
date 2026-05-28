@@ -19,6 +19,7 @@ import io.yupiik.fusion.http.server.api.Request;
 import io.yupiik.fusion.http.server.api.Response;
 
 import java.util.concurrent.CompletionStage;
+import java.util.logging.Logger;
 
 import static java.util.concurrent.CompletableFuture.completedStage;
 
@@ -40,6 +41,7 @@ public interface MonitoringEndpoint extends BaseEndpoint {
         try {
             return unsafeHandle(request);
         } catch (final Exception re) {
+            Logger.getLogger(getClass().getName()).log(java.util.logging.Level.SEVERE, re, re::getMessage);
             return fail(re.getMessage());
         }
     }

@@ -57,7 +57,7 @@ public class DirectorySource implements ConfigurationSource {
                     })
                     .filter(Objects::nonNull)
                     .filter(e -> filter.test(e.getKey()))
-                    .collect(toMap(e -> keyMapper.apply(e.getKey()), Map.Entry::getValue)));
+                    .collect(toMap(e -> keyMapper.apply(e.getKey()), Map.Entry::getValue, (a, b) -> a)));
         } catch (final IOException e) {
             Logger.getLogger(getClass().getName()).log(Level.FINER, e, e::getMessage);
         }
