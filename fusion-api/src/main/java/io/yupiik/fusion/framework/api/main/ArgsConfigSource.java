@@ -23,9 +23,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 
 // tolerate `--key value`, `key value`, `-key value` but also the same with equals (single arg) `--key=value`.
 public class ArgsConfigSource implements ConfigurationSource {
@@ -56,6 +58,13 @@ public class ArgsConfigSource implements ConfigurationSource {
     }
 
     private void handle(final String sanitizedKey, final String value) {
+        handle(sanitizedKey, value, new HashSet<>());
+    }
+
+    private void handle(final String sanitizedKey, final String value, final Set<String> visited) {
+        if (!visited.add(sanitizedKey)) {
+            return;
+        }
         if (sanitizedKey.startsWith("fusion-properties")) {
             final var path = Path.of(value);
             final var props = new Properties();
@@ -64,7 +73,7 @@ public class ArgsConfigSource implements ConfigurationSource {
             } catch (final IOException e) {
                 throw new IllegalStateException(e);
             }
-            props.stringPropertyNames().forEach(k -> handle(k, props.getProperty(k)));
+            props.stringPropertyNames().forEach(k -> handle(k, props.getProperty(k), visited));
         } else {
             this.args.computeIfAbsent(sanitizedKey, in -> new ArrayList<>()).add(value);
         }

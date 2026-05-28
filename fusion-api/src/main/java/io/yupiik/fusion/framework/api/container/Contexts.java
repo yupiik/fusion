@@ -48,7 +48,8 @@ public class Contexts implements AutoCloseable {
     public void close() {
         final var error = new IllegalStateException("Can't close the contexts properly");
         contexts.values().stream()
-                .map(Optional::orElseThrow)
+                .filter(Optional::isPresent)
+                .map(Optional::get)
                 .filter(AutoCloseable.class::isInstance)
                 .map(AutoCloseable.class::cast)
                 .sorted(comparing(it -> it.getClass().getName())) // be deterministic

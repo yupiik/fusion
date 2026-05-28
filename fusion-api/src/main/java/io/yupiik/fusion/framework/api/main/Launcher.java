@@ -40,7 +40,12 @@ public class Launcher implements AutoCloseable {
                 .register(new ProvidedInstanceBean<>(DefaultScoped.class, Args.class, () -> new Args(List.of(args))))
                 .register(new ProvidedInstanceBean<>(DefaultScoped.class, ArgsConfigSource.class, () -> new ArgsConfigSource(prepareArgs(args)))))
                 .start();
-        awaiters = lookupAwaiters();
+        try {
+            awaiters = lookupAwaiters();
+        } catch (final RuntimeException e) {
+            container.close();
+            throw e;
+        }
     }
 
     protected List<String> prepareArgs(final String[] args) {

@@ -45,6 +45,7 @@ public class CapturingHttpServer implements AutoCloseable {
     private static final Lock RANDOM_PORT_LOCK = new ReentrantLock();
 
     private final HttpServer server;
+    // unbounded list - test infra, use with care for long-running tests
     private final List<Request> requests = new CopyOnWriteArrayList<>();
 
     public CapturingHttpServer(final Consumer<HighLevelApi> spec) {
@@ -135,7 +136,9 @@ public class CapturingHttpServer implements AutoCloseable {
             handler.accept(
                     (status, headers, body) -> {
                         final var bytes = body.publisher();
-                        headers.forEach(e.getResponseHeaders()::add);
+                        if (headers != null) {
+                            headers.forEach(e.getResponseHeaders()::add);
+                        }
                         try {
                             final long responseLength = bytes.contentLength();
                             e.sendResponseHeaders(status, Math.max(0, responseLength));
@@ -168,7 +171,9 @@ public class CapturingHttpServer implements AutoCloseable {
                                 @Override
                                 public void onError(final Throwable throwable) {
                                     LOGGER.log(SEVERE, throwable, throwable::getMessage);
-                                    subscription.cancel();
+                                    if (subscription != null) {
+                                        subscription.cancel();
+                                    }
                                     e.close();
                                 }
 

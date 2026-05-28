@@ -68,7 +68,7 @@ public class BeanGenerator extends BaseGenerator implements Supplier<BaseGenerat
         final var preDestroy = callMethodsWithMarker(element, destroy);
         final var constructorInjections = constructorInjectionsFor(element);
 
-        final var out = new StringBuilder();
+        final var out = new StringBuilder(2048);
         if (!packageName.isBlank()) {
             out.append("package ").append(packageName).append(";\n\n");
         }

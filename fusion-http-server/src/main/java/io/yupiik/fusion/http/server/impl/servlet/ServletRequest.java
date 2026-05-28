@@ -35,6 +35,7 @@ public class ServletRequest implements Request {
     private final HttpServletRequest delegate;
     private String uri;
     private List<Cookie> cookies;
+    private Map<String, List<String>> headers;
 
     public ServletRequest(final HttpServletRequest delegate) {
         this.delegate = delegate;
@@ -112,12 +113,15 @@ public class ServletRequest implements Request {
 
     @Override
     public Map<String, List<String>> headers() {
-        return list(delegate.getHeaderNames()).stream()
-                .collect(toMap(
-                        identity(),
-                        k -> list(delegate.getHeaders(k)),
-                        (a, b) -> a,
-                        () -> new TreeMap<String, List<String>>(String.CASE_INSENSITIVE_ORDER)));
+        if (headers == null) {
+            headers = list(delegate.getHeaderNames()).stream()
+                    .collect(toMap(
+                            identity(),
+                            k -> list(delegate.getHeaders(k)),
+                            (a, b) -> a,
+                            () -> new TreeMap<String, List<String>>(String.CASE_INSENSITIVE_ORDER)));
+        }
+        return headers;
     }
 
     @Override

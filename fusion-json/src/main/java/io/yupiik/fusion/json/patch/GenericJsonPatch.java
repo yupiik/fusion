@@ -46,8 +46,8 @@ public class GenericJsonPatch implements Function<Object, Object> {
         return switch (op.spec.op()) {
             case add -> op.pathPointer.add(current, op.spec.value());
             case remove -> op.pathPointer.remove(current);
-            case copy -> op.pathPointer.add(op.fromPointer.remove(current), op.fromPointer.apply(current));
-            case move -> op.pathPointer.add(current, op.fromPointer.apply(current));
+            case copy -> op.pathPointer.add(current, op.fromPointer.apply(current));
+            case move -> op.pathPointer.add(op.fromPointer.remove(current), op.fromPointer.apply(current));
             case replace -> op.pathPointer.add(op.pathPointer.remove(current), op.spec.value());
             case test -> doTest(op, current);
         };

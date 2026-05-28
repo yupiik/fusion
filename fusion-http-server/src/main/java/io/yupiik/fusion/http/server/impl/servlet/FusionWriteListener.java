@@ -41,7 +41,7 @@ public class FusionWriteListener implements WriteListener {
     private final CompletableFuture<Void> result;
 
     private Flow.Subscription subscription;
-    private boolean closed = false;
+    private volatile boolean closed = false;
     private final List<IORunnable> events = new ArrayList<>();
     private final Lock lock = new ReentrantLock();
     private final AtomicBoolean looping = new AtomicBoolean();
@@ -119,6 +119,7 @@ public class FusionWriteListener implements WriteListener {
     }
 
     private void doClose() {
+        lock.lock();
         try {
             if (closed) {
                 return;
@@ -128,11 +129,14 @@ public class FusionWriteListener implements WriteListener {
             result.complete(null);
         } catch (final IOException e) {
             handleError(e);
+        } finally {
+            lock.unlock();
         }
     }
 
     private void handleError(final Throwable throwable) {
         LOGGER.log(SEVERE, throwable, throwable::getMessage);
+        lock.lock();
         try {
             if (closed) {
                 return;
@@ -151,6 +155,7 @@ public class FusionWriteListener implements WriteListener {
             if (!result.isDone()) {
                 result.completeExceptionally(throwable);
             }
+            lock.unlock();
         }
     }
 

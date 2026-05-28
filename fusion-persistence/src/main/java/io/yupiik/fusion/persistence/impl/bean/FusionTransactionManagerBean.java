@@ -36,7 +36,9 @@ public class FusionTransactionManagerBean extends BaseBean<TransactionManager> {
 
     @Override
     public TransactionManager create(final RuntimeContainer container, final List<Instance<?>> dependents) {
-        final var dataSource = lookup(container, DataSource.class, dependents);
+        final var dataSourceInstance = container.lookup(DataSource.class);
+        dependents.add(dataSourceInstance);
+        final var dataSource = dataSourceInstance.instance();
         try (final var conf = container.lookup(Configuration.class)) {
             return new SimpleTransactionManager(task -> {
                 Connection conRef = null;

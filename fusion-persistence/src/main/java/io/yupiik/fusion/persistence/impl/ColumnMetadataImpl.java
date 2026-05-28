@@ -71,7 +71,7 @@ public class ColumnMetadataImpl implements Entity.ColumnMetadata {
 
     @Override
     public String toAliasName(final String alias) {
-        return alias.isEmpty() ?
+        return alias == null || alias.isEmpty() ?
                 javaName() :
                 (alias + Character.toUpperCase(javaName.charAt(0)) + (javaName.length() == 1 ? "" : javaName.substring(1)));
     }

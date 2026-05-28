@@ -31,6 +31,7 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
@@ -85,6 +86,7 @@ public class RuntimeContainerImpl implements RuntimeContainer {
     @Override
     @SuppressWarnings("unchecked")
     public <T> Instance<T> lookup(final Type inType) {
+        Objects.requireNonNull(inType, "type must not be null");
         final Type type;
         final boolean optional;
         if (inType instanceof ParameterizedType pt && pt.getRawType() == Optional.class) {

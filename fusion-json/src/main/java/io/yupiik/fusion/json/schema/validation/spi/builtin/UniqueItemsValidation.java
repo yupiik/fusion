@@ -45,8 +45,13 @@ public class UniqueItemsValidation implements ValidationExtension {
         protected Stream<ValidationResult.ValidationError> onArray(final Collection<?> array) {
             final var uniques = new HashSet<>(array);
             if (array.size() != uniques.size()) {
-                final Collection<Object> duplicated = new ArrayList<>(array);
-                duplicated.removeAll(uniques);
+                final var seen = new HashSet<>();
+                final var duplicated = new ArrayList<>();
+                for (final var item : array) {
+                    if (!seen.add(item)) {
+                        duplicated.add(item);
+                    }
+                }
                 return Stream.of(new ValidationResult.ValidationError(pointer, "duplicated items: " + duplicated));
             }
             return Stream.empty();

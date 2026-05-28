@@ -35,8 +35,9 @@ import static java.util.Optional.ofNullable;
 
 public class ServletBody implements Body {
     private final HttpServletRequest request;
-    private boolean cached = false;
-    private CompletableFuture<byte[]> body = null;
+    private volatile boolean cached = false;
+    private volatile CompletableFuture<byte[]> body = null;
+    private volatile boolean subscribed = false;
 
     public ServletBody(final HttpServletRequest delegate) {
         this.request = delegate;
@@ -44,6 +45,11 @@ public class ServletBody implements Body {
 
     @Override
     public void subscribe(final Flow.Subscriber<? super ByteBuffer> subscriber) {
+        if (subscribed) {
+            subscriber.onError(new IllegalStateException("Already subscribed"));
+            return;
+        }
+        subscribed = true;
         try {
             final var pool = request.getAttribute(ByteBufferPool.class.getName());
             subscriber.onSubscribe(new ServletInputStreamSubscription(

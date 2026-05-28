@@ -21,6 +21,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class QueryCompiler {
+    private static final int MAX_QUERIES = 1024;
+
     private final DatabaseImpl database;
     private final Map<QueryKey<?>, CompiledQuery> queries = new ConcurrentHashMap<>();
 
@@ -30,6 +32,9 @@ public class QueryCompiler {
 
     @SuppressWarnings("unchecked")
     public <T> CompiledQuery<T> getOrCreate(final QueryKey<T> key) {
+        if (queries.size() >= MAX_QUERIES) {
+            queries.clear();
+        }
         return queries.computeIfAbsent(key, this::compute);
     }
 

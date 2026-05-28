@@ -160,7 +160,16 @@ public class TomcatWebServer implements WebServer {
             configuration.getTomcatCustomizers().forEach(c -> c.accept(tomcat));
         }
 
-        onTomcat(tomcat);
+        try {
+            onTomcat(tomcat);
+        } catch (final RuntimeException e) {
+            try {
+                tomcat.destroy();
+            } catch (final LifecycleException ex) {
+                // no-op
+            }
+            throw e;
+        }
 
         try {
             tomcat.init();
@@ -373,6 +382,8 @@ public class TomcatWebServer implements WebServer {
     }
 
     public static class FastSessionIdGenerator extends StandardSessionIdGenerator {
+        // intentionally fast but not cryptographically secure - use SecureRandom if security is needed
+        // and set isFastSessionId to false in TomcatWebServerConfiguration (or override getRandomBytes)
         @Override
         protected void getRandomBytes(final byte[] bytes) {
             ThreadLocalRandom.current().nextBytes(bytes);

@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
 import static java.util.Comparator.comparing;
@@ -35,7 +36,7 @@ public class Listeners {
     private final Map<Type, List<FusionListener<?>>> listeners = new HashMap<>();
 
     // runtime - sorted and hierarchy resolved
-    private final Map<Type, List<FusionListener<?>>> runtimeListeners = new HashMap<>();
+    private final Map<Type, List<FusionListener<?>>> runtimeListeners = new ConcurrentHashMap<>();
 
     public void doRegister(final FusionListener<?>... listeners) {
         Stream.of(listeners)
@@ -53,7 +54,10 @@ public class Listeners {
         if (listeners == null) {
             listeners = resolveListeners(type);
             if (type != Start.class && type != Stop.class) { // no need to cache there
-                runtimeListeners.put(type, listeners);
+                final var existing = runtimeListeners.putIfAbsent(type, listeners);
+                if (existing != null) {
+                    listeners = existing;
+                }
             }
         }
         listeners.forEach(l -> ((FusionListener) l).onEvent(container, event));

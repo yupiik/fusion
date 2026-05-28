@@ -201,11 +201,14 @@ public class JsonMapperImpl implements JsonMapper {
                     return;
                 }
 
-                final var entry = map.entrySet().stream()
-                        .filter(it -> it.getValue() != null)
-                        .findFirst()
-                        .orElse(null);
-                if (entry != null && entry.getKey() instanceof String && entry.getValue() != null) {
+                Map.Entry<?, ?> entry = null;
+                for (final var e : map.entrySet()) {
+                    if (e.getValue() != null) {
+                        entry = e;
+                        break;
+                    }
+                }
+                if (entry != null && entry.getKey() instanceof String) {
                     if (entry.getValue() instanceof Map<?, ?>) { // consider it is just an object
                         final JsonCodec jsonCodec = codecs.get(Object.class);
                         jsonCodec.write(map, newSerializationContext(writer));
@@ -214,7 +217,7 @@ public class JsonMapperImpl implements JsonMapper {
 
                     final var itemClass = entry.getValue().getClass();
                     // if at least one element does not match the type of the first item don't optimise it and go through object codec
-                    if (map.values().stream().filter(Objects::nonNull).anyMatch(it -> !itemClass.isInstance(it))) {
+                    if (anyValueNotInstanceOf(map, itemClass)) {
                         final JsonCodec jsonCodec = codecs.get(Object.class);
                         jsonCodec.write(map, newSerializationContext(writer));
                         return;
@@ -263,7 +266,7 @@ public class JsonMapperImpl implements JsonMapper {
                 wrapped.write('{');
                 while (keys.hasNext()) {
                     wrapped.write('"');
-                    wrapped.write(JsonStrings.escapeChars(String.valueOf(keys.hasNext())));
+                    wrapped.write(JsonStrings.escapeChars(String.valueOf(keys.next())));
                     wrapped.write('"');
                     wrapped.write(':');
                     wrapped.write('n');
@@ -357,7 +360,7 @@ public class JsonMapperImpl implements JsonMapper {
                         codecs.putIfAbsent(wrapper.type(), wrapper);
                         return (A) wrapper.read(new JsonCodec.DeserializationContext(reader, this::codecLookup));
                     }
-                    if (rawClass == Set.class && pt.getActualTypeArguments().length == 2) {
+                    if (rawClass == Set.class && pt.getActualTypeArguments().length == 1) {
                         final var delegate = codecs.get(pt.getActualTypeArguments()[0]);
                         if (delegate == null) {
                             throw missingCodecException(pt.getActualTypeArguments()[0]);
@@ -423,6 +426,15 @@ public class JsonMapperImpl implements JsonMapper {
 
     private IllegalStateException missingCodecException(final Type type) {
         return new IllegalStateException("No codec for '" + type.getTypeName() + "', did you forget to mark it @JsonModel");
+    }
+
+    private boolean anyValueNotInstanceOf(final Map<?, ?> map, final Class<?> itemClass) {
+        for (final var v : map.values()) {
+            if (v != null && !itemClass.isInstance(v)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private ExtendedWriter wrap(final Writer writer) {

@@ -1504,7 +1504,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
 
                 start = next + "\"$id\":\"".length();
                 final int end = content.indexOf("\"", start);
-                if (start <= next) {
+                if (end < 0) {
                     return out.stream();
                 }
 

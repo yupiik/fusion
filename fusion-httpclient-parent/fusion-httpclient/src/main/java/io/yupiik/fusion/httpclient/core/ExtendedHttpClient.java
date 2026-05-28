@@ -24,6 +24,7 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -35,7 +36,7 @@ import static java.util.Optional.ofNullable;
 public class ExtendedHttpClient extends DelegatingHttpClient implements AutoCloseable {
     private final AtomicLong requestCounter;
     private final List<RequestListener<?>> listeners = new ArrayList<>();
-    private final List<Consumer<ExtendedHttpClient>> onClose = new ArrayList<>();
+    private final List<Consumer<ExtendedHttpClient>> onClose = new CopyOnWriteArrayList<>();
     private final boolean isChild;
 
     public ExtendedHttpClient(final ExtendedHttpClientConfiguration clientConfiguration) {

@@ -21,18 +21,16 @@ import io.yupiik.fusion.persistence.api.PersistenceException;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
 import static java.util.Locale.ROOT;
-import static java.util.Map.entry;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toList;
-import static java.util.stream.Collectors.toMap;
 
 public class DefaultBaseDatabase implements BaseDatabase {
     protected final Function<Class<?>, Object> instanceLookup;
@@ -112,13 +110,17 @@ public class DefaultBaseDatabase implements BaseDatabase {
     }
 
     protected Map<String, ?> mapAsMap(final List<String> names, final ResultSet line) {
-        return names.stream().flatMap(it -> {
+        final var result = new HashMap<String, Object>();
+        for (final var name : names) {
             try {
-                final var object = line.getObject(it);
-                return object == null ? Stream.empty() : Stream.of(entry(it, object));
+                final var object = line.getObject(name);
+                if (object != null) {
+                    result.put(name, object);
+                }
             } catch (final SQLException e) {
                 throw new PersistenceException(e);
             }
-        }).collect(toMap(Map.Entry::getKey, Map.Entry::getValue));
+        }
+        return result;
     }
 }

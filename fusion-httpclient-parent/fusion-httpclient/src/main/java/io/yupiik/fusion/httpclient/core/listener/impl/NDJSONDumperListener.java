@@ -54,7 +54,9 @@ public class NDJSONDumperListener extends BaseHARDumperListener implements AutoC
 
     @Override
     public void close() throws Exception {
-        stream.close();
+        if (stream != null) {
+            stream.close();
+        }
         configuration.logger.info(() -> "Dumped ND-JSON to '" + configuration.output + "'");
     }
 

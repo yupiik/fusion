@@ -53,7 +53,7 @@ public final class Asserts {
             return thread;
         }) : es;
         final var time = clock == null ? Clock.systemUTC() : clock;
-        final var end = clock.instant().plusMillis(maxMs);
+        final var end = time.instant().plusMillis(maxMs);
         final var result = new CompletableFuture<Void>();
         doWaitUntil(predicate, retryPauseMs, time, end, result, scheduler);
         if (es == null) {

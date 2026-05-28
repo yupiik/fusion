@@ -96,7 +96,7 @@ public abstract class BaseGenerator {
 
     protected String metadata(final Element element, final Map<String, String> custom) {
         final var meta = element.getAnnotationsByType(BeanMetadata.class);
-        final var customMeta = metadataContributorRegistry.compute(element);
+        final var customMeta = metadataContributorRegistry != null ? metadataContributorRegistry.compute(element) : Map.<String, String>of();
         if (meta == null && custom.isEmpty() && customMeta.isEmpty()) {
             return Map.class.getName() + ".of()";
         }
@@ -395,7 +395,7 @@ public abstract class BaseGenerator {
     protected String templateBound(final TypeVariable type) {
         String out = "";
 
-        final var lowerBound = type.getUpperBound() == null ? null : ParsedType.of(type.getLowerBound());
+        final var lowerBound = type.getLowerBound() == null ? null : ParsedType.of(type.getLowerBound());
         if (lowerBound != null &&
                 lowerBound.type() == ParsedType.Type.CLASS &&
                 !"null".equals(lowerBound.className()) && // ECJ

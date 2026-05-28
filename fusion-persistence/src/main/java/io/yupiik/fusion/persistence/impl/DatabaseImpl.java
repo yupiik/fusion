@@ -72,8 +72,10 @@ public class DatabaseImpl extends DefaultBaseDatabase implements Database, Conte
     @Override
     @SuppressWarnings("unchecked")
     public <T> List<T> query(final Connection connection, final Class<T> type, final String sql, final Consumer<StatementBinder> binder) {
+        requireNonNull(connection, "connection must not be null");
         requireNonNull(type, "can't query without a projection");
         requireNonNull(sql, "can't query without a query");
+        requireNonNull(binder, "can't query without a binder");
         final var compiledQuery = queryCompiler.getOrCreate(new QueryKey<>(type, sql));
         try (final var query = compiledQuery.apply(connection)) {
             binder.accept(query);
@@ -103,6 +105,7 @@ public class DatabaseImpl extends DefaultBaseDatabase implements Database, Conte
     @Override
     @SuppressWarnings("unchecked")
     public <T> Optional<T> querySingle(final Connection connection, final Class<T> type, final String sql, final Consumer<StatementBinder> binder) {
+        requireNonNull(connection, "connection must not be null");
         requireNonNull(type, "can't query without a projection");
         requireNonNull(sql, "can't query without a query");
         final var compiledQuery = queryCompiler.getOrCreate(new QueryKey<>(type, sql));
@@ -142,6 +145,8 @@ public class DatabaseImpl extends DefaultBaseDatabase implements Database, Conte
     public <T> T query(final Connection connection, final String sql,
                        final Consumer<StatementBinder> binder,
                        final Function<ResultSetWrapper, T> resultSetMapper) {
+        requireNonNull(connection, "connection must not be null");
+        requireNonNull(binder, "can't query without a binder");
         requireNonNull(resultSetMapper, "can't query without a resultset handler");
         requireNonNull(sql, "can't query without a query");
         try (final var query = queryCompiler.getOrCreate(new QueryKey<>(Object.class, sql)).apply(connection)) {
@@ -169,6 +174,7 @@ public class DatabaseImpl extends DefaultBaseDatabase implements Database, Conte
 
     @Override
     public int execute(final Connection connection, final String sql, final Consumer<StatementBinder> binder) {
+        requireNonNull(connection, "connection must not be null");
         requireNonNull(binder, "can't execute without a binder");
         requireNonNull(sql, "can't execute without a query");
         try (final var query = queryCompiler.getOrCreate(new QueryKey<>(Object.class, sql)).apply(connection)) {
@@ -192,6 +198,7 @@ public class DatabaseImpl extends DefaultBaseDatabase implements Database, Conte
 
     @Override
     public int[] batch(final Connection connection, final String sql, final Iterator<Consumer<StatementBinder>> binders) {
+        requireNonNull(connection, "connection must not be null");
         requireNonNull(binders, "can't bind without binders");
         requireNonNull(sql, "can't execute bulk without a statement");
         try (final var stmt = new StatementBinderImpl(this, sql, connection)) {
@@ -219,6 +226,7 @@ public class DatabaseImpl extends DefaultBaseDatabase implements Database, Conte
 
     @Override
     public <T> int[] batchInsert(final Connection connection, final Class<T> type, final Iterator<T> instances) {
+        requireNonNull(connection, "connection must not be null");
         requireNonNull(type, "no type set");
         requireNonNull(instances, "no instances set");
         final var model = entity(type);
@@ -248,6 +256,7 @@ public class DatabaseImpl extends DefaultBaseDatabase implements Database, Conte
 
     @Override
     public <T> int[] batchUpdate(final Connection connection, final Class<T> type, final Iterator<T> instances) {
+        requireNonNull(connection, "connection must not be null");
         requireNonNull(type, "no type set");
         requireNonNull(instances, "no instances set");
         final var model = entity(type);
@@ -277,6 +286,7 @@ public class DatabaseImpl extends DefaultBaseDatabase implements Database, Conte
 
     @Override
     public <T> int[] batchDelete(final Connection connection, final Class<T> type, final Iterator<T> instances) {
+        requireNonNull(connection, "connection must not be null");
         requireNonNull(type, "no type set");
         requireNonNull(instances, "no instances set");
         final var model = entity(type);
@@ -307,6 +317,7 @@ public class DatabaseImpl extends DefaultBaseDatabase implements Database, Conte
     @Override
     @SuppressWarnings("unchecked")
     public <T> T insert(final Connection connection, final T instance) {
+        requireNonNull(connection, "connection must not be null");
         requireNonNull(instance, "can't persist a null instance");
         final var model = (Entity<T, ?>) entity(instance.getClass());
         final var insertQuery = model.getInsertQuery();
@@ -336,6 +347,7 @@ public class DatabaseImpl extends DefaultBaseDatabase implements Database, Conte
     @Override
     @SuppressWarnings("unchecked")
     public <T> T update(final Connection connection, final T instance) {
+        requireNonNull(connection, "connection must not be null");
         requireNonNull(instance, "can't update a null instance");
         final Class<T> aClass = (Class<T>) instance.getClass();
         final var model = entity(aClass);
@@ -363,6 +375,7 @@ public class DatabaseImpl extends DefaultBaseDatabase implements Database, Conte
     @Override
     @SuppressWarnings("unchecked")
     public <T> T delete(final Connection connection, final T instance) {
+        requireNonNull(connection, "connection must not be null");
         requireNonNull(instance, "can't delete a null instance");
         final Class<T> aClass = (Class<T>) instance.getClass();
         final var model = entity(aClass);
@@ -389,6 +402,7 @@ public class DatabaseImpl extends DefaultBaseDatabase implements Database, Conte
 
     @Override
     public <T, ID> T findById(final Connection connection, final Class<T> type, final ID id) {
+        requireNonNull(connection, "connection must not be null");
         requireNonNull(type, "can't find an instance without a type");
         final var model = entity(type);
         try (final var stmt = connection.prepareStatement(model.getFindByIdQuery())) {
@@ -420,6 +434,7 @@ public class DatabaseImpl extends DefaultBaseDatabase implements Database, Conte
 
     @Override
     public <T> long countAll(final Connection connection, final Class<T> type, final String whereClause, final Consumer<StatementBinder> binder) {
+        requireNonNull(connection, "connection must not be null");
         requireNonNull(type, "can't count instances without a type");
         final var model = entity(type);
         final var compiledQuery = queryCompiler.getOrCreate(
@@ -450,6 +465,7 @@ public class DatabaseImpl extends DefaultBaseDatabase implements Database, Conte
     @Override
     @SuppressWarnings("unchecked")
     public <T> List<T> findAll(final Connection connection, final Class<T> type, final String whereClause, final Consumer<StatementBinder> binder) {
+        requireNonNull(connection, "connection must not be null");
         requireNonNull(type, "can't find instances without a type");
         final var model = entity(type);
         final var compiledQuery = queryCompiler.getOrCreate(

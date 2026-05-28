@@ -77,7 +77,7 @@ public abstract class BaseHARDumperListener implements RequestListener<BaseHARDu
                 null,
                 configuration.enableTime ? Duration.between(state.instant, configuration.clock.instant()).toMillis() : null,
                 toRequest(request, state.requestPayload),
-                toResponse(response),
+                response != null ? toResponse(response) : null,
                 null, null, null, null, ""));
     }
 

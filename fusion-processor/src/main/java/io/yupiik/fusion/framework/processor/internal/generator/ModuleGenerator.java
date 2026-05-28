@@ -47,7 +47,7 @@ public class ModuleGenerator extends BaseGenerator implements Supplier<BaseGener
 
     @Override
     public GeneratedClass get() {
-        final var out = new StringBuilder();
+        final var out = new StringBuilder(2048);
 
         if (!packageName.isBlank()) {
             out.append("package ").append(packageName).append(";\n");

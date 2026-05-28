@@ -270,7 +270,9 @@ public class TestClient implements AutoCloseable {
                 return new ExtendedHttpClient(new ExtendedHttpClientConfiguration()
                         .setDelegate(client)
                         .setRequestListeners(List.of(new ExchangeLogger(Logger.getLogger(TestClient.class.getName()), systemUTC(), true))));
-            } catch (final Throwable t) {
+            } catch (final Error e) {
+                throw e;
+            } catch (final Exception t) {
                 return client;
             }
         }

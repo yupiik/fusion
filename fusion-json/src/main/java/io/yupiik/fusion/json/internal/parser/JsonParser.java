@@ -133,7 +133,6 @@ public class JsonParser implements Parser {
         buffers.add(current);
         fallBackCopyBufferLength = 0;
         fallBackCopyBuffer = bufferProvider.newBuffer();
-        System.arraycopy(current.value(), 0, fallBackCopyBuffer, 0, fallBackCopyBufferLength);
         if (startOfValueInBuffer != -1) {
             System.arraycopy(buffer, startOfValueInBuffer, fallBackCopyBuffer, fallBackCopyBufferLength, length);
         }

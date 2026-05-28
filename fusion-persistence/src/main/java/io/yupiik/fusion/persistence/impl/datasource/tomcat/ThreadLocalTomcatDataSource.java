@@ -104,10 +104,12 @@ public class ThreadLocalTomcatDataSource extends TomcatDataSource {
     }
 
     private record ThreadLocalConnection(Connection connection) implements Connection, Wrapper {
+        private static final java.util.logging.Logger LOGGER = java.util.logging.Logger.getLogger(ThreadLocalConnection.class.getName());
+
         @Override
         public void close() {
-            // skipped
-            // connection.close();
+            LOGGER.warning("close() called on ThreadLocalConnection - lifecycle managed by ThreadLocalTomcatDataSource");
+            // skipped - connection lifecycle is managed by ThreadLocalTomcatDataSource
         }
 
         @Override

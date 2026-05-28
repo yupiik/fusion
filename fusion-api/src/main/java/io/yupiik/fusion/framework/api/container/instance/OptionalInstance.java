@@ -27,7 +27,7 @@ public class OptionalInstance<A> implements Instance<Optional<A>> {
 
     public OptionalInstance(final Instance<A> delegate) {
         this.delegate = delegate;
-        this.bean = new OptionalBean<>(delegate.bean());
+        this.bean = delegate.bean() != null ? new OptionalBean<>(delegate.bean()) : null;
     }
 
     @Override
@@ -37,7 +37,7 @@ public class OptionalInstance<A> implements Instance<Optional<A>> {
 
     @Override
     public Optional<A> instance() {
-        return Optional.of(delegate.instance());
+        return Optional.ofNullable(delegate.instance());
     }
 
     @Override
