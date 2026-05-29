@@ -20,6 +20,7 @@ import io.yupiik.fusion.framework.api.configuration.ConfigurationSource;
 import io.yupiik.fusion.framework.api.container.configuration.source.DirectorySource;
 import io.yupiik.fusion.framework.api.container.configuration.source.EnvironmentSource;
 import io.yupiik.fusion.framework.api.container.configuration.source.SystemPropertiesSource;
+import io.yupiik.fusion.framework.api.event.Emitter;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -37,15 +38,23 @@ import java.util.stream.Stream;
 import static java.util.Locale.ROOT;
 import static java.util.Optional.ofNullable;
 import static java.util.function.Function.identity;
+import static java.util.stream.Collectors.toList;
 
 public class ConfigurationImpl implements Configuration {
     private final List<ConfigurationSource> sources;
 
     public ConfigurationImpl(final List<ConfigurationSource> sources) {
+        this(sources, null);
+    }
+
+    public ConfigurationImpl(final List<ConfigurationSource> sources, final Emitter emitter) {
         this.sources = Stream.concat(
                         sources.stream(),
                         defaultSources())
-                .toList();
+                .collect(toList());
+        if (emitter != null) {
+            emitter.emit(new ConfigurationRegistration(this, this.sources::add));
+        }
     }
 
     private static Stream<ConfigurationSource> defaultSources() {

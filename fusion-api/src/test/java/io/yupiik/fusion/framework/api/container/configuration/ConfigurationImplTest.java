@@ -15,6 +15,8 @@
  */
 package io.yupiik.fusion.framework.api.container.configuration;
 
+import io.yupiik.fusion.framework.api.configuration.ConfigurationSource;
+import io.yupiik.fusion.framework.api.event.Emitter;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.api.parallel.ResourceAccessMode;
@@ -55,5 +57,30 @@ public class ConfigurationImplTest {
         Files.writeString(work.resolve("_fusion.secrets.configuration.properties"), "folder.name.mode=concat");
         final var configuration = new ConfigurationImpl(List.of());
         assertEquals("some", configuration.get(work.getFileName() + ".test").orElse(null));
+    }
+
+    @Test
+    void addSource() throws IOException {
+        final var matchedKey1 = "ConfigurationImplTest.addSource1";
+        final var matchedKey2 = "ConfigurationImplTest.addSource2";
+        final var configuration = new ConfigurationImpl(List.of(new ConfigurationSource() {
+            @Override
+            public String get(final String key) {
+                return key.equals(matchedKey1) ? "!" : null;
+            }
+        }), new Emitter() {
+            @Override
+            public <T> void emit(final T event) {
+                if (event instanceof ConfigurationRegistration registration) {
+                    registration.addSource().accept(new ConfigurationSource() {
+                        @Override
+                        public String get(final String key) {
+                            return key.equals(matchedKey2) ? "done" + registration.configuration().get(matchedKey1).orElseThrow() : null;
+                        }
+                    });
+                }
+            }
+        });
+        assertEquals("done!", configuration.get(matchedKey2).orElse(null));
     }
 }
