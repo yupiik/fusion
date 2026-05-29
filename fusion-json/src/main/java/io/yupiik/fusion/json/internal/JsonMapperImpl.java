@@ -85,7 +85,8 @@ public class JsonMapperImpl implements JsonMapper {
         this(jsonCodecs, configuration, createReaderParserFunction(configuration));
     }
 
-    public JsonMapperImpl(final Collection<JsonCodec<?>> jsonCodecs, final Configuration configuration,
+    public JsonMapperImpl(final Collection<JsonCodec<?>> jsonCodecs,
+                          final Configuration configuration,
                           final Function<Reader, Parser> readerParserFunction) {
         this.parserFactory = readerParserFunction;
         this.serializeNulls = false;

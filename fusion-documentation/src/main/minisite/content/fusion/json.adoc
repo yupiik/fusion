@@ -190,7 +190,7 @@ import io.yupiik.fusion.json.JsonMapper;
 import io.yupiik.fusion.json.pretty.PrettyJsonMapper;
 
 @Bean
-public class MyService {
+public class MyClass {
 
     @Injection
     JsonMapper jsonMapper;
@@ -202,3 +202,133 @@ public class MyService {
 }
 ----
 <.> use the injected `jsonMapper` to create the instance of the PrettyJsonMapper.
+
+== JsonConfigurationSource
+
+`JsonConfigurationSource` is a `ConfigurationSource` that reads a JSON document and flattens it into a `Map<String, String>` accessible via dot-notation keys. It uses the generic `Object` mapping (`JsonMapper.fromString(Object.class, ...)`) to parse the JSON and then recursively flattens the result.
+The goal is to be able to register a custom JSON resource which serve as Yupiik Fusion `ConfigurationSource` - backing `Configuration` API.
+
+=== Creating a JsonConfigurationSource
+
+Use `ReaderSupplier` to load the JSON from a classpath resource, file, or inline reader:
+
+[source,java]
+----
+import io.yupiik.fusion.framework.api.io.ReaderSupplier;
+import io.yupiik.fusion.json.configuration.JsonConfigurationSource;
+
+// from classpath
+final var source = new JsonConfigurationSource(
+    ReaderSupplier.fromClasspath("config.json"));
+
+// from a file
+final var source = new JsonConfigurationSource(
+    ReaderSupplier.fromFile(Path.of("/etc/app/config.json")));
+
+// from a file
+final var source = new JsonConfigurationSource(
+    ReaderSupplier.fromInline("{\"my\":\"content\"}");
+
+// from a resource or file with a default
+final var source = new JsonConfigurationSource(
+    ReaderSupplier.from("config.json", "{\"myDefaultPort\": 8080}"));
+----
+
+=== Flattening rules
+
+The JSON structure is flattened as follows:
+
+* **Primitive values** (`Boolean`, `String`, `BigDecimal`) are stored directly as strings at the current path.
+* **Maps** (JSON objects) are flattened as bean properties: each key becomes a path segment using dot-notation. Nested objects are recursively flattened.
+* **Collections** (JSON arrays) of primitives are serialized as comma-separated values. Collections of objects use a `.length` key and indexed children (`path.0.xxx`, `path.1.xxx`, ...).
+* **`$asList`** attribute on a map changes the flattening to use the list convention (`path.length`, `path.N.key`, `path.N.value`), which matches the `Map<String, V>` reading pattern in `ConfigurationFactoryGenerator`. When all values are primitives, the map is serialized as a `Properties`-format string. This enables to comply to `Map<String, Object>` handling of the configuration mapper.
+
+=== Examples
+
+==== Objects
+
+[source,java]
+----
+final var source = new JsonConfigurationSource(mapper,
+    () -> new StringReader("""
+        {"server": {"host": "localhost", "port": 8080}}
+        """));
+
+source.get("server.host"); // "localhost"
+source.get("server.port"); // "8080"
+----
+
+=== Collections
+
+[source,java]
+----
+final var source = new JsonConfigurationSource(mapper,
+    () -> new StringReader("""
+        {"tags": ["tag1", "tag2"], "items": [{"name": "a"}, {"name": "b"}]}
+        """));
+
+// primitive collection → CSV
+source.get("tags"); // "tag1, tag2"
+
+// object collection → length + indexed children
+source.get("items.length"); // "2"
+source.get("items.0.name"); // "a"
+source.get("items.1.name"); // "b"
+----
+
+=== Map support with $asList
+
+When a JSON object represents a `Map<String, V>`, mark it with `"$asList": true`:
+
+[source,java]
+----
+final var source = new JsonConfigurationSource(mapper,
+    () -> new StringReader("""
+        {
+          "config": {
+            "$asList": true,
+            "key1": {"enabled": true},
+            "key2": {"enabled": false}
+          }
+        }
+        """));
+
+source.get("config.length");      // "2"
+source.get("config.0.key");       // "key1"
+source.get("config.0.value.enabled"); // "true"
+source.get("config.1.key");       // "key2"
+source.get("config.1.value.enabled"); // "false"
+----
+
+For `Map<String, String>` with `$asList`, all-primitive values are serialized as a `Properties`-format string:
+
+[source,java]
+----
+final var source = new JsonConfigurationSource(mapper,
+    () -> new StringReader("""
+        {"metadata": {"$asList": true, "dc": "us-east", "env": "prod"}}
+        """));
+
+// uses Properties.store() format, readable by Properties.load()
+final var value = source.get("metadata"); // contains "dc=us-east" and "env=prod" - 2 lines
+----
+
+=== Registration
+
+Since `ConfigurationSource` are just plain bean you can create a method marked with `@Bean` and return your instance of `JsonConfigurationSource`.
+
+IMPORTANT: if you do use `Configuration` anywhere before your enclosing class and method is called, it will ignore your `ConfigurationSource` until you do re-register the `Configuration` instance or invalidate its singleton cache.
+
+An alternative to avoid that is to register the configuration source in a listener, listening for `ConfigurationRegistration` event:
+
+[source,java]
+----
+public class MyListener {
+    public void onStart(@OnEvent final ConfigurationRegistration event) {
+        event.addSource().accept(new JsonConfigurationSource(
+            ReaderSupplier.from(
+                    event.configuration().get("my.config.path").orElse("config.json"),
+                    "{\"myDefaultPort\": 8080}")));
+    }
+}
+----
