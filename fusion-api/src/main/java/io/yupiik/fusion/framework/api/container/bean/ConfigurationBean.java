@@ -20,6 +20,7 @@ import io.yupiik.fusion.framework.api.RuntimeContainer;
 import io.yupiik.fusion.framework.api.configuration.Configuration;
 import io.yupiik.fusion.framework.api.configuration.ConfigurationSource;
 import io.yupiik.fusion.framework.api.container.configuration.ConfigurationImpl;
+import io.yupiik.fusion.framework.api.event.Emitter;
 import io.yupiik.fusion.framework.api.scope.ApplicationScoped;
 
 import java.util.List;
@@ -34,12 +35,14 @@ public class ConfigurationBean extends BaseBean<Configuration> {
 
     @Override
     public Configuration create(final RuntimeContainer container, final List<Instance<?>> dependents) {
-        return new ConfigurationImpl(lookups(
-                container, ConfigurationSource.class,
-                i -> i.stream()
-                        .sorted(comparing(inst -> inst.bean().priority()))
-                        .map(Instance::instance)
-                        .toList(),
-                dependents));
+        return new ConfigurationImpl(
+                lookups(
+                        container, ConfigurationSource.class,
+                        i -> i.stream()
+                                .sorted(comparing(inst -> inst.bean().priority()))
+                                .map(Instance::instance)
+                                .toList(),
+                        dependents),
+                lookup(container, Emitter.class, dependents));
     }
 }
