@@ -26,6 +26,7 @@
 
   <artifactId>fusion-tracing</artifactId>
   <name>Fusion :: Tracing</name>
+  <description>Zipkin oriented tracing for the Fusion HTTP server and clients.</description>
 
   <dependencies>
     <dependency>

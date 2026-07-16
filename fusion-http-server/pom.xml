@@ -26,6 +26,7 @@
 
   <artifactId>fusion-http-server</artifactId>
   <name>Fusion :: Http Server</name>
+  <description>HTTP server based on Apache Tomcat with a light request/response API and endpoint matchers.</description>
 
   <dependencies>
     <dependency>

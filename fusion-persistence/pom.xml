@@ -26,6 +26,7 @@
 
   <artifactId>fusion-persistence</artifactId>
   <name>Fusion :: Persistence</name>
+  <description>Lightweight reflectionless JDBC persistence with compile time generated entity models.</description>
 
   <dependencies>
     <dependency>

@@ -26,6 +26,7 @@
 
   <artifactId>fusion-kubernetes-operator-base</artifactId>
   <name>Fusion :: K8s Operator Base</name>
+  <description>Base to build Kubernetes operators with Fusion (watch/reconcile runtime, CRD support).</description>
 
   <dependencies>
     <dependency>

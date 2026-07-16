@@ -26,6 +26,7 @@
 
   <artifactId>fusion-processor</artifactId>
   <name>Fusion :: Processor</name>
+  <description>Fusion annotation processor generating beans, JSON codecs, configuration binding and persistence models at build time.</description>
 
   <dependencies>
     <!--

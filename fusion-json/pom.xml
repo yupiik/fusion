@@ -26,6 +26,7 @@
 
   <artifactId>fusion-json</artifactId>
   <name>Fusion :: JSON</name>
+  <description>Reflectionless JSON mapping with compile time generated codecs, JSON-Patch/Pointer/diff utilities.</description>
 
   <dependencies>
     <dependency>

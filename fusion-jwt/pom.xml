@@ -26,6 +26,7 @@
 
   <artifactId>fusion-jwt</artifactId>
   <name>Fusion :: JWT</name>
+  <description>JWT signing and validation based on JDK cryptography.</description>
 
   <dependencies>
     <dependency>

@@ -55,6 +55,7 @@
     <module>fusion-handlebars</module>
     <module>fusion-jwt</module>
     <module>fusion-kubernetes-operator-base</module>
+    <module>fusion-build-internal</module>
   </modules>
 
   <dependencies>

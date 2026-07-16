@@ -26,6 +26,7 @@
 
   <artifactId>fusion-httpclient</artifactId>
   <name>Fusion :: HTTP Client</name>
+  <description>Extended java.net.http client: routing, throttling, retries, logging listeners.</description>
 
   <dependencies>
     <dependency>

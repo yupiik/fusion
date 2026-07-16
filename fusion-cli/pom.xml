@@ -26,6 +26,7 @@
 
   <artifactId>fusion-cli</artifactId>
   <name>Fusion :: CLI</name>
+  <description>Command line application support with compile time generated commands.</description>
 
   <dependencies>
     <dependency>
