@@ -26,6 +26,7 @@
 
   <artifactId>fusion-httpclient-parent</artifactId>
   <name>Fusion :: HTTP Client Parent</name>
+  <description>Parent of the Fusion HTTP client extensions.</description>
   <packaging>pom</packaging>
 
   <modules>

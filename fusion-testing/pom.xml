@@ -26,6 +26,7 @@
 
   <artifactId>fusion-testing</artifactId>
   <name>Fusion :: Testing</name>
+  <description>JUnit 5 integration to test Fusion applications (container lifecycle, injection, CLI launcher).</description>
 
   <dependencies>
     <dependency>

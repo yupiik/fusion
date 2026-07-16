@@ -26,6 +26,7 @@
 
   <artifactId>fusion-api</artifactId>
   <name>Fusion :: API</name>
+  <description>Fusion runtime API: IoC container, scopes, lifecycle, events and configuration.</description>
 
   <dependencies>
     <dependency>

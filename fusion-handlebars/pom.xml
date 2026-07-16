@@ -26,6 +26,7 @@
 
   <artifactId>fusion-handlebars</artifactId>
   <name>Fusion :: Handlebars</name>
+  <description>Handlebars templating engine implementation without any dependency.</description>
 
   <dependencies>
     <dependency>

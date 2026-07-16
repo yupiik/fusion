@@ -26,6 +26,7 @@
 
   <artifactId>fusion-jsonrpc</artifactId>
   <name>Fusion :: JSON-RPC</name>
+  <description>JSON-RPC 2.0 server on top of the Fusion HTTP server with OpenRPC support.</description>
 
   <dependencies>
     <dependency>

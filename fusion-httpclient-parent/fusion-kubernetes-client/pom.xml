@@ -26,6 +26,7 @@
 
   <artifactId>fusion-kubernetes-client</artifactId>
   <name>Fusion :: HTTP Client Parent :: Kubernetes Client</name>
+  <description>Lightweight Kubernetes client based on the JDK HTTP client (in-cluster and kubeconfig support).</description>
 
   <dependencies>
     <dependency>

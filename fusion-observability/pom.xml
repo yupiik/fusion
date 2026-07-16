@@ -26,6 +26,7 @@
 
   <artifactId>fusion-observability</artifactId>
   <name>Fusion :: Observability</name>
+  <description>Observability HTTP server exposing health checks and OpenMetrics metrics.</description>
 
   <dependencies>
     <dependency>

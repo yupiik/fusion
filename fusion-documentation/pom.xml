@@ -26,9 +26,10 @@
 
   <artifactId>fusion-documentation</artifactId>
   <name>Fusion :: Documentation</name>
+  <description>AsciiDoc minisite of the project and documentation generators (configuration, OpenRPC converters).</description>
 
   <properties>
-    <yupiik-tools.version>1.2.12</yupiik-tools.version>
+    <yupiik-tools.version>1.2.15-SNAPSHOT</yupiik-tools.version>
   </properties>
 
   <dependencies>
@@ -128,7 +129,8 @@
           <indexSubTitle>Fusion framework aims at providing a very light java framework and graal native.</indexSubTitle>
           <logoText>Fusion</logoText>
           <logoSideText>Documentation</logoSideText>
-          <copyright>© 2025 &lt;strong&gt;&lt;a href="https://www.yupiik.com"&gt;Yupiik&lt;/a&gt;&lt;/strong&gt;. All Rights Reserved</copyright>
+          <copyright>© 2026 &lt;strong&gt;&lt;a href="https://www.yupiik.com"&gt;Yupiik&lt;/a&gt;&lt;/strong&gt;. All Rights Reserved</copyright>
+          <llmChatEnabled>true</llmChatEnabled>
           <attributes>
             <partialsdir>${project.basedir}/src/main/minisite/content/_partials</partialsdir>
           </attributes>
@@ -153,6 +155,11 @@
             <groupId>io.yupiik.maven</groupId>
             <artifactId>asciidoc-java</artifactId>
             <version>${yupiik-tools.version}</version>
+          </dependency>
+          <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-embeddings-all-minilm-l6-v2</artifactId>
+            <version>1.16.1-beta26</version>
           </dependency>
         </dependencies>
       </plugin>
