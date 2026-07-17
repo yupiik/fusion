@@ -29,7 +29,7 @@
   <description>AsciiDoc minisite of the project and documentation generators (configuration, OpenRPC converters).</description>
 
   <properties>
-    <yupiik-tools.version>1.2.15-SNAPSHOT</yupiik-tools.version>
+    <yupiik-tools.version>1.2.15</yupiik-tools.version>
   </properties>
 
   <dependencies>
