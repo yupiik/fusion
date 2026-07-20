@@ -78,7 +78,7 @@ in `provided` scope (compile time only) and `fusion-api` in `compile` scope (run
 
 ## Testing conventions
 
-- JUnit 5 (Jupiter), test classes are package-private, named `*Test`, mirroring the main package layout.
+- JUnit Jupiter, test classes are package-private, named `*Test`, mirroring the main package layout.
 - Surefire runs tests IN PARALLEL (classes and methods, `junit.jupiter.execution.parallel.enabled=true`):
   tests must not rely on shared mutable global state, fixed network ports or the working directory.
 - Use `fusion-testing` helpers: `@FusionSupport`/`@MonoFusionSupport` (container lifecycle), `@Fusion`
