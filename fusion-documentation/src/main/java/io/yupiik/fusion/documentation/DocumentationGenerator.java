@@ -37,6 +37,7 @@ import static java.util.Comparator.comparing;
 import static java.util.Locale.ROOT;
 import static java.util.Objects.requireNonNull;
 import static java.util.Optional.ofNullable;
+import static java.util.function.Predicate.not;
 import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toMap;
 
@@ -87,7 +88,27 @@ public class DocumentationGenerator implements Runnable {
                         final var adoc = ofNullable(configuration.get("output"))
                                 .map(Path::of)
                                 .orElseGet(() -> sourceBase.resolve("content/_partials/generated/documentation." + module + ".adoc"));
-                        final var params = findParameters(classes, roots);
+                        var params = findParameters(classes, roots);
+
+                        final var filter = configuration.get("namePrefix");
+                        if (filter != null) {
+                            var stream = params.stream();
+                            for (final var prefix : filter.split(",")) {
+                                if (prefix.isBlank()) {
+                                    continue;
+                                }
+
+                                final var not = prefix.startsWith("!");
+                                final var value = not ?
+                                        prefix.substring(1) :
+                                        prefix;
+                                final Predicate<Parameter> startsWith = it -> it.name().startsWith(value);
+
+                                stream = stream.filter(not ? not(startsWith) : startsWith);
+                            }
+                            params = stream.toList();
+                        }
+
                         Files.createDirectories(adoc.getParent());
                         Files.writeString(adoc, switch (configuration.getOrDefault("formatter", "default").toLowerCase(ROOT)) {
                             case "definitionlist" -> definitionList(params, includeEnv);

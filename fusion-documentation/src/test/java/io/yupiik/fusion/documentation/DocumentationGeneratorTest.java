@@ -86,6 +86,44 @@ class DocumentationGeneratorTest {
     }
 
     @Test
+    void filterInclude(@TempDir final Path work) throws IOException {
+        final var url = writeConf(work);
+        final var output = work.resolve("output.adoc");
+        new DocumentationGenerator(Files.createDirectories(work.resolve("base")), Map.of(
+                "namePrefix", "jwt.a",
+                "module", "test-module",
+                "urls", url.toExternalForm(),
+                "includeEnvironmentNames", "true",
+                "output", output.toString()))
+                .run();
+        assertEquals("""
+                = test-module
+                
+                == Configuration
+                
+                * `jwt.algo` (`JWT_ALGO`) (default: `"RS256"`): JWT `alg` value.""", Files.readString(output));
+    }
+
+    @Test
+    void filterExclude(@TempDir final Path work) throws IOException {
+        final var url = writeConf(work);
+        final var output = work.resolve("output.adoc");
+        new DocumentationGenerator(Files.createDirectories(work.resolve("base")), Map.of(
+                "namePrefix", "!jwt.e",
+                "module", "test-module",
+                "urls", url.toExternalForm(),
+                "includeEnvironmentNames", "true",
+                "output", output.toString()))
+                .run();
+        assertEquals("""
+                = test-module
+                
+                == Configuration
+                
+                * `jwt.algo` (`JWT_ALGO`) (default: `"RS256"`): JWT `alg` value.""", Files.readString(output));
+    }
+
+    @Test
     void defaultFormatting(@TempDir final Path work) throws IOException {
         final var url = writeConf(work);
         final var output = work.resolve("output.adoc");
