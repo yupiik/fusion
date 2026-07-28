@@ -15,7 +15,6 @@
  */
 package io.yupiik.fusion.json.configuration;
 
-import io.yupiik.fusion.framework.api.configuration.Configuration;
 import io.yupiik.fusion.framework.api.configuration.impl.MapConfigSource;
 import io.yupiik.fusion.framework.api.io.ReaderSupplier;
 import io.yupiik.fusion.json.internal.JsonMapperImpl;
@@ -30,58 +29,66 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Properties;
+import java.util.function.Function;
 
 import static java.util.Optional.empty;
+import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.joining;
 
 // do not use JsonMapper injection since this one will depend on the configuration
 public class JsonConfigurationSource extends MapConfigSource {
+    private final Function<String, String> keyNormalizer;
+
+    public JsonConfigurationSource(final ReaderSupplier supplier, final Function<String, String> keyNormalizer) {
+        super(flatten(supplier, true, keyNormalizer));
+        this.keyNormalizer = keyNormalizer;
+    }
+
+    public JsonConfigurationSource(final Reader reader, final Function<String, String> keyNormalizer) {
+        super(flatten(() -> reader, false, keyNormalizer));
+        this.keyNormalizer = keyNormalizer;
+    }
+
     public JsonConfigurationSource(final ReaderSupplier supplier) {
-        super(flatten(supplier, true));
+        this(supplier, identity());
     }
 
     public JsonConfigurationSource(final Reader reader) {
-        super(flatten(() -> reader, false));
+        this(reader, identity());
     }
 
-    private static Map<String, String> flatten(final ReaderSupplier supplier, final boolean close) {
-        try (final var mapper = new JsonMapperImpl(List.of(), new Configuration() {
-            @Override
-            public Optional<String> get(String key) {
-                return switch (key) {
-                    default -> empty();
-                };
-            }
-        })) {
-            final var reader = new BufferedReader(supplier.get());
-            try {
+    @Override
+    public String get(final String key) {
+        return super.get(keyNormalizer.apply(key));
+    }
+
+    private static Map<String, String> flatten(final ReaderSupplier supplier, final boolean close,
+                                               final Function<String, String> keyNormalizer) {
+        try (final var mapper = new JsonMapperImpl(List.of(), key -> empty())) {
+            try(final var reader = close ? new BufferedReader(supplier.get()) : new BufferedReader(supplier.get()) {
+                @Override
+                public void close() {
+                    // no-op
+                }
+            }) {
                 final var raw = mapper.fromString(Object.class, reader.lines().collect(joining("\n")));
                 final var result = new LinkedHashMap<String, String>();
-                doFlatten("", raw, result);
+                doFlatten("", raw, result, keyNormalizer);
                 return result;
-            } finally {
-                if (close) {
-                    try {
-                        reader.close();
-                    } catch (final RuntimeException e) {
-                        throw e;
-                    } catch (final Exception e) {
-                        // no-op
-                    }
-                }
             }
         } catch (final IOException e) {
             throw new UncheckedIOException(e);
         }
     }
 
-    private static String key(final String prefix, final String suffix) {
-        return prefix.isEmpty() ? suffix : prefix + "." + suffix;
+    private static String key(final String prefix, final String suffix,
+                              final Function<String, String> keyNormalizer) {
+        return keyNormalizer.apply(prefix.isEmpty() ? suffix : prefix + "." + suffix);
     }
 
-    private static void doFlatten(final String prefix, final Object value, final Map<String, String> result) {
+    private static void doFlatten(final String prefix, final Object value, final Map<String, String> result,
+                                  final Function<String, String> keyNormalizer) {
         if (value == null) {
             return;
         }
@@ -93,7 +100,7 @@ public class JsonConfigurationSource extends MapConfigSource {
 
         if (value instanceof Collection<?> collection) {
             if (collection.isEmpty()) {
-                result.put(key(prefix, "length"), "0");
+                result.put(key(prefix, "length", keyNormalizer), "0");
                 return;
             }
 
@@ -104,10 +111,10 @@ public class JsonConfigurationSource extends MapConfigSource {
                         .map(Object::toString)
                         .collect(joining(", ")));
             } else {
-                result.put(key(prefix, "length"), Integer.toString(collection.size()));
+                result.put(key(prefix, "length", keyNormalizer), Integer.toString(collection.size()));
                 var index = 0;
                 for (final var item : collection) {
-                    doFlatten(key(prefix, Integer.toString(index)), item, result);
+                    doFlatten(key(prefix, Integer.toString(index), keyNormalizer), item, result, keyNormalizer);
                     index++;
                 }
             }
@@ -143,11 +150,11 @@ public class JsonConfigurationSource extends MapConfigSource {
                         throw new UncheckedIOException(e);
                     }
                 } else {
-                    result.put(key(prefix, "length"), Integer.toString(entries.size()));
+                    result.put(key(prefix, "length", keyNormalizer), Integer.toString(entries.size()));
                     var index = 0;
                     for (final var entry : entries.entrySet()) {
-                        doFlatten(key(prefix, index + ".key"), entry.getKey(), result);
-                        doFlatten(key(prefix, index + ".value"), entry.getValue(), result);
+                        doFlatten(key(prefix, index + ".key", keyNormalizer), entry.getKey(), result, keyNormalizer);
+                        doFlatten(key(prefix, index + ".value", keyNormalizer), entry.getValue(), result, keyNormalizer);
                         index++;
                     }
                 }
@@ -159,9 +166,9 @@ public class JsonConfigurationSource extends MapConfigSource {
                         continue;
                     }
                     if (isPrimitive(entryValue)) {
-                        result.put(key(prefix, entryKey), entryValue.toString());
+                        result.put(key(prefix, entryKey, keyNormalizer), entryValue.toString());
                     } else {
-                        doFlatten(key(prefix, entryKey), entryValue, result);
+                        doFlatten(key(prefix, entryKey, keyNormalizer), entryValue, result, keyNormalizer);
                     }
                 }
             }

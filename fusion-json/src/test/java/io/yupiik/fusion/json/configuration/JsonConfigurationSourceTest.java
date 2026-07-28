@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.StringReader;
 import java.util.Properties;
+import java.util.function.Function;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -342,5 +343,81 @@ class JsonConfigurationSourceTest {
         assertEquals("test", source.get("0.value"));
         assertEquals("config", source.get("1.key"));
         assertEquals("true", source.get("1.value.enabled"));
+    }
+
+    @Test
+    void keyNormalizerWithHyphenToDotReaderSupplierConstructor() {
+        final var normalizer = (Function<String, String>) key -> key.replace('-', '.');
+        final var source = new JsonConfigurationSource(() -> new StringReader("{\"my-key\": \"value\"}"), normalizer);
+        assertEquals("value", source.get("my.key"));
+    }
+
+    @Test
+    void keyNormalizerWithHyphenToDotReaderConstructor() {
+        final var normalizer = (Function<String, String>) key -> key.replace('-', '.');
+        try (final var reader = new StringReader("{\"my-key\": \"value\"}")) {
+            final var source = new JsonConfigurationSource(reader, normalizer);
+            assertEquals("value", source.get("my.key"));
+        }
+    }
+
+    @Test
+    void keyNormalizerWithHyphenToDotNestedKeys() {
+        final var normalizer = (Function<String, String>) key -> key.replace('-', '.');
+        final var source = new JsonConfigurationSource(() -> new StringReader("{\"my-key\": {\"nested-prop\": \"value\"}}"), normalizer);
+        assertEquals("value", source.get("my.key.nested.prop"));
+    }
+
+    @Test
+    void keyNormalizerWithHyphenToDotMixedDotsAndHyphens() {
+        final var normalizer = (Function<String, String>) key -> key.replace('-', '.');
+        final var source = new JsonConfigurationSource(() -> new StringReader("{\"my-key\": {\"nested.prop\": \"value\"}}"), normalizer);
+        assertEquals("value", source.get("my.key.nested.prop"));
+    }
+
+    @Test
+    void keyNormalizerCliAppFlag() {
+        final var normalizer = (Function<String, String>) key -> key.replace('-', '.');
+        final var json = "{\"app-log-level\": \"debug\", \"app-feature-flag\": \"enabled\"}";
+        final var source = new JsonConfigurationSource(() -> new StringReader(json), normalizer);
+        assertEquals("debug", source.get("app.log.level"));
+        assertEquals("enabled", source.get("app.feature.flag"));
+    }
+
+    @Test
+    void keyNormalizerWithCollection() {
+        final var normalizer = (Function<String, String>) key -> key.replace('-', '.');
+        final var json = "{\"server-list\": [{\"host-name\": \"localhost\", \"server-port\": 8080}]}";
+        final var source = new JsonConfigurationSource(() -> new StringReader(json), normalizer);
+        assertEquals("1", source.get("server.list.length"));
+        assertEquals("localhost", source.get("server.list.0.host.name"));
+        assertEquals("8080", source.get("server.list.0.server.port"));
+    }
+
+    @Test
+    void keyNormalizerIdentityPreservesKeys() {
+        final var source = new JsonConfigurationSource(() -> new StringReader("{\"my-key\": \"value\"}"), Function.identity());
+        assertEquals("value", source.get("my-key"));
+    }
+
+    @Test
+    void keyNormalizerReaderConstructorClosesReader() {
+        final var normalizer = (Function<String, String>) key -> key.replace('-', '.');
+        final var reader = new StringReader("{\"test-flag\": \"true\"}") {
+            private boolean closed;
+
+            @Override
+            public void close() {
+                closed = true;
+                super.close();
+            }
+
+            @Override
+            public String toString() {
+                return "closed: " + closed;
+            }
+        };
+        final var source = new JsonConfigurationSource(reader, normalizer);
+        assertEquals("true", source.get("test.flag"));
     }
 }
