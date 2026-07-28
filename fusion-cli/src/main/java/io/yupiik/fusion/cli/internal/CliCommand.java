@@ -20,6 +20,7 @@ import io.yupiik.fusion.framework.api.configuration.Configuration;
 
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 public interface CliCommand<C extends Runnable> {
     String name();
@@ -32,6 +33,10 @@ public interface CliCommand<C extends Runnable> {
 
     default Map<String, String> metadata() {
         return Map.of();
+    }
+
+    default Function<String, String> keyMapper() {
+        return Function.identity();
     }
 
     record Parameter(String configName, String cliName, String description) {}

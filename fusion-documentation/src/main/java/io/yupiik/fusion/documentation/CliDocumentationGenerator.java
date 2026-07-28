@@ -103,7 +103,8 @@ public class CliDocumentationGenerator implements Runnable {
         }
     }
 
-    private CharSequence generateDetail(final String app, final Command command, final String relativePathToIndex) {
+    CharSequence generateDetail(final String app, final Command command, final String relativePathToIndex) {
+        final var cmdPrefix = "--" + command.name() + "-";
         return "= " + command.name() + "\n" +
                 ":minisite-nav-prev-link: " + relativePathToIndex + "\n" +
                 ":minisite-nav-prev-label: CLI\n" +
@@ -121,14 +122,18 @@ public class CliDocumentationGenerator implements Runnable {
                         """.replace("${name}", command.name()) +
                 app + " \\\n" +
                 "    " + command.name + (command.parameters().isEmpty() ? "" : " \\") + '\n' +
-                command.parameters().stream().map(it -> "    " + it.cliName() + " ...").collect(joining("\\\n", "", "\n")) +
+                command.parameters().stream().map(it -> "    " + displayName(cmdPrefix, it.cliName()) + " ...").collect(joining("\\\n", "", "\n")) +
                 "----\n" +
                 "\n" +
                 "== Parameters\n" +
                 "\n" +
                 (command.parameters().isEmpty() ? "No parameter." : command.parameters().stream()
-                                                                    .map(p -> p.cliName() + "::\n" + p.description() + "\n")
-                                                                    .collect(joining("\n")));
+                                                                     .map(p -> displayName(cmdPrefix, p.cliName()) + "::\n" + p.description() + "\n")
+                                                                     .collect(joining("\n")));
+    }
+
+    private static String displayName(final String cmdPrefix, final String cliName) {
+        return cliName.startsWith(cmdPrefix) ? "--" + cliName.substring(cmdPrefix.length()) : cliName;
     }
 
     private CharSequence generateIndex(final List<Command> commands) {
@@ -138,6 +143,6 @@ public class CliDocumentationGenerator implements Runnable {
                 .collect(joining("\n"));
     }
 
-    private record Command(String name, String description, List<CliCommand.Parameter> parameters) {
+    record Command(String name, String description, List<CliCommand.Parameter> parameters) {
     }
 }

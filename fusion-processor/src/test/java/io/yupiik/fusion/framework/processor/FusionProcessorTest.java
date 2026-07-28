@@ -2292,7 +2292,7 @@ class FusionProcessorTest {
                                 
                                 Options for 'c1':
                                     --list                    -
-                                    --name                    The main name.
+                                    --name                    The main "name", e.g. {"a":"b\\\\c"}.
                                     --nested-lower            -
                                     --nesteds-$index-lower    -
                                 """,

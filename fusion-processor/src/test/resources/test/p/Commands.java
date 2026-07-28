@@ -40,7 +40,7 @@ public interface Commands {
         }
 
         @RootConfiguration("c1")
-        public record Conf(@Property(documentation = "The main name.") String name, Nested nested,
+        public record Conf(@Property(documentation = "The main \"name\", e.g. {\"a\":\"b\\\\c\"}.") String name, Nested nested,
                            List<Nested> nesteds,
                            List<String> list) {}
 

@@ -19,9 +19,11 @@ import io.yupiik.fusion.cli.internal.BaseCliCommand;
 import io.yupiik.fusion.cli.internal.CliCommand;
 import io.yupiik.fusion.framework.api.Instance;
 import io.yupiik.fusion.framework.api.RuntimeContainer;
+import io.yupiik.fusion.framework.api.configuration.MissingRequiredParameterException;
 import io.yupiik.fusion.framework.api.container.FusionBean;
 import io.yupiik.fusion.framework.api.container.bean.BaseBean;
 import io.yupiik.fusion.framework.build.api.cli.Command;
+import io.yupiik.fusion.framework.build.api.configuration.RootConfiguration;
 import io.yupiik.fusion.framework.processor.internal.Elements;
 import io.yupiik.fusion.framework.processor.internal.meta.Docs;
 import io.yupiik.fusion.framework.processor.internal.metadata.MetadataContributorRegistry;
@@ -37,6 +39,7 @@ import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import static java.util.Comparator.comparing;
+import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.joining;
 import static javax.lang.model.element.ElementKind.PACKAGE;
 import static javax.lang.model.element.Modifier.PRIVATE;
@@ -96,6 +99,18 @@ public class CliCommandGenerator extends BaseGenerator implements Supplier<CliCo
 
         final var hasInjections = beanForCliCommands && constructorParameters.size() != 1;
 
+        final var rootPrefix = configurationElt != null ?
+                ofNullable(processingEnv.getTypeUtils().asElement(configurationElt.asType()))
+                        .filter(TypeElement.class::isInstance)
+                        .map(TypeElement.class::cast)
+                        .map(e -> e.getAnnotation(RootConfiguration.class))
+                        .map(RootConfiguration::value)
+                        .orElse(null) :
+                null;
+
+        final var paramsResult = configurationType == null ? null : parameters(configurationType, null, rootPrefix);
+
+
         final String metadata = metadata(type);
         return new Output(
                 new GeneratedClass(packagePrefix + commandClassName, packageLine +
@@ -106,16 +121,27 @@ public class CliCommandGenerator extends BaseGenerator implements Supplier<CliCo
                         "    super(\n" +
                         "      \"" + command.name() + "\",\n" +
                         "      \"" + command.description().replace("\"", "\\\"").replace("\n", "\\n") + "\",\n" +
-                        "      c -> " + (constructorParameters.isEmpty() ? "null" : "new " + configurationType + ConfigurationFactoryGenerator.SUFFIX + "(c).get()") + ",\n" +
+                        "      " + (constructorParameters.isEmpty() ?
+                        "c -> null" :
+                        "c -> {\n" +
+                                "        try {\n" +
+                                "          return new " + configurationType + ConfigurationFactoryGenerator.SUFFIX + "(c, " + commandClassName + "::keyMapper).get();\n" +
+                                "        } catch (final " + MissingRequiredParameterException.class.getName() + " e) {\n" +
+                                "          throw new " + MissingRequiredParameterException.class.getName() + "(e.getMessage() + " + commandClassName + ".CLI_HELP);\n" +
+                                "        }\n" +
+                                "      }") + ",\n" +
                         "      (c, deps) -> new " + className.replace('$', '.') + "(" +
                         (configurationType == null ? "" : "c") +
                         (hasInjections ? constructorParameters.stream()
                                 .skip(1) // configuration by convention
                                 .map(param -> "lookup(container, " + toFqnName(processingEnv.getTypeUtils().asElement(param.asType())).replace('$', '.') + ".class, deps)")
                                 .collect(joining(", ", configurationType == null ? "" : ", ", "")) : "") + ")," +
-                        "      " + List.class.getName() + ".of(" + (configurationType == null ? "" : parameters(configurationType, null)) + "),\n" +
+                        "      " + List.class.getName() + ".of(" + (configurationType == null ? "" : paramsResult.parameters()) + "),\n" +
                         "      "+ metadata + ");\n" +
                         "  }\n" +
+                        (paramsResult == null ? "" : paramsResult.keyMapperContent()) + "\n" +
+                        (paramsResult == null ? "" : "  @Override\n  public java.util.function.Function<String, String> keyMapper() {\n    return " + commandClassName + "::keyMapper;\n  }\n") + "\n" +
+                        (paramsResult == null ? "" : "  private static final String CLI_HELP = " + paramsResult.cliHelpContent() + ";\n") +
                         "}\n" +
                         "\n"),
                 beanForCliCommands ?
@@ -143,29 +169,69 @@ public class CliCommandGenerator extends BaseGenerator implements Supplier<CliCo
     // assume args are in this form:
     // $ --<conf name> <value>
     // Note: we support "-" for the root configuration key which enables to drop the prefix
-    private String parameters(final String configurationType, final String parentPrefix) {
-        return doFindParameters(configurationType, parentPrefix).collect(joining(", "));
+    private ParametersResult parameters(final String configurationType, final String parentPrefix, final String rootPrefix) {
+        final var keyMapperCases = new StringBuilder();
+        final var helpBuilder = new StringBuilder();
+        final var cmdPrefix = "--" + command.name() + "-";
+        final var params = doFindParameters(configurationType, parentPrefix, keyMapperCases, helpBuilder, cmdPrefix)
+                .collect(joining(", "));
+        final var defaultBranch = rootPrefix == null ? "return \"--\" + key.replace('.', '-');" :
+                "-".equals(rootPrefix) ? "return key.replace('.', '-');" :
+                ("return \"--\" + key.replace('.', '-');");
+        final var helpText = helpBuilder.isEmpty() ? "" :
+                "  private static String keyMapper(final String key) {\n" +
+                        "    switch (key) {\n" +
+                        keyMapperCases +
+                        "      default: " + defaultBranch + "\n" +
+                        "    }\n" +
+                        "  }";
+        final var cliHelpContent = helpBuilder.isEmpty() ? "\"\"" :
+                "\"\\nAvailable parameters:\\n\" + \n    " +
+                        helpBuilder.toString().lines()
+                                .map(line -> "\"" + escaped(line) + "\\n\"")
+                                .collect(joining(" + \n    ")) +
+                        " + \n    \"\\n\"";
+        return new ParametersResult(params, helpText, cliHelpContent);
     }
 
-    private Stream<String> doFindParameters(final String configurationType, final String parentPrefix) {
+    private record ParametersResult(String parameters, String keyMapperContent, String cliHelpContent) {
+    }
+
+    private Stream<String> doFindParameters(final String configurationType, final String parentPrefix,
+                                            final StringBuilder keyMapperCases, final StringBuilder helpBuilder,
+                                            final String cmdPrefix) {
         return findConf(configurationType)
                 .mapMulti((it, out) -> {
                     if (it.ref() != null) {
                         final var prefix = (parentPrefix == null ? "" : (parentPrefix + '.')) + it.name();
-                        doFindParameters(it.ref(), prefix).forEach(out);
+                        doFindParameters(it.ref(), prefix, keyMapperCases, helpBuilder, cmdPrefix).forEach(out);
                     } else {
-                        out.accept(parameter(parentPrefix, it));
+                        out.accept(parameter(parentPrefix, it, cmdPrefix, keyMapperCases, helpBuilder));
                     }
                 });
     }
 
-    private static String parameter(final String parentPrefix, final Docs.DocItem item) {
+    private static String parameter(final String parentPrefix, final Docs.DocItem item,
+                                    final String cmdPrefix, final StringBuilder keyMapperCases,
+                                    final StringBuilder helpBuilder) {
         final var javaName = (parentPrefix == null ? "" : (parentPrefix + '.')) + item.name();
         final var cliName = (javaName.startsWith("-.") ? "" : "--") + javaName.replace('.', '-');
+        final var displayName = cliName.startsWith(cmdPrefix) ? "--" + cliName.substring(cmdPrefix.length()) : cliName;
+        keyMapperCases.append("      case \"").append(escaped(javaName)).append("\": return \"").append(escaped(cliName)).append("\";\n");
+        // raw text, the escaping is done once when the java literal is emitted (cliHelpContent)
+        helpBuilder.append(displayName).append(": ").append(item.doc() == null ? "" : item.doc()).append('\n');
         return "new " + CliCommand.Parameter.class.getName().replace('$', '.') + "(" +
-                "\"" + javaName.replace("\"", "\\\"").replace("\n", "\\n") + "\", " +
-                "\"" + cliName.replace("\"", "\\\"").replace("\n", "\\n") + "\", " +
-                "\"" + item.doc().replace("\"", "\\\"").replace("\n", "\\n") + "\")";
+                "\"" + escaped(javaName) + "\", " +
+                "\"" + escaped(cliName) + "\", " +
+                "\"" + escaped(item.doc()) + "\")";
+    }
+
+    // escapes a raw value once for its embedding in a generated java string literal
+    private static String escaped(final String value) {
+        return value == null ? "" : value
+                .replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\n", "\\n");
     }
 
     private Stream<Docs.DocItem> findConf(final String configurationType) {
