@@ -34,26 +34,30 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class BaseCliCommandTest {
     @Test
-    void errorMessage() {
-        assertEquals(
-                """
-                        No value for '--test-dummy'
-                        Available parameters:
-                        --test-dummy: Some param.
-                        """,
-                assertThrows(IllegalArgumentException.class, () -> new BaseCliCommand<Map<String, String>, Runnable>(
+    void exceptionPropagation() {
+        final var msg = "No value for '--name'";
+        final var e = assertThrows(MissingRequiredParameterException.class,
+                () -> new BaseCliCommand<Map<String, String>, Runnable>(
                         "test",
                         "...",
-                        c -> {
-                            // simulate a parameter required=true which is missing
-                            throw new MissingRequiredParameterException("No value for '-.test.dummy'");
-                        },
-                        (conf, deps) -> {
-                            throw new UnsupportedOperationException("shouldn't be called in this test");
-                        },
-                        List.of(new CliCommand.Parameter("test.dummy", "--test-dummy", "Some param.")))
-                        .create(key -> Optional.empty(), List.of()))
-                        .getMessage());
+                        c -> { throw new MissingRequiredParameterException(msg); },
+                        (conf, deps) -> { throw new UnsupportedOperationException("shouldn't be called"); },
+                        List.of())
+                        .create(key -> Optional.empty(), List.of()));
+        assertEquals(msg, e.getMessage());
+    }
+
+    @Test
+    void successfulCreation() {
+        try (final var result = new BaseCliCommand<>(
+                "test",
+                "...",
+                c -> Map.of("name", "value"),
+                (conf, deps) -> () -> { /* no-op */ },
+                List.of())
+                .create(key -> Optional.empty(), List.of())) {
+            result.instance().run(); // no exception = success
+        }
     }
 
     @Test

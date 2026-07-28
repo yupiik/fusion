@@ -109,9 +109,15 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
         out.append("public class ").append(confClassName).append(" implements ")
                 .append(Supplier.class.getName()).append("<").append(pckPrefix).append(className.replace('$', '.')).append("> {\n");
         out.append("  private final ").append(Configuration.class.getName()).append(" configuration;\n");
+        out.append("  private final ").append(Function.class.getName()).append("<String, String> keyMapper;\n");
         out.append("\n");
         out.append("  public ").append(confClassName).append("(final ").append(Configuration.class.getName()).append(" configuration) {\n");
+        out.append("    this(configuration, ").append(Function.class.getName()).append(".identity());\n");
+        out.append("  }\n");
+        out.append("\n");
+        out.append("  public ").append(confClassName).append("(final ").append(Configuration.class.getName()).append(" configuration, final ").append(Function.class.getName()).append("<String, String> keyMapper) {\n");
         out.append("    this.configuration = configuration;\n");
+        out.append("    this.keyMapper = keyMapper;\n");
         out.append("  }\n");
         out.append("\n");
         out.append("  @Override\n");
@@ -137,10 +143,12 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
             return "" +
                     "  private static final class " + name + " implements " + Supplier.class.getName() + "<" + typeName + "> {\n" +
                     "    private final " + Configuration.class.getName() + " configuration;\n" +
+                    "    private final " + Function.class.getName() + "<String, String> keyMapper;\n" +
                     "    private final String prefix;\n" +
                     "\n" +
-                    "    private " + name + "(final " + Configuration.class.getName() + " configuration, final String prefix) {\n" +
+                    "    private " + name + "(final " + Configuration.class.getName() + " configuration, final " + Function.class.getName() + "<String, String> keyMapper, final String prefix) {\n" +
                     "      this.configuration = configuration;\n" +
+                    "      this.keyMapper = keyMapper;\n" +
                     "      this.prefix = prefix;\n" +
                     "    }\n" +
                     "\n" +
@@ -150,27 +158,27 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
                     "    }\n" +
                     "\n" +
                     "    private static " + List.class.getName() + "<" + typeName + "> list(final " +
-                    Configuration.class.getName() + " configuration, final String prefix, final " + Supplier.class.getName() + "<" + List.class.getName() + "<" + typeName + ">> defaultProvider) {\n" +
+                    Configuration.class.getName() + " configuration, final " + Function.class.getName() + "<String, String> keyMapper, final String prefix, final " + Supplier.class.getName() + "<" + List.class.getName() + "<" + typeName + ">> defaultProvider) {\n" +
                     "        final int length = configuration.get(prefix + \".length\").map(Integer::parseInt).orElse(-1);\n" +
                     "        if (length < 0) {\n" +
                     "          return defaultProvider == null ? null : defaultProvider.get();\n" +
                     "        }\n" +
                     "        final var list = new " + ArrayList.class.getName() + "<" + typeName + ">(length);\n" +
                     "        for (int index = 0; index < length; index++) {\n" +
-                    "          list.add(new " + name + "(configuration, prefix + \".\" + index).get());\n" +
+                    "          list.add(new " + name + "(configuration, keyMapper, prefix + \".\" + index).get());\n" +
                     "        }\n" +
                     "        return list;\n" +
                     "    }\n" +
                     "\n" +
                     "    private static " + Map.class.getName() + "<String, " + typeName + "> map(final " +
-                    Configuration.class.getName() + " configuration, final String prefix, final " + Supplier.class.getName() + "<" + Map.class.getName() + "<String, " + typeName + ">> defaultProvider) {\n" +
+                    Configuration.class.getName() + " configuration, final " + Function.class.getName() + "<String, String> keyMapper, final String prefix, final " + Supplier.class.getName() + "<" + Map.class.getName() + "<String, " + typeName + ">> defaultProvider) {\n" +
                     "        final int length = configuration.get(prefix + \".length\").map(Integer::parseInt).orElse(-1);\n" +
                     "        if (length < 0) {\n" +
                     "          return defaultProvider == null ? null : defaultProvider.get();\n" +
                     "        }\n" +
                     "        final var map = new " + LinkedHashMap.class.getName() + "<String, " + typeName + ">(length);\n" +
                     "        for (int index = 0; index < length; index++) {\n" +
-                    "          map.put(configuration.get(prefix + \".\" + index + \".key\").orElseThrow(), new " + name + "(configuration, prefix + \".\" + index + \".value\").get());\n" +
+                    "          map.put(configuration.get(prefix + \".\" + index + \".key\").orElseThrow(), new " + name + "(configuration, keyMapper, prefix + \".\" + index + \".value\").get());\n" +
                     "        }\n" +
                     "        return map;\n" +
                     "    }\n" +
@@ -282,7 +290,7 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
             }
 
             this.docStack.getLast().items().add(new Docs.DocItem(javaName, docName + ".$index", desc, required, itemString, defaultValue));
-            return nestedFactory(itemString) + ".list(configuration, " + name + ", " + (defaultValue == null ? "null" : ("() -> " + defaultValue)) + ")";
+            return nestedFactory(itemString) + ".list(configuration, keyMapper, " + name + ", " + (defaultValue == null ? "null" : ("() -> " + defaultValue)) + ")";
         }
 
         //
@@ -338,7 +346,7 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
             this.docStack.getLast().items().addAll(List.of(
                 new Docs.DocItem(javaName + ".$key", docName + ".$index.key", desc + " (Key).", required, "java.lang.String", "null"),
                 new Docs.DocItem(javaName +  ".$value", docName + ".$index.value", desc + " (Value).", required, valueTypeString, "null")));
-            return nestedFactory(valueTypeString) + ".map(configuration, " + name + ", " + (defaultValue == null ? "null" : ("() -> " + defaultValue)) + ")";
+            return nestedFactory(valueTypeString) + ".map(configuration, keyMapper, " + name + ", " + (defaultValue == null ? "null" : ("() -> " + defaultValue)) + ")";
         }
 
         if (typeStr.startsWith("java.")) { // unsupported
@@ -357,7 +365,7 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
             nestedFactory(typeStr); // visit doc
             return defaultValue;
         }
-        return "new " + nestedFactory(typeStr) + "(configuration, " + name + ").get()";
+        return "new " + nestedFactory(typeStr) + "(configuration, keyMapper, " + name + ").get()";
     }
 
     private Optional<Property> findKnownProperty(final String parentType, final String javaName) {
@@ -400,10 +408,9 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
         return "configuration.get(" + name + ")" +
                 mapper +
                 (required ?
-                        ".orElseThrow(() -> { " +
-                                "final var name = " + name + "; " +
-                                "return new io.yupiik.fusion.framework.api.configuration.MissingRequiredParameterException(" +
-                                "\"No value for '\" + name + \"'\"); })" :
+                        ".orElseThrow(() -> " +
+                                "new io.yupiik.fusion.framework.api.configuration.MissingRequiredParameterException(" +
+                                "\"No value for '\" + keyMapper.apply(" + name + ") + \"'\"))" :
                         ".orElse(" + defaultValue + ")");
     }
 

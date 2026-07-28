@@ -68,22 +68,10 @@ public class CliAwaiter implements Awaiter {
             throw new IllegalArgumentException("Missing command '" + cmdName + "':\n" + usage());
         }
 
-        final var keyMapping = command.parameters().stream()
-                // todo: list?
-                .collect(toMap(CliCommand.Parameter::configName, CliCommand.Parameter::cliName, (a, b) -> a));
-        try (final var instance = command.create(key -> findConfigInArgs(cmdName, keyMapping, key), new ArrayList<>())) {
+        final var keyMapperFn = command.keyMapper();
+        try (final var instance = command.create(key -> doFindConf(cmdName, keyMapperFn.apply(key)), new ArrayList<>())) {
             instance.instance().run();
         }
-    }
-
-    private Optional<String> findConfigInArgs(final String cmd, final Map<String, String> keyMapping, final String key) {
-        final var value = keyMapping.get(key);
-        if (value == null) {
-            // can be a list, if so just reformat the keys lazily
-            final var formattedKey = (key.startsWith("-.") ? "" : "--") + key.replace('.', '-');
-            return doFindConf(cmd, formattedKey);
-        }
-        return doFindConf(cmd, value);
     }
 
     private Optional<String> doFindConf(final String cmd, final String key) {
