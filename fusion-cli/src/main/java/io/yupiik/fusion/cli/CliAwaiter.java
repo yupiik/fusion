@@ -29,7 +29,6 @@ import java.util.Optional;
 import static java.util.Comparator.comparing;
 import static java.util.Optional.empty;
 import static java.util.function.Function.identity;
-import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toMap;
 
 @DefaultScoped
@@ -100,17 +99,36 @@ public class CliAwaiter implements Awaiter {
                 .or(() -> key.startsWith("--") ? configuration.get(key.substring("--".length())) : empty());
     }
 
-    // todo: reflow (max 100 chars of width?)
     public String usage() {
-        return commands.values().stream()
+        final var showParams = configuration.get("fusion.cli.usage.parameters").map(Boolean::parseBoolean).orElse(true);
+        final var sorted = commands.values().stream()
                 .sorted(comparing(CliCommand::name))
-                .map(c -> "" +
-                        "* " + c.name() + ":\n" +
-                        "  " + c.description() +
-                        (configuration.get("fusion.cli.usage.parameters").map(Boolean::parseBoolean).orElse(true) ?
-                                c.parameters().isEmpty() ? "" : c.parameters().stream()
-                                        .map(p -> "    " + p.cliName() + ": " + (p.description() == null || p.description().isBlank() ? "-" : p.description()))
-                                        .collect(joining("\n", "\n  Parameters:\n", "")) : ""))
-                .collect(joining("\n", "", "\n"));
+                .toList();
+        final var cmdMaxLen = sorted.stream().mapToInt(c -> c.name().length()).max().orElse(0);
+        final var fmtCmd = "  %-" + cmdMaxLen + "s    %s";
+        final var out = new StringBuilder("Commands:\n");
+        sorted.forEach(c -> out.append(String.format(fmtCmd, c.name(), c.description())).append('\n'));
+        if (showParams) {
+            for (final var c : sorted) {
+                if (c.parameters().isEmpty()) {
+                    continue;
+                }
+                final var cmdPrefix = "--" + c.name() + "-";
+                final var paramMaxLen = c.parameters().stream()
+                        .mapToInt(p -> displayName(cmdPrefix, p.cliName()).length())
+                        .max().orElse(0);
+                final var fmtParam = "    %-" + paramMaxLen + "s    %s";
+                out.append("\nOptions for '").append(c.name()).append("':\n");
+                c.parameters().stream()
+                        .sorted(comparing(CliCommand.Parameter::cliName))
+                        .forEach(p -> out.append(String.format(fmtParam, displayName(cmdPrefix, p.cliName()),
+                                p.description() == null || p.description().isBlank() ? "-" : p.description())).append('\n'));
+            }
+        }
+        return out.toString();
+    }
+
+    private static String displayName(final String cmdPrefix, final String cliName) {
+        return cliName.startsWith(cmdPrefix) ? "--" + cliName.substring(cmdPrefix.length()) : cliName;
     }
 }

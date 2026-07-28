@@ -2287,13 +2287,14 @@ class FusionProcessorTest {
         new Compiler(work, "Commands").compileAndAsserts((loader, container) -> assertEquals(
                         """
                                 Missing command 'unknown':
-                                * c1:
-                                  A super command.
-                                  Parameters:
-                                    --c1-list: -
-                                    --c1-name: The main name.
-                                    --c1-nested-lower: -
-                                    --c1-nesteds-$index-lower: -
+                                Commands:
+                                  c1    A super command.
+                                
+                                Options for 'c1':
+                                    --list                    -
+                                    --name                    The main name.
+                                    --nested-lower            -
+                                    --nesteds-$index-lower    -
                                 """,
                         assertThrows(IllegalArgumentException.class, () ->
                                 withInstance(container, loader, "io.yupiik.fusion.cli.CliAwaiter", CliAwaiter.class, CliAwaiter::await))
