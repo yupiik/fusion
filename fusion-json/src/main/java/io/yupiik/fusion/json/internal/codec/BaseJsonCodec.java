@@ -22,13 +22,16 @@ import io.yupiik.fusion.json.spi.Parser;
 
 import java.io.IOException;
 import java.lang.reflect.Type;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 
 // hosts the utilities shared by the generated codecs to keep the generated sources small,
 // the helper behaviors (attribute ordering, null handling) are part of the generation contract
@@ -516,7 +519,7 @@ public abstract class BaseJsonCodec<A> implements JsonCodec<A> {
     }
 
     private <T, C extends Collection<T>> C readCollection(final DeserializationContext context, final C instance,
-                                                          final JsonCodec<T> delegate) throws IOException {
+                                                           final JsonCodec<T> delegate) throws IOException {
         final var reader = context.parser();
         if (!reader.hasNext()) {
             throw new IllegalStateException("No more element");
@@ -533,5 +536,279 @@ public abstract class BaseJsonCodec<A> implements JsonCodec<A> {
             instance.add(delegate.read(context));
         }
         return instance;
+    }
+
+    // -----------------------------------------------------------------------
+    // Table-driven codec engine (Step 1 of the optimizer plan)
+    // Generated codecs emit a FieldMeta table + factory lambda; the control
+    // flow lives here in BaseJsonCodec instead of in generated source.
+    // -----------------------------------------------------------------------
+
+    public enum ContainerKind {
+        VALUE, LIST, SET, MAP, MAP_LIST
+    }
+
+    public enum ValueKind {
+        BOOLEAN, BIG_DECIMAL, INTEGER, LONG, DOUBLE, STRING, ENUM,
+        LOCAL_DATE, LOCAL_DATE_TIME, OFFSET_DATE_TIME, ZONED_DATE_TIME,
+        GENERIC_OBJECT, MODEL
+    }
+
+    public record FieldMeta<A>(
+            char[] jsonName,
+            int slotIndex,
+            ContainerKind container,
+            ValueKind valueKind,
+            boolean isWrapper,
+            boolean isOthers,
+            Class<?> delegateType,
+            Function<A, Object> accessor,
+            int order,
+            char[] keyPrefix
+    ) {
+    }
+
+    protected <A> A readObject(final DeserializationContext context, final char[][] keys,
+                               final FieldMeta<A>[] fields, final Function<Object[], A> factory) throws IOException {
+        final var parser = context.parser();
+        parser.enforceNext(Parser.Event.START_OBJECT);
+
+        final var slots = new Object[fields.length];
+        int othersSlot = -1;
+        for (int i = 0; i < fields.length; i++) {
+            if (fields[i].isOthers()) {
+                othersSlot = i;
+            } else if (fields[i].container() == ContainerKind.VALUE) {
+                if (fields[i].isWrapper()) {
+                    slots[i] = null;
+                } else {
+                    slots[i] = switch (fields[i].valueKind()) {
+                        case INTEGER -> 0;
+                        case LONG -> 0L;
+                        case BOOLEAN -> Boolean.FALSE;
+                        case DOUBLE -> 0.0d;
+                        default -> null;
+                    };
+                }
+            }
+        }
+        final var others = othersSlot >= 0 ? new LinkedHashMap<String, Object>() : null;
+
+        int key = -1;
+        String fallbackKey = null;
+
+        Parser.Event event;
+        while (parser.hasNext()) {
+            event = parser.next();
+            switch (event) {
+                case KEY_NAME -> {
+                    key = parser.matchString(keys);
+                    if (othersSlot >= 0 && key < 0) {
+                        fallbackKey = parser.getString();
+                    }
+                }
+                case VALUE_STRING -> {
+                    if (key >= 0) {
+                        final var value = readStringValue(context, parser, event, fields[key]);
+                        if (value != null) {
+                            slots[fields[key].slotIndex()] = value;
+                        }
+                    } else if (others != null) {
+                        others.put(fallbackKey, parser.getString());
+                    }
+                    key = -1;
+                }
+                case VALUE_NUMBER -> {
+                    if (key >= 0) {
+                        final var value = readNumberValue(context, parser, event, fields[key]);
+                        if (value != null) {
+                            slots[fields[key].slotIndex()] = value;
+                        }
+                    } else if (others != null) {
+                        others.put(fallbackKey, parser.getBigDecimal());
+                    }
+                    key = -1;
+                }
+                case VALUE_TRUE, VALUE_FALSE -> {
+                    if (key >= 0) {
+                        final var field = fields[key];
+                        if (field.valueKind() == ValueKind.BOOLEAN || field.valueKind() == ValueKind.GENERIC_OBJECT) {
+                            slots[field.slotIndex()] = event == Parser.Event.VALUE_TRUE;
+                        }
+                    } else if (others != null) {
+                        others.put(fallbackKey, event == Parser.Event.VALUE_TRUE);
+                    }
+                    key = -1;
+                }
+                case START_OBJECT -> {
+                    if (key >= 0) {
+                        final var field = fields[key];
+                        parser.rewind(event);
+                        switch (field.container()) {
+                            case VALUE -> {
+                                if (field.valueKind() == ValueKind.GENERIC_OBJECT) {
+                                    slots[field.slotIndex()] = context.codec(Object.class).read(context);
+                                } else {
+                                    slots[field.slotIndex()] = context.codec(field.delegateType()).read(context);
+                                }
+                            }
+                            case MAP -> {
+                                if (field.valueKind() == ValueKind.GENERIC_OBJECT) {
+                                    slots[field.slotIndex()] = context.codec(Object.class).read(context);
+                                } else {
+                                    slots[field.slotIndex()] = readMap(context, field.delegateType());
+                                }
+                            }
+                            case MAP_LIST -> {
+                                slots[field.slotIndex()] = readMapList(context, field.delegateType());
+                            }
+                            default -> parser.skipObject();
+                        }
+                    } else if (others != null) {
+                        parser.rewind(event);
+                        others.put(fallbackKey, context.codec(Object.class).read(context));
+                    } else {
+                        parser.skipObject();
+                    }
+                    key = -1;
+                }
+                case START_ARRAY -> {
+                    if (key >= 0) {
+                        final var field = fields[key];
+                        parser.rewind(event);
+                        switch (field.container()) {
+                            case LIST -> slots[field.slotIndex()] = readList(context, field.delegateType());
+                            case SET -> slots[field.slotIndex()] = readSet(context, field.delegateType());
+                            case VALUE -> {
+                                if (field.valueKind() == ValueKind.GENERIC_OBJECT) {
+                                    slots[field.slotIndex()] = readList(context, Object.class);
+                                } else {
+                                    parser.skipArray();
+                                }
+                            }
+                            default -> parser.skipArray();
+                        }
+                    } else if (others != null) {
+                        parser.rewind(event);
+                        others.put(fallbackKey, context.codec(Object.class).read(context));
+                    } else {
+                        parser.skipArray();
+                    }
+                    key = -1;
+                }
+                case VALUE_NULL -> {
+                    if (key >= 0) {
+                        slots[fields[key].slotIndex()] = null;
+                    } else if (others != null) {
+                        others.put(fallbackKey, null);
+                    }
+                    key = -1;
+                }
+                case END_OBJECT -> {
+                    if (othersSlot >= 0) {
+                        slots[othersSlot] = others;
+                    }
+                    return factory.apply(slots);
+                }
+                default -> key = -1;
+            }
+        }
+        throw new IllegalArgumentException("Object didn't end (missing END_OBJECT)");
+    }
+
+    private static Object readStringValue(final DeserializationContext context, final Parser parser,
+                                          final Parser.Event event, final FieldMeta<?> field) throws IOException {
+        return switch (field.valueKind()) {
+            case STRING, GENERIC_OBJECT -> parser.getString();
+            case ENUM, BIG_DECIMAL, LOCAL_DATE, LOCAL_DATE_TIME, OFFSET_DATE_TIME, ZONED_DATE_TIME -> {
+                parser.rewind(event);
+                yield context.codec(field.delegateType()).read(context);
+            }
+            default -> null;
+        };
+    }
+
+    private static Object readNumberValue(final DeserializationContext context, final Parser parser,
+                                          final Parser.Event event, final FieldMeta<?> field) throws IOException {
+        return switch (field.valueKind()) {
+            case INTEGER -> parser.getInt();
+            case LONG -> parser.getLong();
+            case DOUBLE -> parser.getDouble();
+            case BIG_DECIMAL -> {
+                parser.rewind(event);
+                yield context.codec(BigDecimal.class).read(context);
+            }
+            case GENERIC_OBJECT -> parser.getBigDecimal();
+            default -> null;
+        };
+    }
+
+    protected <A> void writeObject(final A instance, final SerializationContext context,
+                                   final FieldMeta<A>[] fields) throws IOException {
+        final var writer = context.writer();
+        writer.write('{');
+        boolean first = true;
+        for (final var field : fields) {
+            first = writeField(first, instance, field, context);
+        }
+        writer.write('}');
+    }
+
+    @SuppressWarnings("unchecked")
+    private <A> boolean writeField(boolean first, final A instance, final FieldMeta<A> field,
+                                   final SerializationContext context) throws IOException {
+        if (field.isOthers()) {
+            final var val = field.accessor().apply(instance);
+            return writeJsonOthers(first, field.keyPrefix(), (Map<String, Object>) val, context);
+        }
+        final var value = field.accessor().apply(instance);
+        if (value == null) {
+            return writeNullAttribute(first, field.keyPrefix(), context);
+        }
+        return switch (field.container()) {
+            case VALUE -> switch (field.valueKind()) {
+                case INTEGER -> writeValue(first, field.keyPrefix(), ((Number) value).intValue(), context);
+                case LONG -> writeValue(first, field.keyPrefix(), ((Number) value).longValue(), context);
+                case DOUBLE -> writeValue(first, field.keyPrefix(), ((Number) value).doubleValue(), context);
+                case BOOLEAN -> writeValue(first, field.keyPrefix(), (Boolean) value, context);
+                case STRING -> writeString(first, field.keyPrefix(), (CharSequence) value, context);
+                case ENUM, BIG_DECIMAL, LOCAL_DATE, LOCAL_DATE_TIME, OFFSET_DATE_TIME, ZONED_DATE_TIME, MODEL, GENERIC_OBJECT ->
+                        writeWithCodec(first, field.keyPrefix(), value, (Class<Object>) field.delegateType(), context);
+            };
+            case LIST, SET -> {
+                if (field.valueKind() == ValueKind.STRING) {
+                    yield writeStringCollection(first, field.keyPrefix(), (Collection<? extends CharSequence>) value, context);
+                }
+                if (field.valueKind() == ValueKind.INTEGER || field.valueKind() == ValueKind.LONG ||
+                        field.valueKind() == ValueKind.DOUBLE || field.valueKind() == ValueKind.BOOLEAN) {
+                    yield writeRawCollection(first, field.keyPrefix(), (Collection<?>) value, context);
+                }
+                yield writeCollection(first, field.keyPrefix(), (Collection<?>) value,
+                        (Class<Object>) field.delegateType(), context);
+            }
+            case MAP -> {
+                if (field.valueKind() == ValueKind.STRING) {
+                    yield writeStringMap(first, field.keyPrefix(), (Map<String, ? extends CharSequence>) value, context);
+                }
+                if (field.valueKind() == ValueKind.INTEGER || field.valueKind() == ValueKind.LONG ||
+                        field.valueKind() == ValueKind.DOUBLE || field.valueKind() == ValueKind.BOOLEAN) {
+                    yield writeRawMap(first, field.keyPrefix(), (Map<String, ?>) value, context);
+                }
+                yield writeMapWithCodec(first, field.keyPrefix(), (Map<String, ?>) value,
+                        (Class<Object>) field.delegateType(), context);
+            }
+            case MAP_LIST -> {
+                if (field.valueKind() == ValueKind.STRING) {
+                    yield writeStringMapList(first, field.keyPrefix(),
+                            (Map<String, ? extends Collection<? extends CharSequence>>) value, context);
+                }
+                if (field.valueKind() == ValueKind.INTEGER || field.valueKind() == ValueKind.LONG ||
+                        field.valueKind() == ValueKind.DOUBLE || field.valueKind() == ValueKind.BOOLEAN) {
+                    yield writeRawMapList(first, field.keyPrefix(), (Map<String, ? extends Collection<?>>) value, context);
+                }
+                yield writeMapListWithCodec(first, field.keyPrefix(),
+                        (Map<String, ? extends Collection<?>>) value, (Class<Object>) field.delegateType(), context);
+            }
+        };
     }
 }
