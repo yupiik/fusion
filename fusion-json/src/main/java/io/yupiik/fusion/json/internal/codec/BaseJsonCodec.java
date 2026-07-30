@@ -25,7 +25,6 @@ import java.lang.reflect.Type;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -56,32 +55,41 @@ public abstract class BaseJsonCodec<A> implements JsonCodec<A> {
     protected void writeJsonOthers(final Map<String, Object> others, final SerializationContext context) throws IOException {
         final var delegate = context.codec(Object.class);
         final var writer = context.writer();
-        final var it = others.entrySet().iterator();
-        while (it.hasNext()) {
-            final var entry = it.next();
+        boolean first = true;
+        for (final var entry : others.entrySet()) {
             if (entry.getValue() == null) {
                 continue;
+            }
+            if (!first) {
+                writer.write(',');
             }
             JsonStrings.escapeCharsTo(entry.getKey(), writer);
             writer.write(':');
             delegate.write(entry.getValue(), context);
-            if (it.hasNext()) {
-                writer.write(',');
-            }
+            first = false;
         }
     }
 
     // all the writeXxx(boolean, char[], ...) helpers take the "is it the first attribute" flag and
     // return its new value: false when something was written, unchanged when the attribute was skipped
-
     protected boolean writeJsonOthers(final boolean firstAttribute, final char[] name, final Map<String, Object> value,
                                       final SerializationContext context) throws IOException {
-        if (value == null) {
+        if (value == null || value.isEmpty()) {
             return writeNullAttribute(firstAttribute, name, context);
         }
         // note: the name is not written, the attributes of the map are flattened in the enclosing object
-        final var first = separator(firstAttribute, context);
-        writeJsonOthers(value, context);
+        final var delegate = context.codec(Object.class);
+        final var writer = context.writer();
+        var first = firstAttribute;
+        for (final var entry : value.entrySet()) {
+            if (entry.getValue() == null) {
+                continue;
+            }
+            first = separator(first, context);
+            JsonStrings.escapeCharsTo(entry.getKey(), writer);
+            writer.write(':');
+            delegate.write(entry.getValue(), context);
+        }
         return first;
     }
 
@@ -354,7 +362,6 @@ public abstract class BaseJsonCodec<A> implements JsonCodec<A> {
         writer.write('}');
         return first;
     }
-
     protected boolean writeRawMapList(final boolean firstAttribute, final char[] name,
                                       final Map<String, ? extends Collection<?>> value,
                                       final SerializationContext context) throws IOException {
@@ -365,14 +372,17 @@ public abstract class BaseJsonCodec<A> implements JsonCodec<A> {
         final var writer = context.writer();
         writer.write(name);
         writer.write('{');
-        final var it = value.entrySet().iterator();
-        while (it.hasNext()) {
-            final var next = it.next();
-            final var rawNextValue = next.getValue();
+        boolean firstEntry = true;
+        for (final var entry : value.entrySet()) {
+            final var rawNextValue = entry.getValue();
             if (rawNextValue == null) { // unlikely but possible
                 continue;
             }
-            JsonStrings.escapeCharsTo(next.getKey(), writer);
+            if (!firstEntry) {
+                writer.write(',');
+            }
+            firstEntry = false;
+            JsonStrings.escapeCharsTo(entry.getKey(), writer);
             writer.write(":[");
             final var nextValue = rawNextValue.iterator();
             while (nextValue.hasNext()) {
@@ -382,9 +392,6 @@ public abstract class BaseJsonCodec<A> implements JsonCodec<A> {
                 }
             }
             writer.write(']');
-            if (it.hasNext()) {
-                writer.write(',');
-            }
         }
         writer.write('}');
         return first;
@@ -400,14 +407,17 @@ public abstract class BaseJsonCodec<A> implements JsonCodec<A> {
         final var writer = context.writer();
         writer.write(name);
         writer.write('{');
-        final var it = value.entrySet().iterator();
-        while (it.hasNext()) {
-            final var next = it.next();
-            final var rawNextValue = next.getValue();
+        boolean firstEntry = true;
+        for (final var entry : value.entrySet()) {
+            final var rawNextValue = entry.getValue();
             if (rawNextValue == null) { // unlikely but possible
                 continue;
             }
-            JsonStrings.escapeCharsTo(next.getKey(), writer);
+            if (!firstEntry) {
+                writer.write(',');
+            }
+            firstEntry = false;
+            JsonStrings.escapeCharsTo(entry.getKey(), writer);
             writer.write(":[");
             final var nextValue = rawNextValue.iterator();
             while (nextValue.hasNext()) {
@@ -422,9 +432,6 @@ public abstract class BaseJsonCodec<A> implements JsonCodec<A> {
                 }
             }
             writer.write(']');
-            if (it.hasNext()) {
-                writer.write(',');
-            }
         }
         writer.write('}');
         return first;
@@ -442,14 +449,17 @@ public abstract class BaseJsonCodec<A> implements JsonCodec<A> {
         final var writer = context.writer();
         writer.write(name);
         writer.write('{');
-        final var it = value.entrySet().iterator();
-        while (it.hasNext()) {
-            final var next = it.next();
-            final var rawNextValue = next.getValue();
+        boolean firstEntry = true;
+        for (final var entry : value.entrySet()) {
+            final var rawNextValue = entry.getValue();
             if (rawNextValue == null) { // unlikely but possible
                 continue;
             }
-            JsonStrings.escapeCharsTo(next.getKey(), writer);
+            if (!firstEntry) {
+                writer.write(',');
+            }
+            firstEntry = false;
+            JsonStrings.escapeCharsTo(entry.getKey(), writer);
             writer.write(":[");
             final var nextValue = rawNextValue.iterator();
             while (nextValue.hasNext()) {
@@ -464,9 +474,6 @@ public abstract class BaseJsonCodec<A> implements JsonCodec<A> {
                 }
             }
             writer.write(']');
-            if (it.hasNext()) {
-                writer.write(',');
-            }
         }
         writer.write('}');
         return first;
@@ -537,12 +544,6 @@ public abstract class BaseJsonCodec<A> implements JsonCodec<A> {
         }
         return instance;
     }
-
-    // -----------------------------------------------------------------------
-    // Table-driven codec engine (Step 1 of the optimizer plan)
-    // Generated codecs emit a FieldMeta table + factory lambda; the control
-    // flow lives here in BaseJsonCodec instead of in generated source.
-    // -----------------------------------------------------------------------
 
     public enum ContainerKind {
         VALUE, LIST, SET, MAP, MAP_LIST

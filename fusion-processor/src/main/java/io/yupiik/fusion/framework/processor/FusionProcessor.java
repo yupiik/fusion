@@ -25,7 +25,6 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import java.io.IOException;
-import java.io.InputStream;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.InvocationTargetException;
@@ -100,10 +99,6 @@ public class FusionProcessor implements Processor {
     // goal there is to hide the processor classes from the completion of the IDE so we move:
     // X.class -> fusion/annotationprocessor/precompiled/X.classF
     private static class InternalClassLoader extends ClassLoader {
-        private static final String RESOURCES = "fusion/annotationprocessor/precompiled/";
-        // some classes have a variant using recent JVM API (java.lang.classfile emitter), resolved once
-        private static final String VERSIONED_RESOURCES = Runtime.version().feature() >= 24 ? RESOURCES + "META-INF/versions/24/" : null;
-
         static {
             registerAsParallelCapable();
         }
@@ -125,7 +120,7 @@ public class FusionProcessor implements Processor {
 
                 if (name.startsWith("io.yupiik.fusion.framework.processor.internal.")) {
                     // classF enables to not have completion on these classes in IDE
-                    final var resource = findPrecompiled(name);
+                    final var resource = getParent().getResourceAsStream(toResource(name));
                     if (resource != null) {
                         final byte[] bytes;
                         try (resource) {
@@ -146,15 +141,8 @@ public class FusionProcessor implements Processor {
             }
         }
 
-        private InputStream findPrecompiled(final String name) {
-            final var relative = name.replace('.', '/') + ".classF";
-            if (VERSIONED_RESOURCES != null) {
-                final var versioned = getParent().getResourceAsStream(VERSIONED_RESOURCES + relative);
-                if (versioned != null) {
-                    return versioned;
-                }
-            }
-            return getParent().getResourceAsStream(RESOURCES + relative);
+        private String toResource(final String name) {
+            return "fusion/annotationprocessor/precompiled/" + name.replace('.', '/') + ".classF";
         }
     }
 }

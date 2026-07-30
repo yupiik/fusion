@@ -103,7 +103,6 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
 class FusionProcessorTest {
@@ -238,21 +237,8 @@ class FusionProcessorTest {
     }
 
     @Test
-    void moduleBytecodeEmission(@TempDir final Path work) throws IOException {
-        assumeTrue(Runtime.version().feature() >= 24); // java.lang.classfile based emission
-        final var compiler = new Compiler(work, "Bean1", "Bean2");
-        compiler.compileAndAsserts((loader, container) -> {
-            assertFalse(Files.exists(compiler.getGeneratedSources().resolve("test/p/FusionGeneratedModule.java")), "module must not be a source");
-            assertTrue(Files.exists(compiler.getClasses().resolve("test/p/FusionGeneratedModule.class")), "module must be emitted as bytecode");
-            // and it must behave as the source version: beans are discovered and usable
-            assertEquals("bean1[bean2[]]", container.lookup(loader.apply("test.p.Bean1")).instance().toString());
-        });
-    }
-
-    @Test
     void simple(@TempDir final Path work) throws IOException {
-        final var compiler = new Compiler(work, "Bean1", "Bean2")
-                .processorArgs("-Afusion.emitBytecode=false"); // this test asserts the generated sources
+        final var compiler = new Compiler(work, "Bean1", "Bean2");
         compiler.compileAndAsserts((loader, container) -> {
             try {
                 assertEquals("""
