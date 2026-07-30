@@ -150,389 +150,161 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
                 null, null);
     }
 
-    // todo: optimize, adding some light helper in BaseJsonCodec we could save most of the generated code (and therefore bytecode)
     private StringBuilder generateCodec(final String modelClass, final List<Param> params) {
-        final var valueParams = params.stream()
-                .filter(it -> it.types().paramType() == ParamType.VALUE)
-                .toList();
-        final var strings = valueParams.stream().filter(p -> {
-            final var def = p.types().paramTypeDef();
-            return def == ParamTypeDef.STRING || def == ParamTypeDef.BIG_DECIMAL || def == ParamTypeDef.ENUM;
-        }).toList();
-        final var numbers = valueParams.stream().filter(p -> {
-            final var def = p.types().paramTypeDef();
-            return def == ParamTypeDef.INTEGER || def == ParamTypeDef.LONG || def == ParamTypeDef.DOUBLE || def == ParamTypeDef.BIG_DECIMAL;
-        }).toList();
-        final var booleans = valueParams.stream().filter(p -> p.types().paramTypeDef() == ParamTypeDef.BOOLEAN).toList();
-        final var dates = valueParams.stream().filter(p -> {
-            final var def = p.types().paramTypeDef();
-            return def == ParamTypeDef.LOCAL_DATE || def == ParamTypeDef.LOCAL_DATE_TIME ||
-                    def == ParamTypeDef.OFFSET_DATE_TIME || def == ParamTypeDef.ZONED_DATE_TIME;
-        }).toList();
-        final var models = valueParams.stream().filter(p -> p.types().paramTypeDef() == ParamTypeDef.MODEL).toList();
-        final var genericObjects = valueParams.stream().filter(p -> p.types().paramTypeDef() == ParamTypeDef.GENERIC_OBJECT).toList();
-        final var collections = params.stream()
-                .filter(it -> {
-                    final var paramType = it.types().paramType();
-                    return paramType == ParamType.SET || paramType == ParamType.LIST;
-                })
-                .toList();
-        final var mapLists = params.stream().filter(it -> it.types().paramType() == ParamType.MAP_LIST).toList();
-        final var maps = params.stream().filter(it -> it.types().paramType() == ParamType.MAP && !it.others()).toList();
         final var fallbacks = params.stream().filter(Param::others).toList();
-
         if (fallbacks.size() > 1) {
             throw new IllegalArgumentException("You can only get a single @JsonOthers per @JsonModel record");
         }
 
-        final var createIfNullFallbackMap = fallbacks.stream().findFirst().map(a -> "" +
-                        "if (param__" + a.javaName() + " == null) {\n" +
-                        "  param__" + a.javaName() + " = new " + LinkedHashMap.class.getName() + "<String, Object>();\n" +
-                        "}\n")
-                .orElse(null);
-
+        final var pckPrefix = packageName.isBlank() ? "" : packageName + '.';
         final var out = new StringBuilder();
         if (!packageName.isBlank()) {
             out.append("package ").append(packageName).append(";\n\n");
         }
+        out.append("import java.util.function.Function;\n\n");
 
         appendGenerationVersion(out);
         out.append("public class ")
                 .append(className).append(SUFFIX)
                 .append(" extends ").append(BaseJsonCodec.class.getName())
                 .append('<').append(modelClass).append("> {\n");
-        out.append(params.stream()
-                .map(p -> "  private static final char[] " + p.javaName() + "__CHAR_ARRAY = \"\\\"" + p.stringEscapedJsonName() + "\\\":\".toCharArray();")
-                .collect(joining("\n", "", "\n")));
-        // keys are matched by index in this array (= params order) to avoid a String allocation per attribute
+
+        // KEYS__ array for parser.matchString()
         out.append("  private static final char[][] KEYS__ = {\n").append(params.stream()
+                .filter(p -> !p.others())
                 .map(p -> "    \"" + p.stringEscapedJsonName() + "\".toCharArray()")
                 .collect(joining(",\n"))).append("\n  };\n\n");
-        out.append("  public ").append(className).append(SUFFIX).append("() {\n");
-        out.append("    super(").append(modelClass).append(".class);\n");
-        out.append("  }\n");
-        out.append("\n");
-        out.append("  @Override\n");
-        if (collections.stream().anyMatch(t -> t.types().argTypeIfNotValue().toString().contains("<"))) { // read casts the raw collection to the declared type
-            out.append("  @SuppressWarnings({\"unchecked\", \"rawtypes\"})\n"); // the cast will issue a warning but is actually safe
-        }
-        out.append("  public ").append(className.replace('$', '.')).append(" read(")
-                .append(JsonCodec.DeserializationContext.class.getName().replace('$', '.')).append(" context) throws ").append(IOException.class.getName()).append(" {\n");
-        out.append("    final var parser = context.parser();\n");
-        out.append("    parser.enforceNext(").append(Parser.class.getName()).append(".Event.START_OBJECT);\n");
-        out.append("\n");
-        out.append(params.stream()
-                .map(it -> "    " + it.type() + " param__" + it.javaName() + " = " + it.defaultValue() + ";\n")
-                .collect(joining()));
-        out.append("\n");
-        out.append("    int key = -1;\n");
-        if (!fallbacks.isEmpty()) {
-            out.append("    String fallbackKey = null;\n");
-        }
-        out.append("    ").append(Parser.class.getName()).append(".Event event = null;\n");
-        out.append("    while (parser.hasNext()) {\n");
-        out.append("      event = parser.next();\n");
-        out.append("      switch (event) {\n");
-        if (fallbacks.isEmpty()) {
-            out.append("        case KEY_NAME: key = parser.matchString(KEYS__); break;\n");
-        } else { // the actual name is only materialized when it does not match a known attribute
-            out.append("        case KEY_NAME: key = parser.matchString(KEYS__); fallbackKey = key < 0 ? parser.getString() : null; break;\n");
-        }
-        if (!strings.isEmpty() || !dates.isEmpty() || !fallbacks.isEmpty() || !genericObjects.isEmpty()) {
-            out.append("        case VALUE_STRING:\n");
-            out.append("          switch (key) {\n");
-            out.append(strings.stream()
-                    .map(it -> {
-                        final var assignment = "              param__" + it.javaName() + " = ";
-                        return "" +
-                                keyCase(params, it) +
-                                switch (it.types().paramTypeDef()) {
-                                    case STRING -> assignment + "parser.getString();\n";
-                                    case ENUM -> "              parser.rewind(event);\n" +
-                                            assignment + "context.codec(" + ParsedType.of(it.type()).className() + ".class).read(context);\n";
-                                    case BIG_DECIMAL -> "              parser.rewind(event);\n" +
-                                            assignment + "context.codec(" + BigDecimal.class.getName() + ".class).read(context);\n";
-                                    default ->
-                                            throw new IllegalStateException("Unsupported parameter: " + it + " from " + element);
-                                } +
-                                "              break;\n";
-                    })
-                    .collect(joining()));
-            out.append(dates.stream()
-                    .map(it -> "" +
-                            keyCase(params, it) +
-                            "              parser.rewind(event);\n" +
-                            "              param__" + it.javaName() + " = context.codec(" + dateClassOf(it) + ".class).read(context);\n" +
-                            "              break;\n")
-                    .collect(joining()));
-            out.append(genericObjects.stream()
-                    .map(it -> "" +
-                            keyCase(params, it) +
-                            "              param__" + it.javaName() + " = parser.getString();\n" +
-                            "              break;\n")
-                    .collect(joining()));
-            if (fallbacks.isEmpty()) {
-                out.append("            default: // ignore\n");
-            } else {
-                out.append("            default:\n");
-                out.append(createIfNullFallbackMap.indent(14));
-                out.append("              param__").append(fallbacks.get(0).javaName()).append(".put(fallbackKey == null ? new String(KEYS__[key]) : fallbackKey, parser.getString());\n");
-            }
-            out.append("          }\n");
-            out.append("          key = -1;\n");
-            out.append("          break;\n");
-        }
-        if (!numbers.isEmpty() || !fallbacks.isEmpty() || !genericObjects.isEmpty()) {
-            out.append("        case VALUE_NUMBER:\n");
-            out.append("          switch (key) {\n");
-            out.append(numbers.stream()
-                    .map(it -> "" +
-                            keyCase(params, it) +
-                            "              param__" + it.javaName() + " = parser." +
-                            switch (it.types().paramTypeDef()) {
-                                case INTEGER -> "getInt";
-                                case LONG -> "getLong";
-                                case DOUBLE -> "getDouble";
-                                case BIG_DECIMAL -> "getBigDecimal";
-                                default ->
-                                        throw new IllegalStateException("Unsupported parameter: " + it + " from " + element);
-                            } + "();\n" +
-                            "              break;\n")
-                    .collect(joining()));
-            out.append(genericObjects.stream()
-                    .map(it -> "" +
-                            keyCase(params, it) +
-                            "              param__" + it.javaName() + " = parser.getBigDecimal();\n" +
-                            "              break;\n")
-                    .collect(joining()));
-            if (fallbacks.isEmpty()) {
-                out.append("            default: // ignore\n");
-            } else {
-                out.append("            default:\n");
-                out.append(createIfNullFallbackMap.indent(14));
-                out.append("              param__").append(fallbacks.get(0).javaName()).append(".put(fallbackKey == null ? new String(KEYS__[key]) : fallbackKey, parser.getBigDecimal());\n");
-            }
-            out.append("          }\n");
-            out.append("          key = -1;\n");
-            out.append("          break;\n");
-        }
-        if (!booleans.isEmpty() || !fallbacks.isEmpty() || !genericObjects.isEmpty()) {
-            out.append("        case VALUE_TRUE:\n");
-            out.append("        case VALUE_FALSE:\n");
-            out.append("          switch (key) {\n");
-            out.append(Stream.concat(booleans.stream(), genericObjects.stream())
-                    .map(it -> "" +
-                            keyCase(params, it) +
-                            "              param__" + it.javaName() + " = " + Parser.class.getName() + ".Event.VALUE_TRUE.equals(event);\n" +
-                            "              break;\n")
-                    .collect(joining()));
-            if (fallbacks.isEmpty()) {
-                out.append("            default: // ignore\n");
-            } else {
-                out.append("            default:\n");
-                out.append(createIfNullFallbackMap.indent(14));
-                out.append("              param__").append(fallbacks.get(0).javaName())
-                        .append(".put(fallbackKey == null ? new String(KEYS__[key]) : fallbackKey, ").append(Parser.class.getName()).append(".Event.VALUE_TRUE.equals(event));\n");
-            }
-            out.append("          }\n");
-            out.append("          key = -1;\n");
-            out.append("          break;\n");
-        }
-        if (!models.isEmpty() || !genericObjects.isEmpty() || !maps.isEmpty() || !mapLists.isEmpty() || !fallbacks.isEmpty()) {
-            out.append("        case START_OBJECT:\n");
-            out.append("          switch (key) {\n");
-            out.append(models.stream()
-                    .map(it -> "" +
-                            keyCase(params, it) +
-                            "              parser.rewind(event);\n" +
-                            "              param__" + it.javaName() + " = context.codec(" + it.type() + ".class).read(context);\n" +
-                            "              break;\n")
-                    .collect(joining()));
-            out.append(genericObjects.stream()
-                    .map(it -> "" +
-                            keyCase(params, it) +
-                            "              parser.rewind(event);\n" +
-                            "              param__" + it.javaName() + " = context.codec(" + Object.class.getName() + ".class).read(context);\n" +
-                            "              break;\n")
-                    .collect(joining()));
-            out.append(maps.stream()
-                    .map(it -> "" +
-                            keyCase(params, it) +
-                            "              parser.rewind(event);\n" +
-                            "              param__" + it.javaName() + " = readMap(context, " +
-                            it.types().argTypeIfNotValue() + ".class);\n" +
-                            "              break;\n")
-                    .collect(joining()));
-            out.append(mapLists.stream()
-                    .map(it -> "" +
-                            keyCase(params, it) +
-                            "              parser.rewind(event);\n" +
-                            "              param__" + it.javaName() + " = readMapList(context, " +
-                            it.types().argTypeIfNotValue() + ".class);\n" +
-                            "              break;\n")
-                    .collect(joining()));
-            if (fallbacks.isEmpty()) {
-                out.append("            default:\n              parser.skipObject();\n              break;\n");
-            } else {
-                out.append("            default:\n");
-                out.append(createIfNullFallbackMap.indent(14));
-                out.append("              parser.rewind(event);\n");
-                out.append("              param__").append(fallbacks.get(0).javaName())
-                        .append(".put(fallbackKey == null ? new String(KEYS__[key]) : fallbackKey, context.codec(").append(Object.class.getName()).append(".class).read(context));\n");
-            }
-            out.append("          }\n");
-            out.append("          key = -1;\n");
-            out.append("          break;\n");
-        }
-        if (!collections.isEmpty() || !fallbacks.isEmpty() || !genericObjects.isEmpty()) {
-            out.append("        case START_ARRAY:\n");
-            out.append("          switch (key) {\n");
-            out.append(collections.stream()
-                    .map(it -> {
-                        final var expectedType = it.types().argTypeIfNotValue().toString();
-                        final var hasGenerics = expectedType.contains("<");
-                        final var readMethod = switch (it.types().paramType()) {
-                            case LIST -> "readList";
-                            case SET -> "readSet";
-                            default ->
-                                    throw new IllegalStateException("Unsupported parameter: " + it + " from " + element);
-                        };
-                        final var rawCollection = switch (it.types().paramType()) {
-                            case LIST -> List.class.getName();
-                            case SET -> Set.class.getName();
-                            default ->
-                                    throw new IllegalStateException("Unsupported parameter: " + it + " from " + element);
-                        };
-                        return "" +
-                                keyCase(params, it) +
-                                "              parser.rewind(event);\n" +
-                                "              param__" + it.javaName() + " = " +
-                                (hasGenerics ? // the raw item codec is used so the collection must be adapted to the declared type
-                                        "(" + it.type() + ") (" + rawCollection + "<?>) " + readMethod + "(context, " +
-                                                expectedType.substring(0, expectedType.indexOf('<')) + ".class);\n" :
-                                        readMethod + "(context, " + expectedType + ".class);\n") +
-                                "              break;\n";
-                    })
-                    .collect(joining()));
-            out.append(genericObjects.stream()
-                    .map(it -> "" +
-                            keyCase(params, it) +
-                            "              parser.rewind(event);\n" +
-                            "              param__" + it.javaName() + " = readList(context, java.lang.Object.class);\n" +
-                            "              break;\n")
-                    .collect(joining()));
-            if (fallbacks.isEmpty()) {
-                out.append("            default:\n              parser.skipArray();\n              break;\n");
-            } else {
-                out.append("            default:\n");
-                out.append(createIfNullFallbackMap.indent(14));
-                out.append("              parser.rewind(event);\n");
-                out.append("              param__").append(fallbacks.get(0).javaName())
-                        .append(".put(fallbackKey == null ? new String(KEYS__[key]) : fallbackKey, context.codec(").append(Object.class.getName()).append(".class).read(context));\n");
-            }
-            out.append("          }\n");
-            out.append("          key = -1;\n");
-            out.append("          break;\n");
-        }
-        out.append("        case END_OBJECT: return new ").append(modelClass).append("(").append(params.stream()
-                .map(param -> "param__" + param.javaName())
-                .collect(joining(", "))).append(");\n");
-        out.append("        case ")
-                .append(Stream.of(
-                                "VALUE_NULL",
-                                strings.isEmpty() && dates.isEmpty() && fallbacks.isEmpty() && genericObjects.isEmpty() ? "VALUE_STRING" : null,
-                                numbers.isEmpty() && fallbacks.isEmpty() && genericObjects.isEmpty() ? "VALUE_NUMBER" : null,
-                                booleans.isEmpty() && fallbacks.isEmpty() && genericObjects.isEmpty() ? "VALUE_TRUE" : null,
-                                booleans.isEmpty() && fallbacks.isEmpty() && genericObjects.isEmpty() ? "VALUE_FALSE" : null)
-                        .filter(Objects::nonNull)
-                        .collect(joining(", ")))
-                .append(":\n");
-        out.append("          key = -1;\n          break;\n");
-        if (models.isEmpty() && genericObjects.isEmpty() && maps.isEmpty() && mapLists.isEmpty() && fallbacks.isEmpty()) {
-            out.append("        case START_OBJECT:\n");
-            out.append("          parser.skipObject();\n");
-            out.append("          key = -1;\n          break;\n");
-        }
-        if (collections.isEmpty() && genericObjects.isEmpty() && fallbacks.isEmpty()) {
-            out.append("        case START_ARRAY:\n");
-            out.append("          parser.skipArray();\n");
-            out.append("          key = -1;\n          break;\n");
-        }
-        out.append("        // case END_ARRAY: fallthrough\n");
-        out.append("        default: throw new IllegalArgumentException(\"Unsupported event: \" + event);\n");
-        out.append("      }\n");
-        out.append("    }\n");
-        out.append("    throw new IllegalArgumentException(\"Object didn't end.\");\n");
-        out.append("  }\n");
-        out.append("\n");
-        out.append("  @Override\n");
-        out.append("  public void write(").append(className.replace('$', '.')).append(" instance, ")
-                .append(JsonCodec.SerializationContext.class.getName().replace('$', '.')).append(" context) throws ").append(IOException.class.getName()).append(" {\n");
-        out.append("    final var writer = context.writer();\n");
-        out.append("    boolean firstAttribute = true;\n");
-        out.append("    writer.write('{');\n");
 
-        out.append(params.stream()
+        // FIELDS__ array (KEYS__ order, @JsonOthers appended at the end)
+        final var namedParams = params.stream().filter(p -> !p.others()).toList();
+        out.append("  @SuppressWarnings(\"unchecked\")\n")
+                .append("  private static final ").append(BaseJsonCodec.class.getName()).append(".FieldMeta<").append(modelClass).append(">[] FIELDS__ = new ")
+                .append(BaseJsonCodec.class.getName()).append(".FieldMeta[] {\n");
+        for (int i = 0; i < namedParams.size(); i++) {
+            final var p = namedParams.get(i);
+            out.append("    new ").append(BaseJsonCodec.class.getName()).append(".FieldMeta<>(\n")
+                    .append("      \"").append(p.stringEscapedJsonName()).append("\".toCharArray(), ")
+                    .append(i).append(", ")
+                    .append(BaseJsonCodec.class.getName()).append(".ContainerKind.").append(containerKind(p.types().paramType())).append(", ")
+                    .append(BaseJsonCodec.class.getName()).append(".ValueKind.").append(valueKind(p.types().paramTypeDef())).append(", ")
+                    .append(isJavaLangWrapper(p.type())).append(", ")
+                    .append(p.others()).append(", ")
+                    .append(delegateTypeExpr(p)).append(", ")
+                    .append("m -> ((").append(modelClass).append(") m).").append(p.javaName()).append("(), ")
+                    .append(p.order()).append(", ")
+                    .append("(\"\\\"\" + ").append("\"").append(p.stringEscapedJsonName()).append("\"").append(" + \"\\\":\").toCharArray()")
+                    .append(")");
+            if (i < namedParams.size() - 1 || !fallbacks.isEmpty()) {
+                out.append(',');
+            }
+            out.append('\n');
+        }
+        // append @JsonOthers field at the end of FIELDS__
+        if (!fallbacks.isEmpty()) {
+            final var othersParam = fallbacks.get(0);
+            final var othersSlot = namedParams.size();
+            out.append("    new ").append(BaseJsonCodec.class.getName()).append(".FieldMeta<>(\n")
+                    .append("      null, ")
+                    .append(othersSlot).append(", ")
+                    .append(BaseJsonCodec.class.getName()).append(".ContainerKind.").append(containerKind(othersParam.types().paramType())).append(", ")
+                    .append(BaseJsonCodec.class.getName()).append(".ValueKind.").append(valueKind(othersParam.types().paramTypeDef())).append(", ")
+                    .append("false, true, ")
+                    .append(delegateTypeExpr(othersParam)).append(", ")
+                    .append("m -> ((").append(modelClass).append(") m).").append(othersParam.javaName()).append("(), ")
+                    .append(othersParam.order()).append(", ")
+                    .append("null")
+                    .append(")");
+            out.append('\n');
+        }
+        out.append("  };\n\n");
+
+        // FIELDS_WRITE__ array (write order = @JsonProperty.order then javaName)
+        final var othersIndex = fallbacks.isEmpty() ? -1 : namedParams.size();
+        final var writeOrdered = params.stream()
                 .sorted(Comparator.<Param, Integer>comparing(p -> p.order() != Integer.MIN_VALUE ?
                                 p.order() :
                                 (p.others() ? Integer.MIN_VALUE + 2 : Integer.MIN_VALUE + 1))
                         .thenComparing(Param::javaName))
-                .map(param -> {
-                    final var paramTypeDef = param.types().paramTypeDef();
-                    final var accessor = "instance." + param.javaName() + "()";
-                    final var name = param.javaName() + "__CHAR_ARRAY";
-                    if (param.others()) {
-                        return "    firstAttribute = writeJsonOthers(firstAttribute, " + name + ", " + accessor + ", context);\n";
-                    }
-                    return switch (param.types().paramType()) { // todo: add a config in @JsonModel to write or not null values (for now ignored)
-                        case VALUE -> switch (paramTypeDef) {
-                            case INTEGER, LONG, DOUBLE, BOOLEAN -> param.type().toString().startsWith("java.lang.") ? // wrapper, can be null
-                                    "    firstAttribute = writeNullable(firstAttribute, " + name + ", " + accessor + ", context);\n" :
-                                    // resolves to the primitive writeValue overload, no String allocation
-                                    "    firstAttribute = writeValue(firstAttribute, " + name + ", " + accessor + ", context);\n";
-                            case STRING ->
-                                    "    firstAttribute = writeString(firstAttribute, " + name + ", " + accessor + ", context);\n";
-                            case ENUM, LOCAL_DATE, LOCAL_DATE_TIME, OFFSET_DATE_TIME, ZONED_DATE_TIME, BIG_DECIMAL, MODEL ->
-                                    "    firstAttribute = writeWithCodec(firstAttribute, " + name + ", " + accessor + ", " + param.type() + ".class, context);\n";
-                            case GENERIC_OBJECT ->
-                                    "    firstAttribute = writeWithCodec(firstAttribute, " + name + ", " + accessor + ", " + Object.class.getName() + ".class, context);\n";
-                        };
-                        case SET, LIST -> switch (paramTypeDef) {
-                            case INTEGER, LONG, DOUBLE, BOOLEAN ->
-                                    "    firstAttribute = writeRawCollection(firstAttribute, " + name + ", " + accessor + ", context);\n";
-                            case STRING ->
-                                    "    firstAttribute = writeStringCollection(firstAttribute, " + name + ", " + accessor + ", context);\n";
-                            case GENERIC_OBJECT ->
-                                    "    firstAttribute = writeCollection(firstAttribute, " + name + ", " + accessor + ", " + Object.class.getName() + ".class, context);\n";
-                            default ->
-                                    "    firstAttribute = writeCollection(firstAttribute, " + name + ", " + accessor + ", " + param.types().argTypeIfNotValue() + ".class, context);\n";
-                        };
-                        case MAP -> switch (paramTypeDef) {
-                            case INTEGER, LONG, DOUBLE, BOOLEAN ->
-                                    "    firstAttribute = writeRawMap(firstAttribute, " + name + ", " + accessor + ", context);\n";
-                            case STRING ->
-                                    "    firstAttribute = writeStringMap(firstAttribute, " + name + ", " + accessor + ", context);\n";
-                            case GENERIC_OBJECT ->
-                                    "    firstAttribute = writeMapWithCodec(firstAttribute, " + name + ", " + accessor + ", " + Object.class.getName() + ".class, context);\n";
-                            default ->
-                                    "    firstAttribute = writeMapWithCodec(firstAttribute, " + name + ", " + accessor + ", " + param.types().argTypeIfNotValue() + ".class, context);\n";
-                        };
-                        case MAP_LIST -> switch (paramTypeDef) {
-                            case INTEGER, LONG, DOUBLE, BOOLEAN ->
-                                    "    firstAttribute = writeRawMapList(firstAttribute, " + name + ", " + accessor + ", context);\n";
-                            case STRING ->
-                                    "    firstAttribute = writeStringMapList(firstAttribute, " + name + ", " + accessor + ", context);\n";
-                            case GENERIC_OBJECT ->
-                                    "    firstAttribute = writeMapListWithCodec(firstAttribute, " + name + ", " + accessor + ", " + Object.class.getName() + ".class, context);\n";
-                            default ->
-                                    "    firstAttribute = writeMapListWithCodec(firstAttribute, " + name + ", " + accessor + ", " + param.types().argTypeIfNotValue() + ".class, context);\n";
-                        };
-                    };
-                })
-                .collect(joining()));
-        out.append("    writer.write('}');\n");
+                .toList();
+        out.append("  @SuppressWarnings(\"unchecked\")\n")
+                .append("  private static final ").append(BaseJsonCodec.class.getName()).append(".FieldMeta<").append(modelClass).append(">[] FIELDS_WRITE__ = new ")
+                .append(BaseJsonCodec.class.getName()).append(".FieldMeta[] {\n");
+        for (int i = 0; i < writeOrdered.size(); i++) {
+            final var p = writeOrdered.get(i);
+            if (p.others()) {
+                out.append("    new ").append(BaseJsonCodec.class.getName()).append(".FieldMeta<>(\n")
+                        .append("      \"").append(p.stringEscapedJsonName()).append("\".toCharArray(), ")
+                        .append(othersIndex).append(", ")
+                        .append(BaseJsonCodec.class.getName()).append(".ContainerKind.").append(containerKind(p.types().paramType())).append(", ")
+                        .append(BaseJsonCodec.class.getName()).append(".ValueKind.").append(valueKind(p.types().paramTypeDef())).append(", ")
+                        .append(isJavaLangWrapper(p.type())).append(", true, ")
+                        .append(delegateTypeExpr(p)).append(", ")
+                        .append("m -> ((").append(modelClass).append(") m).").append(p.javaName()).append("(), ")
+                        .append(p.order()).append(", ")
+                        .append("(\"\\\"\" + ").append("\"").append(p.stringEscapedJsonName()).append("\"").append(" + \"\\\":\").toCharArray()")
+                        .append(")");
+            } else {
+                final var fieldArrayIndex = namedParams.indexOf(p);
+                out.append("    FIELDS__[").append(fieldArrayIndex).append("]");
+            }
+            if (i < writeOrdered.size() - 1) {
+                out.append(',');
+            }
+            out.append('\n');
+        }
+        out.append("  };\n\n");
+
+        // factory method with @SuppressWarnings("unchecked")
+        final boolean hasUnchecked = params.stream().anyMatch(p -> p.type().toString().contains("<"));
+        if (hasUnchecked) {
+            out.append("  @SuppressWarnings(\"unchecked\")\n");
+        }
+        out.append("  private static ").append(modelClass.replace('$', '.')).append(" createFromSlots(final Object[] args) {\n");
+        out.append("    return new ").append(modelClass.replace('$', '.')).append("(\n");
+        for (int i = 0; i < params.size(); i++) {
+            final var p = params.get(i);
+            final var typeStr = p.type().toString();
+            final boolean isObject = typeStr.equals(Object.class.getName()) ||
+                    (p.types().paramTypeDef() == ParamTypeDef.GENERIC_OBJECT && p.types().paramType() == ParamType.VALUE);
+            if (isObject) {
+                out.append("      args[").append(i).append("]");
+            } else {
+                out.append("      (").append(typeStr.replace('$', '.')).append(") args[").append(i).append("]");
+            }
+            if (i < params.size() - 1) {
+                out.append(',');
+            }
+            out.append('\n');
+        }
+        out.append("    );\n  }\n\n");
+
+        // FACTORY__ field
+        out.append("  private static final Function<Object[], ").append(modelClass.replace('$', '.')).append("> FACTORY__ = ")
+                .append(className).append(SUFFIX).append("::createFromSlots;\n\n");
+
+        // constructor
+        out.append("  public ").append(className).append(SUFFIX).append("() {\n");
+        out.append("    super(").append(modelClass).append(".class);\n");
+        out.append("  }\n\n");
+
+        // read()
+        out.append("  @Override\n");
+        out.append("  public ").append(modelClass.replace('$', '.')).append(" read(final ")
+                .append(JsonCodec.DeserializationContext.class.getName().replace('$', '.')).append(" context)")
+                .append(" throws ").append(IOException.class.getName()).append(" {\n");
+        out.append("    return readObject(context, KEYS__, FIELDS__, FACTORY__);\n");
+        out.append("  }\n\n");
+
+        // write()
+        out.append("  @Override\n");
+        out.append("  public void write(final ").append(modelClass.replace('$', '.')).append(" instance, final ")
+                .append(JsonCodec.SerializationContext.class.getName().replace('$', '.')).append(" context")
+                .append(") throws ").append(IOException.class.getName()).append(" {\n");
+        out.append("    writeObject(instance, context, FIELDS_WRITE__);\n");
         out.append("  }\n");
-        if (generateBean) { // nested to avoid a source file (and a compilation unit) per codec bean
+
+        // nested bean
+        if (generateBean) {
             final var codecName = className + SUFFIX;
             out.append("\n");
             out.append("  public static class ").append(FusionBean.class.getSimpleName()).append(" extends ")
@@ -540,11 +312,10 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
             out.append("    public ").append(FusionBean.class.getSimpleName()).append("() {\n");
             out.append("      super(")
                     .append(codecName).append(".class, ")
-                    .append(DefaultScoped.class.getName()).append(".class, ") // will be a singleton in json mapper anyway
+                    .append(DefaultScoped.class.getName()).append(".class, ")
                     .append("1000, ")
                     .append(Map.class.getName()).append(".of());\n");
-            out.append("    }\n");
-            out.append("\n");
+            out.append("    }\n\n");
             out.append("    @Override\n");
             out.append("    public ").append(codecName).append(" create(final ").append(RuntimeContainer.class.getName())
                     .append(" container, final ")
@@ -555,6 +326,65 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
         }
         out.append("}\n\n");
         return out;
+    }
+
+    private static String containerKind(final ParamType type) {
+        return switch (type) {
+            case VALUE -> "VALUE";
+            case LIST -> "LIST";
+            case SET -> "SET";
+            case MAP -> "MAP";
+            case MAP_LIST -> "MAP_LIST";
+        };
+    }
+
+    private static String valueKind(final ParamTypeDef def) {
+        return switch (def) {
+            case BOOLEAN -> "BOOLEAN";
+            case BIG_DECIMAL -> "BIG_DECIMAL";
+            case INTEGER -> "INTEGER";
+            case LONG -> "LONG";
+            case DOUBLE -> "DOUBLE";
+            case STRING -> "STRING";
+            case ENUM -> "ENUM";
+            case LOCAL_DATE -> "LOCAL_DATE";
+            case LOCAL_DATE_TIME -> "LOCAL_DATE_TIME";
+            case OFFSET_DATE_TIME -> "OFFSET_DATE_TIME";
+            case ZONED_DATE_TIME -> "ZONED_DATE_TIME";
+            case GENERIC_OBJECT -> "GENERIC_OBJECT";
+            case MODEL -> "MODEL";
+        };
+    }
+
+    private static boolean isJavaLangWrapper(final TypeMirror type) {
+        return type instanceof DeclaredType dt &&
+                dt.asElement() instanceof TypeElement te &&
+                te.getQualifiedName().toString().startsWith("java.lang.");
+    }
+
+    private String delegateTypeExpr(final Param param) {
+        final var pt = param.types().paramType();
+        final var ptd = param.types().paramTypeDef();
+        if (pt != ParamType.VALUE && param.types().argTypeIfNotValue() != null) {
+            final var raw = rawTypeString(param.types().argTypeIfNotValue().toString());
+            return raw + ".class";
+        }
+        return switch (ptd) {
+            case STRING, INTEGER, LONG, DOUBLE, BOOLEAN -> "null";
+            case ENUM -> ParsedType.of(param.type()).className() + ".class";
+            case BIG_DECIMAL -> BigDecimal.class.getName() + ".class";
+            case LOCAL_DATE -> LocalDate.class.getName() + ".class";
+            case LOCAL_DATE_TIME -> LocalDateTime.class.getName() + ".class";
+            case OFFSET_DATE_TIME -> OffsetDateTime.class.getName() + ".class";
+            case ZONED_DATE_TIME -> ZonedDateTime.class.getName() + ".class";
+            case MODEL -> param.type().toString().replace('$', '.') + ".class";
+            case GENERIC_OBJECT -> Object.class.getName() + ".class";
+        };
+    }
+
+    private static String rawTypeString(final String type) {
+        final var generics = type.indexOf('<');
+        return generics < 0 ? type : type.substring(0, generics);
     }
 
     private ParamTypes typeOf(final String typeString, final TypeMirror raw) { // todo: enhance error cases

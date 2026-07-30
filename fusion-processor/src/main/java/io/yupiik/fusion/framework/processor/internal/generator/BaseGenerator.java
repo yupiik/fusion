@@ -273,22 +273,11 @@ public abstract class BaseGenerator {
     protected String injectionLookup(final Bean.FieldInjection injection) {
         final var parsed = ParsedType.of(injection.type());
         if (injection.list()) { // only supports classes (but take care of parameterized ones)
-            final var clazz = switch (parsed.type()) {
-                case CLASS -> parsed.className();
-                case PARAMETERIZED_TYPE -> parsed.raw();
+            return switch (parsed.type()) { // the ordering/mapping is hosted by BaseLookup.orderedList to keep the generation small
+                case CLASS -> "orderedList(container, " + parsed.className() + ".class, " + isComparable(injection.type()) + ", dependents)";
+                case PARAMETERIZED_TYPE -> "(" + instanceTypeOf(injection) + ") (" + List.class.getName() + "<?>) " +
+                        "orderedList(container, " + parsed.raw() + ".class, " + isComparable(injection.type()) + ", dependents)";
             };
-            return "(" + instanceTypeOf(injection) + ") " +
-                    "lookups(container, " + clazz + ".class, instances -> " +
-                    String.join("",
-                            "instances.stream()",
-                            isComparable(injection.type()) ?
-                                    ".map(" + Instance.class.getName() + "::instance).sorted()" :
-                                    ".sorted(java.util.Comparator.comparing(i -> i.bean().priority())).map(" + Instance.class.getName() + "::instance)",
-                            ".map(" + switch (parsed.type()) {
-                                case CLASS -> parsed.className() + ".class::cast";
-                                case PARAMETERIZED_TYPE -> "it -> " + parsed.createParameterizedTypeCast() + " it";
-                            } + ").collect(" + Collectors.class.getName() + ".toList())") +
-                    ", dependents)";
         }
         if (injection.set()) { // only supports classes
             final var clazz = switch (parsed.type()) {

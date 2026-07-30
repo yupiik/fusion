@@ -56,10 +56,16 @@ public class Compiler {
     private Path generatedSources;
     private Path classes;
     private Predicate<Class<?>> classpathFilter;
+    private String[] processorArgs = new String[0];
 
     public Compiler(final Path work, final String... classNames) {
         this.work = work;
         this.classNames = classNames;
+    }
+
+    public Compiler processorArgs(final String... args) {
+        this.processorArgs = args;
+        return this;
     }
 
     public Compiler classpathFilter(final Predicate<Class<?>> classpathFilter) {
@@ -175,20 +181,22 @@ public class Compiler {
                 .map(this::pathOf)
                 .collect(joining(File.pathSeparator));
         final var cmd = Stream.concat(
-                        Stream.of(
-                                "--release", version,
-                                "--source-path", src.toString(),
-                                "--class-path", cp,
-                                "-s", generatedSources.toString(),
-                                "-d", classes.toString(),
-                                "-parameters",
-                                "-implicit:class",
-                                "-Werror",
-                                "-Xlint:unchecked",
-                                "-Afusion.skipNotes=false",
-                                "-Afusion.workdir=false",
-                                // "-verbose",
-                                "-processor", "io.yupiik.fusion.framework.processor.FusionProcessor"),
+                        Stream.concat(
+                                Stream.of(
+                                        "--release", version,
+                                        "--source-path", src.toString(),
+                                        "--class-path", cp,
+                                        "-s", generatedSources.toString(),
+                                        "-d", classes.toString(),
+                                        "-parameters",
+                                        "-implicit:class",
+                                        "-Werror",
+                                        "-Xlint:unchecked",
+                                        "-Afusion.skipNotes=false",
+                                        "-Afusion.workdir=false",
+                                        // "-verbose",
+                                        "-processor", "io.yupiik.fusion.framework.processor.FusionProcessor"),
+                                Stream.of(processorArgs)),
                         Stream.of(classNames).map(it -> "test.p." + it))
                 .toArray(String[]::new);
         try {

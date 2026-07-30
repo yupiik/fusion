@@ -95,6 +95,7 @@ public class BeanGenerator extends BaseGenerator implements Supplier<BaseGenerat
         out.append("  @Override\n");
         if (constructorInjections != null && ( // and has some cast
                 constructorInjections.contains("lookups(container, ") ||
+                        constructorInjections.contains("(" + List.class.getName() + "<?>) ") ||
                         constructorInjections.contains("(" + Optional.class.getName() + "<") ||
                         // parameterized lookups go through lookup(container, Type, deps) which returns Object and needs a cast
                         constructorInjections.contains(ParsedType.PARAMETERIZED_TYPE_IMPL))) {
