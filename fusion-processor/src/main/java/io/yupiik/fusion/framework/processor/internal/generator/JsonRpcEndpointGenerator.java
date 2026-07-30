@@ -130,6 +130,11 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
                             .toList()));
         }
 
+        final var methodMetadata = metadata(method);
+        final var nestedBean = generateBean ?
+                nestedBean(methodClassName, findScope(method), priority, methodMetadata,
+                        createBeanInstance(true, methodClassName, enclosingClassName, params)) :
+                null;
         return new BaseHttpEndpointGenerator.Generation(
                 new
 
@@ -150,48 +155,12 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
                         "      " +
                         invocation(params, returnType) + ",\n" +
                         "      " + isVoid + ",\n" +
-                        "      " + metadata(method) + ");\n" +
+                        "      " + methodMetadata + ");\n" +
                         "  }\n" +
+                        (nestedBean == null ? "" : nestedBean) +
                         "}\n" +
                         "\n"),
-                generateBean ?
-                        new
-
-                                GeneratedClass(packagePrefix + methodClassName + '$' + FusionBean.class.getSimpleName(), packageLine +
-
-                                generationVersion() +
-                                "public class " + methodClassName + '$' + FusionBean.class.
-
-                                getSimpleName() + " extends " + BaseBean.class.
-
-                                getName() + "<" + methodClassName + "> {\n" +
-                                "  public " + methodClassName + '$' + FusionBean.class.
-
-                                getSimpleName() + "() {\n" +
-                                "    super(\n" +
-                                "      " + methodClassName + ".class,\n" +
-                                "      " +
-
-                                findScope(method) + ".class,\n" +
-                                "      " + priority + ",\n" +
-                                "      " + metadata(method) + ");\n" +
-                                "  }\n" +
-                                "\n" +
-                                "  @Override\n" +
-                                "  public " + methodClassName + " create(final " + RuntimeContainer.class.
-
-                                getName() + " container, final " +
-                                List.class.
-
-                                        getName() + "<" + Instance.class.
-
-                                getName() + "<?>> dependents) {\n" +
-
-                                createBeanInstance(true, methodClassName, enclosingClassName, params) +
-                                "  }\n" +
-                                "}\n" +
-                                "\n") :
-                        null);
+                nestedBean == null ? null : packagePrefix + methodClassName + '.' + FusionBean.class.getSimpleName());
     }
 
     private boolean isVoidLike(final ParsedType returnType) {

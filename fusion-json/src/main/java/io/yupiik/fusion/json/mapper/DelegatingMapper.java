@@ -17,6 +17,8 @@ package io.yupiik.fusion.json.mapper;
 
 import io.yupiik.fusion.json.JsonMapper;
 
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.Reader;
 import java.io.Writer;
 import java.lang.reflect.Type;
@@ -70,8 +72,23 @@ public class DelegatingMapper implements JsonMapper {
     }
 
     @Override
+    public <A> void write(final A instance, final OutputStream stream) {
+        mapper.write(instance, stream);
+    }
+
+    @Override
     public <A> A read(final Type type, final Reader rawReader) {
         return mapper.read(type, rawReader);
+    }
+
+    @Override
+    public <A> A read(final Type type, final InputStream stream) {
+        return mapper.read(type, stream);
+    }
+
+    @Override
+    public <A> A read(final Class<A> type, final InputStream stream) {
+        return mapper.read(type, stream);
     }
 
     @Override

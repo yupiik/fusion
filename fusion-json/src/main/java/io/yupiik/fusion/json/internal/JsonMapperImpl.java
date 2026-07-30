@@ -18,6 +18,7 @@ package io.yupiik.fusion.json.internal;
 import io.yupiik.fusion.framework.api.configuration.Configuration;
 import io.yupiik.fusion.framework.api.container.Types;
 import io.yupiik.fusion.json.JsonMapper;
+import io.yupiik.fusion.json.deserialization.AvailableCharArrayReader;
 import io.yupiik.fusion.json.internal.codec.BigDecimalJsonCodec;
 import io.yupiik.fusion.json.internal.codec.BooleanJsonCodec;
 import io.yupiik.fusion.json.internal.codec.CollectionJsonCodec;
@@ -33,7 +34,10 @@ import io.yupiik.fusion.json.internal.codec.ObjectJsonCodec;
 import io.yupiik.fusion.json.internal.codec.OffsetDateTimeJsonCodec;
 import io.yupiik.fusion.json.internal.codec.StringJsonCodec;
 import io.yupiik.fusion.json.internal.codec.ZonedDateTimeJsonCodec;
+import io.yupiik.fusion.json.internal.io.BufferedExtendedWriter;
+import io.yupiik.fusion.json.internal.io.ByteBufferProvider;
 import io.yupiik.fusion.json.internal.io.FastStringWriter;
+import io.yupiik.fusion.json.internal.io.FastUtf8Reader;
 import io.yupiik.fusion.json.internal.parser.BufferProvider;
 import io.yupiik.fusion.json.internal.parser.JsonParser;
 import io.yupiik.fusion.json.patch.JsonPatchOperation;
@@ -41,13 +45,9 @@ import io.yupiik.fusion.json.serialization.ExtendedWriter;
 import io.yupiik.fusion.json.serialization.JsonCodec;
 import io.yupiik.fusion.json.spi.Parser;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
+import java.io.InputStream;
 import java.io.Reader;
-import java.io.StringReader;
 import java.io.Writer;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
@@ -56,7 +56,6 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -73,12 +72,17 @@ public class JsonMapperImpl implements JsonMapper {
     private final Function<Reader, Parser> parserFactory;
     private final boolean serializeNulls;
     private final boolean ignoreCodecClose;
+    private final Function<Class<?>, JsonCodec<?>> codecLookup = this::codecLookup; // avoids a lambda instance per (de)serialization
+    private final BufferProvider writeBuffers;
+    private final ByteBufferProvider byteBuffers;
 
     protected JsonMapperImpl(final Map<Type, JsonCodec<?>> codecs, final Function<Reader, Parser> parserFactory, final boolean serializeNulls, final boolean ignoreCodecClose) {
         this.codecs = codecs;
         this.parserFactory = parserFactory;
         this.serializeNulls = serializeNulls;
         this.ignoreCodecClose = ignoreCodecClose;
+        this.writeBuffers = new BufferProvider(8 * 1024, -1);
+        this.byteBuffers = new ByteBufferProvider(8 * 1024, -1);
     }
 
     public JsonMapperImpl(final Collection<JsonCodec<?>> jsonCodecs, final Configuration configuration) {
@@ -91,6 +95,8 @@ public class JsonMapperImpl implements JsonMapper {
         this.parserFactory = readerParserFunction;
         this.serializeNulls = false;
         this.ignoreCodecClose = false;
+        this.writeBuffers = createBufferProvider(configuration);
+        this.byteBuffers = new ByteBufferProvider(maxStringLength(configuration), maxBuffers(configuration));
 
         this.codecs = new ConcurrentHashMap<>();
         this.codecs.putAll(toCodecMap(jsonCodecs.stream()));
@@ -136,13 +142,8 @@ public class JsonMapperImpl implements JsonMapper {
 
     @Override
     public <A> byte[] toBytes(final A instance) {
-        final var out = new ByteArrayOutputStream();
-        try (final var writer = new OutputStreamWriter(out, UTF_8)) {
-            write(instance, writer);
-        } catch (final IOException e) {
-            throw new IllegalStateException(e);
-        }
-        return out.toByteArray();
+        // the JDK UTF-8 String encoder is way faster than an OutputStreamWriter+ByteArrayOutputStream chain
+        return toString(instance).getBytes(UTF_8);
     }
 
     @Override
@@ -152,11 +153,20 @@ public class JsonMapperImpl implements JsonMapper {
 
     @Override
     public <A> A fromBytes(final Type type, final byte[] bytes) {
-        try (final var reader = new InputStreamReader(new ByteArrayInputStream(bytes), UTF_8)) {
+        try (final var reader = new AvailableCharArrayReader(utf8ToChars(bytes))) {
             return read(type, reader);
-        } catch (final IOException e) {
-            throw new IllegalStateException(e);
         }
+    }
+
+    @Override
+    public <A> A read(final Type type, final InputStream stream) {
+        // FastUtf8Reader skips the InputStreamReader/StreamDecoder machinery (ASCII inflate fast path)
+        return read(type, new FastUtf8Reader(stream, byteBuffers));
+    }
+
+    @Override
+    public <A> A read(final Class<A> type, final InputStream stream) {
+        return read(type, new FastUtf8Reader(stream, byteBuffers));
     }
 
     @Override
@@ -166,14 +176,15 @@ public class JsonMapperImpl implements JsonMapper {
 
     @Override
     public <A> A fromString(final Type type, final String string) {
-        try (final var reader = new StringReader(string)) {
+        // AvailableCharArrayReader lets the parser adopt the array as its buffer (no chunked copies through StringReader)
+        try (final var reader = new AvailableCharArrayReader(string.toCharArray())) {
             return read(type, reader);
         }
     }
 
     @Override
     public <A> String toString(final A instance) {
-        final var writer = new FastStringWriter(new StringBuilder());
+        final var writer = new FastStringWriter(new StringBuilder(256)); // presized, the default 16 causes several grow copies
         try (writer) {
             write(instance, writer);
         } catch (final IOException e) {
@@ -183,8 +194,25 @@ public class JsonMapperImpl implements JsonMapper {
     }
 
     @Override
-    @SuppressWarnings({"unchecked", "rawtypes"})
     public <A> void write(final A instance, final Writer writer) {
+        if (writer instanceof ExtendedWriter) { // already efficient (FastStringWriter, buffered, ...), no extra buffering
+            doWrite(instance, writer);
+            return;
+        }
+        // coalesce the many small token writes into bulk writes on the target writer
+        final var buffered = new BufferedExtendedWriter(writer, writeBuffers);
+        try {
+            doWrite(instance, buffered);
+            buffered.end();
+        } catch (final IOException e) {
+            throw new IllegalStateException(e);
+        } finally {
+            buffered.release(); // no-op when end() succeeded, on error the pooled buffer is returned without draining
+        }
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private <A> void doWrite(final A instance, final Writer writer) {
         try {
             if (instance == null) {
                 writer.write("null");
@@ -266,9 +294,7 @@ public class JsonMapperImpl implements JsonMapper {
                 final var keys = map.keySet().iterator();
                 wrapped.write('{');
                 while (keys.hasNext()) {
-                    wrapped.write('"');
-                    wrapped.write(JsonStrings.escapeChars(String.valueOf(keys.next())));
-                    wrapped.write('"');
+                    wrapped.write(JsonStrings.escapeChars(String.valueOf(keys.next()))); // already quoted
                     wrapped.write(':');
                     wrapped.write('n');
                     wrapped.write('u');
@@ -295,7 +321,7 @@ public class JsonMapperImpl implements JsonMapper {
     }
 
     private JsonCodec.SerializationContext newSerializationContext(final Writer writer) {
-        return new JsonCodec.SerializationContext(wrap(writer), this::codecLookup, serializeNulls);
+        return new JsonCodec.SerializationContext(wrap(writer), codecLookup, serializeNulls);
     }
 
     @SuppressWarnings("unchecked")
@@ -305,7 +331,13 @@ public class JsonMapperImpl implements JsonMapper {
             return;
         }
 
-        final var firstItem = collection.stream().filter(Objects::nonNull).findFirst().orElse(null);
+        Object firstItem = null;
+        for (final var it : collection) {
+            if (it != null) {
+                firstItem = it;
+                break;
+            }
+        }
         if (firstItem != null) {
             if (firstItem instanceof Map<?, ?>) { // consider it is just an object
                 final JsonCodec jsonCodec = codecs.get(Object.class);
@@ -346,11 +378,11 @@ public class JsonMapperImpl implements JsonMapper {
                     if (rawClass == Map.class && pt.getActualTypeArguments().length == 2 && pt.getActualTypeArguments()[0] == String.class) {
                         final var delegate = codecs.get(pt.getActualTypeArguments()[1]);
                         if (delegate == null) {
-                            throw missingCodecException(pt.getActualTypeArguments()[0]);
+                            throw missingCodecException(pt.getActualTypeArguments()[1]);
                         }
                         final var wrapper = new MapJsonCodec<>(delegate);
                         codecs.putIfAbsent(wrapper.type(), wrapper);
-                        return (A) wrapper.read(new JsonCodec.DeserializationContext(reader, this::codecLookup));
+                        return (A) wrapper.read(new JsonCodec.DeserializationContext(reader, codecLookup));
                     }
                     if ((rawClass == List.class || rawClass == Collection.class) && pt.getActualTypeArguments().length == 1) {
                         final var delegate = codecs.get(pt.getActualTypeArguments()[0]);
@@ -359,7 +391,7 @@ public class JsonMapperImpl implements JsonMapper {
                         }
                         final var wrapper = new CollectionJsonCodec<>(delegate, List.class, ArrayList::new);
                         codecs.putIfAbsent(wrapper.type(), wrapper);
-                        return (A) wrapper.read(new JsonCodec.DeserializationContext(reader, this::codecLookup));
+                        return (A) wrapper.read(new JsonCodec.DeserializationContext(reader, codecLookup));
                     }
                     if (rawClass == Set.class && pt.getActualTypeArguments().length == 1) {
                         final var delegate = codecs.get(pt.getActualTypeArguments()[0]);
@@ -368,13 +400,13 @@ public class JsonMapperImpl implements JsonMapper {
                         }
                         final var wrapper = new CollectionJsonCodec<>(delegate, Set.class, HashSet::new);
                         codecs.putIfAbsent(wrapper.type(), wrapper);
-                        return (A) wrapper.read(new JsonCodec.DeserializationContext(reader, this::codecLookup));
+                        return (A) wrapper.read(new JsonCodec.DeserializationContext(reader, codecLookup));
                     }
                 }
                 throw missingCodecException(type);
             }
 
-            return codec.read(new JsonCodec.DeserializationContext(reader, this::codecLookup));
+            return codec.read(new JsonCodec.DeserializationContext(reader, codecLookup));
         } catch (final IOException ioe) {
             throw new IllegalStateException(ioe);
         }
@@ -384,12 +416,12 @@ public class JsonMapperImpl implements JsonMapper {
     @Override
     @SuppressWarnings("unchecked")
     public <A> A read(final Class<A> type, final Reader reader) {
-        final var codec = (JsonCodec<A>) codecs.get(type);
-        if (codec == null) {
-            throw missingCodecException(type);
-        }
-        try (final var jsonReader = parserFactory.apply(reader)) {
-            return codec.read(new JsonCodec.DeserializationContext(jsonReader, this::codecLookup));
+        try (final var jsonReader = parserFactory.apply(reader)) { // create the parser first so the reader is closed even on missing codec
+            final var codec = (JsonCodec<A>) codecs.get(type);
+            if (codec == null) {
+                throw missingCodecException(type);
+            }
+            return codec.read(new JsonCodec.DeserializationContext(jsonReader, codecLookup));
         } catch (final IOException e) {
             throw new IllegalStateException(e);
         }
@@ -442,17 +474,52 @@ public class JsonMapperImpl implements JsonMapper {
         return writer instanceof ExtendedWriter ew ? ew : new ExtendedWriter(writer);
     }
 
-    private static Function<Reader, Parser> createReaderParserFunction(final Configuration configuration) {
-        final int maxStringLength = configuration.get("fusion.json.maxStringLength")
+    // JSON payloads are mostly ASCII so inflate bytes directly, only the (rare) non ASCII tail
+    // goes through the JDK UTF-8 decoder - way cheaper than an InputStreamReader/StreamDecoder chain
+    private static char[] utf8ToChars(final byte[] bytes) {
+        final int length = bytes.length;
+        final var chars = new char[length];
+        for (int i = 0; i < length; i++) {
+            final byte b = bytes[i];
+            if (b < 0) {
+                final var suffix = new String(bytes, i, length - i, UTF_8);
+                final int suffixLength = suffix.length();
+                if (i + suffixLength == length) {
+                    suffix.getChars(0, suffixLength, chars, i);
+                    return chars;
+                }
+                final var exact = new char[i + suffixLength];
+                System.arraycopy(chars, 0, exact, 0, i);
+                suffix.getChars(0, suffixLength, exact, i);
+                return exact;
+            }
+            chars[i] = (char) b;
+        }
+        return chars;
+    }
+
+    private static int maxStringLength(final Configuration configuration) {
+        return configuration.get("fusion.json.maxStringLength")
                 .map(Integer::parseInt)
                 .orElse(8 * 1024);
+    }
+
+    private static int maxBuffers(final Configuration configuration) {
+        return configuration.get("fusion.json.maxBuffers")
+                .map(Integer::parseInt)
+                .orElse(-1);
+    }
+
+    private static BufferProvider createBufferProvider(final Configuration configuration) {
+        return new BufferProvider(maxStringLength(configuration), maxBuffers(configuration));
+    }
+
+    private static Function<Reader, Parser> createReaderParserFunction(final Configuration configuration) {
+        final int maxStringLength = maxStringLength(configuration);
         final boolean autoAdjust = configuration.get("fusion.json.bufferAutoAdjust")
                 .map(Boolean::parseBoolean)
                 .orElse(true);
-        final int maxBuffers = configuration.get("fusion.json.maxBuffers")
-                .map(Integer::parseInt)
-                .orElse(-1);
-        final var bufferFactory = new BufferProvider(maxStringLength, maxBuffers);
+        final var bufferFactory = createBufferProvider(configuration);
         return reader -> new JsonParser(reader, maxStringLength, bufferFactory, autoAdjust);
     }
 

@@ -132,6 +132,25 @@ class JsonParserTest {
     }
 
     @Test
+    void doubleValues() { // exercises the char based fast path and its Double.parseDouble fallbacks
+        for (final var value : new String[]{
+                "0.0", "-0.0", "1.25", "-1.25", "123.456", "10.0", "3.141592653589793",
+                "1e10", "1E10", "1e+10", "1e-10", "2.5e3", "-2.5e-3", "1e22", "1e-22",
+                // fallback cases: exponent out of the exact range, mantissa larger than 2^53, subnormals, extremes
+                "1e23", "1e-23", "9007199254740993.0", "123456789012345678901234567890.5",
+                "2.2250738585072014E-308", "1.7976931348623157E308", "4.9E-324"}) {
+            for (final var provided : new boolean[]{false, true}) {
+                try (final var reader = parser(value, provided)) {
+                    assertTrue(reader.hasNext());
+                    assertEquals(JsonParser.Event.VALUE_NUMBER, reader.next());
+                    assertEquals(Double.parseDouble(value), reader.getDouble(), () -> value);
+                    assertFalse(reader.hasNext());
+                }
+            }
+        }
+    }
+
+    @Test
     void stringValue() {
         Stream.of(true, false).forEach(b -> {
             try (final var reader = parser("\"hello\"", b)) {

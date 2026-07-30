@@ -97,6 +97,8 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
         final var propPrefix = ofNullable(element.getAnnotation(RootConfiguration.class))
                 .map(RootConfiguration::value)
                 .filter(Predicate.not(String::isBlank))
+                // "-" marks a "no prefix" root configuration, lookups then use the plain property names
+                .map(it -> "-".equals(it) ? "" : it)
                 .or(() -> ofNullable(element.getAnnotation(ConfigurationModel.class))
                         .map(it -> ""))
                 .orElse(element.getSimpleName().toString());
@@ -205,7 +207,9 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
                 .map(Property::defaultValue)
                 .filter(it -> !Property.NO_VALUE.equals(it))
                 .orElse(null);
-        final var name = (propPrefix == null ? "prefix + \"" : ("\"" + propPrefix)) + '.' + selfName + "\"";
+        final var name = propPrefix == null ?
+                ("prefix + \"." + selfName + "\"") :
+                ("\"" + (propPrefix.isBlank() ? "" : (propPrefix + '.')) + selfName + "\"");
         final var docName = (docPrefix == null || docPrefix.isBlank() ? "" : (docPrefix + '.')) + selfName;
         final boolean required = property.map(Property::required).orElse(false);
         final var desc = property.map(Property::documentation).orElse("");

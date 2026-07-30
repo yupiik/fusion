@@ -22,6 +22,7 @@ import io.yupiik.fusion.json.spi.Parser;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 
 import static io.yupiik.fusion.json.spi.Parser.Event.START_OBJECT;
 
@@ -38,6 +39,8 @@ public record JsonPatchOperation(Operation op, String path, String from, Object 
         private static final char[] path__CHAR_ARRAY = "\"path\":".toCharArray();
         private static final char[] from__CHAR_ARRAY = "\"from\":".toCharArray();
         private static final char[] value__CHAR_ARRAY = "\"value\":".toCharArray();
+
+        private volatile CollectionJsonCodec<Object, ? extends Collection<Object>> genericListCodec; // lazy, needs the context
 
         public Codec() {
             super(JsonPatchOperation.class);
@@ -128,7 +131,10 @@ public record JsonPatchOperation(Operation op, String path, String from, Object 
                         switch (key) {
                             case "value":
                                 context.parser().rewind(event);
-                                value = new CollectionJsonCodec<>(context.codec(Object.class), Object.class, ArrayList::new).read(context);
+                                if (genericListCodec == null) { // benign race, instances are equivalent
+                                    genericListCodec = new CollectionJsonCodec<>(context.codec(Object.class), Object.class, ArrayList::new);
+                                }
+                                value = genericListCodec.read(context);
                                 break;
                             default:
                                 parser.skipArray();

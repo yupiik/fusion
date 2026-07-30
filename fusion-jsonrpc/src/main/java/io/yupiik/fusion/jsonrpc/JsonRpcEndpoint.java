@@ -15,14 +15,13 @@
  */
 package io.yupiik.fusion.jsonrpc;
 
-import io.yupiik.fusion.http.server.api.IOConsumer;
 import io.yupiik.fusion.http.server.api.Request;
 import io.yupiik.fusion.http.server.api.Response;
 import io.yupiik.fusion.http.server.impl.DefaultEndpoint;
 import io.yupiik.fusion.json.JsonMapper;
 
+import java.io.InputStream;
 import java.io.Reader;
-import java.io.Writer;
 import java.util.Map;
 import java.util.concurrent.CompletionStage;
 import java.util.logging.Logger;
@@ -82,6 +81,10 @@ public class JsonRpcEndpoint extends DefaultEndpoint {
     private CompletionStage<Object> readRequest(final Request request) {
         try {
             if (!useInputStream) {
+                final var stream = request.unwrapOrNull(InputStream.class);
+                if (stream != null) { // preferred: bytes are decoded by the mapper, skips the container char decoding
+                    return completedFuture(mapper.read(Object.class, stream));
+                }
                 final var reader = request.unwrapOrNull(Reader.class);
                 if (reader != null) {
                     return completedFuture(mapper.read(Object.class, reader));
@@ -111,9 +114,9 @@ public class JsonRpcEndpoint extends DefaultEndpoint {
         } else {
             res
                     .status(200)
-                    .body((IOConsumer<Writer>) writer -> {
-                        try (writer) {
-                            mapper.write(payload, writer);
+                    .bytesBody(stream -> { // bytes all the way down, skips the container char encoding
+                        try (stream) {
+                            mapper.write(payload, stream);
                         }
                     });
         }

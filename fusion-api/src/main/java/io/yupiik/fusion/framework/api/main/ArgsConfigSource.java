@@ -52,7 +52,16 @@ public class ArgsConfigSource implements ConfigurationSource {
     public String get(final String key) {
         var strings = args.get(key);
         if (strings == null || strings.isEmpty()) { // tolerate cli like config even when not a CLI option
-            strings = args.get(key.replace('.', '-'));
+            final var cliLike = key.replace('.', '-');
+            strings = args.get(cliLike);
+            if (strings == null || strings.isEmpty()) {
+                // args are stored without their leading hyphens so `-.x` keys - emitted by factories
+                // generated before "-" root configurations dropped the prefix - must be looked up stripped too
+                final var stripped = dropLeadingIphens(cliLike);
+                if (!stripped.equals(cliLike)) {
+                    strings = args.get(stripped);
+                }
+            }
         }
         return strings == null || strings.isEmpty() ? null : String.join(",", strings);
     }

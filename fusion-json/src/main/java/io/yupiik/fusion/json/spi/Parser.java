@@ -34,6 +34,24 @@ public interface Parser extends AutoCloseable {
 
     String getString();
 
+    /**
+     * Matches the current string token (generally a {@link Event#KEY_NAME}) against the given candidates,
+     * without materializing any {@link String} when the implementation supports it.
+     *
+     * @param candidates the candidate values, generally shared constant arrays.
+     * @return the index of the first matching candidate, -1 when none matches.
+     */
+    default int matchString(final char[][] candidates) {
+        final var value = getString();
+        for (int i = 0; i < candidates.length; i++) {
+            final var candidate = candidates[i];
+            if (candidate.length == value.length() && value.contentEquals(CharBuffer.wrap(candidate))) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
     CharBuffer getChars();
 
     void enforceNext(Event event);

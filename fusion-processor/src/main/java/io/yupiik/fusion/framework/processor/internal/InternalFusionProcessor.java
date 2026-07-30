@@ -54,7 +54,6 @@ import io.yupiik.fusion.framework.processor.internal.generator.ConfigurationFact
 import io.yupiik.fusion.framework.processor.internal.generator.CrdDescriptorGenerator;
 import io.yupiik.fusion.framework.processor.internal.generator.HttpEndpointGenerator;
 import io.yupiik.fusion.framework.processor.internal.generator.HttpJavaEndpointGenerator;
-import io.yupiik.fusion.framework.processor.internal.generator.JsonCodecBeanGenerator;
 import io.yupiik.fusion.framework.processor.internal.generator.JsonCodecEnumBeanGenerator;
 import io.yupiik.fusion.framework.processor.internal.generator.JsonCodecGenerator;
 import io.yupiik.fusion.framework.processor.internal.generator.JsonRpcEndpointGenerator;
@@ -577,7 +576,14 @@ public class InternalFusionProcessor extends AbstractProcessor {
         debugEnd("  generateHttp (#" + httpEndpoints.size() + " and #"+httpJavaEndpoints.size() + " java matchers)", processingEnv, startHttp);
 
         final var startJsonRpc = debugStart();
-        jsonRpcEndpoints.forEach(this::generateJsonRpcEndpoint); // after json models to get schemas
+        if (!jsonRpcEndpoints.isEmpty()) { // after json models to get schemas - the projection is shared by all endpoints of the round
+            final var identifiedJsonSchemas = allJsonSchemas.entrySet().stream()
+                    .filter(it -> it.getValue().raw() != null || it.getValue().content().id() != null)
+                    .collect(toMap(
+                            it -> it.getValue().raw() != null ? it.getKey() : it.getValue().content().id(),
+                            Map.Entry::getValue));
+            jsonRpcEndpoints.forEach(it -> generateJsonRpcEndpoint(it, identifiedJsonSchemas));
+        }
         debugEnd("  generateJsonRpc (#" + jsonRpcEndpoints.size() + ")", processingEnv, startJsonRpc);
 
         final var startEntity = debugStart();
@@ -700,9 +706,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
         final var cache = new HashMap<String, String>();
         try (final var out = json.openWriter()) {
             out.write(allJsonSchemas.entrySet().stream()
-                    .collect(toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a /* drop state one if duplicated */))
-                    .entrySet().stream()
-                    .sorted(Map.Entry.comparingByKey())
+                    .sorted(Map.Entry.comparingByKey()) // the map is case insensitive so enforce the previous natural ordering
                     .map(e -> {
                         final var value = e.getValue().raw() != null ? e.getValue().raw() : e.getValue().content().toJson();
                         cache.put(e.getKey(), value);
@@ -713,9 +717,9 @@ public class InternalFusionProcessor extends AbstractProcessor {
 
         if (workdir != null) {
             final var base = workdir.resolve("json_schema");
+            Files.createDirectories(base);
             for (final var schema : cache.entrySet()) {
                 final var out = base.resolve(schema.getKey() + ".json");
-                Files.createDirectories(out.getParent());
                 Files.writeString(out, schema.getValue());
             }
         }
@@ -909,10 +913,8 @@ public class InternalFusionProcessor extends AbstractProcessor {
                 break;
             }
 
-            final var found = beans.entrySet().stream()
-                    .filter(e -> Objects.equals(e.getKey().name(), name))
-                    .findFirst();
-            if (found.isEmpty()) {
+            final var found = beans.get(new Bean(null, name)); // Bean equality is name based
+            if (found == null) {
                 // means it has no field with @Injection so no need to check it further
                 // important: limitation there would be A < B < C with B not having anything injection
                 //            and not propagating super() to A injections, then A injections would be null,
@@ -920,7 +922,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
                 continue;
             }
 
-            injections.addAll(found.map(Map.Entry::getValue).orElse(List.of()));
+            injections.addAll(found);
         } while (true);
     }
 
@@ -1026,7 +1028,8 @@ public class InternalFusionProcessor extends AbstractProcessor {
 
             final var schemas = allJsonSchemas == null ? null : new HashMap<String, JsonSchema>();
             final var generator = new JsonCodecGenerator(
-                    processingEnv, elements, metadataContributorRegistry, names.packageName(), names.className(), element, knownJsonModels, schemas);
+                    processingEnv, elements, metadataContributorRegistry, names.packageName(), names.className(), element, knownJsonModels, schemas,
+                    beanForJsonCodecs);
             final var generation = generator.get();
             if (schemas != null && !schemas.isEmpty()) {
                 allJsonSchemas.putAll(schemas.entrySet().stream()
@@ -1034,15 +1037,8 @@ public class InternalFusionProcessor extends AbstractProcessor {
             }
             writeGeneratedClass(model, generation);
             jsonModels.put(generation.name(), element);
-            if (beanForJsonCodecs) {
-                final var beanName = ParsedName.of(generation.name());
-                try {
-                    final var beanGen = new JsonCodecBeanGenerator(processingEnv, elements, metadataContributorRegistry, beanName.packageName(), beanName.className()).get();
-                    writeGeneratedClass(element, beanGen);
-                    allBeans.add(beanGen.name());
-                } catch (final IOException | RuntimeException e) {
-                    processingEnv.getMessager().printMessage(ERROR, e.getMessage());
-                }
+            if (beanForJsonCodecs) { // the bean is a nested class of the codec to keep a single compilation unit
+                allBeans.add(generation.name() + '.' + FusionBean.class.getSimpleName());
             }
         } catch (final IOException | RuntimeException e) {
             processingEnv.getMessager().printMessage(ERROR, '(' + e.getClass().getSimpleName() + ") " + e.getMessage());
@@ -1119,7 +1115,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
         }
     }
 
-    private void generateJsonRpcEndpoint(final ExecutableElement method) {
+    private void generateJsonRpcEndpoint(final ExecutableElement method, final Map<String, GeneratedJsonSchema> identifiedJsonSchemas) {
         if (method.getEnclosingElement() == null || method.getEnclosingElement().getKind() != CLASS) {
             processingEnv.getMessager().printMessage(ERROR, "'" + method + "' is not enclosed by a class: '" + method.getEnclosingElement() + "'");
             return;
@@ -1130,19 +1126,12 @@ public class InternalFusionProcessor extends AbstractProcessor {
             final var generation = new JsonRpcEndpointGenerator(
                     processingEnv, elements, metadataContributorRegistry, beanForJsonRpcEndpoints,
                     names.packageName(), names.className() + "$" + method.getSimpleName(), method,
-                    this::isJsonModelKnown, partialOpenRPC,
-                    allJsonSchemas.entrySet().stream()
-                            .filter(it -> it.getValue().raw() != null || it.getValue().content().id() != null)
-                            .collect(toMap(
-                                    it -> it.getValue().raw() != null ? it.getKey() : it.getValue().content().id(),
-                                    Map.Entry::getValue)))
+                    this::isJsonModelKnown, partialOpenRPC, identifiedJsonSchemas)
                     .get();
             writeGeneratedClass(method, generation.endpoint());
 
-            final var bean = generation.bean();
-            if (bean != null) {
-                writeGeneratedClass(method, bean);
-                allBeans.add(bean.name());
+            if (generation.beanClassName() != null) { // the bean is nested in the generated class
+                allBeans.add(generation.beanClassName());
             }
         } catch (final IOException | RuntimeException e) {
             processingEnv.getMessager().printMessage(ERROR, e.getMessage());
@@ -1166,10 +1155,8 @@ public class InternalFusionProcessor extends AbstractProcessor {
                     .get();
             writeGeneratedClass(entity, generation.entity());
 
-            final var bean = generation.bean();
-            if (bean != null) {
-                writeGeneratedClass(entity, bean);
-                allBeans.add(bean.name());
+            if (generation.beanClassName() != null) { // the bean is nested in the generated class
+                allBeans.add(generation.beanClassName());
             }
         } catch (final IOException | RuntimeException e) {
             processingEnv.getMessager().printMessage(ERROR, e.getMessage());
@@ -1191,10 +1178,8 @@ public class InternalFusionProcessor extends AbstractProcessor {
             writeGeneratedClass(method, generation.endpoint());
             // todo: openapi?
 
-            final var bean = generation.bean();
-            if (bean != null) {
-                writeGeneratedClass(method, bean);
-                allBeans.add(bean.name());
+            if (generation.beanClassName() != null) { // the bean is nested in the generated class
+                allBeans.add(generation.beanClassName());
             }
         } catch (final IOException | RuntimeException e) {
             processingEnv.getMessager().printMessage(ERROR, e.getMessage());
@@ -1216,10 +1201,8 @@ public class InternalFusionProcessor extends AbstractProcessor {
             writeGeneratedClass(method, generation.endpoint());
             // todo: openapi?
 
-            final var bean = generation.bean();
-            if (bean != null) {
-                writeGeneratedClass(method, bean);
-                allBeans.add(bean.name());
+            if (generation.beanClassName() != null) { // the bean is nested in the generated class
+                allBeans.add(generation.beanClassName());
             }
         } catch (final IOException | RuntimeException e) {
             processingEnv.getMessager().printMessage(ERROR, e.getMessage());
@@ -1244,10 +1227,8 @@ public class InternalFusionProcessor extends AbstractProcessor {
                     .get();
             writeGeneratedClass(runnable, generation.command());
 
-            final var bean = generation.bean();
-            if (bean != null) {
-                writeGeneratedClass(runnable, bean);
-                allBeans.add(bean.name());
+            if (generation.beanClassName() != null) { // the bean is nested in the generated class
+                allBeans.add(generation.beanClassName());
             }
         } catch (final IOException | RuntimeException e) {
             processingEnv.getMessager().printMessage(ERROR, e.getMessage());
@@ -1328,8 +1309,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
     }
 
     private boolean isJsonModelKnown(final String name) { // works thanks containsInnerClass() wiring
-        return Stream.of(knownJsonModels, allJsonSchemas.keySet(), jsonModels.keySet())
-                .anyMatch(set -> set.contains(name));
+        return knownJsonModels.contains(name) || allJsonSchemas.containsKey(name) || jsonModels.containsKey(name);
     }
 
     private String findOrCreateModuleName() {
@@ -1433,7 +1413,10 @@ public class InternalFusionProcessor extends AbstractProcessor {
         // use the shorter package name from all the beans
         for (final var bean : allBeans) {
             var beanPackage = bean;
-            int sep = beanPackage.lastIndexOf('.');
+            // generated bean names always contain a '$' in their class part (X$FusionBean, X$FusionJsonCodec.FusionBean, ...)
+            // so cut the package before it, it also protects nested bean class references using a '.' separator
+            final int generatedMarker = beanPackage.indexOf('$');
+            final int sep = generatedMarker > 0 ? beanPackage.lastIndexOf('.', generatedMarker) : beanPackage.lastIndexOf('.');
             beanPackage = sep > 0 ? beanPackage.substring(0, sep) : "";
             if (current == null) {
                 current = beanPackage;

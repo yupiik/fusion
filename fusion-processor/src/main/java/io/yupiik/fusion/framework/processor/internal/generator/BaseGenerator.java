@@ -16,8 +16,11 @@
 package io.yupiik.fusion.framework.processor.internal.generator;
 
 import io.yupiik.fusion.framework.api.Instance;
+import io.yupiik.fusion.framework.api.RuntimeContainer;
+import io.yupiik.fusion.framework.api.container.FusionBean;
 import io.yupiik.fusion.framework.api.container.Generation;
 import io.yupiik.fusion.framework.api.container.Types;
+import io.yupiik.fusion.framework.api.container.bean.BaseBean;
 import io.yupiik.fusion.framework.api.scope.DefaultScoped;
 import io.yupiik.fusion.framework.build.api.metadata.BeanMetadata;
 import io.yupiik.fusion.framework.build.api.order.Order;
@@ -79,16 +82,12 @@ public abstract class BaseGenerator {
     protected final ProcessingEnvironment processingEnv;
     protected final Elements elements;
 
-    private final TypeElement comparable;
-    private final TypeMirror autocloseable;
     private final MetadataContributorRegistry metadataContributorRegistry;
 
     protected BaseGenerator(final ProcessingEnvironment processingEnv, final Elements elements, final MetadataContributorRegistry metadataContributorRegistry) {
         this.processingEnv = processingEnv;
         this.elements = elements;
         this.metadataContributorRegistry = metadataContributorRegistry;
-        this.comparable = asElement(processingEnv, Comparable.class);
-        this.autocloseable = asElement(processingEnv, AutoCloseable.class).asType();
     }
 
     protected String metadata(final Element element) {
@@ -98,7 +97,7 @@ public abstract class BaseGenerator {
     protected String metadata(final Element element, final Map<String, String> custom) {
         final var meta = element.getAnnotationsByType(BeanMetadata.class);
         final var customMeta = metadataContributorRegistry != null ? metadataContributorRegistry.compute(element) : Map.<String, String>of();
-        if (meta == null && custom.isEmpty() && customMeta.isEmpty()) {
+        if ((meta == null || meta.length == 0) && custom.isEmpty() && customMeta.isEmpty()) {
             return Map.class.getName() + ".of()";
         }
 
@@ -148,10 +147,7 @@ public abstract class BaseGenerator {
     }
 
     protected boolean isComparable(final TypeMirror type) {
-        final var types = processingEnv.getTypeUtils();
-        final var mirror = types.asElement(type).asType();
-        final var declaredType = types.getDeclaredType(comparable, mirror);
-        return types.isAssignable(type, declaredType);
+        return elements.isComparable(type);
     }
 
     protected Stream<ExecutableElement> findMethods(final TypeElement element, final TypeMirror marker) {
@@ -172,12 +168,29 @@ public abstract class BaseGenerator {
     }
 
     protected boolean isAutocloseable(final TypeMirror type) {
-        return processingEnv.getTypeUtils().isAssignable(type, autocloseable);
+        return processingEnv.getTypeUtils().isAssignable(type, elements.asElement(AutoCloseable.class).asType());
     }
 
-    protected TypeElement asElement(final ProcessingEnvironment processingEnv, final Class<?> type) {
-        return (TypeElement) processingEnv.getTypeUtils().asElement(
-                processingEnv.getElementUtils().getTypeElement(type.getName()).asType());
+    // generates the bean of a generated artifact as a nested class of it to keep a single compilation unit,
+    // the binary name stays the same as when it was a standalone class (owner$FusionBean)
+    protected String nestedBean(final String owner, final String scope, final int priority, final String metadata,
+                                final String createBody) {
+        return "\n" +
+                "  public static class " + FusionBean.class.getSimpleName() + " extends " + BaseBean.class.getName() + "<" + owner + "> {\n" +
+                "    public " + FusionBean.class.getSimpleName() + "() {\n" +
+                "      super(\n" +
+                "        " + owner + ".class,\n" +
+                "        " + scope + ".class,\n" +
+                "        " + priority + ",\n" +
+                "        " + metadata + ");\n" +
+                "    }\n" +
+                "\n" +
+                "    @Override\n" +
+                "    public " + owner + " create(final " + RuntimeContainer.class.getName() + " container, final " +
+                List.class.getName() + "<" + Instance.class.getName() + "<?>> dependents) {\n" +
+                createBody +
+                "    }\n" +
+                "  }\n";
     }
 
     protected Optional<ExecutableElement> selectConstructor(final TypeElement te) {
@@ -286,7 +299,7 @@ public abstract class BaseGenerator {
         }
         if (injection.optional()) { // only supports classes - todo: cache type
             return "(" + instanceTypeOf(injection) + ") " +
-                    "lookup(container, new " + Types.ParameterizedTypeImpl.class.getName().replace('$', '.') + "(" +
+                    "lookup(container, new " + ParsedType.PARAMETERIZED_TYPE_IMPL + "(" +
                     Optional.class.getName() + ".class, " + injection.type() + ".class), " +
                     "dependents)";
         }
@@ -314,7 +327,7 @@ public abstract class BaseGenerator {
             return "main__container.lookups(" + injection.type() + ".class, " + Collectors.class.getName() + "toSet())";
         }
         if (injection.optional()) { // only supports classes - todo: cache type
-            return "main__container.<" + instanceTypeOf(injection) + ">lookup(new " + Types.ParameterizedTypeImpl.class.getName().replace('$', '.') + "(" +
+            return "main__container.<" + instanceTypeOf(injection) + ">lookup(new " + ParsedType.PARAMETERIZED_TYPE_IMPL + "(" +
                     Optional.class.getName() + ".class, " + injection.type() + ".class))";
         }
 

@@ -15,9 +15,15 @@
  */
 package io.yupiik.fusion.json;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.io.Reader;
 import java.io.Writer;
 import java.lang.reflect.Type;
+import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 
 public interface JsonMapper extends AutoCloseable {
@@ -35,9 +41,38 @@ public interface JsonMapper extends AutoCloseable {
 
     <A> void write(A instance, Writer writer);
 
+    /**
+     * Writes a value UTF-8 encoded on the stream which is neither flushed nor closed (like the {@link Writer} flavor).
+     * Default implementations bridge to the {@link Writer} API but {@code JsonMapperImpl}
+     * uses an optimized UTF-8 encoder so prefer this method for byte sinks.
+     */
+    default <A> void write(final A instance, final OutputStream stream) {
+        final var writer = new OutputStreamWriter(stream, StandardCharsets.UTF_8);
+        write(instance, writer);
+        try {
+            writer.flush(); // pushes the encoder content to the stream, does not flush the stream itself
+        } catch (final IOException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
     <A> A read(Type type, Reader rawReader);
 
     <A> A read(Class<A> type, Reader reader);
+
+    /**
+     * Reads a value from a UTF-8 encoded stream, closed at the end of the operation
+     * (like the {@link Reader} flavors).
+     * Default implementations bridge to the {@link Reader} API but {@code JsonMapperImpl}
+     * uses an optimized UTF-8 decoder so prefer these methods for byte sources.
+     */
+    default <A> A read(final Type type, final InputStream stream) {
+        return read(type, new InputStreamReader(stream, StandardCharsets.UTF_8));
+    }
+
+    default <A> A read(final Class<A> type, final InputStream stream) {
+        return read(type, new InputStreamReader(stream, StandardCharsets.UTF_8));
+    }
 
     @Override
     void close();

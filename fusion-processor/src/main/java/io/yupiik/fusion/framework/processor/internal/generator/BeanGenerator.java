@@ -22,6 +22,7 @@ import io.yupiik.fusion.framework.api.container.Types;
 import io.yupiik.fusion.framework.api.container.bean.BaseBean;
 import io.yupiik.fusion.framework.processor.internal.Bean;
 import io.yupiik.fusion.framework.processor.internal.Elements;
+import io.yupiik.fusion.framework.processor.internal.ParsedType;
 import io.yupiik.fusion.framework.processor.internal.metadata.MetadataContributorRegistry;
 
 import javax.annotation.processing.ProcessingEnvironment;
@@ -96,7 +97,7 @@ public class BeanGenerator extends BaseGenerator implements Supplier<BaseGenerat
                 constructorInjections.contains("lookups(container, ") ||
                         constructorInjections.contains("(" + Optional.class.getName() + "<") ||
                         // parameterized lookups go through lookup(container, Type, deps) which returns Object and needs a cast
-                        constructorInjections.contains(Types.ParameterizedTypeImpl.class.getName().replace('$', '.')))) {
+                        constructorInjections.contains(ParsedType.PARAMETERIZED_TYPE_IMPL))) {
             out.append("  @SuppressWarnings(\"unchecked\")\n");
         }
         out.append("  public ").append(className.replace('$', '.')).append(" create(final ").append(RuntimeContainer.class.getName())

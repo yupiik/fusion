@@ -34,7 +34,9 @@ public class MyCommand implements Runnable { <2>
 <.> Implement your command in `run` callback,
 <.> The configuration of the command is a standard one, you can customize the prefix thanks `@RootConfiguration` annotation (so here all options will use `--my-command-xxxx` instead of default `--Conf-xxx`).
 
-TIP: if you don't want to set any prefix for the configuration, set the prefix in `@RootConfiguration` to `-`.
+TIP: if you don't want to set any prefix for the configuration, set the prefix in `@RootConfiguration` to `-`: the generated factory then reads the plain `xxx` keys (so `--xxx` on the command line) instead of `<prefix>.xxx`.
+
+NOTE: since the keys of a `-` configuration are plain keys, the record also resolves naturally when injected as a plain bean: command line arguments (`--xxx`), system properties (`xxx`) and environment variables (`XXX`) are all usable without any custom configuration source bridge.
 
 == Injections
 

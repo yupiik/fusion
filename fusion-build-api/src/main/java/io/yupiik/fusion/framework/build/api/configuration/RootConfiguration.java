@@ -32,6 +32,7 @@ import static java.lang.annotation.RetentionPolicy.SOURCE;
  * <p>
  * The value are read using {@code io.yupiik.fusion.framework.api.configuration.Configuration} API.
  * The key starts with the {@link RootConfiguration#value()} (or simple name of the class if not set) then properties are appended separated by dots.
+ * A {@code "-"} value means "no prefix": keys are then the plain property names ({@code port} and not {@code -.port}).
  * For lists, it uses comma separated values for primitives but an indexed prefix for nested objects ({@code prefix.nestedList.0.nestedObjectMember=xxx}).
  * In this last case you need to set {@code prefix.nestedList.length=N} value to ensure the instantiator creates the right list.
  */
@@ -39,7 +40,7 @@ import static java.lang.annotation.RetentionPolicy.SOURCE;
 @Retention(SOURCE)
 public @interface RootConfiguration {
     /**
-     * @return prefix name using properties syntax. If not set the simple class name is used.
+     * @return prefix name using properties syntax. If not set the simple class name is used, {@code "-"} means no prefix at all.
      */
     String value() default "";
 }

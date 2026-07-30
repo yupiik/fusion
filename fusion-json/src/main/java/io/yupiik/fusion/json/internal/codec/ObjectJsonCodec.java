@@ -76,7 +76,7 @@ public class ObjectJsonCodec implements JsonCodec<Object> {
             return;
         }
         if (value instanceof String s) {
-            writer.write(JsonStrings.escapeChars(s));
+            JsonStrings.escapeCharsTo(s, writer);
             return;
         }
         if (value instanceof Boolean b) {

@@ -19,6 +19,8 @@ import io.yupiik.fusion.http.server.api.HttpException;
 import io.yupiik.fusion.http.server.api.Request;
 import io.yupiik.fusion.http.server.api.Response;
 import io.yupiik.fusion.http.server.impl.flow.WriterPublisher;
+import io.yupiik.fusion.http.server.impl.flow.OutputStreamPublisher;
+import io.yupiik.fusion.http.server.impl.io.CloseOnceOutputStream;
 import io.yupiik.fusion.http.server.impl.io.CloseOnceWriter;
 import io.yupiik.fusion.http.server.spi.BaseEndpoint;
 import jakarta.servlet.AsyncContext;
@@ -164,6 +166,12 @@ public class FusionServlet extends HttpServlet {
             return null;
         }
         try {
+            if (body instanceof OutputStreamPublisher osp) { // optimize this path, skips the container char conversion
+                try (final var stream = new CloseOnceOutputStream(resp.getOutputStream())) {
+                    osp.getDelegate().accept(stream);
+                }
+                return null;
+            }
             if (body instanceof WriterPublisher wp) { // optimize this path
                 try (final var writer = new CloseOnceWriter(resp.getWriter())) {
                     wp.getDelegate().accept(writer);

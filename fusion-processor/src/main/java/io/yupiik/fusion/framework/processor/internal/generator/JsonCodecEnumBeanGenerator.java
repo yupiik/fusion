@@ -22,6 +22,7 @@ import io.yupiik.fusion.framework.api.container.Types;
 import io.yupiik.fusion.framework.api.container.bean.BaseBean;
 import io.yupiik.fusion.framework.api.scope.DefaultScoped;
 import io.yupiik.fusion.framework.processor.internal.Elements;
+import io.yupiik.fusion.framework.processor.internal.ParsedType;
 import io.yupiik.fusion.framework.processor.internal.metadata.MetadataContributorRegistry;
 import io.yupiik.fusion.json.internal.codec.EnumJsonCodec;
 
@@ -79,7 +80,7 @@ public class JsonCodecEnumBeanGenerator extends BaseGenerator implements Supplie
                 .append(BaseBean.class.getName()).append("<").append(EnumJsonCodec.class.getName()).append('<').append(pckPrefix).append(javaClassName).append(">> {\n");
         out.append("  public ").append(className).append('$').append(FusionBean.class.getSimpleName()).append("() {\n");
         out.append("    super(")
-                .append("new ").append(Types.ParameterizedTypeImpl.class.getName().replace('$', '.'))
+                .append("new ").append(ParsedType.PARAMETERIZED_TYPE_IMPL)
                 .append("(").append(EnumJsonCodec.class.getName()).append(".class, ").append(javaClassName).append(".class), ")
                 .append(DefaultScoped.class.getName()).append(".class, ") // will be a singleton in json mapper anyway
                 .append("1000, ")

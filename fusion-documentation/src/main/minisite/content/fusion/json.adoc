@@ -91,6 +91,8 @@ public class MyService extends HttpServlet {
 }
 ----
 
+TIP: for byte oriented sources/sinks prefer the `InputStream`/`OutputStream` flavors (`mapper.read(MyModel.class, inputStream)`, `mapper.write(instance, outputStream)`, both UTF-8): the mapper does the UTF-8 conversion itself with a decoder optimized for JSON payloads which is faster than an `InputStreamReader`/`OutputStreamWriter` bridge.
+
 == Enums
 
 Enumerations (de)serialization behavior can be customized by using some specific methods:

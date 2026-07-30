@@ -27,6 +27,7 @@ import io.yupiik.fusion.json.deserialization.AvailableCharArrayReader;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.VariableElement;
+import java.io.InputStream;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
@@ -35,6 +36,7 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -44,6 +46,14 @@ import java.util.stream.Stream;
 import static java.util.stream.Collectors.joining;
 
 public abstract class BaseHttpEndpointGenerator extends BaseGenerator {
+    private static final Set<String> BUILTIN_JSON_TYPES = Set.of(
+            int.class.getName(), long.class.getName(), boolean.class.getName(), double.class.getName(), float.class.getName(),
+            String.class.getName(),
+            OffsetDateTime.class.getName(), ZoneOffset.class.getName(), LocalDate.class.getName(),
+            Integer.class.getName(), Long.class.getName(), Double.class.getName(), Float.class.getName(), Boolean.class.getName(),
+            "io.yupiik.fusion.jsonrpc.api.PartialResponse",
+            Object.class.getName());
+
     protected final boolean generateBean;
     protected final ExecutableElement method;
     protected final String packageName;
@@ -147,8 +157,11 @@ public abstract class BaseHttpEndpointGenerator extends BaseGenerator {
         return new Param(
                 "final " + JsonMapper.class.getName() + " jsonMapper",
                 "lookup(container, " + JsonMapper.class.getName() + ".class, dependents)",
-                Optional.class.getName() + ".ofNullable(request.unwrapOrNull(" + Reader.class.getName() + ".class))\n" +
-                        "          .map(reader -> " + CompletableFuture.class.getName() + ".completedStage(jsonMapper.read(" + type + ", reader)))\n" +
+                // prefer the byte stream (mapper does the utf-8 decoding, skips the container char conversion), then the reader, then the reactive body
+                Optional.class.getName() + ".ofNullable(request.unwrapOrNull(" + InputStream.class.getName() + ".class))\n" +
+                        "          .map(stream -> " + CompletableFuture.class.getName() + ".completedStage(jsonMapper.read(" + type + ", stream)))\n" +
+                        "          .or(() -> " + Optional.class.getName() + ".ofNullable(request.unwrapOrNull(" + Reader.class.getName() + ".class))\n" +
+                        "              .map(reader -> " + CompletableFuture.class.getName() + ".completedStage(jsonMapper.read(" + type + ", reader))))\n" +
                         "          .orElseGet(() -> new " + RequestBodyAggregator.class.getName() + "(request.fullBody(), " + StandardCharsets.class.getName() + ".UTF_8)\n" +
                         "              .promise()\n" +
                         "              .thenApply(payload -> jsonMapper.read(" + type + ", new " + AvailableCharArrayReader.class.getName() + "(payload))))",
@@ -165,29 +178,13 @@ public abstract class BaseHttpEndpointGenerator extends BaseGenerator {
 
     protected boolean isJson(final ParsedType param) {
         return switch (param.type()) {
-            case CLASS -> knownJsonModels.test(param.className()) ||
-                    int.class.getName().equals(param.className()) ||
-                    long.class.getName().equals(param.className()) ||
-                    boolean.class.getName().equals(param.className()) ||
-                    double.class.getName().equals(param.className()) ||
-                    float.class.getName().equals(param.className()) ||
-                    String.class.getName().equals(param.className()) ||
-                    OffsetDateTime.class.getName().equals(param.className()) ||
-                    ZoneOffset.class.getName().equals(param.className()) ||
-                    LocalDate.class.getName().equals(param.className()) ||
-                    Integer.class.getName().equals(param.className()) ||
-                    Long.class.getName().equals(param.className()) ||
-                    Double.class.getName().equals(param.className()) ||
-                    Float.class.getName().equals(param.className()) ||
-                    Boolean.class.getName().equals(param.className()) ||
-                    "io.yupiik.fusion.jsonrpc.api.PartialResponse".equals(param.className()) ||
-                    Object.class.getName().equals(param.className());
+            case CLASS -> BUILTIN_JSON_TYPES.contains(param.className()) || knownJsonModels.test(param.className());
             case PARAMETERIZED_TYPE -> // todo: test raw = collection or list or set or map or optional?
                     isJson(new ParsedType(ParsedType.Type.CLASS, param.args().get(param.args().size() - 1), null, null, null));
         };
     }
 
-    public record Generation(BaseGenerator.GeneratedClass endpoint, BaseGenerator.GeneratedClass bean) {
+    public record Generation(BaseGenerator.GeneratedClass endpoint, String beanClassName) {
     }
 
     public record Param(String constructorParam, String lookup,

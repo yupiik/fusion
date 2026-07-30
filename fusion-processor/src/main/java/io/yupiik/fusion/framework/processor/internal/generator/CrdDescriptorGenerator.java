@@ -24,6 +24,7 @@ import javax.lang.model.element.AnnotationValue;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -39,6 +40,7 @@ import static java.util.stream.Collectors.toMap;
 public class CrdDescriptorGenerator implements Supplier<String> {
     private final Map<String, Object> crd;
     private final Map<String, GeneratedJsonSchema> schemas;
+    private final Map<String, Map<String, Object>> resolvedSchemas = new HashMap<>();
     private final JsonMapperFacade json;
     private final Elements elementUtils;
     private final TypeMirror object;
@@ -149,8 +151,14 @@ public class CrdDescriptorGenerator implements Supplier<String> {
     }
 
     private Map<String, Object> doFindSchema(final String name) {
+        final var existing = resolvedSchemas.get(name);
+        if (existing != null) { // avoids to re-resolve (json roundtrip + $ref inlining) shared schemas
+            return existing;
+        }
         final var jsonSchema = requireNonNull(schemas.get(name), "No JSON-Schema for type '" + name + "'");
-        return inlineSchema(json.read(jsonSchema.content() != null ? json.write(jsonSchema.content().asMap()) : jsonSchema.raw()));
+        final var resolved = inlineSchema(json.read(jsonSchema.content() != null ? json.write(jsonSchema.content().asMap()) : jsonSchema.raw()));
+        resolvedSchemas.put(name, resolved);
+        return resolved;
     }
 
     // drop $id and replace $ref

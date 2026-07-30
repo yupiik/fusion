@@ -65,6 +65,10 @@ public class HttpJavaEndpointGenerator extends BaseHttpEndpointGenerator impleme
         final var params = prepareParams();
         final boolean isReturnTypeJson = isJson(returnType) || method.getReturnType().getAnnotation(JsonModel.class) != null;
 
+        final var nestedBean = generateBean ?
+                nestedBean(endpointClassName, findScope(method), findPriority(method), metadata(method),
+                        createBeanInstance(isReturnTypeJson, endpointClassName, enclosingClassName, params)) :
+                null;
         return new Generation(
                 new GeneratedClass(packagePrefix + endpointClassName, packageLine +
                         generationVersion() +
@@ -75,28 +79,10 @@ public class HttpJavaEndpointGenerator extends BaseHttpEndpointGenerator impleme
                         "      req -> " + matcher.value() + ",\n" +
                         "      " + handler(params, returnType, isReturnTypeJson) + ");\n" +
                         "  }\n" +
+                        (nestedBean == null ? "" : nestedBean) +
                         "}\n" +
                         "\n"),
-                generateBean ?
-                        new GeneratedClass(packagePrefix + endpointClassName + '$' + FusionBean.class.getSimpleName(), packageLine +
-                                generationVersion() +
-                                "public class " + endpointClassName + '$' + FusionBean.class.getSimpleName() + " extends " + BaseBean.class.getName() + "<" + endpointClassName + "> {\n" +
-                                "  public " + endpointClassName + '$' + FusionBean.class.getSimpleName() + "() {\n" +
-                                "    super(\n" +
-                                "      " + endpointClassName + ".class,\n" +
-                                "      " + findScope(method) + ".class,\n" +
-                                "      " + findPriority(method) + ",\n" +
-                                "      " + metadata(method) + ");\n" +
-                                "  }\n" +
-                                "\n" +
-                                "  @Override\n" +
-                                "  public " + endpointClassName + " create(final " + RuntimeContainer.class.getName() + " container, final " +
-                                List.class.getName() + "<" + Instance.class.getName() + "<?>> dependents) {\n" +
-                                createBeanInstance(isReturnTypeJson, endpointClassName, enclosingClassName, params) +
-                                "  }\n" +
-                                "}\n" +
-                                "\n") :
-                        null);
+                nestedBean == null ? null : packagePrefix + endpointClassName + '.' + FusionBean.class.getSimpleName());
     }
 
     private String handler(final List<Param> params, final ParsedType returnType, final boolean returnJson) {

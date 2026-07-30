@@ -20,9 +20,9 @@ import io.yupiik.fusion.framework.api.ConfiguringContainer;
 import io.yupiik.fusion.json.JsonMapper;
 import io.yupiik.fusion.json.internal.framework.JsonMapperBean;
 import io.yupiik.fusion.tracing.span.Span;
-import io.yupiik.fusion.tracing.span.Span$Annotation$FusionJsonCodec$FusionBean;
-import io.yupiik.fusion.tracing.span.Span$Endpoint$FusionJsonCodec$FusionBean;
-import io.yupiik.fusion.tracing.span.Span$FusionJsonCodec$FusionBean;
+import io.yupiik.fusion.tracing.span.Span$Annotation$FusionJsonCodec;
+import io.yupiik.fusion.tracing.span.Span$Endpoint$FusionJsonCodec;
+import io.yupiik.fusion.tracing.span.Span$FusionJsonCodec;
 import org.junit.jupiter.api.Test;
 
 import java.net.InetSocketAddress;
@@ -62,9 +62,9 @@ class ZipkinFlusherTest {
                 .disableAutoDiscovery(true)
                 .register(
                         new JsonMapperBean(),
-                        new Span$FusionJsonCodec$FusionBean(),
-                        new Span$Annotation$FusionJsonCodec$FusionBean(),
-                        new Span$Endpoint$FusionJsonCodec$FusionBean())
+                        new Span$FusionJsonCodec.FusionBean(),
+                        new Span$Annotation$FusionJsonCodec.FusionBean(),
+                        new Span$Endpoint$FusionJsonCodec.FusionBean())
                 .start();
              final var json = container.lookup(JsonMapper.class)) {
             new ZipkinFlusher(json.instance(), HttpClient.newHttpClient(), configuration)
