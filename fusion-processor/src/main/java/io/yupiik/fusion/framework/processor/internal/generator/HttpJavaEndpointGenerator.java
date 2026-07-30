@@ -105,12 +105,13 @@ public class HttpJavaEndpointGenerator extends BaseHttpEndpointGenerator impleme
             out.append(")".repeat(asyncParams.size()));
         }
 
-        return "request -> " + out +
+        final var body = out +
                 (!returnJson ? "" : "\n" +
                         "          .thenApply(jsonResult -> " + Response.class.getName() + ".of()\n" +
                         "            .status(200)\n" +
                         "            .header(\"content-type\", \"application/json;charset=utf-8\")\n" +
                         "            .body(jsonMapper.toString(jsonResult))\n" +
                         "            .build())");
+        return requestParameterName(body) + " -> " + body;
     }
 }

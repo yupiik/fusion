@@ -213,7 +213,7 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
         out.append("  }\n");
         out.append("\n");
         out.append("  @Override\n");
-        if (collections.stream().anyMatch(t -> t.types().paramTypeDef() == ParamTypeDef.GENERIC_OBJECT)) {
+        if (collections.stream().anyMatch(t -> t.types().argTypeIfNotValue().toString().contains("<"))) { // read casts the raw collection to the declared type
             out.append("  @SuppressWarnings({\"unchecked\", \"rawtypes\"})\n"); // the cast will issue a warning but is actually safe
         }
         out.append("  public ").append(className.replace('$', '.')).append(" read(")

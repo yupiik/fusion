@@ -105,13 +105,14 @@ public class HttpEndpointGenerator extends BaseHttpEndpointGenerator implements 
             out.append(")".repeat(asyncParams.size()));
         }
 
-        return "request -> " + out +
+        final var body = out +
                 (!returnJson ? "" : "\n" +
                         "          .thenApply(jsonResult -> " + Response.class.getName() + ".of()\n" +
                         "            .status(200)\n" +
                         "            .header(\"content-type\", \"application/json;charset=utf-8\")\n" +
                         "            .body(jsonMapper.toString(jsonResult))\n" +
                         "            .build())");
+        return requestParameterName(body) + " -> " + body;
     }
 
     private String matcherOf(final HttpMatcher matcher) {
@@ -140,7 +141,7 @@ public class HttpEndpointGenerator extends BaseHttpEndpointGenerator implements 
                 .filter(Objects::nonNull)
                 .toList();
         return matchers.isEmpty() ?
-                "request -> true" :
+                requestParameterName("true") + " -> true" :
                 matchers.stream().collect(joining(")\n          .and(", "(", ")"));
     }
 }
