@@ -16,22 +16,15 @@
 package test.p;
 
 import io.yupiik.fusion.framework.api.scope.ApplicationScoped;
-import io.yupiik.fusion.framework.build.api.event.OnEvent;
-import io.yupiik.fusion.framework.build.api.order.Order;
-
-import java.util.ArrayList;
-import java.util.List;
 
 @ApplicationScoped
-public class ListeningWithInjections {
-    private final List<String> events = new ArrayList<>();
-
-    protected void onEvent(@OnEvent @Order(2) final String event, final Bean2 bean2, final GenericClazz<String> generic) {
-        events.add(event + ", injections=" + bean2 + ", generic=" + generic.echo("echoed"));
+public class GenericClazz<X extends Comparable<X>> {
+    public X echo(final X value) {
+        return value;
     }
 
     @Override
     public String toString() {
-        return String.join(", ", events);
+        return "genericClazz[]";
     }
 }

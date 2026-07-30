@@ -169,6 +169,73 @@ class FusionProcessorTest {
     }
 
     @Test
+    void subClassGenericsDeclarationOrder(@TempDir final Path work) throws IOException {
+        final var compiler = new Compiler(work, "GenericMethodOrder");
+        compiler.compileAndAsserts((loader, container) -> assertEquals("""
+                package test.p;
+
+                @io.yupiik.fusion.framework.api.container.Generation(version = 1)
+                class GenericMethodOrder$FusionSubclass extends GenericMethodOrder {
+                  private final io.yupiik.fusion.framework.api.container.context.subclass.DelegatingContext<GenericMethodOrder> fusionContext;
+
+                  GenericMethodOrder$FusionSubclass(final io.yupiik.fusion.framework.api.container.context.subclass.DelegatingContext<GenericMethodOrder> context) {
+                    this.fusionContext = context;
+                  }
+
+                  @Override
+                  public <A, T> java.util.concurrent.CompletionStage<T> forwardWithFallback(A input, java.util.function.Function<A,T> mapper) {
+                    return this.fusionContext.instance().forwardWithFallback(input, mapper);
+                  }
+
+                  @Override
+                  public <A extends java.lang.Comparable<A>, T> java.util.List<T> bounded(A value, java.util.function.Function<A,T> mapper) {
+                    return this.fusionContext.instance().bounded(value, mapper);
+                  }
+                }
+
+                """, compiler.readGeneratedSource("GenericMethodOrder$FusionSubclass")));
+    }
+
+    @Test
+    void genericClassBean(@TempDir final Path work) throws IOException {
+        final var compiler = new Compiler(work, "GenericClazzUser", "GenericClazz");
+        compiler.compileAndAsserts((loader, container) -> {
+            assertEquals("""
+                    package test.p;
+
+                    @io.yupiik.fusion.framework.api.container.Generation(version = 1)
+                    class GenericClazz$FusionSubclass<X extends java.lang.Comparable<X>> extends GenericClazz<X> {
+                      private final io.yupiik.fusion.framework.api.container.context.subclass.DelegatingContext<GenericClazz<X>> fusionContext;
+
+                      GenericClazz$FusionSubclass(final io.yupiik.fusion.framework.api.container.context.subclass.DelegatingContext<GenericClazz<X>> context) {
+                        this.fusionContext = context;
+                      }
+
+                      @Override
+                      public X echo(X value) {
+                        return this.fusionContext.instance().echo(value);
+                      }
+
+                      @Override
+                      public java.lang.String toString() {
+                        return this.fusionContext.instance().toString();
+                      }
+                    }
+
+                    """, compiler.readGeneratedSource("GenericClazz$FusionSubclass"));
+
+            try (final var user = container.lookup(loader.apply("test.p.GenericClazzUser"))) {
+                assertEquals("worked from genericClazz[]", user.instance().toString());
+            }
+
+            // direct parameterized lookup of a generic class bean
+            try (final var direct = container.lookup(new Types.ParameterizedTypeImpl(loader.apply("test.p.GenericClazz"), String.class))) {
+                assertEquals("genericClazz[]", direct.instance().toString());
+            }
+        });
+    }
+
+    @Test
     void simple(@TempDir final Path work) throws IOException {
         final var compiler = new Compiler(work, "Bean1", "Bean2");
         compiler.compileAndAsserts((loader, container) -> {
@@ -406,10 +473,10 @@ class FusionProcessorTest {
 
     @Test
     void listeningWithInjections(@TempDir final Path work) throws IOException {
-        new Compiler(work, "ListeningWithInjections", "Bean2").compileAndAssertsInstance((container, instance) -> {
+        new Compiler(work, "ListeningWithInjections", "Bean2", "GenericClazz").compileAndAssertsInstance((container, instance) -> {
             assertEquals("", instance.instance().toString());
             container.emit("hello");
-            assertEquals("hello, injections=bean2[]", instance.instance().toString());
+            assertEquals("hello, injections=bean2[], generic=echoed", instance.instance().toString());
         });
     }
 

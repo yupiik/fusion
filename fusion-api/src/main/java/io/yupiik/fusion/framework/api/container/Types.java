@@ -47,7 +47,11 @@ public class Types {
             return isAssignable(raw, clazz, visited);
         }
 
-        if (api instanceof ParameterizedType && subClassOrEquals instanceof Class<?> c && visited.add(c)) {
+        if (api instanceof ParameterizedType pt && subClassOrEquals instanceof Class<?> c && visited.add(c)) {
+            // a generic class registered as a raw type can serve any parameterization of itself
+            if (pt.getRawType() == c && c.getTypeParameters().length == pt.getActualTypeArguments().length) {
+                return true;
+            }
             return Stream.of(c.getGenericInterfaces()).anyMatch(it -> isAssignable(it, api)) ||
                     (c != Object.class && c.getGenericSuperclass() != null && isAssignable(c.getGenericSuperclass(), api, visited));
         }

@@ -18,6 +18,7 @@ package io.yupiik.fusion.framework.processor.internal.generator;
 import io.yupiik.fusion.framework.api.Instance;
 import io.yupiik.fusion.framework.api.RuntimeContainer;
 import io.yupiik.fusion.framework.api.container.FusionBean;
+import io.yupiik.fusion.framework.api.container.Types;
 import io.yupiik.fusion.framework.api.container.bean.BaseBean;
 import io.yupiik.fusion.framework.processor.internal.Bean;
 import io.yupiik.fusion.framework.processor.internal.Elements;
@@ -78,6 +79,10 @@ public class BeanGenerator extends BaseGenerator implements Supplier<BaseGenerat
                 .append(className).append('$').append(FusionBean.class.getSimpleName())
                 .append(" extends ").append(BaseBean.class.getName())
                 .append('<').append(className.replace('$', '.')).append("> {\n");
+        if (element instanceof TypeElement te && !te.getTypeParameters().isEmpty() && !data.isEmpty()) {
+            // the subclass delegate instantiates the subclass of a generic class as a raw type
+            out.append("  @SuppressWarnings(\"unchecked\")\n");
+        }
         out.append("  public ").append(className).append('$').append(FusionBean.class.getSimpleName()).append("() {\n");
         out.append("    super(")
                 .append(className.replace('$', '.')).append(".class, ")
@@ -89,7 +94,9 @@ public class BeanGenerator extends BaseGenerator implements Supplier<BaseGenerat
         out.append("  @Override\n");
         if (constructorInjections != null && ( // and has some cast
                 constructorInjections.contains("lookups(container, ") ||
-                        constructorInjections.contains("(" + Optional.class.getName() + "<"))) {
+                        constructorInjections.contains("(" + Optional.class.getName() + "<") ||
+                        // parameterized lookups go through lookup(container, Type, deps) which returns Object and needs a cast
+                        constructorInjections.contains(Types.ParameterizedTypeImpl.class.getName().replace('$', '.')))) {
             out.append("  @SuppressWarnings(\"unchecked\")\n");
         }
         out.append("  public ").append(className.replace('$', '.')).append(" create(final ").append(RuntimeContainer.class.getName())
