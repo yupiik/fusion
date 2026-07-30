@@ -25,7 +25,6 @@ import io.yupiik.fusion.framework.processor.internal.metadata.MetadataContributo
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.ExecutableElement;
-import java.lang.reflect.Type;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -74,8 +73,6 @@ public class MethodBeanGenerator extends BaseGenerator implements Supplier<BaseG
                 }
             }
             case PARAMETERIZED_TYPE -> {
-                imports.add(Type.class.getName());
-                imports.add("io.yupiik.fusion.framework.api.container.Types.ParameterizedTypeImpl");
                 if (!parsedType.raw().startsWith("java.lang.")) {
                     imports.add(parsedType.raw());
                 }
@@ -83,6 +80,7 @@ public class MethodBeanGenerator extends BaseGenerator implements Supplier<BaseG
             }
         }
         out.append(imports.stream()
+                .filter(this::needsImport) // same package top level classes don't need any import
                 .sorted()
                 .map(it -> "import " + it + ";")
                 .collect(joining("\n", "", "\n\n")));
@@ -153,5 +151,10 @@ public class MethodBeanGenerator extends BaseGenerator implements Supplier<BaseG
         out.append("}\n\n");
 
         return new GeneratedClass((!packageName.isBlank() ? packageName + '.' : "") + beanClassName, out.toString());
+    }
+
+    private boolean needsImport(final String name) {
+        final int lastDot = name.lastIndexOf('.');
+        return lastDot >= 0 && !name.substring(0, lastDot).equals(packageName);
     }
 }

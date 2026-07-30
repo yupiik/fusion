@@ -72,6 +72,11 @@ public abstract class BaseHttpEndpointGenerator extends BaseGenerator {
         this.knownJsonModels = knownJsonModels;
     }
 
+    // avoids an unused parameter warning when the handler does not consume the request, "_" needs java >= 22 sources
+    protected String requestParameterName(final String handlerBody) {
+        return handlerBody.contains("request") || processingEnv.getSourceVersion().ordinal() < 22 ? "request" : "_";
+    }
+
     protected boolean isDirectVoid(final ParsedType returnType) {
         return "void".equals(returnType.className()) ||
                 Void.class.getName().equals(returnType.className());

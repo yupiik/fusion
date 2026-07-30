@@ -35,12 +35,14 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -66,6 +68,8 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
     private final Collection<Docs.ClassDoc> docs = new ArrayList<>();
     private final LinkedList<Docs.ClassDoc> docStack = new LinkedList<>();
     private final Map<String, String> enumValueOfCache;
+    private final Set<String> listUsages = new HashSet<>();
+    private final Set<String> mapUsages = new HashSet<>();
 
     public ConfigurationFactoryGenerator(final ProcessingEnvironment processingEnv, final Elements elements,
                                          final MetadataContributorRegistry metadataContributorRegistry,
@@ -103,32 +107,46 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
                         .map(it -> ""))
                 .orElse(element.getSimpleName().toString());
 
-        final var nestedClasses = new HashMap<String, String>();
+        final var nestedClasses = new HashMap<String, NestedFragment>();
+        final var body = createRecordInstance(element, pckPrefix + className.replace('$', '.'), propPrefix, propPrefix, nestedClasses);
+        final var usesConfiguration = body.contains("configuration");
+        final var usesKeyMapper = body.contains("keyMapper");
+
         final var out = new StringBuilder();
         if (!packageName.isBlank()) {
             out.append("package ").append(packageName).append(";\n\n");
         }
         out.append("public class ").append(confClassName).append(" implements ")
                 .append(Supplier.class.getName()).append("<").append(pckPrefix).append(className.replace('$', '.')).append("> {\n");
-        out.append("  private final ").append(Configuration.class.getName()).append(" configuration;\n");
-        out.append("  private final ").append(Function.class.getName()).append("<String, String> keyMapper;\n");
+        if (usesConfiguration) {
+            out.append("  private final ").append(Configuration.class.getName()).append(" configuration;\n");
+        }
+        if (usesKeyMapper) {
+            out.append("  private final ").append(Function.class.getName()).append("<String, String> keyMapper;\n");
+        }
         out.append("\n");
         out.append("  public ").append(confClassName).append("(final ").append(Configuration.class.getName()).append(" configuration) {\n");
         out.append("    this(configuration, ").append(Function.class.getName()).append(".identity());\n");
         out.append("  }\n");
         out.append("\n");
         out.append("  public ").append(confClassName).append("(final ").append(Configuration.class.getName()).append(" configuration, final ").append(Function.class.getName()).append("<String, String> keyMapper) {\n");
-        out.append("    this.configuration = configuration;\n");
-        out.append("    this.keyMapper = keyMapper;\n");
+        if (usesConfiguration) {
+            out.append("    this.configuration = configuration;\n");
+        }
+        if (usesKeyMapper) {
+            out.append("    this.keyMapper = keyMapper;\n");
+        }
         out.append("  }\n");
         out.append("\n");
         out.append("  @Override\n");
         out.append("  public ").append(pckPrefix).append(className.replace('$', '.')).append(" get() {\n");
-        out.append(createRecordInstance(element, pckPrefix + className.replace('$', '.'), propPrefix, propPrefix, nestedClasses));
+        out.append(body);
         out.append("  }\n");
         if (!nestedClasses.isEmpty()) {
-            out.append("\n").append(String.join("\n",
-                            nestedClasses.entrySet().stream().sorted(Map.Entry.comparingByKey()).map(Map.Entry::getValue).toList()))
+            out.append("\n").append(nestedClasses.entrySet().stream()
+                            .sorted(Map.Entry.comparingByKey())
+                            .map(it -> it.getValue().render(listUsages.contains(it.getKey()), mapUsages.contains(it.getKey())))
+                            .collect(joining("\n")))
                     .append("\n");
         }
         out.append("}\n\n");
@@ -136,55 +154,13 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
         return new Output(new GeneratedClass(pckPrefix + confClassName, out.toString()), docs);
     }
 
-    private String generateNestedClass(final TypeElement element, final String typeName, final String docPrefix, final Map<String, String> nested) {
+    private NestedFragment generateNestedClass(final TypeElement element, final String typeName, final String docPrefix, final Map<String, NestedFragment> nested) {
         final var name = nestedFactory(typeName);
         final var doc = new Docs.ClassDoc(element.getAnnotation(RootConfiguration.class) != null, typeName, new ArrayList<>());
         docStack.add(doc);
         docs.add(doc);
         try {
-            return "" +
-                    "  private static final class " + name + " implements " + Supplier.class.getName() + "<" + typeName + "> {\n" +
-                    "    private final " + Configuration.class.getName() + " configuration;\n" +
-                    "    private final " + Function.class.getName() + "<String, String> keyMapper;\n" +
-                    "    private final String prefix;\n" +
-                    "\n" +
-                    "    private " + name + "(final " + Configuration.class.getName() + " configuration, final " + Function.class.getName() + "<String, String> keyMapper, final String prefix) {\n" +
-                    "      this.configuration = configuration;\n" +
-                    "      this.keyMapper = keyMapper;\n" +
-                    "      this.prefix = prefix;\n" +
-                    "    }\n" +
-                    "\n" +
-                    "    @Override\n" +
-                    "    public " + typeName + " get() {\n" +
-                    createRecordInstance(element, typeName, null, docPrefix, nested).indent(2) +
-                    "    }\n" +
-                    "\n" +
-                    "    private static " + List.class.getName() + "<" + typeName + "> list(final " +
-                    Configuration.class.getName() + " configuration, final " + Function.class.getName() + "<String, String> keyMapper, final String prefix, final " + Supplier.class.getName() + "<" + List.class.getName() + "<" + typeName + ">> defaultProvider) {\n" +
-                    "        final int length = configuration.get(prefix + \".length\").map(Integer::parseInt).orElse(-1);\n" +
-                    "        if (length < 0) {\n" +
-                    "          return defaultProvider == null ? null : defaultProvider.get();\n" +
-                    "        }\n" +
-                    "        final var list = new " + ArrayList.class.getName() + "<" + typeName + ">(length);\n" +
-                    "        for (int index = 0; index < length; index++) {\n" +
-                    "          list.add(new " + name + "(configuration, keyMapper, prefix + \".\" + index).get());\n" +
-                    "        }\n" +
-                    "        return list;\n" +
-                    "    }\n" +
-                    "\n" +
-                    "    private static " + Map.class.getName() + "<String, " + typeName + "> map(final " +
-                    Configuration.class.getName() + " configuration, final " + Function.class.getName() + "<String, String> keyMapper, final String prefix, final " + Supplier.class.getName() + "<" + Map.class.getName() + "<String, " + typeName + ">> defaultProvider) {\n" +
-                    "        final int length = configuration.get(prefix + \".length\").map(Integer::parseInt).orElse(-1);\n" +
-                    "        if (length < 0) {\n" +
-                    "          return defaultProvider == null ? null : defaultProvider.get();\n" +
-                    "        }\n" +
-                    "        final var map = new " + LinkedHashMap.class.getName() + "<String, " + typeName + ">(length);\n" +
-                    "        for (int index = 0; index < length; index++) {\n" +
-                    "          map.put(configuration.get(prefix + \".\" + index + \".key\").orElseThrow(), new " + name + "(configuration, keyMapper, prefix + \".\" + index + \".value\").get());\n" +
-                    "        }\n" +
-                    "        return map;\n" +
-                    "    }\n" +
-                    "  }\n";
+            return new NestedFragment(name, typeName, createRecordInstance(element, typeName, null, docPrefix, nested).indent(2));
         } finally {
             docStack.removeLast();
         }
@@ -193,7 +169,7 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
     private String newParamInstance(final Element param, final String propPrefix,
                                     final String parentType,
                                     final String docPrefix,
-                                    final Map<String, String> nestedClasses) {
+                                    final Map<String, NestedFragment> nestedClasses) {
         final var type = param.asType();
         final var typeStr = type.toString();
         final var javaName = param.getSimpleName().toString();
@@ -294,6 +270,7 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
             }
 
             this.docStack.getLast().items().add(new Docs.DocItem(javaName, docName + ".$index", desc, required, itemString, defaultValue));
+            listUsages.add(itemString);
             return nestedFactory(itemString) + ".list(configuration, keyMapper, " + name + ", " + (defaultValue == null ? "null" : ("() -> " + defaultValue)) + ")";
         }
 
@@ -350,6 +327,7 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
             this.docStack.getLast().items().addAll(List.of(
                 new Docs.DocItem(javaName + ".$key", docName + ".$index.key", desc + " (Key).", required, "java.lang.String", "null"),
                 new Docs.DocItem(javaName +  ".$value", docName + ".$index.value", desc + " (Value).", required, valueTypeString, "null")));
+            mapUsages.add(valueTypeString);
             return nestedFactory(valueTypeString) + ".map(configuration, keyMapper, " + name + ", " + (defaultValue == null ? "null" : ("() -> " + defaultValue)) + ")";
         }
 
@@ -448,7 +426,7 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
 
     private String createRecordInstance(final TypeElement element, final String fqn,
                                         final String propPrefix, final String docPrefix,
-                                        final Map<String, String> nested) {
+                                        final Map<String, NestedFragment> nested) {
         final var name = element.getQualifiedName().toString();
         return selectConstructor(element)
                 .map(constructor -> {
@@ -461,5 +439,68 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
     }
 
     public record Output(GeneratedClass generatedClass, Collection<Docs.ClassDoc> docs) {
+    }
+
+    // the get() body is generated eagerly (docs are collected in encounter order) but the class is rendered
+    // once all usages are known so only the needed members are emitted (no unused code in the generated sources)
+    private record NestedFragment(String factoryName, String typeName, String getBody) {
+        private String render(final boolean withList, final boolean withMap) {
+            final var usesConfiguration = getBody.contains("configuration");
+            final var usesKeyMapper = getBody.contains("keyMapper");
+            final var usesPrefix = getBody.contains("prefix");
+            return "" +
+                    "  private static final class " + factoryName + " implements " + Supplier.class.getName() + "<" + typeName + "> {\n" +
+                    (usesConfiguration ? "    private final " + Configuration.class.getName() + " configuration;\n" : "") +
+                    (usesKeyMapper ? "    private final " + Function.class.getName() + "<String, String> keyMapper;\n" : "") +
+                    (usesPrefix ? "    private final String prefix;\n" : "") +
+                    "\n" +
+                    "    private " + factoryName + "(final " + Configuration.class.getName() + " configuration, final " + Function.class.getName() + "<String, String> keyMapper, final String prefix) {\n" +
+                    (usesConfiguration ? "      this.configuration = configuration;\n" : "") +
+                    (usesKeyMapper ? "      this.keyMapper = keyMapper;\n" : "") +
+                    (usesPrefix ? "      this.prefix = prefix;\n" : "") +
+                    "    }\n" +
+                    "\n" +
+                    "    @Override\n" +
+                    "    public " + typeName + " get() {\n" +
+                    getBody +
+                    "    }\n" +
+                    (withList ? list() : "") +
+                    (withMap ? map() : "") +
+                    "  }\n";
+        }
+
+        private String list() {
+            return "" +
+                    "\n" +
+                    "    private static " + List.class.getName() + "<" + typeName + "> list(final " +
+                    Configuration.class.getName() + " configuration, final " + Function.class.getName() + "<String, String> keyMapper, final String prefix, final " + Supplier.class.getName() + "<" + List.class.getName() + "<" + typeName + ">> defaultProvider) {\n" +
+                    "        final int length = configuration.get(prefix + \".length\").map(Integer::parseInt).orElse(-1);\n" +
+                    "        if (length < 0) {\n" +
+                    "          return defaultProvider == null ? null : defaultProvider.get();\n" +
+                    "        }\n" +
+                    "        final var list = new " + ArrayList.class.getName() + "<" + typeName + ">(length);\n" +
+                    "        for (int index = 0; index < length; index++) {\n" +
+                    "          list.add(new " + factoryName + "(configuration, keyMapper, prefix + \".\" + index).get());\n" +
+                    "        }\n" +
+                    "        return list;\n" +
+                    "    }\n";
+        }
+
+        private String map() {
+            return "" +
+                    "\n" +
+                    "    private static " + Map.class.getName() + "<String, " + typeName + "> map(final " +
+                    Configuration.class.getName() + " configuration, final " + Function.class.getName() + "<String, String> keyMapper, final String prefix, final " + Supplier.class.getName() + "<" + Map.class.getName() + "<String, " + typeName + ">> defaultProvider) {\n" +
+                    "        final int length = configuration.get(prefix + \".length\").map(Integer::parseInt).orElse(-1);\n" +
+                    "        if (length < 0) {\n" +
+                    "          return defaultProvider == null ? null : defaultProvider.get();\n" +
+                    "        }\n" +
+                    "        final var map = new " + LinkedHashMap.class.getName() + "<String, " + typeName + ">(length);\n" +
+                    "        for (int index = 0; index < length; index++) {\n" +
+                    "          map.put(configuration.get(prefix + \".\" + index + \".key\").orElseThrow(), new " + factoryName + "(configuration, keyMapper, prefix + \".\" + index + \".value\").get());\n" +
+                    "        }\n" +
+                    "        return map;\n" +
+                    "    }\n";
+        }
     }
 }
