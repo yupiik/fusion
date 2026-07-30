@@ -25,6 +25,7 @@ import java.math.BigDecimal;
 import java.math.MathContext;
 import java.nio.CharBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.NoSuchElementException;
 
@@ -68,7 +69,9 @@ public class JsonParser implements Parser {
     private boolean isCurrentNumberIntegral = true;
     private int currentIntegralNumber = Integer.MIN_VALUE;
 
-    private StructureElement currentStructureElement = null;
+    // object/array nesting tracked as a bit stack (bit set means array) to avoid an allocation per structure
+    private long[] structureIsArrayBits = new long[2];
+    private int structureDepth;
 
     private boolean closed;
     private final boolean releaseBuffer;
@@ -93,6 +96,8 @@ public class JsonParser implements Parser {
             this.releaseBuffer = true;
             this.fallBackCopyBuffer = bufferProvider.newBuffer();
             if (this.fallBackCopyBuffer.length < maxStringLength) {
+                bufferProvider.release(this.buffer); // nobody will ever call close() so don't leak the pooled buffers
+                bufferProvider.release(this.fallBackCopyBuffer);
                 throw new IllegalStateException("Exception at " + createLocation() +
                         ". Reason is [[Size of value buffer cannot be smaller than maximum string length]]");
             }
@@ -100,8 +105,11 @@ public class JsonParser implements Parser {
     }
 
     private void appendToCopyBuffer(final char c) {
+        if (fallBackCopyBuffer == null) { // AvailableCharArrayReader case, allocated lazily
+            fallBackCopyBuffer = bufferProvider.newBuffer();
+        }
         if (fallBackCopyBufferLength >= fallBackCopyBuffer.length - 1) {
-            doAutoAdjust(1);
+            rotateCopyBuffer();
         }
         fallBackCopyBuffer[fallBackCopyBufferLength++] = c;
     }
@@ -110,18 +118,28 @@ public class JsonParser implements Parser {
     private void copyCurrentValue() {
         final int length = endOfValueInBuffer - startOfValueInBuffer;
         if (length > 0) {
-            if (fallBackCopyBufferLength >= fallBackCopyBuffer.length - length) { // not good at runtime but handled
-                doAutoAdjust(length);
-            } else {
-                System.arraycopy(buffer, startOfValueInBuffer, fallBackCopyBuffer, fallBackCopyBufferLength, length);
+            if (fallBackCopyBuffer == null) { // AvailableCharArrayReader case (e.g. truncated payload or trailing number), allocated lazily
+                fallBackCopyBuffer = bufferProvider.newBuffer();
             }
-            fallBackCopyBufferLength += length;
+            // chunked since in the AvailableCharArrayReader case the pending value can be larger than the pooled buffers
+            int copied = 0;
+            while (copied < length) {
+                final int space = fallBackCopyBuffer.length - fallBackCopyBufferLength;
+                if (space <= 0) {
+                    rotateCopyBuffer();
+                    continue;
+                }
+                final int chunk = Math.min(space, length - copied);
+                System.arraycopy(buffer, startOfValueInBuffer + copied, fallBackCopyBuffer, fallBackCopyBufferLength, chunk);
+                fallBackCopyBufferLength += chunk;
+                copied += chunk;
+            }
         }
 
         startOfValueInBuffer = endOfValueInBuffer = -1;
     }
 
-    private void doAutoAdjust(final int length) {
+    private void rotateCopyBuffer() {
         if (!autoAdjust) {
             throw new ArrayIndexOutOfBoundsException("Buffer too small for such a long string");
         }
@@ -129,13 +147,9 @@ public class JsonParser implements Parser {
         if (buffers == null) {
             buffers = new ArrayList<>(2);
         }
-        final var current = new Buffer(fallBackCopyBuffer, fallBackCopyBufferLength);
-        buffers.add(current);
+        buffers.add(new Buffer(fallBackCopyBuffer, fallBackCopyBufferLength));
         fallBackCopyBufferLength = 0;
         fallBackCopyBuffer = bufferProvider.newBuffer();
-        if (startOfValueInBuffer != -1) {
-            System.arraycopy(buffer, startOfValueInBuffer, fallBackCopyBuffer, fallBackCopyBufferLength, length);
-        }
     }
 
     @Override
@@ -144,7 +158,7 @@ public class JsonParser implements Parser {
             return true;
         }
 
-        if (currentStructureElement != null || previousEvent == 0) {
+        if (structureDepth > 0 || previousEvent == 0) {
             return true;
         }
         if (previousEvent != END_ARRAY.ordinal() && previousEvent != END_OBJECT.ordinal() &&
@@ -271,7 +285,7 @@ public class JsonParser implements Parser {
             throw new NoSuchElementException();
         }
 
-        if (previousEvent > 0 && currentStructureElement == null) {
+        if (previousEvent > 0 && structureDepth == 0) {
             throw unexpectedChar("Unexpected end of structure");
         }
 
@@ -323,19 +337,34 @@ public class JsonParser implements Parser {
                 unexpectedChar("Expected structural character or digit or 't' or 'n' or 'f' or '-'");
     }
 
+    private void pushStructure(final boolean array) {
+        final int slot = structureDepth >> 6;
+        if (slot == structureIsArrayBits.length) {
+            structureIsArrayBits = java.util.Arrays.copyOf(structureIsArrayBits, structureIsArrayBits.length * 2);
+        }
+        final long bit = 1L << (structureDepth & 63);
+        if (array) {
+            structureIsArrayBits[slot] |= bit;
+        } else {
+            structureIsArrayBits[slot] &= ~bit;
+        }
+        structureDepth++;
+    }
+
+    private boolean isCurrentStructureArray() {
+        final int depth = structureDepth - 1;
+        return (structureIsArrayBits[depth >> 6] & (1L << (depth & 63))) != 0;
+    }
+
     private Event handleStartObject() {
         if (previousEvent > 0 && previousEvent != Byte.MAX_VALUE) {
             throw unexpectedChar("Expected : , [");
         }
 
-        if (currentStructureElement == null) {
-            currentStructureElement = new StructureElement(null, false);
-        } else {
-            if (!currentStructureElement.isArray && previousEvent != Byte.MIN_VALUE) {
-                throw unexpectedChar("Expected :");
-            }
-            currentStructureElement = new StructureElement(currentStructureElement, false);
+        if (structureDepth > 0 && !isCurrentStructureArray() && previousEvent != Byte.MIN_VALUE) {
+            throw unexpectedChar("Expected :");
         }
+        pushStructure(false);
         objectDepth++;
         return EVT_MAP[previousEvent = (byte) START_OBJECT.ordinal()];
     }
@@ -345,15 +374,15 @@ public class JsonParser implements Parser {
                 || previousEvent == Byte.MAX_VALUE
                 || previousEvent == KEY_NAME.ordinal()
                 || previousEvent == Byte.MIN_VALUE
-                || currentStructureElement == null) {
+                || structureDepth == 0) {
             throw unexpectedChar("Expected \" ] { } LITERAL");
         }
 
-        if (currentStructureElement.isArray) {
+        if (isCurrentStructureArray()) {
             throw unexpectedChar("Expected : ]");
         }
 
-        currentStructureElement = currentStructureElement.previous;
+        structureDepth--;
         objectDepth--;
         return EVT_MAP[previousEvent = (byte) END_OBJECT.ordinal()];
     }
@@ -363,29 +392,25 @@ public class JsonParser implements Parser {
             throw unexpectedChar("Expected : , [");
         }
 
-        if (currentStructureElement == null) {
-            currentStructureElement = new StructureElement(null, true);
-        } else {
-            if (!currentStructureElement.isArray && previousEvent != Byte.MIN_VALUE) {
-                throw unexpectedChar("Expected \"");
-            }
-            currentStructureElement = new StructureElement(currentStructureElement, true);
+        if (structureDepth > 0 && !isCurrentStructureArray() && previousEvent != Byte.MIN_VALUE) {
+            throw unexpectedChar("Expected \"");
         }
+        pushStructure(true);
         arrayDepth++;
         return EVT_MAP[previousEvent = (byte) START_ARRAY.ordinal()];
     }
 
     private Event handleEndArray() {
         if (previousEvent == START_OBJECT.ordinal() || previousEvent == Byte.MAX_VALUE || previousEvent == Byte.MIN_VALUE
-                || currentStructureElement == null) {
+                || structureDepth == 0) {
             throw unexpectedChar("Expected [ ] } \" LITERAL");
         }
 
-        if (!currentStructureElement.isArray) {
+        if (!isCurrentStructureArray()) {
             throw unexpectedChar("Expected : }");
         }
 
-        currentStructureElement = currentStructureElement.previous;
+        structureDepth--;
         arrayDepth--;
         return EVT_MAP[previousEvent = (byte) END_ARRAY.ordinal()];
     }
@@ -405,9 +430,6 @@ public class JsonParser implements Parser {
             }
             if (n == '\\') {
                 n = readNextChar();
-                if (this.fallBackCopyBuffer == null) {
-                    this.fallBackCopyBuffer = bufferProvider.newBuffer();
-                }
                 if (n == 'u') {
                     n = parseUnicodeHexChars();
                     appendToCopyBuffer(n);
@@ -460,13 +482,13 @@ public class JsonParser implements Parser {
         readString();
 
         if (previousEvent == Byte.MIN_VALUE) {
-            if (currentStructureElement != null && currentStructureElement.isArray) {
+            if (structureDepth > 0 && isCurrentStructureArray()) {
                 //not in array, only allowed within array
                 throw unexpectedChar("Key value pair not allowed in an array");
             }
             return EVT_MAP[previousEvent = (byte) VALUE_STRING.ordinal()];
         }
-        if (currentStructureElement == null || currentStructureElement.isArray) {
+        if (structureDepth == 0 || isCurrentStructureArray()) {
             return EVT_MAP[previousEvent = (byte) VALUE_STRING.ordinal()];
         }
         return EVT_MAP[previousEvent = (byte) KEY_NAME.ordinal()];
@@ -548,7 +570,7 @@ public class JsonParser implements Parser {
             throw unexpectedChar("Expected : , [");
         }
 
-        if (previousEvent == Byte.MAX_VALUE && !currentStructureElement.isArray) {
+        if (previousEvent == Byte.MAX_VALUE && (structureDepth == 0 || !isCurrentStructureArray())) {
             throw unexpectedChar("Not in an array context");
         }
 
@@ -585,6 +607,37 @@ public class JsonParser implements Parser {
             return getInternalString();
         }
         throw new IllegalStateException(EVT_MAP[previousEvent] + " doesn't support getString()");
+    }
+
+    @Override
+    public int matchString(final char[][] candidates) {
+        if (previousEvent != KEY_NAME.ordinal() && previousEvent != VALUE_STRING.ordinal() && previousEvent != VALUE_NUMBER.ordinal()) {
+            throw new IllegalStateException(EVT_MAP[previousEvent] + " doesn't support matchString()");
+        }
+        if (buffers != null) { // multi-buffer value, unlikely for a key, use the assembled string
+            return Parser.super.matchString(candidates);
+        }
+
+        final char[] source;
+        final int from;
+        final int length;
+        if (fallBackCopyBufferLength > 0) { // escaped or buffer boundary crossing value, already decoded in the fallback buffer
+            source = fallBackCopyBuffer;
+            from = 0;
+            length = fallBackCopyBufferLength;
+        } else {
+            source = buffer;
+            from = startOfValueInBuffer;
+            length = endOfValueInBuffer - startOfValueInBuffer;
+        }
+        final int to = from + length;
+        for (int i = 0; i < candidates.length; i++) {
+            final var candidate = candidates[i];
+            if (candidate.length == length && Arrays.equals(source, from, to, candidate, 0, length)) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     @Override
@@ -636,6 +689,13 @@ public class JsonParser implements Parser {
 
     private String getInternalString() {
         if (cachedInternalString != null) {
+            return cachedInternalString;
+        }
+
+        if (buffers == null) { // fast path, the value is fully in a single buffer, single copy
+            cachedInternalString = fallBackCopyBufferLength > 0 ?
+                    new String(fallBackCopyBuffer, 0, fallBackCopyBufferLength) :
+                    new String(buffer, startOfValueInBuffer, endOfValueInBuffer - startOfValueInBuffer);
             return cachedInternalString;
         }
 
@@ -747,7 +807,25 @@ public class JsonParser implements Parser {
         if (isCurrentNumberIntegral && currentIntegralNumber != Integer.MIN_VALUE) {
             return currentIntegralNumber;
         }
-        return Double.parseDouble(getInternalString()); // todo: optimize for all the integer or just dotted forms 'fast parser'
+        if (buffers == null) { // fast path straight from the chars, no String allocation
+            final char[] source;
+            final int from;
+            final int to;
+            if (fallBackCopyBufferLength > 0) {
+                source = fallBackCopyBuffer;
+                from = 0;
+                to = fallBackCopyBufferLength;
+            } else {
+                source = buffer;
+                from = startOfValueInBuffer;
+                to = endOfValueInBuffer;
+            }
+            final var value = parseDoubleFromChars(source, from, to);
+            if (value != null) {
+                return value;
+            }
+        }
+        return Double.parseDouble(getInternalString());
     }
 
     @Override
@@ -781,6 +859,72 @@ public class JsonParser implements Parser {
         cachedInternalString = null;
     }
 
+    // exact powers of ten a double can hold
+    private static final double[] POW_10 = {
+            1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10, 1e11,
+            1e12, 1e13, 1e14, 1e15, 1e16, 1e17, 1e18, 1e19, 1e20, 1e21, 1e22
+    };
+
+    // Clinger fast path: when the mantissa fits a long <= 2^53 and the decimal exponent is within +/-22 both are
+    // exactly representable so a single IEEE multiply/divide is correctly rounded - covers almost all real life
+    // JSON doubles; returns null to fall back to Double.parseDouble otherwise (the scanner already validated the format)
+    private static Double parseDoubleFromChars(final char[] chars, final int start, final int end) {
+        int i = start;
+        final boolean negative = chars[i] == '-';
+        if (negative) {
+            i++;
+        }
+        long mantissa = 0;
+        int exponent = 0;
+        char c;
+        while (i < end && (c = chars[i]) >= '0' && c <= '9') {
+            if (mantissa > (Long.MAX_VALUE - 9) / 10) {
+                return null; // too many digits for an exact long mantissa
+            }
+            mantissa = mantissa * 10 + (c - '0');
+            i++;
+        }
+        if (i < end && chars[i] == '.') {
+            i++;
+            while (i < end && (c = chars[i]) >= '0' && c <= '9') {
+                if (mantissa > (Long.MAX_VALUE - 9) / 10) {
+                    return null;
+                }
+                mantissa = mantissa * 10 + (c - '0');
+                exponent--;
+                i++;
+            }
+        }
+        if (i < end && ((c = chars[i]) == 'e' || c == 'E')) {
+            i++;
+            boolean negativeExponent = false;
+            if (i < end && ((c = chars[i]) == '+' || c == '-')) {
+                negativeExponent = c == '-';
+                i++;
+            }
+            int value = 0;
+            while (i < end && (c = chars[i]) >= '0' && c <= '9') {
+                if (value > 1_000) {
+                    return null; // out of the fast path range anyway
+                }
+                value = value * 10 + (c - '0');
+                i++;
+            }
+            exponent += negativeExponent ? -value : value;
+        }
+        if (i != end) { // unexpected char, let the JDK parser handle it
+            return null;
+        }
+        if (mantissa == 0) {
+            return negative ? -0. : 0.;
+        }
+        if (mantissa > (1L << 53) || exponent < -22 || exponent > 22) {
+            return null;
+        }
+        final double value = exponent >= 0 ? mantissa * POW_10[exponent] : mantissa / POW_10[-exponent];
+        return negative ? -value : value;
+    }
+
     private static Long parseLongFromChars(final char[] chars, final int start, final int end) {
         long retVal = 0;
         final boolean negative = chars[start] == '-';
@@ -811,9 +955,6 @@ public class JsonParser implements Parser {
         final char c = bufferPos < 0 ? 0 : buffer[bufferPos];
         return new IllegalStateException("Unexpected character '" + c + "' (Codepoint: " + String.valueOf(c).codePointAt(0) + ") on "
                 + createLocation() + ". Reason is [[" + message + "]]");
-    }
-
-    private record StructureElement(JsonParser.StructureElement previous, boolean isArray) {
     }
 
     private record Buffer(char[] value, int end) {

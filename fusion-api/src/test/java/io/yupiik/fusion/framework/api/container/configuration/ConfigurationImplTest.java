@@ -60,6 +60,25 @@ public class ConfigurationImplTest {
     }
 
     @Test
+    void noPrefixRootConfigurationFallback() {
+        final var configuration = new ConfigurationImpl(List.of(new ConfigurationSource() {
+            @Override
+            public String get(final String key) {
+                return switch (key) {
+                    case "port" -> "8080";
+                    case "-.explicit" -> "direct";
+                    case "explicit" -> "should not win";
+                    default -> null;
+                };
+            }
+        }));
+        // old generated factories ("-" root configurations) read `-.x` keys, plain keys must match too
+        assertEquals("8080", configuration.get("-.port").orElseThrow());
+        // but an explicitly prefixed key wins
+        assertEquals("direct", configuration.get("-.explicit").orElseThrow());
+    }
+
+    @Test
     void addSource() throws IOException {
         final var matchedKey1 = "ConfigurationImplTest.addSource1";
         final var matchedKey2 = "ConfigurationImplTest.addSource2";

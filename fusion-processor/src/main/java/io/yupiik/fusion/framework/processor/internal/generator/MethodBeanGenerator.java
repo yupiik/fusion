@@ -104,7 +104,7 @@ public class MethodBeanGenerator extends BaseGenerator implements Supplier<BaseG
         switch (parsedType.type()) {
             case CLASS -> out.append(type).append(".class");
             case PARAMETERIZED_TYPE -> out.append("new ")
-                    .append(Types.ParameterizedTypeImpl.class.getName().replace('$', '.')).append("(")
+                    .append(ParsedType.PARAMETERIZED_TYPE_IMPL).append("(")
                     .append(parsedType.simpleName(parsedType.raw())).append(".class").append(",")
                     .append(parsedType.args().stream()
                             .map(it -> parsedType.simpleName(it) + ".class")

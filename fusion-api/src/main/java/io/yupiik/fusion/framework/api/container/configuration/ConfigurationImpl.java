@@ -123,9 +123,15 @@ public class ConfigurationImpl implements Configuration {
 
     @Override
     public Optional<String> get(final String key) {
-        return sources.stream()
+        final var direct = sources.stream()
                 .map(s -> s.get(key))
                 .filter(Objects::nonNull)
                 .findFirst();
+        if (direct.isEmpty() && key.startsWith("-.")) {
+            // factories generated before "-" root configurations ("no prefix" marker) dropped the
+            // prefix read `-.x` keys, let plain `x` keys - args/properties/environment - match too
+            return get(key.substring("-.".length()));
+        }
+        return direct;
     }
 }

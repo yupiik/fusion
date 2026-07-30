@@ -17,7 +17,9 @@ package io.yupiik.fusion.http.server.api;
 
 import io.yupiik.fusion.http.server.impl.FusionResponse;
 import io.yupiik.fusion.http.server.impl.HttpDates;
+import io.yupiik.fusion.http.server.impl.flow.OutputStreamPublisher;
 
+import java.io.OutputStream;
 import java.io.Writer;
 import java.nio.ByteBuffer;
 import java.time.ZonedDateTime;
@@ -73,6 +75,18 @@ public interface Response {
         Builder body(String body);
 
         Builder body(IOConsumer<Writer> bodyHandler);
+
+        /**
+         * Writes the body directly on the response {@link OutputStream}, bypassing any char conversion
+         * of the container - the preferred flavor for byte oriented payloads like JSON.
+         * Note: the name differs from {@code body(IOConsumer<Writer>)} because of the erasure.
+         *
+         * @param bodyHandler the raw body writer.
+         * @return this.
+         */
+        default Builder bytesBody(final IOConsumer<OutputStream> bodyHandler) {
+            return body(new OutputStreamPublisher(bodyHandler));
+        }
 
         Response build();
     }

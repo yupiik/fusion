@@ -26,9 +26,13 @@ public class ExtendedWriter extends Writer {
         this.writer = writer;
     }
 
+    protected ExtendedWriter() { // for subclasses overriding all the methods (no delegate)
+        this.writer = null;
+    }
+
     public void write(final CharSequence s) throws IOException {
-        if (s instanceof CharBuffer cb) { // assume it is properly flipped
-            writer.write(cb.array(), cb.position(), cb.limit());
+        if (s instanceof CharBuffer cb && cb.hasArray()) { // assume it is properly flipped
+            writer.write(cb.array(), cb.arrayOffset() + cb.position(), cb.remaining());
         } else {
             writer.write(s.toString());
         }

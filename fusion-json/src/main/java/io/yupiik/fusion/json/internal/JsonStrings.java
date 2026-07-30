@@ -15,6 +15,9 @@
  */
 package io.yupiik.fusion.json.internal;
 
+import io.yupiik.fusion.json.serialization.ExtendedWriter;
+
+import java.io.IOException;
 import java.nio.CharBuffer;
 
 public final class JsonStrings {
@@ -24,155 +27,77 @@ public final class JsonStrings {
         // no-op
     }
 
-    /* not yet used
-    public static CharBuffer escapeCharsNoQuote(final CharSequence value) { // todo: optimize for numbers
-        // no margin, often used for numbers so no escaping most of the time
-        final var buffer = escapeChars(CharBuffer.allocate(value.length()), 0, 0, value);
-        buffer.limit(value.length());
-        buffer.position(0);
-        return buffer;
+    // zero allocation fast path when nothing needs escaping (the common case), else delegates to escapeChars
+    public static void escapeCharsTo(final CharSequence value, final ExtendedWriter writer) throws IOException {
+        final int length = value.length();
+        for (int i = 0; i < length; i++) {
+            if (!isPassthrough(value.charAt(i))) {
+                writer.write(escapeChars(value));
+                return;
+            }
+        }
+        writer.write('"');
+        writer.write(value);
+        writer.write('"');
     }
-    */
 
     public static CharBuffer escapeChars(final CharSequence value) {
-        var array = CharBuffer.allocate(value.length() + 4 /*2 for quotes + a few margin if there are a few escapes*/);
-        array.put(0, '"');
-        array = escapeChars(array, 1, 2, value);
-        if (array.capacity() == array.limit()) {
-            final var newArray = CharBuffer.allocate(array.capacity() + 1);
-            newArray.put(array.array(), 0, array.limit());
-            array = newArray;
-        } else {
-            array.limit(array.limit() + 1);
+        final int length = value.length();
+        int extra = 0;
+        for (int i = 0; i < length; i++) {
+            final char c = value.charAt(i);
+            if (!isPassthrough(c)) {
+                extra += switch (c) {
+                    case '"', '\\', '\b', '\f', '\n', '\r', '\t' -> 1;
+                    default -> 5; // unicode escape takes 6 chars for 1
+                };
+            }
         }
-        array.put(array.limit() - 1, '"');
-        array.position(0);
-        return array;
-    }
 
-    private static CharBuffer escapeChars(CharBuffer array,
-                                          int idx,
-                                          int capacityMargin,
-                                          final CharSequence value) {
-        final var length = value.length();
+        // count first then allocate the exact needed size once, most of the time there is no escaping at all
+        final var out = new char[length + extra + 2];
+        out[0] = '"';
+        out[out.length - 1] = '"';
+        if (extra == 0) { // fast path, bulk copy
+            if (value instanceof String s) {
+                s.getChars(0, length, out, 1);
+            } else if (value instanceof CharBuffer cb && cb.hasArray()) {
+                System.arraycopy(cb.array(), cb.arrayOffset() + cb.position(), out, 1, length);
+            } else {
+                for (int i = 0; i < length; i++) {
+                    out[i + 1] = value.charAt(i);
+                }
+            }
+            return CharBuffer.wrap(out);
+        }
+
+        int idx = 1;
         for (int i = 0; i < length; i++) {
             final char c = value.charAt(i);
             if (isPassthrough(c)) {
-                if (capacityMargin <= 0 && array.capacity() <= idx) {
-                    capacityMargin = 2;
-                    final var newArray = CharBuffer.allocate(array.capacity() + length - i + capacityMargin);
-                    newArray.put(array.array(), 0, array.limit());
-                    array = newArray;
-                }
-                array.put(idx++, c);
+                out[idx++] = c;
                 continue;
             }
 
+            out[idx++] = '\\';
             switch (c) {
-                case '"' -> {
-                    if (capacityMargin-- <= 0) {
-                        capacityMargin = 4;
-                        final var newArray = CharBuffer.allocate(array.capacity() + capacityMargin);
-                        newArray.put(array.array(), 0, array.limit());
-                        array = newArray;
-                    }
-                    array.put(idx, '\\');
-                    array.put(idx + 1, '"');
-                    idx += 2;
-                    capacityMargin--;
-                }
-                case '\\' -> {
-                    if (capacityMargin-- <= 0) {
-                        capacityMargin = 4;
-                        final var newArray = CharBuffer.allocate(array.capacity() + capacityMargin);
-                        newArray.put(array.array(), 0, array.limit());
-                        array = newArray;
-                    }
-                    array.put(idx, '\\');
-                    array.put(idx + 1, '\\');
-                    idx += 2;
-                    capacityMargin--;
-                }
-                case '\b' -> {
-                    if (capacityMargin-- <= 0) {
-                        capacityMargin = 4;
-                        final var newArray = CharBuffer.allocate(array.capacity() + capacityMargin);
-                        newArray.put(array.array(), 0, array.limit());
-                        array = newArray;
-                    }
-                    array.put(idx, '\\');
-                    array.put(idx + 1, 'b');
-                    idx += 2;
-                    capacityMargin--;
-                }
-                case '\f' -> {
-                    if (capacityMargin-- <= 0) {
-                        capacityMargin = 4;
-                        final var newArray = CharBuffer.allocate(array.capacity() + capacityMargin);
-                        newArray.put(array.array(), 0, array.limit());
-                        array = newArray;
-                    }
-                    array.put(idx, '\\');
-                    array.put(idx + 1, 'f');
-                    idx += 2;
-                    capacityMargin--;
-                }
-                case '\n' -> {
-                    if (capacityMargin-- <= 0) {
-                        capacityMargin = 4;
-                        final var newArray = CharBuffer.allocate(array.capacity() + capacityMargin);
-                        newArray.put(array.array(), 0, array.limit());
-                        array = newArray;
-                    }
-                    array.put(idx, '\\');
-                    array.put(idx + 1, 'n');
-                    idx += 2;
-                    capacityMargin--;
-                }
-                case '\r' -> {
-                    if (capacityMargin-- <= 0) {
-                        capacityMargin = 4;
-                        final var newArray = CharBuffer.allocate(array.capacity() + capacityMargin);
-                        newArray.put(array.array(), 0, array.limit());
-                        array = newArray;
-                    }
-                    array.put(idx, '\\');
-                    array.put(idx + 1, 'r');
-                    idx += 2;
-                    capacityMargin--;
-                }
-                case '\t' -> {
-                    if (capacityMargin-- <= 0) {
-                        capacityMargin = 4;
-                        final var newArray = CharBuffer.allocate(array.capacity() + capacityMargin);
-                        newArray.put(array.array(), 0, array.limit());
-                        array = newArray;
-                    }
-                    array.put(idx, '\\');
-                    array.put(idx + 1, 't');
-                    idx += 2;
-                    capacityMargin--;
-                }
+                case '"' -> out[idx++] = '"';
+                case '\\' -> out[idx++] = '\\';
+                case '\b' -> out[idx++] = 'b';
+                case '\f' -> out[idx++] = 'f';
+                case '\n' -> out[idx++] = 'n';
+                case '\r' -> out[idx++] = 'r';
+                case '\t' -> out[idx++] = 't';
                 default -> {
-                    if (capacityMargin < 6) {
-                        capacityMargin = 24; // unicode is used and unicode is 6 chars and not 2 as previous cases so make it wider
-                        final var newArray = CharBuffer.allocate(array.capacity() + capacityMargin);
-                        newArray.put(array.array(), 0, array.limit());
-                        array = newArray;
-                    }
-                    array.put(idx, '\\');
-                    array.put(idx + 1, 'u');
-                    array.put(idx + 2, '0');
-                    array.put(idx + 3, '0');
-                    array.put(idx + 4, HEX_CHARS[c >> 4]);
-                    array.put(idx + 5, HEX_CHARS[c & 0xF]);
-                    idx += 6;
-                    capacityMargin -= 6;
+                    out[idx++] = 'u';
+                    out[idx++] = '0';
+                    out[idx++] = '0';
+                    out[idx++] = HEX_CHARS[c >> 4];
+                    out[idx++] = HEX_CHARS[c & 0xF];
                 }
             }
         }
-        array.limit(idx);
-        return array;
+        return CharBuffer.wrap(out);
     }
 
     // important: String uses bytes and we are reader/writer (so chars) based so avoid when possible/perf are important

@@ -134,8 +134,9 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
         final var ids = constructorParameters.stream()
                 .filter(it -> it.getAnnotation(Id.class) != null)
                 .toList();
+        final var idsSet = Set.copyOf(ids); // parameters are unique instances so fast lookups are accurate
         final var standardColumns = constructorParameters.stream()
-                .filter(it -> !ids.contains(it)) // @Column is optional
+                .filter(it -> !idsSet.contains(it)) // @Column is optional
                 .toList();
 
         final var idType = switch (ids.size()) {
@@ -184,13 +185,13 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
                         "\",\n" +
                         "          java.util.List.of(\n" +
                         Stream.concat(
-                                        ids.stream()
-                                                .map(id -> newColumnMetadataStart(id) + ", " +
-                                                        ids.indexOf(id) + ", " +
-                                                        id.getAnnotation(Id.class).autoIncremented() +
+                                        withIndex(ids.stream())
+                                                .map(id -> newColumnMetadataStart(id.item()) + ", " +
+                                                        id.index() + ", " +
+                                                        id.item().getAnnotation(Id.class).autoIncremented() +
                                                         ")"),
                                         columns.entrySet().stream()
-                                                .filter(it -> standardColumns.contains(it.getKey()))
+                                                .filter(it -> !idsSet.contains(it.getKey()))
                                                 .flatMap(it -> it.getValue().javaName() == null ?
                                                         it.getValue().columns().entrySet().stream() :
                                                         Stream.of(it))
@@ -227,7 +228,7 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
                                 createInstanceFromCallback(onUpdateCb.get(0), updateInjections, "entity", true) :
                                 "") +
                         columns.entrySet().stream()
-                                .filter(it -> standardColumns.contains(it.getKey()))
+                                .filter(it -> !idsSet.contains(it.getKey()))
                                 .flatMap(it -> {
                                     if (it.getValue().columns() != null) {
                                         final var base = "instance." + it.getValue().embeddableJavaName() + "()";
@@ -281,7 +282,7 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
                                    "              }\n" +
                                    // do a copy of all params except the generated id (can be only one for now)
                                    "              return new " + className + "(" + constructorParameters.stream()
-                                                                                   .map(it -> ids.contains(it) ?
+                                                                                   .map(it -> idsSet.contains(it) ?
                                                                                            jdbcGetter(it, 1) :
                                                                                               ("entity." + it.getSimpleName().toString() + "()"))
                                                                                    .collect(joining(", ")) + ");\n" +
@@ -291,28 +292,13 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
                         createFactory(constructorParameters, onLoadCb, loadInjections, columns, columnsMapping, "return", type) +
                         "          });\n" +
                         "    }\n" +
+                        (beanForPersistenceEntities ?
+                                nestedBean(tableClassName, DefaultScoped.class.getName(), findPriority(type), metadata(type),
+                                        "      return new " + tableClassName + "(lookup(container, " + DatabaseConfiguration.class.getName() + ".class, dependents)" + (hasCallbackInjection ? ", container" : "") + ");\n") :
+                                "") +
                         "}\n" +
                         "\n"),
-                beanForPersistenceEntities ?
-                        new GeneratedClass(packagePrefix + tableClassName + '$' + FusionBean.class.getSimpleName(), packageLine +
-                                generationVersion() +
-                                                                                                                    "public class " + tableClassName + '$' + FusionBean.class.getSimpleName() + " extends " + BaseBean.class.getName() + "<" + tableClassName + "> {\n" +
-                                                                                                                    "  public " + tableClassName + '$' + FusionBean.class.getSimpleName() + "() {\n" +
-                                                                                                                    "    super(\n" +
-                                                                                                                    "      " + tableClassName + ".class,\n" +
-                                                                                                                    "      " + DefaultScoped.class.getName() + ".class,\n" +
-                                                                                                                    "      " + findPriority(type) + ",\n" +
-                                                                                                                    "      " + metadata(type) + ");\n" +
-                                                                                                                    "  }\n" +
-                                                                                                                    "\n" +
-                                                                                                                    "  @Override\n" +
-                                                                                                                    "  public " + tableClassName + " create(final " + RuntimeContainer.class.getName() + " container, final " +
-                                List.class.getName() + "<" + Instance.class.getName() + "<?>> dependents) {\n" +
-                                                                                                                    "    return new " + tableClassName + "(lookup(container, " + DatabaseConfiguration.class.getName() + ".class, dependents)" + (hasCallbackInjection ? ", container" : "") + ");\n" +
-                                                                                                                    "  }\n" +
-                                                                                                                    "}\n" +
-                                                                                                                    "\n") :
-                        null);
+                beanForPersistenceEntities ? packagePrefix + tableClassName + '.' + FusionBean.class.getSimpleName() : null);
     }
 
     private String createInstanceFromCallback(final ExecutableElement callback, final List<Bean.FieldInjection> injections,
@@ -575,6 +561,6 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
                 .replace("\n", "\\\n");
     }
 
-    public record Output(GeneratedClass entity, GeneratedClass bean) {
+    public record Output(GeneratedClass entity, String beanClassName) {
     }
 }

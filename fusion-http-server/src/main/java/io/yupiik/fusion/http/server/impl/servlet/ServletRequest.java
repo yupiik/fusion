@@ -21,6 +21,7 @@ import io.yupiik.fusion.http.server.api.Request;
 import jakarta.servlet.http.HttpServletRequest;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.Reader;
 import java.util.List;
 import java.util.Map;
@@ -49,6 +50,13 @@ public class ServletRequest implements Request {
         if (type == Reader.class) {
             try {
                 return type.cast(delegate.getReader());
+            } catch (final IOException e) {
+                throw new IllegalStateException(e);
+            }
+        }
+        if (type == InputStream.class) { // preferred for JSON payloads, skips the container char decoding
+            try {
+                return type.cast(delegate.getInputStream());
             } catch (final IOException e) {
                 throw new IllegalStateException(e);
             }

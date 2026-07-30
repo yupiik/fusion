@@ -15,11 +15,15 @@
  */
 package io.yupiik.fusion.json.internal.io;
 
+import io.yupiik.fusion.json.serialization.ExtendedWriter;
+
 import java.io.IOException;
 import java.io.Writer;
+import java.nio.CharBuffer;
 
-// pretty much a StringWriter but using StringBuilder instead of StringBuffer which is faster
-public class FastStringWriter extends Writer {
+// pretty much a StringWriter but using StringBuilder instead of StringBuffer which is faster,
+// extends ExtendedWriter (all methods overridden) so the mapper does not re-wrap it
+public class FastStringWriter extends ExtendedWriter {
     private final StringBuilder builder;
 
     public FastStringWriter(final StringBuilder builder) {
@@ -29,6 +33,20 @@ public class FastStringWriter extends Writer {
     @Override
     public String toString() {
         return builder.toString();
+    }
+
+    @Override
+    public void write(final CharSequence s) {
+        if (s instanceof CharBuffer cb && cb.hasArray()) { // assume it is properly flipped
+            builder.append(cb.array(), cb.arrayOffset() + cb.position(), cb.remaining());
+        } else {
+            builder.append(s);
+        }
+    }
+
+    @Override
+    public void write(final char[] cbuf) {
+        builder.append(cbuf);
     }
 
     @Override

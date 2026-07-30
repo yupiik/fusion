@@ -29,6 +29,8 @@ import static java.util.stream.Collectors.joining;
 import static javax.lang.model.element.ElementKind.ENUM_CONSTANT;
 
 public record ParsedType(Type type, String className, String raw, List<String> args, List<String> enumValues) {
+    public static final String PARAMETERIZED_TYPE_IMPL = Types.ParameterizedTypeImpl.class.getName().replace('$', '.');
+
     public static ParsedType of(final TypeMirror type) {
         if (type instanceof DeclaredType dt && !dt.getTypeArguments().isEmpty()) {
             final var element = dt.asElement();
@@ -55,7 +57,7 @@ public record ParsedType(Type type, String className, String raw, List<String> a
         if (type != Type.PARAMETERIZED_TYPE) {
             throw new IllegalStateException("only PARAMETERIZED_TYPE can call createParameterizedTypeImpl()");
         }
-        return "new " + Types.ParameterizedTypeImpl.class.getName().replace('$', '.') + "(" +
+        return "new " + ParsedType.PARAMETERIZED_TYPE_IMPL + "(" +
                 raw() + ".class, " +
                 args().stream().map(a -> {
                     final int generics = a.indexOf('<'); // nested parameterized types are erased for the class literal

@@ -296,6 +296,12 @@ under the License.
   </build>
 
   <profiles>
+    <profile> <!-- JMH benchmarks, never published: mvn install -Pbench -pl fusion-json-benchmarks -am -->
+      <id>bench</id>
+      <modules>
+        <module>fusion-json-benchmarks</module>
+      </modules>
+    </profile>
     <profile>
       <id>release</id>
       <activation>

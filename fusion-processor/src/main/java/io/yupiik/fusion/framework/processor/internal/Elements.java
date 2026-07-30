@@ -22,6 +22,7 @@ import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Types;
 import java.util.Collection;
@@ -34,6 +35,8 @@ public class Elements {
     private final ProcessingEnvironment processingEnvironment;
     private final Map<TypeElement, Collection<ExecutableElement>> methodPerElement = new HashMap<>();
     private final Map<Element, Optional<? extends AnnotationMirror>> scopePerElement = new HashMap<>();
+    private final Map<Class<?>, TypeElement> typeElementPerClass = new HashMap<>();
+    private final Map<String, Boolean> comparablePerType = new HashMap<>();
 
     public Elements(final ProcessingEnvironment processingEnvironment) {
         this.processingEnvironment = processingEnvironment;
@@ -41,6 +44,20 @@ public class Elements {
 
     public Types getTypeUtils() {
         return processingEnvironment.getTypeUtils();
+    }
+
+    public TypeElement asElement(final Class<?> type) {
+        return typeElementPerClass.computeIfAbsent(type, t -> (TypeElement) processingEnvironment.getTypeUtils().asElement(
+                processingEnvironment.getElementUtils().getTypeElement(t.getName()).asType()));
+    }
+
+    public boolean isComparable(final TypeMirror type) {
+        return comparablePerType.computeIfAbsent(type.toString(), k -> {
+            final var types = processingEnvironment.getTypeUtils();
+            final var mirror = types.asElement(type).asType();
+            final var declaredType = types.getDeclaredType(asElement(Comparable.class), mirror);
+            return types.isAssignable(type, declaredType);
+        });
     }
 
     public Optional<? extends AnnotationMirror> findScopeAnnotation(final Element element) {

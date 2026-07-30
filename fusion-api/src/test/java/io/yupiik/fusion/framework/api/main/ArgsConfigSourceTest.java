@@ -58,6 +58,12 @@ class ArgsConfigSourceTest {
     }
 
     @Test
+    void noPrefixRootConfiguration() { // old generated factories ("-" root configurations) read `-.x` keys
+        assertEquals("8080", new ArgsConfigSource(List.of("--port", "8080")).get("-.port"));
+        assertEquals("1", new ArgsConfigSource(List.of("--foo-bar", "1")).get("-.foo.bar"));
+    }
+
+    @Test
     void propertiesInline() {
         assertEquals("bar2", new ArgsConfigSource(List.of("--fusion-properties-whatever=foo=bar2")).get("foo"));
     }

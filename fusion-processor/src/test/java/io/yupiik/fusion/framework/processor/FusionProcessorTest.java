@@ -22,6 +22,7 @@ import io.yupiik.fusion.framework.api.Instance;
 import io.yupiik.fusion.framework.api.RuntimeContainer;
 import io.yupiik.fusion.framework.api.configuration.Configuration;
 import io.yupiik.fusion.framework.api.configuration.ConfigurationSource;
+import io.yupiik.fusion.framework.api.configuration.MissingRequiredParameterException;
 import io.yupiik.fusion.framework.api.container.FusionListener;
 import io.yupiik.fusion.framework.api.container.FusionModule;
 import io.yupiik.fusion.framework.api.container.RuntimeContainerImpl;
@@ -702,6 +703,79 @@ class FusionProcessorTest {
                         fail(e);
                     }
                 });
+    }
+
+    @Test
+    void configurationNoPrefix(@TempDir final Path work) throws IOException {
+        final var compiler = new Compiler(work, "NoPrefixConfiguration", "NoPrefixConfSource");
+        compiler.compileAndAssertsInstance((container, instance) -> {
+            assertEquals(
+                    "NoPrefixConfiguration[name=test, port=8080, nested=Nested[lower=down], list=[ab, cde]]",
+                    instance.instance().toString());
+
+            // the generated factory reads the plain property names, without any "-." prefix
+            final var factory = compiler.readGeneratedSource("NoPrefixConfiguration$FusionConfigurationFactory");
+            assertTrue(factory.contains("configuration.get(\"name\")"), factory);
+            assertTrue(factory.contains("configuration.get(\"port\")"), factory);
+            assertTrue(factory.contains("keyMapper, \"nested\""), factory);
+            assertFalse(factory.contains("\"-."), factory);
+
+            // doc uses the plain names too
+            try (final var in = requireNonNull(instance.instance().getClass().getClassLoader()
+                    .getResourceAsStream("META-INF/fusion/configuration/documentation.json"))) {
+                assertEquals("""
+                                {
+                                  "version": 1,
+                                  "classes": {
+                                    "test.p.NoPrefixConfiguration": [
+                                      {
+                                        "name": "list",
+                                        "javaName": "list",
+                                        "documentation": "",
+                                        "defaultValue": null,
+                                        "required": false
+                                      },
+                                      {
+                                        "name": "name",
+                                        "javaName": "name",
+                                        "documentation": "The app name",
+                                        "defaultValue": null,
+                                        "required": false
+                                      },
+                                      {
+                                        "ref": "test.p.NoPrefixConfiguration.Nested",
+                                        "name": "nested",
+                                        "javaName": "nested",
+                                        "documentation": "",
+                                        "required": false
+                                      },
+                                      {
+                                        "name": "port",
+                                        "javaName": "port",
+                                        "documentation": "",
+                                        "defaultValue": 0,
+                                        "required": false
+                                      }
+                                    ],
+                                    "test.p.NoPrefixConfiguration.Nested": [
+                                      {
+                                        "name": "lower",
+                                        "javaName": "lower",
+                                        "documentation": "Some nested value.",
+                                        "defaultValue": null,
+                                        "required": false
+                                      }
+                                    ]
+                                  },
+                                  "roots": [
+                                    "test.p.NoPrefixConfiguration"
+                                  ]
+                                }""",
+                        simpleFormat(in));
+            } catch (final IOException e) {
+                fail(e);
+            }
+        });
     }
 
 
@@ -2309,6 +2383,73 @@ class FusionProcessorTest {
     }
 
     @Test
+    void commandNoPrefix(@TempDir final Path work) throws IOException {
+        final var compiler = new Compiler(work, "NoPrefixCommand");
+        compiler.compileAndAsserts((loader, container) -> {
+            // args are mapped without any prefix since the configuration uses @RootConfiguration("-")
+            withInstance(container, loader, "test.p.NoPrefixCommand$FusionCliCommand", CliCommand.class, c ->
+                    assertEquals(
+                            List.of(
+                                    "Parameter[configName=name, cliName=--name, description=The name.]",
+                                    "Parameter[configName=nested.lower, cliName=--nested-lower, description=Nested value.]"),
+                            c.parameters().stream().map(Object::toString).toList()));
+
+            System.clearProperty("test.p.NoPrefixCommand");
+            withInstance(container, loader, "io.yupiik.fusion.cli.CliAwaiter", CliAwaiter.class, CliAwaiter::await);
+            assertEquals(
+                    "conf=Conf[name=set from test, nested=Nested[lower=45]]",
+                    System.clearProperty("test.p.NoPrefixCommand"));
+        }, new BaseBean<Args>(Args.class, DefaultScoped.class, 1000, Map.of()) {
+            @Override
+            public Args create(final RuntimeContainer container, final List<Instance<?>> dependents) {
+                return new Args(List.of("np", "--name", "set from test", "--nested-lower", "45"));
+            }
+        });
+    }
+
+    @Test
+    void commandNoPrefixDoesNotAcceptCommandPrefixedArgs(@TempDir final Path work) throws IOException {
+        final var compiler = new Compiler(work, "NoPrefixCommand");
+        compiler.compileAndAsserts((loader, container) -> {
+            // "-" configurations only support the plain form (--name), --np-name is not an alias
+            final var error = assertThrows(MissingRequiredParameterException.class, () ->
+                    withInstance(container, loader, "io.yupiik.fusion.cli.CliAwaiter", CliAwaiter.class, CliAwaiter::await));
+            assertTrue(error.getMessage().contains("No value for '--name'"), error.getMessage());
+            // and the generated help shows the plain names
+            assertTrue(error.getMessage().contains("--name: The name."), error.getMessage());
+            assertTrue(error.getMessage().contains("--nested-lower: Nested value."), error.getMessage());
+        }, new BaseBean<Args>(Args.class, DefaultScoped.class, 1000, Map.of()) {
+            @Override
+            public Args create(final RuntimeContainer container, final List<Instance<?>> dependents) {
+                return new Args(List.of("np", "--np-name", "ignored"));
+            }
+        });
+    }
+
+    @Test
+    void commandNoPrefixUsage(@TempDir final Path work) throws IOException {
+        new Compiler(work, "NoPrefixCommand").compileAndAsserts((loader, container) -> assertEquals(
+                        """
+                                Missing command 'unknown':
+                                Commands:
+                                  np    A command without any configuration prefix.
+
+                                Options for 'np':
+                                    --name            The name.
+                                    --nested-lower    Nested value.
+                                """,
+                        assertThrows(IllegalArgumentException.class, () ->
+                                withInstance(container, loader, "io.yupiik.fusion.cli.CliAwaiter", CliAwaiter.class, CliAwaiter::await))
+                                .getMessage()),
+                new BaseBean<Args>(Args.class, DefaultScoped.class, 1000, Map.of()) {
+                    @Override
+                    public Args create(final RuntimeContainer container, final List<Instance<?>> dependents) {
+                        return new Args(List.of("unknown"));
+                    }
+                });
+    }
+
+    @Test
     void nestedCommandParameters(@TempDir final Path work) throws IOException {
         final var compiler = new Compiler(work, "NestedCommand");
         compiler.compileAndAsserts((loader, container) -> withInstance(
@@ -2440,6 +2581,21 @@ class FusionProcessorTest {
                                         };
                                       });
                                 }
+
+                              public static class FusionBean extends io.yupiik.fusion.framework.api.container.bean.BaseBean<SimpleFlatEntity$FusionPersistenceEntity> {
+                                public FusionBean() {
+                                  super(
+                                    SimpleFlatEntity$FusionPersistenceEntity.class,
+                                    io.yupiik.fusion.framework.api.scope.DefaultScoped.class,
+                                    1000,
+                                    java.util.Map.of());
+                                }
+
+                                @Override
+                                public SimpleFlatEntity$FusionPersistenceEntity create(final io.yupiik.fusion.framework.api.RuntimeContainer container, final java.util.List<io.yupiik.fusion.framework.api.Instance<?>> dependents) {
+                                  return new SimpleFlatEntity$FusionPersistenceEntity(lookup(container, io.yupiik.fusion.persistence.impl.DatabaseConfiguration.class, dependents));
+                                }
+                              }
                             }
                             
                             """,
@@ -2512,6 +2668,21 @@ class FusionProcessorTest {
                                     };
                                   });
                             }
+
+                          public static class FusionBean extends io.yupiik.fusion.framework.api.container.bean.BaseBean<OnDeleteEntity$FusionPersistenceEntity> {
+                            public FusionBean() {
+                              super(
+                                OnDeleteEntity$FusionPersistenceEntity.class,
+                                io.yupiik.fusion.framework.api.scope.DefaultScoped.class,
+                                1000,
+                                java.util.Map.of());
+                            }
+
+                            @Override
+                            public OnDeleteEntity$FusionPersistenceEntity create(final io.yupiik.fusion.framework.api.RuntimeContainer container, final java.util.List<io.yupiik.fusion.framework.api.Instance<?>> dependents) {
+                              return new OnDeleteEntity$FusionPersistenceEntity(lookup(container, io.yupiik.fusion.persistence.impl.DatabaseConfiguration.class, dependents));
+                            }
+                          }
                         }
                         
                         """,
@@ -2580,6 +2751,21 @@ class FusionProcessorTest {
                                     };
                                   });
                             }
+
+                          public static class FusionBean extends io.yupiik.fusion.framework.api.container.bean.BaseBean<CallbackWithInjections$FusionPersistenceEntity> {
+                            public FusionBean() {
+                              super(
+                                CallbackWithInjections$FusionPersistenceEntity.class,
+                                io.yupiik.fusion.framework.api.scope.DefaultScoped.class,
+                                1000,
+                                java.util.Map.of());
+                            }
+
+                            @Override
+                            public CallbackWithInjections$FusionPersistenceEntity create(final io.yupiik.fusion.framework.api.RuntimeContainer container, final java.util.List<io.yupiik.fusion.framework.api.Instance<?>> dependents) {
+                              return new CallbackWithInjections$FusionPersistenceEntity(lookup(container, io.yupiik.fusion.persistence.impl.DatabaseConfiguration.class, dependents), container);
+                            }
+                          }
                         }
                         
                         """,
@@ -2666,6 +2852,21 @@ class FusionProcessorTest {
                                         };
                                       });
                                 }
+
+                              public static class FusionBean extends io.yupiik.fusion.framework.api.container.bean.BaseBean<NestedEntity$FusionPersistenceEntity> {
+                                public FusionBean() {
+                                  super(
+                                    NestedEntity$FusionPersistenceEntity.class,
+                                    io.yupiik.fusion.framework.api.scope.DefaultScoped.class,
+                                    1000,
+                                    java.util.Map.of());
+                                }
+
+                                @Override
+                                public NestedEntity$FusionPersistenceEntity create(final io.yupiik.fusion.framework.api.RuntimeContainer container, final java.util.List<io.yupiik.fusion.framework.api.Instance<?>> dependents) {
+                                  return new NestedEntity$FusionPersistenceEntity(lookup(container, io.yupiik.fusion.persistence.impl.DatabaseConfiguration.class, dependents));
+                                }
+                              }
                             }
                             
                             """,

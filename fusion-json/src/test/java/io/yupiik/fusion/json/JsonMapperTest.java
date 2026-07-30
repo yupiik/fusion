@@ -35,6 +35,7 @@ import static io.yupiik.fusion.json.spi.Parser.Event.KEY_NAME;
 import static io.yupiik.fusion.json.spi.Parser.Event.START_OBJECT;
 import static io.yupiik.fusion.json.spi.Parser.Event.VALUE_STRING;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 @TestInstance(PER_CLASS)
@@ -70,6 +71,76 @@ class JsonMapperTest {
         try (final var mapper = new JsonMapperImpl(List.of(), key -> Optional.empty())) {
             assertEquals(Map.of("name", "ok"), mapper.fromString(Object.class, "{\"name\": \"ok\"}"));
             assertEquals(Map.of("name", "ok"), mapper.fromString(Map.class, "{\"name\": \"ok\"}"));
+        }
+    }
+
+    @Test
+    void mapWithOnlyNullValues() {
+        try (final var mapper = new JsonMapperImpl(List.of(), key -> Optional.empty())) {
+            final var map = new java.util.LinkedHashMap<String, Object>();
+            map.put("a", null);
+            map.put("b", null);
+            assertEquals("{\"a\":null,\"b\":null}", mapper.toString(map));
+        }
+    }
+
+    @Test
+    void nonAsciiBytesRoundTrip() {
+        try (final var mapper = new JsonMapperImpl(List.of(), key -> Optional.empty())) {
+            // 2 bytes (accents), 3 bytes (CJK), 4 bytes (surrogate pair) at the start, middle and end of the payload
+            final var values = List.of(
+                    "eéè accents", "你好 cjk", "😀 emoji",
+                    "ascii prefix then é", "ascii only", "tail 😀");
+            for (final var value : values) {
+                final var map = Map.of("v", value);
+                final var bytes = mapper.toBytes(map);
+                assertEquals(mapper.toString(map).getBytes(java.nio.charset.StandardCharsets.UTF_8).length, bytes.length);
+                assertEquals(map, mapper.fromBytes(Object.class, bytes));
+                assertEquals(map, mapper.fromString(Object.class, mapper.toString(map)));
+            }
+        }
+    }
+
+    @Test
+    void writeToOutputStream() {
+        try (final var mapper = new JsonMapperImpl(List.of(), key -> Optional.empty())) {
+            for (final var value : List.of("plain ascii", "eéè accents", "你好 cjk", "😀 emoji")) {
+                final var map = Map.of("v", value);
+                final var out = new java.io.ByteArrayOutputStream();
+                mapper.write(map, out);
+                org.junit.jupiter.api.Assertions.assertArrayEquals(mapper.toBytes(map), out.toByteArray(), value);
+            }
+        }
+    }
+
+    @Test
+    void readFromInputStream() {
+        try (final var mapper = new JsonMapperImpl(List.of(), key -> Optional.empty())) {
+            for (final var value : List.of("plain ascii", "eéè accents", "你好 cjk", "😀 emoji")) {
+                final var map = Map.of("v", value);
+                final var bytes = mapper.toBytes(map);
+                assertEquals(map, mapper.read(Object.class, new java.io.ByteArrayInputStream(bytes)));
+            }
+        }
+    }
+
+    @Test
+    void escapedStringsRoundTrip() {
+        try (final var mapper = new JsonMapperImpl(List.of(), key -> Optional.empty())) {
+            final var value = "quote:\" backslash:\\ tab:\t newline:\n control:" + (char) 1 + " plain";
+            final var json = mapper.toString(Map.of("v", value));
+            assertEquals("{\"v\":\"quote:\\\" backslash:\\\\ tab:\\t newline:\\n control:\\u0001 plain\"}", json);
+            assertEquals(Map.of("v", value), mapper.fromString(Object.class, json));
+        }
+    }
+
+    @Test
+    void truncatedPayloadIsAParseErrorNotANpe() {
+        try (final var mapper = new JsonMapperImpl(List.of(), key -> Optional.empty())) {
+            final var truncated = "{\"name\": \"trunca".toCharArray();
+            assertThrows(IllegalStateException.class, () -> mapper.read(
+                    Object.class,
+                    new io.yupiik.fusion.json.deserialization.AvailableCharArrayReader(truncated)));
         }
     }
 

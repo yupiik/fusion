@@ -119,6 +119,45 @@ class WebServerTest {
     }
 
     @Test
+    void inputStreamRequestAndBytesBodyResponse() throws IOException, InterruptedException {
+        final var value = "e\u00e9\u00e8 \u4f60\u597d \ud83d\ude00"; // non-ASCII to validate the byte paths end to end
+        final var configuration = WebServer.Configuration.of().port(0);
+        final var tomcat = configuration.unwrap(TomcatWebServerConfiguration.class);
+        tomcat.setEndpoints(List.of(new Endpoint() {
+            @Override
+            public boolean matches(final Request request) {
+                return "POST".equalsIgnoreCase(request.method()) && "/bytes".equalsIgnoreCase(request.path());
+            }
+
+            @Override
+            public CompletionStage<Response> handle(final Request request) {
+                final var stream = request.unwrapOrNull(java.io.InputStream.class);
+                final String body;
+                try (stream) {
+                    body = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+                } catch (final IOException e) {
+                    throw new IllegalStateException(e);
+                }
+                return completedStage(Response.of()
+                        .status(212)
+                        .header("content-type", "application/json;charset=utf-8")
+                        .bytesBody(out -> out.write(("[" + body + "]").getBytes(StandardCharsets.UTF_8)))
+                        .build());
+            }
+        }));
+        final var http = HttpClient.newHttpClient();
+        try (final var server = WebServer.of(configuration)) {
+            final var res = http.send(HttpRequest.newBuilder()
+                            .POST(HttpRequest.BodyPublishers.ofString(value, StandardCharsets.UTF_8))
+                            .uri(URI.create("http://" + configuration.host() + ":" + configuration.port() + "/bytes"))
+                            .build(),
+                    ofString());
+            assertEquals(212, res.statusCode(), res::body);
+            assertEquals("[" + value + "]", res.body());
+        }
+    }
+
+    @Test
     void longStreamingResponse() throws IOException, InterruptedException {
         final int numberOfA = (int) (8192 * 2.5); // if too big test will be too long but we want more than one chunk/onNext(ByteBuffer)
         final var configuration = WebServer.Configuration.of().port(0);

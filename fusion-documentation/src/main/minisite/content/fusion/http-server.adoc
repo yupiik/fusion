@@ -42,6 +42,8 @@ public class Greeting implements Endpoint {
 }
 ----
 
+TIP: for byte oriented payloads (JSON typically) prefer `Response.of().bytesBody(stream -> ...)` which writes directly on the response `OutputStream` (no container char conversion), and read request bodies through `request.unwrapOrNull(InputStream.class)` (preferred over `Reader.class` for the same reason) - this is what the generated JSON endpoints and the JSON-RPC endpoint do.
+
 == Configuration
 
 Most of the configuration can be customized using an event listener on `WebServer.Configuration` and unwrapping the instance as a `TomcatWebServerConfiguration` you have access to a full Tomcat server customization (HTTP/2.0, WebSocket and so on).
