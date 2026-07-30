@@ -122,6 +122,41 @@ class BaseJsonCodecTest {
     }
 
     @Test
+    void jsonOthersSkipsNullValuedEntriesWithoutDanglingComma() throws IOException {
+        // trailing null - this is the exact bug: comma was written for "k2" before
+        // the loop discovered its value was null and skipped it
+        final var trailingNull = new LinkedHashMap<String, Object>();
+        trailingNull.put("k1", "v1");
+        trailingNull.put("k2", null);
+        assertEquals("\"k1\":\"v1\"", write((first, ctx) ->
+                codec.writeJsonOthers(first, "\"a\":".toCharArray(), trailingNull, ctx), false));
+
+        // leading null - first entry skipped, comma must not appear before the
+        // first *real* entry even though it wasn't the first *map* entry
+        final var leadingNull = new LinkedHashMap<String, Object>();
+        leadingNull.put("k1", null);
+        leadingNull.put("k2", "v2");
+        assertEquals("\"k2\":\"v2\"", write((first, ctx) ->
+                codec.writeJsonOthers(first, "\"a\":".toCharArray(), leadingNull, ctx), false));
+
+        // null sandwiched between two real entries
+        final var middleNull = new LinkedHashMap<String, Object>();
+        middleNull.put("k1", "v1");
+        middleNull.put("k2", null);
+        middleNull.put("k3", "v3");
+        assertEquals("\"k1\":\"v1\",\"k3\":\"v3\"", write((first, ctx) ->
+                codec.writeJsonOthers(first, "\"a\":".toCharArray(), middleNull, ctx), false));
+
+        // all-null map (non-empty, but every value null) - must behave like empty,
+        // not like "wrote nothing but still consumed a comma slot"
+        final var allNull = new LinkedHashMap<String, Object>();
+        allNull.put("k1", null);
+        allNull.put("k2", null);
+        assertEquals("\"b\":1", write((first, ctx) -> codec.writeJsonOthers(
+                codec.writeValue(first, "\"b\":".toCharArray(), "1", ctx), "\"a\":".toCharArray(), allNull, ctx), false));
+    }
+
+    @Test
     void readers() throws IOException {
         assertEquals(List.of("a", "b"), read("[\"a\",\"b\"]", (c, ctx) -> c.readList(ctx, String.class)));
         assertEquals(Set.of("a", "b"), read("[\"a\",\"b\"]", (c, ctx) -> c.readSet(ctx, String.class)));
