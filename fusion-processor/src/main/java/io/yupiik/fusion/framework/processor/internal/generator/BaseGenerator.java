@@ -36,13 +36,14 @@ import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.ExecutableType;
+import javax.lang.model.type.IntersectionType;
+import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
 import javax.lang.model.type.WildcardType;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -220,12 +221,12 @@ public abstract class BaseGenerator {
                     final boolean set;
                     final boolean optional;
                     if (param.asType() instanceof DeclaredType dt && dt.getTypeArguments().size() == 1) {
-                        type = dt.getTypeArguments().get(0);
-
                         final var typeStr = dt.toString();
                         list = typeStr.startsWith(List.class.getName() + "<");
                         set = typeStr.startsWith(Set.class.getName() + "<");
                         optional = typeStr.startsWith(Optional.class.getName() + "<");
+                        // only wrapper types are unwrapped, other parameterized types are looked up as they are
+                        type = list || set || optional ? dt.getTypeArguments().get(0) : dt;
                     } else {
                         list = false;
                         set = false;
@@ -292,9 +293,7 @@ public abstract class BaseGenerator {
 
         return switch (parsed.type()) {
             case CLASS -> "lookup(container, " + parsed.className() + ".class, dependents)";
-            case PARAMETERIZED_TYPE -> "(" +
-                    parsed.raw() +
-                    parsed.args().stream().map(parsed::simpleName).map(it -> it + ".class").collect(joining(",", "<", ">")) + ") " +
+            case PARAMETERIZED_TYPE -> parsed.createParameterizedTypeCast() +
                     "lookup(container, " + parsed.createParameterizedTypeImpl() + ", dependents)";
         };
     }
@@ -322,15 +321,9 @@ public abstract class BaseGenerator {
         final var parsed = ParsedType.of(injection.type());
         return switch (parsed.type()) {
             case CLASS -> "main__container.lookup(" + parsed.className() + ".class)";
-            case PARAMETERIZED_TYPE -> "(Instance<" +
-                    parsed.raw() +
-                    parsed.args().stream().map(parsed::simpleName).map(it -> it + ".class").collect(joining(",", "<", ">")) + ">) " +
-                    "main__container.lookup(" +
-                    "new " + Types.ParameterizedTypeImpl.class.getName().replace('$', '.') + "(" +
-                    parsed.raw() + ".class, " + parsed.args().stream()
-                    .map(parsed::simpleName)
-                    .map(it -> it + ".class")
-                    .collect(joining(",")) + ")";
+            case PARAMETERIZED_TYPE -> "main__container.<" +
+                    parsed.raw() + "<" + String.join(", ", parsed.args()) + ">>lookup(" +
+                    parsed.createParameterizedTypeImpl() + ")";
         };
     }
 
@@ -346,43 +339,45 @@ public abstract class BaseGenerator {
                 .collect(joining(", ", "throws ", ""));
     }
 
-    // todo: enhance and make it even more recursive?
+    // keep the declaration order of the type parameters, an override must stay positionally
+    // compatible with the overriden method (bounds included) whatever order the signature uses them in
     protected String templateTypes(final ExecutableType m, final Collection<? extends TypeMirror> classOnes) {
-        final var templates = new LinkedHashSet<String>();
         final var alreadyHandled = new HashSet<TypeMirror>();
-        if (classOnes!=null){
+        if (classOnes != null) {
             alreadyHandled.addAll(classOnes);
         }
-        final var result = m.getReturnType();
-        return templates(
-                m.getTypeVariables().stream()
-                        .filter(it -> classOnes == null || !classOnes.contains(it))
-                        .toList(),
-                result, alreadyHandled, templates);
+        final var templates = m.getTypeVariables().stream()
+                .filter(it -> isTemplate(it, alreadyHandled))
+                .map(it -> (it + templateBound(it)).strip())
+                .toList();
+        if (templates.isEmpty()) {
+            return "";
+        }
+        return '<' + String.join(", ", templates) + "> ";
     }
 
     protected String templates(final List<? extends TypeMirror> params, final TypeMirror result,
                                final Set<TypeMirror> alreadyHandled, final Set<String> templates) {
         if (isTemplate(result, alreadyHandled)) {
             alreadyHandled.add(result);
-            templates.add(result + " " + templateBound((TypeVariable) result));
+            templates.add((result + templateBound((TypeVariable) result)).strip());
         } else if (result instanceof DeclaredType dt) {
             templates.addAll(dt.getTypeArguments().stream()
                     .filter(it -> isTemplate(it, alreadyHandled))
-                    .map(it -> (it + " " + templateBound((TypeVariable) it)).strip())
+                    .map(it -> (it + templateBound((TypeVariable) it)).strip())
                     .toList());
         }
 
         templates.addAll(params.stream()
                 .filter(it -> isTemplate(it, alreadyHandled))
-                .map(it -> it + " " + templateBound((TypeVariable) it))
+                .map(it -> (it + templateBound((TypeVariable) it)).strip())
                 .toList());
         templates.addAll(params.stream()
                 .filter(it -> it instanceof DeclaredType)
                 .map(it -> (DeclaredType) it)
                 .flatMap(dt -> dt.getTypeArguments().stream())
                 .filter(it -> isTemplate(it, alreadyHandled))
-                .map(it -> it + " " + templateBound((TypeVariable) it))
+                .map(it -> (it + templateBound((TypeVariable) it)).strip())
                 .toList());
 
         if (templates.isEmpty()) {
@@ -391,29 +386,38 @@ public abstract class BaseGenerator {
         return '<' + String.join(", ", templates).strip() + "> ";
     }
 
-    // todo: refine this
     protected String templateBound(final TypeVariable type) {
-        String out = "";
+        var out = "";
 
-        final var lowerBound = type.getLowerBound() == null ? null : ParsedType.of(type.getLowerBound());
-        if (lowerBound != null &&
-                lowerBound.type() == ParsedType.Type.CLASS &&
-                !"null".equals(lowerBound.className()) && // ECJ
-                !"<nulltype>".equals(lowerBound.className()) &&
-                !Object.class.getName().endsWith(lowerBound.className())) {
-            out += " super " + lowerBound.className();
+        final var lowerBound = type.getLowerBound();
+        if (isTemplateBound(lowerBound)) {
+            out += " super " + templateBoundType(lowerBound);
         }
 
-        final var upperBound = type.getUpperBound() == null ? null : ParsedType.of(type.getUpperBound());
-        if (upperBound != null &&
-                upperBound.type() == ParsedType.Type.CLASS &&
-                !"null".equals(upperBound.className()) && // ECJ
-                !"<nulltype>".equals(upperBound.className()) &&
-                !Object.class.getName().endsWith(upperBound.className())) {
-            out += " extends " + upperBound.className();
+        final var upperBound = type.getUpperBound();
+        if (isTemplateBound(upperBound)) {
+            out += " extends " + templateBoundType(upperBound);
         }
 
         return out;
+    }
+
+    private boolean isTemplateBound(final TypeMirror bound) {
+        if (bound == null || bound.getKind() == TypeKind.NULL || bound.getKind() == TypeKind.NONE) {
+            return false;
+        }
+        final var name = bound.toString();
+        return !"null".equals(name) && // ECJ
+                !"<nulltype>".equals(name) &&
+                !"<none>".equals(name) &&
+                !Object.class.getName().equals(name);
+    }
+
+    private String templateBoundType(final TypeMirror bound) {
+        if (bound instanceof IntersectionType intersection) {
+            return intersection.getBounds().stream().map(TypeMirror::toString).collect(joining(" & "));
+        }
+        return bound.toString();
     }
 
     protected boolean isTemplate(final TypeMirror type, final Set<TypeMirror> alreadyHandled) {

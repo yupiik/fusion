@@ -57,7 +57,10 @@ public record ParsedType(Type type, String className, String raw, List<String> a
         }
         return "new " + Types.ParameterizedTypeImpl.class.getName().replace('$', '.') + "(" +
                 raw() + ".class, " +
-                args().stream().map(a -> a + ".class").collect(joining(",")) + ")";
+                args().stream().map(a -> {
+                    final int generics = a.indexOf('<'); // nested parameterized types are erased for the class literal
+                    return (generics > 0 ? a.substring(0, generics) : a) + ".class";
+                }).collect(joining(", ")) + ")";
     }
 
     public String createParameterizedTypeCast() {

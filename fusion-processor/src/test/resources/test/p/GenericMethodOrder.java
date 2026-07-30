@@ -16,22 +16,22 @@
 package test.p;
 
 import io.yupiik.fusion.framework.api.scope.ApplicationScoped;
-import io.yupiik.fusion.framework.build.api.event.OnEvent;
-import io.yupiik.fusion.framework.build.api.order.Order;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+import java.util.function.Function;
 
 @ApplicationScoped
-public class ListeningWithInjections {
-    private final List<String> events = new ArrayList<>();
-
-    protected void onEvent(@OnEvent @Order(2) final String event, final Bean2 bean2, final GenericClazz<String> generic) {
-        events.add(event + ", injections=" + bean2 + ", generic=" + generic.echo("echoed"));
+public class GenericMethodOrder {
+    // the return type only uses the second declared type parameter,
+    // the generated subclass must keep the declaration order <A, T>
+    public <A, T> CompletionStage<T> forwardWithFallback(final A input, final Function<A, T> mapper) {
+        return CompletableFuture.completedFuture(mapper.apply(input));
     }
 
-    @Override
-    public String toString() {
-        return String.join(", ", events);
+    // parameterized bound, must be preserved in the generated override
+    public <A extends Comparable<A>, T> List<T> bounded(final A value, final Function<A, T> mapper) {
+        return List.of(mapper.apply(value));
     }
 }

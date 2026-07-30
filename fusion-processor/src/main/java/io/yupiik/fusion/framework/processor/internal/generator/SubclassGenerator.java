@@ -34,7 +34,6 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Optional;
 import java.util.function.Supplier;
-import java.util.stream.IntStream;
 
 import static java.util.stream.Collectors.joining;
 import static javax.lang.model.element.Modifier.ABSTRACT;
@@ -79,14 +78,15 @@ public class SubclassGenerator extends BaseGenerator implements Supplier<BaseGen
                 .toArray(TypeMirror[]::new));
 
         appendGenerationVersion(out);
-        out.append("class ").append(className).append(DELEGATING_CLASS_SUFFIX).append(templatesDef)
-                .append(" extends ").append(className.replace('$', '.'))
-                .append(templatesDef.isBlank() ? "" : templateNamesOnly(templatesDef))
+        final var selfType = className.replace('$', '.') +
+                (typeArgs.isEmpty() ? "" : typeArgs.stream().map(String::valueOf).collect(joining(", ", "<", ">")));
+        out.append("class ").append(className).append(DELEGATING_CLASS_SUFFIX).append(templatesDef.strip())
+                .append(" extends ").append(selfType)
                 .append(" {\n");
-        out.append("  private final ").append(DelegatingContext.class.getName()).append("<").append(className.replace('$', '.')).append("> fusionContext;\n");
+        out.append("  private final ").append(DelegatingContext.class.getName()).append("<").append(selfType).append("> fusionContext;\n");
         out.append("\n");
         out.append("  ").append(className).append(DELEGATING_CLASS_SUFFIX)
-                .append("(final ").append(DelegatingContext.class.getName()).append("<").append(className.replace('$', '.')).append("> context) {\n");
+                .append("(final ").append(DelegatingContext.class.getName()).append("<").append(selfType).append("> context) {\n");
         if (useConstructorSuperNull) {
             out.append("    super(")
                     .append(selectConstructor(typeElement)
@@ -162,25 +162,6 @@ public class SubclassGenerator extends BaseGenerator implements Supplier<BaseGen
         out.append("}\n\n");
 
         return new GeneratedClass((packageName.isBlank() ? "" : (packageName + '.')) + className + DELEGATING_CLASS_SUFFIX, out.toString());
-    }
-
-    private String templateNamesOnly(final String templatesDef) {
-        var current = templatesDef;
-        current = dropFromTemplate(current, " extends ");
-        current = dropFromTemplate(current, " super ");
-        return current;
-    }
-
-    private String dropFromTemplate(final String current, final String marker) {
-        final int next = current.indexOf(marker);
-        if (next < 0) {
-            return current;
-        }
-        final int end1 = current.indexOf(",", next);
-        final int end2 = current.indexOf(">", next);
-        return dropFromTemplate(
-                current.substring(0, next) + current.substring(IntStream.of(end1, end2).filter(it -> it > 0).findFirst().orElse(next)),
-                marker);
     }
 
     private Optional<ExecutableElement> findNoArgConstructor() {
