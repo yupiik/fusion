@@ -59,7 +59,6 @@ import io.yupiik.fusion.framework.processor.internal.generator.JsonCodecGenerato
 import io.yupiik.fusion.framework.processor.internal.generator.JsonRpcEndpointGenerator;
 import io.yupiik.fusion.framework.processor.internal.generator.ListenerGenerator;
 import io.yupiik.fusion.framework.processor.internal.generator.MetadataContributorGenerator;
-import io.yupiik.fusion.framework.processor.internal.emit.ModuleClassEmitter;
 import io.yupiik.fusion.framework.processor.internal.generator.MethodBeanGenerator;
 import io.yupiik.fusion.framework.processor.internal.generator.ModuleGenerator;
 import io.yupiik.fusion.framework.processor.internal.generator.PersistenceEntityGenerator;
@@ -161,7 +160,6 @@ import static javax.tools.StandardLocation.CLASS_OUTPUT;
         "fusion.generateBeanForRootConfiguration", // if false @RootConfiguration will not get an automatic bean
         "fusion.generateNativeImage", // if false reachability-metadata.json is not generated and fusion json files are ignored (making OpenRPCEndpoint not working in native mode)
         "fusion.skipLoadingModules", // if false, modules will not be loaded to find available json codecs
-        "fusion.emitBytecode", // if false the module class is generated as source even when the build JVM supports direct bytecode emission (java.lang.classfile, JDK >= 24)
         "fusion.debug.timeTracking" // debug generation time reporting
 })
 @SupportedAnnotationTypes({
@@ -217,7 +215,6 @@ public class InternalFusionProcessor extends AbstractProcessor {
     private boolean emitNotes;
     private boolean generateBeansForConfiguration;
     private boolean beanForJsonCodecs;
-    private ModuleClassEmitter moduleClassEmitter;
     private boolean beanForHttpEndpoints;
     private boolean beanForCliCommands;
     private boolean beanForJsonRpcEndpoints;
@@ -307,7 +304,6 @@ public class InternalFusionProcessor extends AbstractProcessor {
         beanForPersistenceEntities = Boolean.parseBoolean(processingEnv.getOptions().getOrDefault("fusion.generateBeanForPersistenceEntities", "true"));
         beanForJsonCodecs = Boolean.parseBoolean(processingEnv.getOptions().getOrDefault("fusion.generateBeanForJsonCodec", "true"));
         generateBeansForConfiguration = Boolean.parseBoolean(processingEnv.getOptions().getOrDefault("fusion.generateBeanForRootConfiguration", "true"));
-        moduleClassEmitter = findModuleClassEmitter();
         docsMetadataLocation = ofNullable(processingEnv.getOptions().getOrDefault("fusion.generateConfigurationDocMetadata", "true"))
                 .filter(it -> !"false".equals(it))
                 .map(it -> "true".equals(it) ? "META-INF/fusion/configuration/documentation.json" : it)
@@ -1294,40 +1290,17 @@ public class InternalFusionProcessor extends AbstractProcessor {
                     .distinct()
                     .sorted()
                     .toList();
-            if (moduleClassEmitter != null) { // bytecode fast path, skips javac and an annotation round
-                moduleClassEmitter.emit(processingEnv, moduleName, sortedBeans, sortedListeners);
-                if (emitNotes) {
-                    processingEnv.getMessager().printMessage(NOTE, "Generated (bytecode) '" + moduleName + "'");
-                }
-            } else {
-                final var names = ParsedName.of(moduleName);
-                final var module = new ModuleGenerator(processingEnv, elements, metadataContributorRegistry, names.packageName(), names.className(),
-                        sortedBeans, sortedListeners)
-                        .get();
-                doWriteGeneratedClass(module, processingEnv.getFiler().createSourceFile(module.name()));
-            }
+            final var names = ParsedName.of(moduleName);
+            final var module = new ModuleGenerator(processingEnv, elements, metadataContributorRegistry, names.packageName(), names.className(),
+                    sortedBeans, sortedListeners)
+                    .get();
+            doWriteGeneratedClass(module, processingEnv.getFiler().createSourceFile(module.name()));
 
             // clean internal state
             allBeans.clear();
             allListeners.clear();
         } catch (final IOException | RuntimeException e) {
             processingEnv.getMessager().printMessage(ERROR, e.getMessage());
-        }
-    }
-
-    private ModuleClassEmitter findModuleClassEmitter() {
-        if (!Boolean.parseBoolean(processingEnv.getOptions().getOrDefault("fusion.emitBytecode", "true")) ||
-                Runtime.version().feature() < 24) {
-            return null;
-        }
-        try { // the implementation is a multi-release class (META-INF/versions/24) so it is absent on older JVM/exploded classpath
-            return (ModuleClassEmitter) Class.forName(
-                            ModuleClassEmitter.class.getPackageName() + ".ClassFileModuleEmitter",
-                            true, ModuleClassEmitter.class.getClassLoader())
-                    .getConstructor()
-                    .newInstance();
-        } catch (final NoClassDefFoundError | ReflectiveOperationException | RuntimeException e) {
-            return null; // fallback to source generation
         }
     }
 

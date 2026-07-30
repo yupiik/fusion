@@ -138,12 +138,6 @@
           <excludes>
             <exclude>**/build/**</exclude>
           </excludes>
-          <archive>
-            <manifestEntries>
-              <!-- the java.lang.classfile based emitter is in META-INF/versions/24 (see jdk24-classfile-emitter profile) -->
-              <Multi-Release>true</Multi-Release>
-            </manifestEntries>
-          </archive>
         </configuration>
       </plugin>
       <plugin>
@@ -185,38 +179,4 @@
       </plugin>
     </plugins>
   </build>
-
-  <profiles>
-    <profile>
-      <!-- compiles the java.lang.classfile module emitter when the build JDK supports it,
-           on older JDK the jar simply does not contain it and the processor falls back to source generation -->
-      <id>jdk24-classfile-emitter</id>
-      <activation>
-        <jdk>[24,)</jdk>
-      </activation>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-compiler-plugin</artifactId>
-            <executions>
-              <execution>
-                <id>compile-java24-emitter</id>
-                <goals>
-                  <goal>compile</goal>
-                </goals>
-                <configuration>
-                  <release>24</release>
-                  <compileSourceRoots>
-                    <compileSourceRoot>${project.basedir}/src/main/java24</compileSourceRoot>
-                  </compileSourceRoots>
-                  <multiReleaseOutput>true</multiReleaseOutput>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-  </profiles>
 </project>

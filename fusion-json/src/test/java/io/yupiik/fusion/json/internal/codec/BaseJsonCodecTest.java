@@ -115,8 +115,7 @@ class BaseJsonCodecTest {
         // flattened, no attribute name
         assertEquals("\"k\":\"v\"", write((first, ctx) -> codec.writeJsonOthers(
                 first, "\"a\":".toCharArray(), Map.of("k", "v"), ctx), false));
-        // an empty map still consumes the separator (historical behavior)
-        assertEquals("\"b\":1,", write((first, ctx) -> codec.writeJsonOthers(
+        assertEquals("\"b\":1", write((first, ctx) -> codec.writeJsonOthers(
                 codec.writeValue(first, "\"b\":".toCharArray(), "1", ctx), "\"a\":".toCharArray(), Map.of(), ctx), false));
         assertEquals("\"a\":null", write((first, ctx) -> codec.writeJsonOthers(
                 first, "\"a\":".toCharArray(), null, ctx), true));
