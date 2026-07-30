@@ -569,6 +569,10 @@ public abstract class BaseJsonCodec<A> implements JsonCodec<A> {
     ) {
     }
 
+    // we might want to bucket the keys per length to match only (for loop) keys of the same length
+    // will avoid to try all keys all the time, but we still avoid String allocation+map  usage
+    // so we'll be often faster this way - but this bucketing optim can be easy to generate and do and
+    // worth for objects with a ton of fields
     protected <A> A readObject(final DeserializationContext context, final char[][] keys,
                                final FieldMeta<A>[] fields, final Function<Object[], A> factory) throws IOException {
         final var parser = context.parser();
