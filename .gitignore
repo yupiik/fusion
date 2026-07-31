@@ -11,3 +11,5 @@ ignored.*
 generated
 generated_*
 .sdkmanrc
+dependency-reduced-pom.xml
+
