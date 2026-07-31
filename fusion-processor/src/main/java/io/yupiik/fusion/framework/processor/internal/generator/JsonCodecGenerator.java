@@ -184,7 +184,7 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
             final var p = namedParams.get(i);
             out.append("    new ").append(BaseJsonCodec.class.getName()).append(".FieldMeta<>(\n")
                     .append("      \"").append(p.stringEscapedJsonName()).append("\".toCharArray(), ")
-                    .append(i).append(", ")
+                    .append(params.indexOf(p)).append(", ")
                     .append(BaseJsonCodec.class.getName()).append(".ContainerKind.").append(containerKind(p.types().paramType())).append(", ")
                     .append(BaseJsonCodec.class.getName()).append(".ValueKind.").append(valueKind(p.types().paramTypeDef())).append(", ")
                     .append(isJavaLangWrapper(p.type())).append(", ")
@@ -199,10 +199,10 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
             }
             out.append('\n');
         }
-        // append @JsonOthers field at the end of FIELDS__
+        // append @JsonOthers field at the end of FIELDS__ (slotIndex = record declaration position)
         if (!fallbacks.isEmpty()) {
             final var othersParam = fallbacks.get(0);
-            final var othersSlot = namedParams.size();
+            final var othersSlot = params.indexOf(othersParam);
             out.append("    new ").append(BaseJsonCodec.class.getName()).append(".FieldMeta<>(\n")
                     .append("      null, ")
                     .append(othersSlot).append(", ")
@@ -219,7 +219,7 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
         out.append("  };\n\n");
 
         // FIELDS_WRITE__ array (write order = @JsonProperty.order then javaName)
-        final var othersIndex = fallbacks.isEmpty() ? -1 : namedParams.size();
+        final var othersIndex = fallbacks.isEmpty() ? -1 : params.indexOf(fallbacks.get(0));
         final var writeOrdered = params.stream()
                 .sorted(Comparator.<Param, Integer>comparing(p -> p.order() != Integer.MIN_VALUE ?
                                 p.order() :
