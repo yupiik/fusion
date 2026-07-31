@@ -43,8 +43,8 @@ public interface JsonMapper extends AutoCloseable {
 
     /**
      * Writes a value UTF-8 encoded on the stream which is neither flushed nor closed (like the {@link Writer} flavor).
-     * Default implementations bridge to the {@link Writer} API but {@code JsonMapperImpl}
-     * uses an optimized UTF-8 encoder so prefer this method for byte sinks.
+     * Bridged to the {@link Writer} API (UTF-8 {@code OutputStreamWriter}); the JDK UTF-8 encoders are already
+     * fast, for the hot byte path prefer {@link #toBytes(Object)} which relies on the SIMD {@code getBytes} encoder.
      */
     default <A> void write(final A instance, final OutputStream stream) {
         final var writer = new OutputStreamWriter(stream, StandardCharsets.UTF_8);

@@ -34,6 +34,7 @@ public interface JsonCodec<A> {
         private final ExtendedWriter writer;
         private final Function<Class<?>, JsonCodec<?>> codecLookup;
         private final boolean needsNull;
+        private char[] numberBuffer;
 
         public SerializationContext(final ExtendedWriter writer,
                                     final Function<Class<?>, JsonCodec<?>> codecLookup,
@@ -53,6 +54,15 @@ public interface JsonCodec<A> {
 
         public ExtendedWriter writer() {
             return writer;
+        }
+
+        // reusable scratch buffer to format numbers without allocating per attribute:
+        // it is fully consumed before any nested write so the same context is safe across the whole write tree
+        public char[] numberBuffer() {
+            if (numberBuffer == null) {
+                numberBuffer = new char[20];
+            }
+            return numberBuffer;
         }
 
         @SuppressWarnings("unchecked")
