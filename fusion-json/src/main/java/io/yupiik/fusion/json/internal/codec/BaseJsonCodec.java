@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.IntUnaryOperator;
 
 // hosts the utilities shared by the generated codecs to keep the generated sources small,
 // the helper behaviors (attribute ordering, null handling) are part of the generation contract
@@ -569,11 +570,10 @@ public abstract class BaseJsonCodec<A> implements JsonCodec<A> {
     ) {
     }
 
-    // we might want to bucket the keys per length to match only (for loop) keys of the same length
-    // will avoid to try all keys all the time, but we still avoid String allocation+map  usage
-    // so we'll be often faster this way - but this bucketing optim can be easy to generate and do and
-    // worth for objects with a ton of fields
-    protected <A> A readObject(final DeserializationContext context, final char[][] keys,
+    // keys are sorted by length at generation time and the codec passes a generated length -> first index
+    // switch (KEYS_OFFSETS__), so matchString only scans the candidates sharing the incoming key length:
+    // no String allocation, no map usage, no runtime search, no sparse table
+    protected <A> A readObject(final DeserializationContext context, final char[][] keys, final IntUnaryOperator keyLengths,
                                final FieldMeta<A>[] fields, final Function<Object[], A> factory) throws IOException {
         final var parser = context.parser();
         parser.enforceNext(Parser.Event.START_OBJECT);
@@ -584,10 +584,11 @@ public abstract class BaseJsonCodec<A> implements JsonCodec<A> {
             if (fields[i].isOthers()) {
                 othersSlot = i;
             } else if (fields[i].container() == ContainerKind.VALUE) {
+                final var slot = fields[i].slotIndex();
                 if (fields[i].isWrapper()) {
-                    slots[i] = null;
+                    slots[slot] = null;
                 } else {
-                    slots[i] = switch (fields[i].valueKind()) {
+                    slots[slot] = switch (fields[i].valueKind()) {
                         case INTEGER -> 0;
                         case LONG -> 0L;
                         case BOOLEAN -> Boolean.FALSE;
@@ -607,7 +608,7 @@ public abstract class BaseJsonCodec<A> implements JsonCodec<A> {
             event = parser.next();
             switch (event) {
                 case KEY_NAME -> {
-                    key = parser.matchString(keys);
+                    key = parser.matchString(keys, keyLengths);
                     if (othersSlot >= 0 && key < 0) {
                         fallbackKey = parser.getString();
                     }

@@ -49,6 +49,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.IntUnaryOperator;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -161,7 +162,8 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
         if (!packageName.isBlank()) {
             out.append("package ").append(packageName).append(";\n\n");
         }
-        out.append("import java.util.function.Function;\n\n");
+        out.append("import java.util.function.Function;\n");
+        out.append("import java.util.function.IntUnaryOperator;\n\n");
 
         appendGenerationVersion(out);
         out.append("public class ")
@@ -169,14 +171,33 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
                 .append(" extends ").append(BaseJsonCodec.class.getName())
                 .append('<').append(modelClass).append("> {\n");
 
-        // KEYS__ array for parser.matchString()
-        out.append("  private static final char[][] KEYS__ = {\n").append(params.stream()
+        // read keys sorted by length so matchString can use the key length as a first discriminator,
+        // see Parser.matchString(char[][], IntUnaryOperator) contract (stable sort keeps the declaration
+        // order for equal lengths)
+        final var namedParams = params.stream()
                 .filter(p -> !p.others())
+                .sorted(Comparator.comparingInt(p -> p.jsonName().length()))
+                .toList();
+
+        // KEYS__ array for parser.matchString()
+        out.append("  private static final char[][] KEYS__ = {\n").append(namedParams.stream()
                 .map(p -> "    \"" + p.stringEscapedJsonName() + "\".toCharArray()")
                 .collect(joining(",\n"))).append("\n  };\n\n");
 
+        // KEYS_OFFSETS__ discriminator for parser.matchString(): a generated switch on the key length
+        // returning the index of the first key with that length in KEYS__ (-1 when absent) - no
+        // sparse array, no runtime search, the codec is built once at compile time
+        out.append("  private static final ").append(IntUnaryOperator.class.getName()).append(" KEYS_OFFSETS__ = length -> switch (length) {\n");
+        for (int i = 0; i < namedParams.size(); i++) {
+            final var p = namedParams.get(i);
+            final var length = p.jsonName().length();
+            if (i == 0 || length != namedParams.get(i - 1).jsonName().length()) {
+                out.append("    case ").append(length).append(" -> ").append(i).append(";\n");
+            }
+        }
+        out.append("    default -> -1;\n  };\n\n");
+
         // FIELDS__ array (KEYS__ order, @JsonOthers appended at the end)
-        final var namedParams = params.stream().filter(p -> !p.others()).toList();
         out.append("  @SuppressWarnings(\"unchecked\")\n")
                 .append("  private static final ").append(BaseJsonCodec.class.getName()).append(".FieldMeta<").append(modelClass).append(">[] FIELDS__ = new ")
                 .append(BaseJsonCodec.class.getName()).append(".FieldMeta[] {\n");
@@ -292,7 +313,7 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
         out.append("  public ").append(modelClass.replace('$', '.')).append(" read(final ")
                 .append(JsonCodec.DeserializationContext.class.getName().replace('$', '.')).append(" context)")
                 .append(" throws ").append(IOException.class.getName()).append(" {\n");
-        out.append("    return readObject(context, KEYS__, FIELDS__, FACTORY__);\n");
+        out.append("    return readObject(context, KEYS__, KEYS_OFFSETS__, FIELDS__, FACTORY__);\n");
         out.append("  }\n\n");
 
         // write()
@@ -426,7 +447,7 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
         return new ParamTypes(ParamType.VALUE, ParamTypeDef.of(typeString, processingEnv.getTypeUtils().asElement(raw), models), null);
     }
 
-    // the read() switch matches keys by their index in KEYS__ (= params order), see matchString()
+    // the read() switch matches keys by their index in KEYS__ (sorted by length), see Parser.matchString(char[][], IntUnaryOperator)
     private String keyCase(final List<Param> params, final Param param) {
         return "            case " + params.indexOf(param) + ": // " + param.stringEscapedJsonName() + "\n";
     }
