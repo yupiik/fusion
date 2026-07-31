@@ -1581,6 +1581,84 @@ class FusionProcessorTest {
     }
 
     @Test
+    void jsonGeneratedCodec(@TempDir final Path work) throws IOException {
+        // assert the exact generated codec: KEYS__ sorted by length, dense KEYS_OFFSETS__ switch driving
+        // matchString (no sparse table, no runtime search) and @JsonOthers slot indices following the
+        // constructor declaration order (here: others=0, name=1 although KEYS__/FIELDS__ list name first)
+        final var compiler = new Compiler(work, "JsonOthersOrder");
+        compiler.assertCompiles(0);
+        assertEquals("""
+                package test.p;
+
+                import java.util.function.Function;
+                import java.util.function.IntUnaryOperator;
+
+                @io.yupiik.fusion.framework.api.container.Generation(version = 1)
+                public class JsonOthersOrder$OthersFirst$FusionJsonCodec extends io.yupiik.fusion.json.internal.codec.BaseJsonCodec<test.p.JsonOthersOrder.OthersFirst> {
+                  private static final char[][] KEYS__ = {
+                    "name".toCharArray()
+                  };
+
+                  private static final java.util.function.IntUnaryOperator KEYS_OFFSETS__ = length -> switch (length) {
+                    case 4 -> 0;
+                    default -> -1;
+                  };
+
+                  @SuppressWarnings("unchecked")
+                  private static final io.yupiik.fusion.json.internal.codec.BaseJsonCodec.FieldMeta<test.p.JsonOthersOrder.OthersFirst>[] FIELDS__ = new io.yupiik.fusion.json.internal.codec.BaseJsonCodec.FieldMeta[] {
+                    new io.yupiik.fusion.json.internal.codec.BaseJsonCodec.FieldMeta<>(
+                      "name".toCharArray(), 1, io.yupiik.fusion.json.internal.codec.BaseJsonCodec.ContainerKind.VALUE, io.yupiik.fusion.json.internal.codec.BaseJsonCodec.ValueKind.STRING, true, false, null, m -> ((test.p.JsonOthersOrder.OthersFirst) m).name(), -2147483648, ("\\"" + "name" + "\\":").toCharArray()),
+                    new io.yupiik.fusion.json.internal.codec.BaseJsonCodec.FieldMeta<>(
+                      null, 0, io.yupiik.fusion.json.internal.codec.BaseJsonCodec.ContainerKind.MAP, io.yupiik.fusion.json.internal.codec.BaseJsonCodec.ValueKind.GENERIC_OBJECT, false, true, java.lang.Object.class, m -> ((test.p.JsonOthersOrder.OthersFirst) m).others(), -2147483648, null)
+                  };
+
+                  @SuppressWarnings("unchecked")
+                  private static final io.yupiik.fusion.json.internal.codec.BaseJsonCodec.FieldMeta<test.p.JsonOthersOrder.OthersFirst>[] FIELDS_WRITE__ = new io.yupiik.fusion.json.internal.codec.BaseJsonCodec.FieldMeta[] {
+                    FIELDS__[0],
+                    new io.yupiik.fusion.json.internal.codec.BaseJsonCodec.FieldMeta<>(
+                      "others".toCharArray(), 0, io.yupiik.fusion.json.internal.codec.BaseJsonCodec.ContainerKind.MAP, io.yupiik.fusion.json.internal.codec.BaseJsonCodec.ValueKind.GENERIC_OBJECT, false, true, java.lang.Object.class, m -> ((test.p.JsonOthersOrder.OthersFirst) m).others(), -2147483648, ("\\"" + "others" + "\\":").toCharArray())
+                  };
+
+                  @SuppressWarnings("unchecked")
+                  private static test.p.JsonOthersOrder.OthersFirst createFromSlots(final Object[] args) {
+                    return new test.p.JsonOthersOrder.OthersFirst(
+                      (java.util.Map<java.lang.String,java.lang.Object>) args[0],
+                      (java.lang.String) args[1]
+                    );
+                  }
+
+                  private static final Function<Object[], test.p.JsonOthersOrder.OthersFirst> FACTORY__ = JsonOthersOrder$OthersFirst$FusionJsonCodec::createFromSlots;
+
+                  public JsonOthersOrder$OthersFirst$FusionJsonCodec() {
+                    super(test.p.JsonOthersOrder.OthersFirst.class);
+                  }
+
+                  @Override
+                  public test.p.JsonOthersOrder.OthersFirst read(final io.yupiik.fusion.json.serialization.JsonCodec.DeserializationContext context) throws java.io.IOException {
+                    return readObject(context, KEYS__, KEYS_OFFSETS__, FIELDS__, FACTORY__);
+                  }
+
+                  @Override
+                  public void write(final test.p.JsonOthersOrder.OthersFirst instance, final io.yupiik.fusion.json.serialization.JsonCodec.SerializationContext context) throws java.io.IOException {
+                    writeObject(instance, context, FIELDS_WRITE__);
+                  }
+
+                  public static class FusionBean extends io.yupiik.fusion.framework.api.container.bean.BaseBean<JsonOthersOrder$OthersFirst$FusionJsonCodec> {
+                    public FusionBean() {
+                      super(JsonOthersOrder$OthersFirst$FusionJsonCodec.class, io.yupiik.fusion.framework.api.scope.DefaultScoped.class, 1000, java.util.Map.of());
+                    }
+
+                    @Override
+                    public JsonOthersOrder$OthersFirst$FusionJsonCodec create(final io.yupiik.fusion.framework.api.RuntimeContainer container, final java.util.List<io.yupiik.fusion.framework.api.Instance<?>> dependents) {
+                      return new JsonOthersOrder$OthersFirst$FusionJsonCodec();
+                    }
+                  }
+                }
+
+                """, compiler.readGeneratedSource("JsonOthersOrder$OthersFirst$FusionJsonCodec"));
+    }
+
+    @Test
     void jsonWithNull(@TempDir final Path work) throws IOException {
         new Compiler(work, "JsonRecords").compileAndJsonAsserts((loader, mapper) -> {
             final var model = loader.apply("test.p.JsonRecords$StrongTyping");

@@ -17,6 +17,7 @@ package io.yupiik.fusion.json.spi;
 
 import java.math.BigDecimal;
 import java.nio.CharBuffer;
+import java.util.function.IntUnaryOperator;
 
 public interface Parser extends AutoCloseable {
     Event[] EVT_MAP = Event.values();
@@ -38,14 +39,22 @@ public interface Parser extends AutoCloseable {
      * Matches the current string token (generally a {@link Event#KEY_NAME}) against the given candidates,
      * without materializing any {@link String} when the implementation supports it.
      *
-     * @param candidates the candidate values, generally shared constant arrays.
+     * @param candidates the candidate values, generally shared constant arrays, sorted by length ascending
+     *                   so the length can be used as a first discriminator.
+     * @param lengthOffsets the discriminator: maps a key length to the first index in {@code candidates}
+     *                      holding a candidate of that length ({@code -1} when absent), generated at
+     *                      compile time as a dense switch - no sparse array, no runtime search.
      * @return the index of the first matching candidate, -1 when none matches.
      */
-    default int matchString(final char[][] candidates) {
+    default int matchString(final char[][] candidates, final IntUnaryOperator lengthOffsets) {
         final var value = getString();
-        for (int i = 0; i < candidates.length; i++) {
+        final int start = lengthOffsets.applyAsInt(value.length());
+        if (start < 0) {
+            return -1;
+        }
+        for (int i = start; i < candidates.length && candidates[i].length == value.length(); i++) {
             final var candidate = candidates[i];
-            if (candidate.length == value.length() && value.contentEquals(CharBuffer.wrap(candidate))) {
+            if (value.contentEquals(CharBuffer.wrap(candidate))) {
                 return i;
             }
         }

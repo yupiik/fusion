@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.function.IntUnaryOperator;
 
 import static io.yupiik.fusion.json.spi.Parser.Event.END_ARRAY;
 import static io.yupiik.fusion.json.spi.Parser.Event.END_OBJECT;
@@ -610,12 +611,12 @@ public class JsonParser implements Parser {
     }
 
     @Override
-    public int matchString(final char[][] candidates) {
+    public int matchString(final char[][] candidates, final IntUnaryOperator lengthOffsets) {
         if (previousEvent != KEY_NAME.ordinal() && previousEvent != VALUE_STRING.ordinal() && previousEvent != VALUE_NUMBER.ordinal()) {
             throw new IllegalStateException(EVT_MAP[previousEvent] + " doesn't support matchString()");
         }
         if (buffers != null) { // multi-buffer value, unlikely for a key, use the assembled string
-            return Parser.super.matchString(candidates);
+            return Parser.super.matchString(candidates, lengthOffsets);
         }
 
         final char[] source;
@@ -630,10 +631,16 @@ public class JsonParser implements Parser {
             from = startOfValueInBuffer;
             length = endOfValueInBuffer - startOfValueInBuffer;
         }
+        // the discriminator is a generated switch on the key length (see Parser.matchString contract),
+        // jumping straight to the length-sorted run of candidates: no runtime search, no sparse array
+        final int start = lengthOffsets.applyAsInt(length);
+        if (start < 0) {
+            return -1;
+        }
         final int to = from + length;
-        for (int i = 0; i < candidates.length; i++) {
+        for (int i = start; i < candidates.length && candidates[i].length == length; i++) {
             final var candidate = candidates[i];
-            if (candidate.length == length && Arrays.equals(source, from, to, candidate, 0, length)) {
+            if (Arrays.equals(source, from, to, candidate, 0, length)) {
                 return i;
             }
         }
