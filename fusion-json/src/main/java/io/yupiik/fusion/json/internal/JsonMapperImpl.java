@@ -142,7 +142,7 @@ public class JsonMapperImpl implements JsonMapper {
 
     @Override
     public <A> byte[] toBytes(final A instance) {
-        // the JDK UTF-8 String encoder is way faster than an OutputStreamWriter+ByteArrayOutputStream chain
+        // the JDK UTF-8 String encoder is way faster than a char-by-char UTF-8 encoder
         return toString(instance).getBytes(UTF_8);
     }
 

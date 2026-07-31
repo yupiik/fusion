@@ -36,17 +36,16 @@ import org.openjdk.jmh.annotations.Warmup;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 
 /**
- * Stream oriented comparison: fusion only exposes Reader/Writer (bridged from byte streams
- * the way a caller would do it today) while jackson has native InputStream/OutputStream support.
+ * Stream oriented comparison: both mappers expose native byte-stream APIs (fusion decodes
+ * InputStreams with FastUtf8Reader and encodes OutputStreams through the JDK UTF-8 encoder
+ * while jackson decodes/encodes in its generator), so each serializes straight to/from a
+ * byte array.
  */
 @Fork(1)
 @Warmup(iterations = 3, time = 1)
@@ -80,8 +79,8 @@ public class StreamRoundTripBenchmark {
         withListBytes = jackson.writeValueAsBytes(withList);
 
         // sanity
-        if (!flat.equals(fusion.read(Flat.class, new InputStreamReader(new ByteArrayInputStream(flatBytes), StandardCharsets.UTF_8)))
-                || !withList.equals(fusion.read(WithList.class, new InputStreamReader(new ByteArrayInputStream(withListBytes), StandardCharsets.UTF_8)))) {
+        if (!flat.equals(fusion.read(Flat.class, new ByteArrayInputStream(flatBytes)))
+                || !withList.equals(fusion.read(WithList.class, new ByteArrayInputStream(withListBytes)))) {
             throw new IllegalStateException("mappers disagree");
         }
     }
@@ -95,27 +94,17 @@ public class StreamRoundTripBenchmark {
 
     @Benchmark
     public Flat fusionReadStreamFlat() {
-        return fusion.read(Flat.class, new InputStreamReader(new ByteArrayInputStream(flatBytes), StandardCharsets.UTF_8));
-    }
-
-    @Benchmark
-    public Flat fusionReadByteStreamFlat() { // the byte-stream API (FastUtf8Reader)
         return fusion.read(Flat.class, new ByteArrayInputStream(flatBytes));
     }
 
     @Benchmark
-    public WithList fusionReadByteStreamWithList() {
+    public WithList fusionReadStreamWithList() {
         return fusion.read(WithList.class, new ByteArrayInputStream(withListBytes));
     }
 
     @Benchmark
     public Flat jacksonReadStreamFlat() {
         return jackson.readValue(new ByteArrayInputStream(flatBytes), Flat.class);
-    }
-
-    @Benchmark
-    public WithList fusionReadStreamWithList() {
-        return fusion.read(WithList.class, new InputStreamReader(new ByteArrayInputStream(withListBytes), StandardCharsets.UTF_8));
     }
 
     @Benchmark
@@ -126,23 +115,14 @@ public class StreamRoundTripBenchmark {
     // --- write to a byte stream
 
     @Benchmark
-    public int fusionWriteStreamFlat() throws Exception {
-        final var out = new ByteArrayOutputStream(1024);
-        try (final var writer = new OutputStreamWriter(out, StandardCharsets.UTF_8)) {
-            fusion.write(flat, writer);
-        }
-        return out.size();
-    }
-
-    @Benchmark
-    public int fusionWriteByteStreamFlat() { // the byte-stream API (FastUtf8Writer)
+    public int fusionWriteStreamFlat() {
         final var out = new ByteArrayOutputStream(1024);
         fusion.write(flat, out);
         return out.size();
     }
 
     @Benchmark
-    public int fusionWriteByteStreamWithList() {
+    public int fusionWriteStreamWithList() {
         final var out = new ByteArrayOutputStream(2048);
         fusion.write(withList, out);
         return out.size();
@@ -152,15 +132,6 @@ public class StreamRoundTripBenchmark {
     public int jacksonWriteStreamFlat() {
         final var out = new ByteArrayOutputStream(1024);
         jackson.writeValue(out, flat);
-        return out.size();
-    }
-
-    @Benchmark
-    public int fusionWriteStreamWithList() throws Exception {
-        final var out = new ByteArrayOutputStream(2048);
-        try (final var writer = new OutputStreamWriter(out, StandardCharsets.UTF_8)) {
-            fusion.write(withList, writer);
-        }
         return out.size();
     }
 

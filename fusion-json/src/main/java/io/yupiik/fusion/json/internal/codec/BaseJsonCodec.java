@@ -132,7 +132,7 @@ public abstract class BaseJsonCodec<A> implements JsonCodec<A> {
         final var first = separator(firstAttribute, context);
         final var writer = context.writer();
         writer.write(name);
-        writeLong(writer, value);
+        writeLong(writer, value, context);
         return first;
     }
 
@@ -179,13 +179,13 @@ public abstract class BaseJsonCodec<A> implements JsonCodec<A> {
         return first;
     }
 
-    // digits are written from a small stack buffer to avoid a String allocation per numeric attribute
-    private static void writeLong(final ExtendedWriter writer, final long value) throws IOException {
+    // digits are written from the context scratch buffer to avoid an allocation per numeric attribute
+    private static void writeLong(final ExtendedWriter writer, final long value, final SerializationContext context) throws IOException {
         if (value == Long.MIN_VALUE) { // can't be negated
             writer.write(LONG_MIN_VALUE);
             return;
         }
-        final var buffer = new char[20];
+        final var buffer = context.numberBuffer();
         int idx = 20;
         final boolean negative = value < 0;
         long remaining = negative ? -value : value;
