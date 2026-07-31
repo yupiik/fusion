@@ -1568,6 +1568,19 @@ class FusionProcessorTest {
     }
 
     @Test
+    void jsonOthersNotLastAttribute(@TempDir final Path work) throws IOException {
+        // @JsonOthers slot indices must match the constructor parameter order whatever the declaration position
+        new Compiler(work, "JsonOthersOrder")
+                .jsonRoundTripAsserts("test.p.JsonOthersOrder$OthersFirst",
+                        "{\"name\":\"root\",\"fall\":\"back\"}",
+                        "OthersFirst[others={fall=back}, name=root]");
+        new Compiler(work, "JsonOthersOrder")
+                .jsonRoundTripAsserts("test.p.JsonOthersOrder$OthersMiddle",
+                        "{\"count\":3,\"first\":\"a\",\"fall\":\"back\"}",
+                        "OthersMiddle[first=a, others={fall=back}, count=3]");
+    }
+
+    @Test
     void jsonWithNull(@TempDir final Path work) throws IOException {
         new Compiler(work, "JsonRecords").compileAndJsonAsserts((loader, mapper) -> {
             final var model = loader.apply("test.p.JsonRecords$StrongTyping");

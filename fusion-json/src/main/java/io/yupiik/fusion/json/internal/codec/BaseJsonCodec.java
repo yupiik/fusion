@@ -711,7 +711,7 @@ public abstract class BaseJsonCodec<A> implements JsonCodec<A> {
                 }
                 case END_OBJECT -> {
                     if (othersSlot >= 0) {
-                        slots[othersSlot] = others;
+                        slots[fields[othersSlot].slotIndex()] = others;
                     }
                     return factory.apply(slots);
                 }
