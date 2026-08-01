@@ -38,11 +38,7 @@
       "result": {
         "name": "result",
         "schema": {
-          "nullable": true,
-          "additionalProperties": {
-            "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyResult"
-          },
-          "type": "object"
+          "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyResult"
         }
       },
       "summary": ""
@@ -64,11 +60,7 @@
       "result": {
         "name": "result",
         "schema": {
-          "nullable": true,
-          "additionalProperties": {
-            "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyResult"
-          },
-          "type": "object"
+          "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyResult"
         }
       },
       "summary": ""
@@ -308,11 +300,7 @@
       "result": {
         "name": "result",
         "schema": {
-          "nullable": true,
-          "additionalProperties": {
-            "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyResult"
-          },
-          "type": "object"
+          "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyResult"
         }
       },
       "summary": ""
@@ -340,11 +328,7 @@
       "result": {
         "name": "result",
         "schema": {
-          "nullable": true,
-          "additionalProperties": {
-            "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyResult"
-          },
-          "type": "object"
+          "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyResult"
         }
       },
       "summary": ""
