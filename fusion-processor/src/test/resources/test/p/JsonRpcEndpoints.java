@@ -45,6 +45,11 @@ public class JsonRpcEndpoints {
         return completedFuture(new MyResult("test2"));
     }
 
+    @JsonRpc("test3")
+    public CompletableFuture<MyResult> completableFutureResult() {
+        return completedFuture(new MyResult("test3"));
+    }
+
     @JsonRpc("arg")
     public CompletionStage<MyResult> arg(@JsonRpcParam(value = "wrapper", required = true) final MyInput input) {
         return completedFuture(new MyResult(new StringBuilder(input.name()).reverse().toString()));

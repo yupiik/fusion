@@ -124,7 +124,7 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
                             null, null, null,
                             isVoid ?
                                     new JsonSchema(null, null, "null", true, null, null, null, null, null) :
-                                    getSchema(new EnrichedParsedType(returnType), null)),
+                                    getSchema(new EnrichedParsedType(unwrapResultType(method.getReturnType())), null)),
                     Stream.of(endpoint.errors())
                             .map(it -> new PartialOpenRPC.ErrorValue(it.code(), it.documentation(), null))
                             .toList()));
@@ -175,6 +175,29 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
         return type.type() == ParsedType.Type.PARAMETERIZED_TYPE && PartialResponse.class.getName().equals(type.raw()) ?
                 ParsedType.of(((DeclaredType) typeMirror).getTypeArguments().get(0)) :
                 type;
+    }
+
+    /**
+     * Unlike {@link #unwrapReturnedType(TypeMirror, ParsedType)} - which the generated invocation relies on and
+     * must keep seeing the declared type - this describes what is actually serialized: the value the wrappers
+     * resolve to. {@code JsonRpcHandler} awaits the promise then unwraps a {@link PartialResponse}, so
+     * {@code CompletionStage<PartialResponse<T>>} is a {@code T} on the wire.
+     *
+     * @param typeMirror the declared returned type.
+     * @return the type of the JSON-RPC {@code result} value.
+     */
+    private ParsedType unwrapResultType(final TypeMirror typeMirror) {
+        final var type = ParsedType.of(typeMirror);
+        if (type.type() == ParsedType.Type.PARAMETERIZED_TYPE && type.args().size() == 1 && isResultWrapper(type.raw())) {
+            return unwrapResultType(((DeclaredType) typeMirror).getTypeArguments().get(0));
+        }
+        return type;
+    }
+
+    private boolean isResultWrapper(final String raw) {
+        return CompletionStage.class.getName().equals(raw) ||
+                CompletableFuture.class.getName().equals(raw) ||
+                PartialResponse.class.getName().equals(raw);
     }
 
     // get it from jsonschemas - ideally we should extract the logic from JsonCodecGenerator but for now just use it

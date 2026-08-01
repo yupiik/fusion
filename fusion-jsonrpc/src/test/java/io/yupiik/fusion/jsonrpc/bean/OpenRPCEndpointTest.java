@@ -123,11 +123,7 @@ class OpenRPCEndpointTest {
                                   "result": {
                                     "name": "result",
                                     "schema": {
-                                      "nullable": true,
-                                      "additionalProperties": {
-                                        "$ref": "#/components/schemas/test.p.JsonRpcEndpoints.MyResult"
-                                      },
-                                      "type": "object"
+                                      "$ref": "#/components/schemas/test.p.JsonRpcEndpoints.MyResult"
                                     }
                                   },
                                   "summary": ""
@@ -170,11 +166,7 @@ class OpenRPCEndpointTest {
                                   "result": {
                                     "name": "result",
                                     "schema": {
-                                      "nullable": true,
-                                      "additionalProperties": {
-                                        "$ref": "#/components/schemas/test.p.JsonRpcEndpoints.MyResult"
-                                      },
-                                      "type": "object"
+                                      "$ref": "#/components/schemas/test.p.JsonRpcEndpoints.MyResult"
                                     }
                                   },
                                   "summary": ""
@@ -456,11 +448,7 @@ class OpenRPCEndpointTest {
                                   "result": {
                                     "name": "result",
                                     "schema": {
-                                      "nullable": true,
-                                      "additionalProperties": {
-                                        "$ref": "#/components/schemas/test.p.JsonRpcEndpoints.MyResult"
-                                      },
-                                      "type": "object"
+                                      "$ref": "#/components/schemas/test.p.JsonRpcEndpoints.MyResult"
                                     }
                                   },
                                   "summary": ""
@@ -530,11 +518,7 @@ class OpenRPCEndpointTest {
                                   "result": {
                                     "name": "result",
                                     "schema": {
-                                      "nullable": true,
-                                      "additionalProperties": {
-                                        "$ref": "#/components/schemas/test.p.JsonRpcEndpoints.MyResult"
-                                      },
-                                      "type": "object"
+                                      "$ref": "#/components/schemas/test.p.JsonRpcEndpoints.MyResult"
                                     }
                                   },
                                   "summary": ""

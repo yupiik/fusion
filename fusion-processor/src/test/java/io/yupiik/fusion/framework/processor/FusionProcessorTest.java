@@ -1891,7 +1891,7 @@ class FusionProcessorTest {
         final var instance = endpointInstance.instance();
 
         final var lockForConcurrency = new Semaphore(1); // cause we run the test suite in parallel
-        final var counter = new AtomicInteger(12);
+        final var counter = new AtomicInteger(13); // = the amount of dynamic tests, the last one releases
         final Runnable release = () -> {
             endpointInstance.close();
             container.close();
@@ -1902,6 +1902,7 @@ class FusionProcessorTest {
                         List.of(
                                 "test.p.JsonRpcEndpoints$arg$FusionJsonRpcMethod",
                                 "test.p.JsonRpcEndpoints$asynResult$FusionJsonRpcMethod",
+                                "test.p.JsonRpcEndpoints$completableFutureResult$FusionJsonRpcMethod",
                                 "test.p.JsonRpcEndpoints$fail$FusionJsonRpcMethod",
                                 "test.p.JsonRpcEndpoints$offsetDateTime$FusionJsonRpcMethod",
                                 "test.p.JsonRpcEndpoints$paramTypes$FusionJsonRpcMethod",
@@ -1926,6 +1927,9 @@ class FusionProcessorTest {
                 lockedDynamicTest(lockForConcurrency, counter, "jsonRpc_async_outputOnly", () -> assertJsonRpc(instance,
                         "{\"jsonrpc\":\"2.0\",\"method\":\"test2\"}",
                         "{\"jsonrpc\":\"2.0\",\"result\":{\"name\":\"test2\"}}"), release),
+                lockedDynamicTest(lockForConcurrency, counter, "jsonRpc_completableFuture_outputOnly", () -> assertJsonRpc(instance,
+                        "{\"jsonrpc\":\"2.0\",\"method\":\"test3\"}",
+                        "{\"jsonrpc\":\"2.0\",\"result\":{\"name\":\"test3\"}}"), release),
                 lockedDynamicTest(lockForConcurrency, counter, "jsonRpc_singleParam", () -> assertJsonRpc(instance,
                         "{\"jsonrpc\":\"2.0\",\"method\":\"arg\",\"params\":{\"wrapper\":{\"name\":\"noisuf\"}}}",
                         "{\"jsonrpc\":\"2.0\",\"result\":{\"name\":\"fusion\"}}"), release),
@@ -2056,11 +2060,7 @@ class FusionProcessorTest {
                                               "result": {
                                                 "name": "result",
                                                 "schema": {
-                                                  "nullable": true,
-                                                  "additionalProperties": {
-                                                    "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyResult"
-                                                  },
-                                                  "type": "object"
+                                                  "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyResult"
                                                 }
                                               },
                                               "summary": ""
@@ -2082,11 +2082,7 @@ class FusionProcessorTest {
                                               "result": {
                                                 "name": "result",
                                                 "schema": {
-                                                  "nullable": true,
-                                                  "additionalProperties": {
-                                                    "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyResult"
-                                                  },
-                                                  "type": "object"
+                                                  "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyResult"
                                                 }
                                               },
                                               "summary": ""
@@ -2349,11 +2345,7 @@ class FusionProcessorTest {
                                               "result": {
                                                 "name": "result",
                                                 "schema": {
-                                                  "nullable": true,
-                                                  "additionalProperties": {
-                                                    "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyResult"
-                                                  },
-                                                  "type": "object"
+                                                  "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyResult"
                                                 }
                                               },
                                               "summary": ""
@@ -2381,11 +2373,21 @@ class FusionProcessorTest {
                                               "result": {
                                                 "name": "result",
                                                 "schema": {
-                                                  "nullable": true,
-                                                  "additionalProperties": {
-                                                    "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyResult"
-                                                  },
-                                                  "type": "object"
+                                                  "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyResult"
+                                                }
+                                              },
+                                              "summary": ""
+                                            },
+                                            "test3": {
+                                              "description": "",
+                                              "errors": [],
+                                              "name": "test3",
+                                              "paramStructure": "either",
+                                              "params": [],
+                                              "result": {
+                                                "name": "result",
+                                                "schema": {
+                                                  "$ref": "#/schemas/test.p.JsonRpcEndpoints.MyResult"
                                                 }
                                               },
                                               "summary": ""
