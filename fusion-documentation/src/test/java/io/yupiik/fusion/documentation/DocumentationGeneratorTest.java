@@ -154,7 +154,7 @@ class DocumentationGeneratorTest {
                 "output", output.toString()))
                 .run();
         assertEquals("""
-                [options="header",cols="a,a,2a"]
+                [options="header",cols="a,a,2a,a"]
                 |===
                 |Name |Env Variable |Description |Default
                 
@@ -165,6 +165,32 @@ class DocumentationGeneratorTest {
                 
                 | `jwt.expRequired`\s
                 | `JWT_EXPREQUIRED`
+                | Are `exp` (expiry) validation required of can it be skipped if claim is missing.
+                | `true`
+                |===
+                """, Files.readString(output));
+    }
+
+    @Test
+    void tableFormattingWithoutEnvironmentNames(@TempDir final Path work) throws IOException {
+        final var url = writeConf(work);
+        final var output = work.resolve("output.adoc");
+        new DocumentationGenerator(Files.createDirectories(work.resolve("base")), Map.of(
+                "formatter", "table",
+                "module", "test-module",
+                "urls", url.toExternalForm(),
+                "output", output.toString()))
+                .run();
+        assertEquals("""
+                [options="header",cols="a,2a,a"]
+                |===
+                |Name |Description |Default
+
+                | `jwt.algo`\s
+                | JWT `alg` value.
+                | `RS256`
+
+                | `jwt.expRequired`\s
                 | Are `exp` (expiry) validation required of can it be skipped if claim is missing.
                 | `true`
                 |===

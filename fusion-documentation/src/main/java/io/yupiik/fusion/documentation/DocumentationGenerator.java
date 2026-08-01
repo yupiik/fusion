@@ -149,7 +149,7 @@ public class DocumentationGenerator implements Runnable {
     }
 
     protected String table(final List<Parameter> parameters, final boolean includeEnv) {
-        return "[options=\"header\",cols=\"a,a,2a\"]\n" +
+        return "[options=\"header\",cols=\"" + (includeEnv ? "a,a,2a,a" : "a,2a,a") + "\"]\n" +
                 "|===\n" +
                 "|Name |" + (includeEnv ? "Env Variable |" : "") + "Description |Default\n" +
                 "\n" +
