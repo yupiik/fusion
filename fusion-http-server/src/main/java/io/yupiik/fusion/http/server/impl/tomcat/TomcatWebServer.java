@@ -67,6 +67,12 @@ public class TomcatWebServer implements WebServer {
     protected final TomcatWebServerConfiguration configuration;
     protected final Tomcat tomcat;
 
+    /**
+     * The servlet {@link #createContext()} deployed, kept to be able to release the streaming responses on
+     * {@link #close()} - it is {@code null} when no endpoint is mapped.
+     */
+    protected volatile FusionServlet fusionServlet;
+
     public TomcatWebServer(final TomcatWebServerConfiguration configuration) {
         this.configuration = configuration;
 
@@ -108,6 +114,11 @@ public class TomcatWebServer implements WebServer {
         }
         try {
             final var server = tomcat.getServer();
+            // release the responses which are still streaming - a SSE channel for example - else stopping the context
+            // would wait for them: they are in progress async requests and nothing completes them anymore
+            if (fusionServlet != null) {
+                fusionServlet.cancelActiveStreams();
+            }
             tomcat.stop();
             tomcat.destroy();
             if (server != null) { // give a change to stop the utility executor otherwise it just leaks and stop later
@@ -241,7 +252,8 @@ public class TomcatWebServer implements WebServer {
                 configuration.getFusionServletMapping() != null &&
                 !"-".equals(configuration.getFusionServletMapping())) {
             ctx.addServletContainerInitializer((ignored, servletContext) -> {
-                final var fusion = servletContext.addServlet("fusion", new FusionServlet(configuration.getEndpoints()));
+                fusionServlet = new FusionServlet(configuration.getEndpoints());
+                final var fusion = servletContext.addServlet("fusion", fusionServlet);
                 fusion.setAsyncSupported(true);
                 fusion.setLoadOnStartup(1);
                 fusion.addMapping(configuration.getFusionServletMapping());

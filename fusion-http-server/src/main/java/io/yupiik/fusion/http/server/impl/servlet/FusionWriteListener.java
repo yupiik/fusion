@@ -30,6 +30,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 
+import static java.util.logging.Level.FINEST;
 import static java.util.logging.Level.SEVERE;
 
 public class FusionWriteListener implements WriteListener {
@@ -71,6 +72,27 @@ public class FusionWriteListener implements WriteListener {
     @Override
     public void onError(final Throwable throwable) {
         handleError(throwable);
+    }
+
+    /**
+     * Releases a response which is still streaming: the subscription is cancelled and the stream closed, which
+     * completes the related async context.
+     * <p>
+     * This is what a shutdown needs for the long living responses - a SSE channel for example: the container waits
+     * for the in progress async requests before stopping, so a response nothing completes anymore would delay it.
+     * <p>
+     * It is idempotent and can be called from any thread.
+     */
+    public void cancel() {
+        final var current = subscription;
+        if (current != null) {
+            try {
+                current.cancel();
+            } catch (final RuntimeException re) { // a publisher refusing to be cancelled must not block the shutdown
+                LOGGER.log(FINEST, re, re::getMessage);
+            }
+        }
+        doClose();
     }
 
     private void doLoop() {

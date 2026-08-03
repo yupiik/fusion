@@ -31,9 +31,11 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
 import static java.util.Objects.requireNonNull;
@@ -43,15 +45,49 @@ public class FusionServlet extends HttpServlet {
     private static final Logger logger = Logger.getLogger(FusionServlet.class.getName());
 
     private final List<? extends BaseEndpoint> endpoints;
+    private final Set<FusionWriteListener> activeStreams = ConcurrentHashMap.newKeySet();
+
+    /**
+     * Set once the shutdown started, it stops accepting requests so no new streaming response can be registered
+     * after {@link #cancelActiveStreams()} swept the pending ones.
+     */
+    private volatile boolean stopped;
 
     public FusionServlet(final List<? extends BaseEndpoint> endpoints) {
         this.endpoints = endpoints;
     }
 
+    /**
+     * Stops accepting requests then completes the responses which are still streaming, i.e. the ones the container
+     * would wait for when it stops.
+     * <p>
+     * Call it <b>before</b> stopping the container: a servlet {@link #destroy()} is too late since the container
+     * already awaited the in progress async requests at that point.
+     */
+    public void cancelActiveStreams() {
+        // refuse first, else a request landing between the sweep and the container check would start a new stream
+        // nothing cancels anymore - and the container would wait for it again
+        stopped = true;
+        final var pending = List.copyOf(activeStreams);
+        activeStreams.clear();
+        pending.forEach(FusionWriteListener::cancel);
+    }
+
+    @Override
+    public void destroy() {
+        cancelActiveStreams(); // safety net, a container stopping properly cancelled them before awaiting them
+        super.destroy();
+    }
+
     @Override
     protected void service(final HttpServletRequest req, final HttpServletResponse resp) {
+        if (stopped) { // shutting down, the same status the container serves for an unavailable context
+            resp.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+            return;
+        }
+
         if (endpoints.isEmpty()) {
-            resp.setStatus(404);
+            resp.setStatus(HttpServletResponse.SC_NOT_FOUND);
             return;
         }
 
@@ -60,7 +96,7 @@ public class FusionServlet extends HttpServlet {
                 .filter(e -> e.matches(request))
                 .findFirst();
         if (matched.isEmpty()) {
-            resp.setStatus(404);
+            resp.setStatus(HttpServletResponse.SC_NOT_FOUND);
             return;
         }
 
@@ -181,7 +217,15 @@ public class FusionServlet extends HttpServlet {
 
             final var stream = resp.getOutputStream();
             final var result = new CompletableFuture<Void>();
-            stream.setWriteListener(new FusionWriteListener(body, resp, stream, result));
+            final var listener = new FusionWriteListener(body, resp, stream, result);
+            // a streaming response can outlive the request handling - a SSE channel for example - so keep track of it
+            // to be able to release it when the server stops, see cancelActiveStreams()
+            activeStreams.add(listener);
+            result.whenComplete((ok, ko) -> activeStreams.remove(listener));
+            stream.setWriteListener(listener);
+            if (stopped) { // the sweep ran while this response was being prepared, so it has to release itself
+                listener.cancel();
+            }
             return result;
         } catch (final IOException e) {
             throw new IllegalStateException(e);
