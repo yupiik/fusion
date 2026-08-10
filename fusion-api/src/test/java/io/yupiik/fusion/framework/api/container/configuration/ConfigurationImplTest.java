@@ -17,6 +17,7 @@ package io.yupiik.fusion.framework.api.container.configuration;
 
 import io.yupiik.fusion.framework.api.configuration.ConfigurationSource;
 import io.yupiik.fusion.framework.api.event.Emitter;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.api.parallel.ResourceAccessMode;
@@ -30,6 +31,11 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class ConfigurationImplTest {
+    @AfterEach
+    void resetSecretsProperty() {
+        System.clearProperty("fusion.configuration.sources.secrets");
+    }
+
     @Test
     @ResourceLock(value = "fusion.configuration.sources.secrets", mode = ResourceAccessMode.READ_WRITE)
     void secretsDefaults(@TempDir final Path work) throws IOException {
