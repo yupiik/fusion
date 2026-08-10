@@ -23,6 +23,6 @@ import java.util.stream.Stream;
 public class JsonModule implements FusionModule {
     @Override
     public Stream<FusionBean<?>> beans() {
-        return Stream.of(new JsonMapperBean());
+        return Stream.of(new JsonMapperBean(), new JsonSchemaServiceBean(), new RawBuildJsonSchemaJsonCodecBean());
     }
 }

@@ -65,6 +65,7 @@ import io.yupiik.fusion.framework.processor.internal.generator.PersistenceEntity
 import io.yupiik.fusion.framework.processor.internal.generator.SubclassGenerator;
 import io.yupiik.fusion.framework.processor.internal.json.JsonMapperFacade;
 import io.yupiik.fusion.framework.processor.internal.json.JsonStrings;
+import io.yupiik.fusion.json.schema.JsonSchemaService;
 import io.yupiik.fusion.framework.processor.internal.meta.Docs;
 import io.yupiik.fusion.framework.processor.internal.meta.JsonSchema;
 import io.yupiik.fusion.framework.processor.internal.meta.PartialOpenRPC;
@@ -154,6 +155,7 @@ import static javax.tools.StandardLocation.CLASS_OUTPUT;
         "fusion.generateBeanForJsonRpcEndpoints", // if not false all JSON-RPC methods (@JsonRpc) will get a bean
         "fusion.generateBeanForPersistenceEntities", // if not false all persistence entities (@Table) will get a bean
         "fusion.generatePartialOpenRPC", // if not false {schemas:[...],methods:[]} is generated in the location set there or META-INF/fusion/jsonrpc/openrpc.json
+        "fusion.jsonrpc.jsonschema.version", // if set to `2020-12` (default is the legacy draft-07/OpenAPI hybrid) the OpenRPC schemas are converted to JSON Schema Draft 2020-12 via JsonSchemaService before being emitted
         "fusion.generateJsonSchemas", // if not false {schemas:[...]} is generated in the location set there or META-INF/fusion/json/schemas.json
         "fusion.generateBeanForJsonCodec", // if not false a bean will be generated for the JSON codecs and make them available to JsonMapper
         "fusion.generateConfigurationDocMetadata", // if not false it will generate a JSON metadata for configuration, by default in META-INF/fusion/configuration/documentation.json else in the value set to the option
@@ -223,6 +225,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
     private String jsonSchemaLocation;
     private String openrpcLocation;
     private String crdLocation;
+    private String openRpcJsonSchemaVersion;
     private boolean generateNativeImage;
     private boolean debugTime;
     private Clock clock;
@@ -316,6 +319,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
                 .filter(it -> !"false".equals(it))
                 .map(it -> "true".equals(it) ? "META-INF/fusion/jsonrpc/openrpc.json" : it)
                 .orElse(null);
+        openRpcJsonSchemaVersion = processingEnv.getOptions().getOrDefault("fusion.jsonrpc.jsonschema.version", null);
         crdLocation = ofNullable(processingEnv.getOptions().getOrDefault("fusion.generateCRD", "true"))
                 .filter(it -> !"false".equals(it))
                 .map(it -> "true".equals(it) ? "META-INF/fusion/kubernetes/crd/" : it)
@@ -739,7 +743,13 @@ public class InternalFusionProcessor extends AbstractProcessor {
         final var json = filer.createResource(CLASS_OUTPUT, "", openrpcLocation);
         resolveOpenRpcRefSchemas();
         try (final var out = json.openWriter()) {
-            out.write(partialOpenRPC.toJson());
+            if ("2020-12".equals(openRpcJsonSchemaVersion)) {
+                // convert the whole (schemas + methods) tree to Draft 2020-12: does not change defaults,
+                // only applies when the fusion.jsonrpc.jsonschema.version option is explicitly set to 2020-12
+                out.write(new JsonMapperFacade().write(new JsonSchemaService().toJsonSchema202012(partialOpenRPC.asMap())));
+            } else {
+                out.write(partialOpenRPC.toJson());
+            }
         }
 
         partialOpenRPC = null;

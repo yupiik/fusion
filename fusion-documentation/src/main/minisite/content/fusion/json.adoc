@@ -181,6 +181,59 @@ final var error = result.errors().iterator().next();
 logger.info("Error on field '" + error.field() + "' " + error.message());
 ----
 
+If the validation failed, the result object of the apply method will contain a list of the messages for each validation check:
+
+[source,java]
+----
+final var result = validator.apply(myModel);
+final var error = result.errors().iterator().next();
+logger.info("Error on field '" + error.field() + "' " + error.message());
+----
+
+== Json Schema Draft 2020-12 conversion
+
+The JSON schemas emitted by the annotation processor use a lightweight Draft-07/OpenAPI hybrid format: they rely on a
+`nullable` keyword and reference shared models with `#/schemas/<fqn>` pointers.
+When you need a <https://json-schema.org/draft/2020-12/schema[Draft 2020-12]> document, use
+`io.yupiik.fusion.json.schema.JsonSchemaService` to convert them in a purely structural and reflectionless way.
+
+The conversion is applied on the generic JSON tree ({`Map`}/{`List`}/scalar values as produced by `JsonMapper`) and rewrites the schema keywords only, never the payload values:
+
+* `nullable: true` becomes `type: ["<base>", "null"]` (2020-12 dropped `nullable` in favor of `type` unions),
+* `definitions` and the generated `schemas` container are renamed `$defs`,
+* `#/definitions/...` and `#/schemas/...` references are relocated to `#/$defs/...`,
+* a `$schema: https://json-schema.org/draft/2020-12/schema` header is added at the root when missing.
+
+Use it on a single schema, or on a whole `META-INF/fusion/json/schemas.json` bundle to get a self-contained document:
+
+[source,java]
+----
+final JsonSchemaService service = new JsonSchemaService(); // or @Injection
+
+// convert a single generic schema
+final Map<String, Object> converted = service.toJsonSchema202012(rawSchemaMap); // <1>
+
+// convert the whole "schemas.json" bundle {"schemas": {...}} into a document with a root $defs
+final var bundle = mapper.fromString(Object.class, json);
+final Map<String, Object> document = service.to2020Bundle((Map<String, Object>) bundle); // <2>
+----
+<.> `nullable:true` becomes `type:["<base>","null"]`, refs become `#/$defs/...`,
+<.> the document gets a `$schema` header and a root `$defs` map holding every model keyed by its `$id`.
+
+The processor also ships a typed view (`RawBuildJsonSchema`) and a hand-written reflectionless `JsonCodec`
+(`RawBuildJsonSchemaJsonCodec`) so the generated schema payloads can be deserialized with a `JsonMapper` and then
+upgraded:
+
+[source,java]
+----
+// read one schema-json payload into the typed model with the standard mapper
+final RawBuildJsonSchema schema = mapper.read(RawBuildJsonSchema.class, reader);
+final Map<String, Object> converted = service.toJsonSchema202012(schema); // -> Draft 2020-12
+----
+
+For JSON-RPC: set the `fusion.jsonrpc.jsonschema.version` annotation-processor option to `2020-12` and the generated
+`META-INF/fusion/jsonrpc/openrpc.json` is emitted in Draft 2020-12 instead of the legacy Draft-07 default.
+
 == Pretty mapper
 
 Fusion provide a json pretty mapper to print a json string.
