@@ -24,6 +24,7 @@ import io.yupiik.fusion.framework.api.event.Emitter;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
@@ -101,12 +102,21 @@ public class ConfigurationImpl implements Configuration {
         final var conf = it.resolve("_fusion.secrets.configuration.properties");
         Properties props = null;
         if (Files.exists(conf)) {
-            props = new Properties();
-            try (final var reader = Files.newBufferedReader(conf)) {
-                props.load(reader);
+            try {
+                props = new Properties();
+                try (final var reader = Files.newBufferedReader(conf)) {
+                    props.load(reader);
+                }
+            } catch (final NoSuchFileException nsf) {
+                // the secret directory (or its config file) was removed concurrently, e.g. a temp
+                // directory torn down by a parallel test or a k8s secret mount updated: treat it as absent
             } catch (final IOException e) {
                 throw new IllegalStateException(e);
             }
+        }
+        if (!Files.isDirectory(it)) {
+            // the directory disappeared before we could build the source: contributes nothing
+            return new DirectorySource(it, identity(), k -> true);
         }
         final var prefix = it.getFileName().toString() + '.';
         final var mode = (props == null ? "" : props.getProperty("folder.name.mode", "")).toLowerCase(ROOT);
