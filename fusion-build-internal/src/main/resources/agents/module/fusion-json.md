@@ -28,6 +28,8 @@ final String json = jsonMapper.toString(model);
 - `io.yupiik.fusion.json.spi.Parser`: streaming parser abstraction.
 - `io.yupiik.fusion.json.pretty.PrettyJsonMapper`: formatting decorator.
 - `io.yupiik.fusion.json.patch`/`pointer`/`diff`: JSON-Patch, JSON-Pointer and diff utilities.
+- `io.yupiik.fusion.json.schema.JsonSchemaService`: converts processor-generated (Draft-07/OpenAPI hybrid) schemas to JSON Schema Draft 2020-12 (including `$defs` bundling).
+- `io.yupiik.fusion.json.schema.RawBuildJsonSchema` + `RawBuildJsonSchemaJsonCodec`: typed, reflectionless model + codec for the processor-generated schema / `META-INF/fusion/**/schemas.json` bundles.
 - `io.yupiik.fusion.json.internal.JsonMapperImpl`: implementation (internal, do not expose in signatures).
 
 ## Module rules
