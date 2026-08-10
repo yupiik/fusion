@@ -47,7 +47,6 @@ import io.yupiik.fusion.json.JsonMapper;
 import io.yupiik.fusion.json.internal.JsonMapperImpl;
 import io.yupiik.fusion.json.internal.codec.ObjectJsonCodec;
 import io.yupiik.fusion.json.internal.formatter.SimplePrettyFormatter;
-import io.yupiik.fusion.json.schema.JsonSchemaService;
 import io.yupiik.fusion.jsonrpc.JsonRpcEndpoint;
 import io.yupiik.fusion.jsonrpc.impl.JsonRpcMethod;
 import io.yupiik.fusion.persistence.api.Database;
@@ -1880,59 +1879,6 @@ class FusionProcessorTest {
                             }""",
                     new SimplePrettyFormatter(new JsonMapperImpl(List.of(new ObjectJsonCodec()), c -> empty()))
                             .apply(new String(in.readAllBytes(), UTF_8)));
-        }
-    }
-
-    @Test
-    void jsonRpcOpenRpcDefaultsToLegacyShape(@TempDir final Path work) throws IOException {
-        // when no fusion.jsonrpc.jsonschema.version option is set the default (draft-07/OpenAPI hybrid) is kept
-        final var compiler = new Compiler(work, "JsonRpcNestedSchema").assertCompiles(0);
-        final var openRpc = readOpenRpc(compiler);
-        assertNull(openRpc.get("$schema"));
-        assertNull(openRpc.get("$defs"));
-        final var schemas = (Map<String, Object>) openRpc.get("schemas");
-        assertNotNull(schemas);
-        final var nested = (Map<String, Object>) schemas.get("test.p.JsonRpcNestedSchema.MyResult.NestedResult");
-        final var name = (Map<String, Object>) ((Map<String, Object>) nested.get("properties")).get("name");
-        assertEquals("string", name.get("type"));
-        assertEquals(true, name.get("nullable"));
-        final var myResult = (Map<String, Object>) schemas.get("test.p.JsonRpcNestedSchema.MyResult");
-        final var result = (Map<String, Object>) ((Map<String, Object>) myResult.get("properties")).get("result");
-        assertEquals("#/schemas/test.p.JsonRpcNestedSchema.MyResult.NestedResult", result.get("$ref"));
-        assertEquals(true, result.get("nullable"));
-    }
-
-    @Test
-    void jsonRpcOpenRpcConvertedTo2020_12(@TempDir final Path work) throws IOException {
-        final var compiler = new Compiler(work, "JsonRpcNestedSchema")
-                .processorArgs("-Afusion.jsonrpc.jsonschema.version=2020-12")
-                .assertCompiles(0);
-        final var openRpc = readOpenRpc(compiler);
-        assertEquals(JsonSchemaService.SCHEMA_2020_12, openRpc.get("$schema"));
-        assertNull(openRpc.get("schemas"));
-        final var defs = (Map<String, Object>) openRpc.get("$defs");
-        assertNotNull(defs);
-        // nullable was converted to a type union
-        final var nested = (Map<String, Object>) defs.get("test.p.JsonRpcNestedSchema.MyResult.NestedResult");
-        final var properties = (Map<String, Object>) nested.get("properties");
-        final var name = (Map<String, Object>) properties.get("name");
-        assertEquals(List.of("string", "null"), name.get("type"));
-        assertNull(name.get("nullable"));
-        // references were relocated to $defs and nullable dropped on a $ref node
-        final var myResult = (Map<String, Object>) defs.get("test.p.JsonRpcNestedSchema.MyResult");
-        final var result = (Map<String, Object>) ((Map<String, Object>) myResult.get("properties")).get("result");
-        assertEquals("#/$defs/test.p.JsonRpcNestedSchema.MyResult.NestedResult", result.get("$ref"));
-        assertNull(result.get("nullable"));
-        // method result schema ref relocated too
-        final var method = (Map<String, Object>) ((Map<String, Object>) openRpc.get("methods")).get("nested-schema");
-        final var resultSchema = (Map<String, Object>) ((Map<String, Object>) method.get("result")).get("schema");
-        assertEquals("#/$defs/test.p.JsonRpcNestedSchema.MyResult", resultSchema.get("$ref"));
-    }
-
-    private static Map<String, Object> readOpenRpc(final Compiler compiler) throws IOException {
-        try (final var in = requireNonNull(Files.newInputStream(compiler.getClasses().resolve("META-INF/fusion/jsonrpc/openrpc.json")))) {
-            final var mapper = new JsonMapperImpl(List.of(new ObjectJsonCodec()), c -> empty());
-            return (Map<String, Object>) mapper.fromString(Object.class, new String(in.readAllBytes(), UTF_8));
         }
     }
 

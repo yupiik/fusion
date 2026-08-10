@@ -18,12 +18,13 @@ package io.yupiik.fusion.json.internal.framework;
 import io.yupiik.fusion.framework.api.Instance;
 import io.yupiik.fusion.framework.api.RuntimeContainer;
 import io.yupiik.fusion.framework.api.container.FusionBean;
-import io.yupiik.fusion.framework.api.scope.ApplicationScoped;
+import io.yupiik.fusion.framework.api.scope.DefaultScoped;
 import io.yupiik.fusion.json.schema.RawBuildJsonSchemaJsonCodec;
 
 import java.lang.reflect.Type;
 import java.util.List;
 
+// stateless codec, default (dependent-like) scope is fine
 public class RawBuildJsonSchemaJsonCodecBean implements FusionBean<RawBuildJsonSchemaJsonCodec> {
     @Override
     public Type type() {
@@ -32,7 +33,7 @@ public class RawBuildJsonSchemaJsonCodecBean implements FusionBean<RawBuildJsonS
 
     @Override
     public Class<?> scope() {
-        return ApplicationScoped.class;
+        return DefaultScoped.class;
     }
 
     @Override
