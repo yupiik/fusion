@@ -231,9 +231,6 @@ final RawBuildJsonSchema schema = mapper.read(RawBuildJsonSchema.class, reader);
 final Map<String, Object> converted = service.toJsonSchema202012(schema); // -> Draft 2020-12
 ----
 
-For JSON-RPC: set the `fusion.jsonrpc.jsonschema.version` annotation-processor option to `2020-12` and the generated
-`META-INF/fusion/jsonrpc/openrpc.json` is emitted in Draft 2020-12 instead of the legacy Draft-07 default.
-
 == Pretty mapper
 
 Fusion provide a json pretty mapper to print a json string.
