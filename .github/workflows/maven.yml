@@ -45,7 +45,7 @@ jobs:
           distribution: 'zulu'
           java-version: '21'
       - name: Build
-        run: mvn install -Dm2.location=/home/runner/work/fusion/fusion/.m2
+        run: mvn install
       - name: Remove Snapshots Before Caching
         run: find /home/runner/work/fusion/fusion/.m2 -name '*SNAPSHOT' | xargs rm -Rf
   security_audit:

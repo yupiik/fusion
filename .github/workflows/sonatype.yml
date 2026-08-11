@@ -54,4 +54,4 @@ jobs:
         env:
           MAVEN_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
-        run: mvn deploy -Dm2.location=/home/runner/work/fusion/fusion/.m2
+        run: mvn deploy
