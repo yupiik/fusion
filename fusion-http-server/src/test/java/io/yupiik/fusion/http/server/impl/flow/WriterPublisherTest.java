@@ -79,16 +79,35 @@ class WriterPublisherTest {
         assertEquals(3, subscriber.buffers.size());
     }
 
+    @Test
+    void subscribeReRequestingUnboundedDemandDoesNotStall() throws InterruptedException {
+        // a subscriber replenishing an unbounded demand from onNext must not overflow the demand counter and stall
+        // mid-stream: it used to wrap to a negative value and drop every frame but the first
+        final var publisher = new WriterPublisher(w -> {
+            try (w) {
+                w.write("{\"hello\"");
+                w.write(":\"test\"");
+                w.write("}");
+            }
+        });
+        final var subscriber = new Subscribe(Long.MAX_VALUE, Long.MAX_VALUE);
+        publisher.subscribe(subscriber);
+        assertTrue(subscriber.latch.await(1, MINUTES));
+        assertNull(subscriber.error);
+        assertEquals("{\"hello\":\"test\"}", ByteBuffers.asString(subscriber.buffers));
+        assertEquals(3, subscriber.buffers.size());
+    }
+
     private static class Subscribe implements Flow.Subscriber<ByteBuffer> {
-        private final int initialRequest;
-        private final int onItemRequest;
+        private final long initialRequest;
+        private final long onItemRequest;
 
         private final List<ByteBuffer> buffers = new CopyOnWriteArrayList<>();
         private final CountDownLatch latch = new CountDownLatch(1);
         private Throwable error;
         private Flow.Subscription subscription;
 
-        private Subscribe(final int initialRequest, final int onItemRequest) {
+        private Subscribe(final long initialRequest, final long onItemRequest) {
             this.initialRequest = initialRequest;
             this.onItemRequest = onItemRequest;
         }

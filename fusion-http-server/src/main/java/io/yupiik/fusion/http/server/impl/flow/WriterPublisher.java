@@ -61,7 +61,20 @@ public class WriterPublisher implements Flow.Publisher<ByteBuffer> {
                     return;
                 }
 
-                requested.addAndGet(n);
+                if (n == Long.MAX_VALUE) { // no backpressure caller
+                    requested.set(Long.MAX_VALUE);
+                } else {
+                    requested.updateAndGet(i -> {
+                        if (i == Long.MAX_VALUE) {
+                            return i;
+                        }
+                        try {
+                            return Math.addExact(i, n);
+                        } catch (final ArithmeticException e) {
+                            return Long.MAX_VALUE;
+                        }
+                    });
+                }
 
                 simpleLock.lock();
                 try {
