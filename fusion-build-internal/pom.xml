@@ -29,7 +29,6 @@
   <description>Internal build tooling keeping repository agent files (AGENTS.md/CLAUDE.md) in sync. Never published.</description>
 
   <properties>
-    <maven.deploy.skip>true</maven.deploy.skip>
     <fusion.build-internal.agents.mode>sync</fusion.build-internal.agents.mode>
   </properties>
 
