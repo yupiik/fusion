@@ -30,7 +30,7 @@
 
   <properties>
     <jmh.version>1.37</jmh.version>
-    <jackson.version>3.0.0</jackson.version>
+    <jackson.version>3.2.1</jackson.version>
     <maven.deploy.skip>true</maven.deploy.skip>
     <maven.install.skip>true</maven.install.skip>
     <maven.javadoc.skip>true</maven.javadoc.skip>
