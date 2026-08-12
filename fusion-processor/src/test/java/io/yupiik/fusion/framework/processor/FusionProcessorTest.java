@@ -1604,7 +1604,7 @@ class FusionProcessorTest {
                     default -> -1;
                   };
 
-                  @SuppressWarnings("unchecked")
+                  @SuppressWarnings({"unchecked", "rawtypes"})
                   private static final io.yupiik.fusion.json.internal.codec.BaseJsonCodec.FieldMeta<test.p.JsonOthersOrder.OthersFirst>[] FIELDS__ = new io.yupiik.fusion.json.internal.codec.BaseJsonCodec.FieldMeta[] {
                     new io.yupiik.fusion.json.internal.codec.BaseJsonCodec.FieldMeta<>(
                       "name".toCharArray(), 1, io.yupiik.fusion.json.internal.codec.BaseJsonCodec.ContainerKind.VALUE, io.yupiik.fusion.json.internal.codec.BaseJsonCodec.ValueKind.STRING, true, false, null, m -> ((test.p.JsonOthersOrder.OthersFirst) m).name(), -2147483648, ("\\"" + "name" + "\\":").toCharArray()),
@@ -1612,7 +1612,7 @@ class FusionProcessorTest {
                       null, 0, io.yupiik.fusion.json.internal.codec.BaseJsonCodec.ContainerKind.MAP, io.yupiik.fusion.json.internal.codec.BaseJsonCodec.ValueKind.GENERIC_OBJECT, false, true, java.lang.Object.class, m -> ((test.p.JsonOthersOrder.OthersFirst) m).others(), -2147483648, null)
                   };
 
-                  @SuppressWarnings("unchecked")
+                  @SuppressWarnings({"unchecked", "rawtypes"})
                   private static final io.yupiik.fusion.json.internal.codec.BaseJsonCodec.FieldMeta<test.p.JsonOthersOrder.OthersFirst>[] FIELDS_WRITE__ = new io.yupiik.fusion.json.internal.codec.BaseJsonCodec.FieldMeta[] {
                     FIELDS__[0],
                     new io.yupiik.fusion.json.internal.codec.BaseJsonCodec.FieldMeta<>(
@@ -1910,7 +1910,7 @@ class FusionProcessorTest {
                                 "test.p.JsonRpcEndpoints$result$FusionJsonRpcMethod"),
                         container.getBeans().getBeans().keySet().stream()
                                 .filter(Class.class::isInstance)
-                                .map(Class.class::cast)
+                                .map(it -> (Class<?>) it)
                                 .map(Class::getName)
                                 .filter(it -> it.endsWith("$FusionJsonRpcMethod"))
                                 .sorted()
@@ -2437,7 +2437,7 @@ class FusionProcessorTest {
                                 "test.p.HttpNoJson$getAndStartsWithFooPath$FusionHttpEndpoint"),
                         container.getBeans().getBeans().keySet().stream()
                                 .filter(Class.class::isInstance)
-                                .map(Class.class::cast)
+                                .map(it -> (Class<?>) it)
                                 .map(Class::getName)
                                 .filter(it -> it.endsWith("$FusionHttpEndpoint"))
                                 .sorted()
@@ -2452,7 +2452,7 @@ class FusionProcessorTest {
                     List.of("test.p.Commands$C1$FusionCliCommand"),
                     container.getBeans().getBeans().keySet().stream()
                             .filter(Class.class::isInstance)
-                            .map(Class.class::cast)
+                            .map(it -> (Class<?>) it)
                             .map(Class::getName)
                             .filter(it -> it.endsWith("$FusionCliCommand"))
                             .sorted()
@@ -2480,12 +2480,15 @@ class FusionProcessorTest {
         final var compiler = new Compiler(work, "NoPrefixCommand");
         compiler.compileAndAsserts((loader, container) -> {
             // args are mapped without any prefix since the configuration uses @RootConfiguration("-")
-            withInstance(container, loader, "test.p.NoPrefixCommand$FusionCliCommand", CliCommand.class, c ->
-                    assertEquals(
-                            List.of(
-                                    "Parameter[configName=name, cliName=--name, description=The name.]",
-                                    "Parameter[configName=nested.lower, cliName=--nested-lower, description=Nested value.]"),
-                            c.parameters().stream().map(Object::toString).toList()));
+            withInstance(container, loader, "test.p.NoPrefixCommand$FusionCliCommand", CliCommand.class, c -> {
+                @SuppressWarnings("unchecked")
+                final List<CliCommand.Parameter> parameters = c.parameters();
+                assertEquals(
+                        List.of(
+                                "Parameter[configName=name, cliName=--name, description=The name.]",
+                                "Parameter[configName=nested.lower, cliName=--nested-lower, description=Nested value.]"),
+                        parameters.stream().map(Object::toString).toList());
+            });
 
             System.clearProperty("test.p.NoPrefixCommand");
             withInstance(container, loader, "io.yupiik.fusion.cli.CliAwaiter", CliAwaiter.class, CliAwaiter::await);
@@ -2547,7 +2550,8 @@ class FusionProcessorTest {
         final var compiler = new Compiler(work, "NestedCommand");
         compiler.compileAndAsserts((loader, container) -> withInstance(
                 container, loader, "test.p.NestedCommand$FusionCliCommand", CliCommand.class, c -> {
-                    final var params = c.parameters();
+                    @SuppressWarnings("unchecked")
+                    final List<CliCommand.Parameter> params = c.parameters();
                     assertEquals(2, params.size());
                     assertEquals(
                             List.of(
@@ -2571,7 +2575,7 @@ class FusionProcessorTest {
                     List.of("test.p.NoArgCommand$FusionCliCommand"),
                     container.getBeans().getBeans().keySet().stream()
                             .filter(Class.class::isInstance)
-                            .map(Class.class::cast)
+                            .map(it -> (Class<?>) it)
                             .map(Class::getName)
                             .filter(it -> it.endsWith("$FusionCliCommand"))
                             .sorted()
@@ -3021,7 +3025,7 @@ class FusionProcessorTest {
                         "test.p.Http" + marker + "Endpoints$greetStage$FusionHttp" + marker + "Endpoint"),
                 container.getBeans().getBeans().keySet().stream()
                         .filter(Class.class::isInstance)
-                        .map(Class.class::cast)
+                        .map(it -> (Class<?>) it)
                         .map(Class::getName)
                         .filter(it -> it.endsWith("$FusionHttp" + marker + "Endpoint"))
                         .sorted()
@@ -3105,7 +3109,7 @@ class FusionProcessorTest {
     }
 
     private record SimpleRequest(String method, String path, Map<String, Object> attributes,
-                                 Flow.Publisher<ByteBuffer> body) implements Request {
+                                 Flow.Publisher<ByteBuffer> bodyPublisher) implements Request {
         private SimpleRequest() {
             this("GET", "/foo", new HashMap<>(), null);
         }
@@ -3149,7 +3153,7 @@ class FusionProcessorTest {
 
                 @Override
                 public void subscribe(final Flow.Subscriber<? super ByteBuffer> subscriber) {
-                    body.subscribe(subscriber);
+                    bodyPublisher.subscribe(subscriber);
                 }
             };
         }

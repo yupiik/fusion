@@ -88,6 +88,7 @@ public abstract class FusionBaseDatabaseBean<T> extends BaseBean<T> {
         }
 
         @Override
+        @SuppressWarnings("rawtypes")
         public Map<Type, Object> instance() {
             if (entities != null) {
                 return entities.instance();

@@ -35,7 +35,7 @@ import static java.util.Optional.ofNullable;
 public class FusionPerClassLifecycle extends FusionParameterResolver implements BeforeAllCallback, AfterAllCallback {
     @Override
     public void beforeAll(final ExtensionContext context) {
-        context.getStore(NAMESPACE).getOrComputeIfAbsent(RuntimeContainer.class, k -> {
+        context.getStore(NAMESPACE).computeIfAbsent(RuntimeContainer.class, k -> {
             final var container = ConfiguringContainer.of();
             AnnotationUtils.findAnnotation(context.getTestClass(), FusionSupport.class)
                     .ifPresent(conf -> {

@@ -13,17 +13,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package io.yupiik.fusion.observability.metrics;
+package io.yupiik.fusion.http.server.impl.observability;
 
 import io.yupiik.fusion.http.server.api.Request;
 import io.yupiik.fusion.http.server.api.Response;
-import io.yupiik.fusion.http.server.spi.Endpoint;
+import io.yupiik.fusion.http.server.observability.MetricsRegistry;
+import io.yupiik.fusion.http.server.observability.OpenMetricsFormatter;
+import io.yupiik.fusion.http.server.spi.MonitoringEndpoint;
 
 import java.util.concurrent.CompletionStage;
 
 import static java.util.concurrent.CompletableFuture.completedFuture;
 
-public class Metrics implements Endpoint {
+/**
+ * Monitoring endpoint exposing the {@link MetricsRegistry} content through a {@code /metrics} HTTP GET in OpenMetrics format.
+ */
+public class Metrics implements MonitoringEndpoint {
     private final MetricsRegistry registry;
     private final OpenMetricsFormatter formatter = new OpenMetricsFormatter();
 

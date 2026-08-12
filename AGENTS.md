@@ -44,7 +44,6 @@ Each module has its own `AGENTS.md` with entry points and module specific rules.
 | [fusion-httpclient](fusion-httpclient-parent/fusion-httpclient/AGENTS.md) | Extended java.net.http client: routing, throttling, retries, logging listeners. |
 | [fusion-kubernetes-client](fusion-httpclient-parent/fusion-kubernetes-client/AGENTS.md) | Lightweight Kubernetes client based on the JDK HTTP client (in-cluster and kubeconfig support). |
 | [fusion-tracing](fusion-tracing/AGENTS.md) | Zipkin oriented tracing for the Fusion HTTP server and clients. |
-| [fusion-observability](fusion-observability/AGENTS.md) | Observability HTTP server exposing health checks and OpenMetrics metrics. |
 | [fusion-persistence](fusion-persistence/AGENTS.md) | Lightweight reflectionless JDBC persistence with compile time generated entity models. |
 | [fusion-documentation](fusion-documentation/AGENTS.md) | AsciiDoc minisite of the project and documentation generators (configuration, OpenRPC converters). |
 | [fusion-handlebars](fusion-handlebars/AGENTS.md) | Handlebars templating engine implementation without any dependency. |

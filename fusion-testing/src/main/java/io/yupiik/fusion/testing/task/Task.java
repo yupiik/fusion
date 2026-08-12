@@ -33,6 +33,7 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 @Retention(RUNTIME)
 @Repeatable(Task.List.class)
 @ExtendWith(TaskExtension.class)
+@SuppressWarnings("rawtypes")
 public @interface Task {
     /**
      * @return

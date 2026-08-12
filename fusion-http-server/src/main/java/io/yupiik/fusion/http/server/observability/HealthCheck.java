@@ -13,10 +13,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package io.yupiik.fusion.observability.health;
+package io.yupiik.fusion.http.server.observability;
 
 import java.util.concurrent.CompletionStage;
 
+/**
+ * Health check contract exposed through the {@code /health} monitoring endpoint.
+ */
 public interface HealthCheck {
     /**
      * @return identifier for this healthcheck.

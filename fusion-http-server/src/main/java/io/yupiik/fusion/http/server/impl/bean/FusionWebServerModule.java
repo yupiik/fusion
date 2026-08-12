@@ -24,7 +24,14 @@ import java.util.stream.Stream;
 public class FusionWebServerModule implements FusionModule {
     @Override
     public Stream<FusionBean<?>> beans() {
-        return Stream.of(new FusionServerConfigurationBean(), new FusionServerBean(), new FusionServerAwaiterBean());
+        return Stream.of(
+                new FusionServerConfigurationBean(),
+                new FusionServerBean(),
+                new FusionServerAwaiterBean(),
+                new ObservabilityBeans.HealthRegistryBean(),
+                new ObservabilityBeans.MetricsRegistryBean(),
+                new ObservabilityBeans.HealthMonitoringEndpointBean(),
+                new ObservabilityBeans.MetricsMonitoringEndpointBean());
     }
 
     @Override

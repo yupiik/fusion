@@ -62,6 +62,52 @@ Finally, you can also set by default the deployment of a monitoring server (for 
 This is done setting `fusion.http-server.monitoring.enabled` to `true`, optionally `fusion.http-server.monitoring.port` to something else than `8081`.
 The deployed endpoints in this context will be the `MonitoringEndpoint` bean instances.
 
+The `fusion-http-server` module directly provides the classic health and metrics endpoints as `MonitoringEndpoint`
+beans, in the API package `io.yupiik.fusion.http.server.observability`:
+
+* a `/health` endpoint backed by the `HealthRegistry`/`HealthCheck` API,
+* a `/metrics` endpoint rendering a `MetricsRegistry` in OpenMetrics format.
+
+Since it is a separate server (an internal port in your cluster/infrastructure), you do not need to secure it - and some
+Kubernetes tooling (prometheus for ex.) does not like adding headers to gather the data, so it is a good compromise.
+
+=== Health checks
+
+A health check implements `io.yupiik.fusion.http.server.observability.HealthCheck`.
+
+The monitoring server exposes a `/health` endpoint returning an HTTP 200 if all health checks are successful and an HTTP 503 if there is at least one failure.
+
+To distinguish between health check types, implement `type()` returning something other than the default `live`.
+Then call `/health?type=<my type>` - for example `/health?type=live` - to run only those checks. Without the `type`
+query parameter, all checks are executed.
+
+=== Metrics
+
+The `/metrics` endpoint renders the openmetrics stored in `io.yupiik.fusion.http.server.observability.MetricsRegistry`.
+It supports `Gauge` and `Counter` metric types.
+
+Here is a common way to use it in your application:
+
+[source,java]
+----
+@DefaultScoped
+public class MyService {
+  private final LongAdder myCounter;
+
+  public MyService(final MetricsRegistry registry) {
+    this.myCounter = registry.registerCounter("my-service-counter");
+  }
+
+  public void save(final MyEntity entity) {
+    // do the normal business code
+    myCounter.increment();
+  }
+}
+----
+
+TIP: you can unregister your counter on the registry if it is a short live counter (to use with a session for example), it will then no more be available but using that with prometheus, you have no guarantee it will be polled, so it can be neat to delay the un-registration until next polling.
+Gauge can make it easy using `registerReadOnlyGauge` since you then pass a `LongSupplier` you control.
+
 Here is a sample `MonitoringEndpoint`:
 
 [source,java]

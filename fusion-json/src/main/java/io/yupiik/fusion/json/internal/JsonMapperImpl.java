@@ -340,7 +340,7 @@ public class JsonMapperImpl implements JsonMapper {
         }
         if (firstItem != null) {
             if (firstItem instanceof Map<?, ?>) { // consider it is just an object
-                final JsonCodec jsonCodec = codecs.get(Object.class);
+                final JsonCodec<Collection<?>> jsonCodec = (JsonCodec<Collection<?>>) codecs.get(Object.class);
                 jsonCodec.write(collection, newSerializationContext(writer));
                 return;
             }
@@ -348,7 +348,7 @@ public class JsonMapperImpl implements JsonMapper {
             final var itemClass = firstItem.getClass();
 
             final var key = new Types.ParameterizedTypeImpl(Collection.class, itemClass);
-            final JsonCodec existing = codecs.get(key);
+            final JsonCodec<Collection<?>> existing = (JsonCodec<Collection<?>>) codecs.get(key);
             if (existing != null) {
                 existing.write(collection, newSerializationContext(writer));
                 return;

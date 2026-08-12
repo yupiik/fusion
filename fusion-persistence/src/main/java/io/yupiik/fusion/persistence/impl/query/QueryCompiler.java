@@ -24,7 +24,7 @@ public class QueryCompiler {
     private static final int MAX_QUERIES = 1024;
 
     private final DatabaseImpl database;
-    private final Map<QueryKey<?>, CompiledQuery> queries = new ConcurrentHashMap<>();
+    private final Map<QueryKey<?>, CompiledQuery<?>> queries = new ConcurrentHashMap<>();
 
     public QueryCompiler(final DatabaseImpl database) {
         this.database = database;
@@ -35,7 +35,7 @@ public class QueryCompiler {
         if (queries.size() >= MAX_QUERIES) {
             queries.clear();
         }
-        return queries.computeIfAbsent(key, this::compute);
+        return (CompiledQuery<T>) queries.computeIfAbsent(key, this::compute);
     }
 
     // todo: named parameters support?

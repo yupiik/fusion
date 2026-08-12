@@ -15,9 +15,9 @@
  */
 package io.yupiik.fusion.framework.api.composable;
 
+import java.util.Arrays;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import java.util.stream.Stream;
 
 import static java.util.function.Function.identity;
 
@@ -30,6 +30,7 @@ public final class Wraps {
     }
 
     @SafeVarargs
+    @SuppressWarnings("varargs")
     public static <T> T wrap(final Supplier<T> execution, final Function<Supplier<T>, Supplier<T>>... sortedInterceptors) {
         return merge(sortedInterceptors)
                 .apply(execution)
@@ -37,6 +38,7 @@ public final class Wraps {
     }
 
     @SafeVarargs
+    @SuppressWarnings("varargs")
     public static void wrap(final Runnable execution,
                             // reusable interceptors are supplier wrappers so we keep that signature even for runnables
                             final Function<Supplier<Void>, Supplier<Void>>... sortedInterceptors) {
@@ -49,6 +51,7 @@ public final class Wraps {
     }
 
     private static <T> Function<Supplier<T>, Supplier<T>> merge(final Function<Supplier<T>, Supplier<T>>[] interceptors) {
-        return Stream.of(interceptors).reduce(identity(), (w1, w2) -> w2.andThen(w1) /*reverse order to enable a linear definition*/);
+        // use Arrays.stream to avoid re-reifying the non-reifiable varargs array (heap pollution)
+        return java.util.Arrays.stream(interceptors).reduce(identity(), (w1, w2) -> w2.andThen(w1) /*reverse order to enable a linear definition*/);
     }
 }

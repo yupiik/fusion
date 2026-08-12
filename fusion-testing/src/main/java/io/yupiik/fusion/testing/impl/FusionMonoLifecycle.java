@@ -53,6 +53,6 @@ public class FusionMonoLifecycle extends FusionParameterResolver implements Befo
                 }
             }
         }
-        context.getStore(NAMESPACE).getOrComputeIfAbsent(RuntimeContainer.class, k -> INSTANCE);
+        context.getStore(NAMESPACE).computeIfAbsent(RuntimeContainer.class, k -> INSTANCE);
     }
 }

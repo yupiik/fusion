@@ -13,11 +13,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package io.yupiik.fusion.observability.health;
+package io.yupiik.fusion.http.server.impl.observability;
 
 import io.yupiik.fusion.http.server.api.Request;
 import io.yupiik.fusion.http.server.api.Response;
-import io.yupiik.fusion.http.server.spi.Endpoint;
+import io.yupiik.fusion.http.server.observability.HealthCheck;
+import io.yupiik.fusion.http.server.observability.HealthRegistry;
+import io.yupiik.fusion.http.server.spi.MonitoringEndpoint;
 
 import java.util.Map;
 import java.util.Objects;
@@ -32,7 +34,10 @@ import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toMap;
 
-public class Health implements Endpoint {
+/**
+ * Monitoring endpoint exposing the registered {@link HealthCheck}s through a {@code /health} HTTP GET.
+ */
+public class Health implements MonitoringEndpoint {
     private final HealthRegistry healthChecks;
 
     public Health(final HealthRegistry healthChecks) {

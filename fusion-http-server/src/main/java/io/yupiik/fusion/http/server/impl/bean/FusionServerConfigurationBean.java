@@ -48,14 +48,19 @@ public class FusionServerConfigurationBean extends BaseBean<WebServer.Configurat
             confAccessor.get("fusion.http-server.base").ifPresent(configuration::base);
             confAccessor.get("fusion.http-server.fusionServletMapping").ifPresent(configuration::fusionServletMapping);
             confAccessor.get("fusion.http-server.utf8Setup").map(Boolean::parseBoolean).ifPresent(configuration::utf8Setup);
-            confAccessor.get("fusion.http-server.monitoring.enabled").map(Boolean::parseBoolean).filter(i -> i).ifPresent(ignored -> {
-                final var monitoringServerConfiguration = new MonitoringServerConfiguration();
-                confAccessor.get("fusion.http-server.monitoring.port").map(Integer::parseInt).ifPresent(monitoringServerConfiguration::setPort);
+            confAccessor.get("fusion.http-server.monitoring.enabled")
+                    .map(Boolean::parseBoolean)
+                    .filter(i -> i)
+                    .ifPresent(monitoringEnabled -> {
+                        final var monitoringServerConfiguration = new MonitoringServerConfiguration();
+                        confAccessor.get("fusion.http-server.monitoring.port")
+                                .map(Integer::parseInt)
+                                .ifPresent(monitoringServerConfiguration::setPort);
 
-                final var endpoints = lookups(container, MonitoringEndpoint.class, l -> l.stream().map(Instance::instance).toList(), dependents);
-                monitoringServerConfiguration.setEndpoints(endpoints);
-                unwrapped.setMonitoringServerConfiguration(monitoringServerConfiguration);
-            });
+                        final var endpoints = lookups(container, MonitoringEndpoint.class, l -> l.stream().map(Instance::instance).toList(), dependents);
+                        monitoringServerConfiguration.setEndpoints(endpoints);
+                        unwrapped.setMonitoringServerConfiguration(monitoringServerConfiguration);
+                    });
         }
 
         unwrapped.setEndpoints(lookups(
