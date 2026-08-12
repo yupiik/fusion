@@ -48,6 +48,9 @@ public class ConfigurationImpl implements Configuration {
         this(sources, null);
     }
 
+    // this-escape is contained: `sources` is the only field and is fully initialized before the emit,
+    // and receivers for both Configuration and addSource only read that finalized field.
+    @SuppressWarnings("this-escape")
     public ConfigurationImpl(final List<ConfigurationSource> sources, final Emitter emitter) {
         this.sources = Stream.concat(
                         sources.stream(),

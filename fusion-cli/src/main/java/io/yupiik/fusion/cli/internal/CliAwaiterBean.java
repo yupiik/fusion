@@ -33,6 +33,7 @@ public class CliAwaiterBean extends BaseBean<CliAwaiter> {
     }
 
     @Override
+    @SuppressWarnings("rawtypes")
     public CliAwaiter create(final RuntimeContainer container, final List<Instance<?>> dependents) {
         return new CliAwaiter(
                 lookup(container, Args.class, dependents),

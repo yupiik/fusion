@@ -13,7 +13,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package io.yupiik.fusion.observability.metrics;
+package io.yupiik.fusion.http.server.observability;
 
 import java.util.Map;
 import java.util.Objects;
@@ -22,6 +22,9 @@ import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.joining;
 
+/**
+ * Renders the {@link MetricsRegistry} content in OpenMetrics text format.
+ */
 public class OpenMetricsFormatter implements Function<Stream<Map.Entry<String, MetricsRegistry.RegisteredMetric>>, String> {
     @Override
     public String apply(final Stream<Map.Entry<String, MetricsRegistry.RegisteredMetric>> entries) {

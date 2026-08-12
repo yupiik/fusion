@@ -30,6 +30,7 @@ import static java.util.Map.entry;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
+@SuppressWarnings({"unchecked", "cast"})
 class JsonSchemaServiceTest {
     private final JsonSchemaService service = new JsonSchemaService();
 

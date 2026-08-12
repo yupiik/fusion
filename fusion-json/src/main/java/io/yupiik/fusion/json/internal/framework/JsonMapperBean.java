@@ -40,6 +40,7 @@ public class JsonMapperBean implements FusionBean<JsonMapper> {
     }
 
     @Override
+    @SuppressWarnings("rawtypes")
     public JsonMapper create(final RuntimeContainer container, final List<Instance<?>> dependents) {
         final var codecs = container.lookups(JsonCodec.class, i -> i.stream().map(it -> (JsonCodec<?>) it.instance()).toList());
         dependents.add(codecs);

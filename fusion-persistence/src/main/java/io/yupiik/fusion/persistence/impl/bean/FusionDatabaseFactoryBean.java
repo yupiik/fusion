@@ -86,7 +86,7 @@ public class FusionDatabaseFactoryBean extends BaseBean<DatabaseFactory> {
             return (FusionBean<ContextLessDatabase>) container.getBeans().getBeans().get(ContextLessDatabase.class);
         }
 
-        private DelegatingRuntimeContainer getContainerOverride(final ContextLessDatabaseConfiguration configuration) {
+        private DelegatingRuntimeContainer getContainerOverride(final ContextLessDatabaseConfiguration<?> configuration) {
             return new DelegatingRuntimeContainer(container) { // forward the right instance for entities
                 private final Instance<ContextLessDatabaseConfiguration<?>> configurationInstance = new DefaultInstance<ContextLessDatabaseConfiguration<?>>(
                         null, this, configuration, List.of());

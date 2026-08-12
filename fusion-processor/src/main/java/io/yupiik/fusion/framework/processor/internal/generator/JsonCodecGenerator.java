@@ -198,7 +198,7 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
         out.append("    default -> -1;\n  };\n\n");
 
         // FIELDS__ array (KEYS__ order, @JsonOthers appended at the end)
-        out.append("  @SuppressWarnings(\"unchecked\")\n")
+        out.append("  @SuppressWarnings({\"unchecked\", \"rawtypes\"})\n")
                 .append("  private static final ").append(BaseJsonCodec.class.getName()).append(".FieldMeta<").append(modelClass).append(">[] FIELDS__ = new ")
                 .append(BaseJsonCodec.class.getName()).append(".FieldMeta[] {\n");
         for (int i = 0; i < namedParams.size(); i++) {
@@ -247,7 +247,7 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
                                 (p.others() ? Integer.MIN_VALUE + 2 : Integer.MIN_VALUE + 1))
                         .thenComparing(Param::javaName))
                 .toList();
-        out.append("  @SuppressWarnings(\"unchecked\")\n")
+        out.append("  @SuppressWarnings({\"unchecked\", \"rawtypes\"})\n")
                 .append("  private static final ").append(BaseJsonCodec.class.getName()).append(".FieldMeta<").append(modelClass).append(">[] FIELDS_WRITE__ = new ")
                 .append(BaseJsonCodec.class.getName()).append(".FieldMeta[] {\n");
         for (int i = 0; i < writeOrdered.size(); i++) {

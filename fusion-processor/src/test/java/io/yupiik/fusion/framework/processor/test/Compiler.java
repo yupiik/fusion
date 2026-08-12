@@ -41,6 +41,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.spi.ToolProvider;
+import java.util.Arrays;
 import java.util.stream.Stream;
 
 import static java.util.Objects.requireNonNull;
@@ -86,6 +87,7 @@ public class Compiler {
     }
 
     @SafeVarargs
+    @SuppressWarnings("varargs")
     public final void jsonRoundTripAsserts(final String clazz, final String json, final String toString,
                                            final BiConsumer<Function<String, Class<?>>, JsonMapper>... customChecks) throws IOException {
         compileAndJsonAsserts((loader, mapper) -> {
@@ -106,7 +108,7 @@ public class Compiler {
             }
             assertEquals(json, writer.toString());
 
-            Stream.of(customChecks).forEach(c -> c.accept(loader, mapper));
+            Arrays.stream(customChecks).forEach(c -> c.accept(loader, mapper));
         });
     }
 

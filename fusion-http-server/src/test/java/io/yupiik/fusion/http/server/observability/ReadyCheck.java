@@ -13,31 +13,26 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package io.yupiik.fusion.observability.http.test;
-
-import io.yupiik.fusion.framework.api.scope.ApplicationScoped;
-import io.yupiik.fusion.observability.health.HealthCheck;
+package io.yupiik.fusion.http.server.observability;
 
 import java.util.concurrent.CompletionStage;
 
-import static io.yupiik.fusion.observability.health.HealthCheck.Status.OK;
+import static io.yupiik.fusion.http.server.observability.HealthCheck.Status.OK;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 
-@ApplicationScoped
-public class SampleCheck implements HealthCheck {
-    private CompletionStage<Result> check = completedFuture(new Result(OK, "worked"));
-
-    public void setCheck(final CompletionStage<Result> check) {
-        this.check = check;
+public class ReadyCheck implements HealthCheck {
+    @Override
+    public String name() {
+        return "ready-check";
     }
 
     @Override
-    public String name() {
-        return "test-check";
+    public String type() {
+        return "ready";
     }
 
     @Override
     public CompletionStage<Result> check() {
-        return check;
+        return completedFuture(new Result(OK, "ready"));
     }
 }

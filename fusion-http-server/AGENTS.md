@@ -41,7 +41,13 @@ public class Greeting implements Endpoint {
 - `io.yupiik.fusion.http.server.api.WebServer`: server bootstrap/configuration (`WebServer.Configuration` bean).
 - `io.yupiik.fusion.http.server.api.Request` / `Response` / `Cookie` / `Body`: HTTP abstraction.
 - `io.yupiik.fusion.http.server.spi.Endpoint` / `BaseEndpoint`: endpoint SPI the generated matchers implement.
-- `io.yupiik.fusion.http.server.spi.MonitoringEndpoint`: endpoints for the observability server.
+- `io.yupiik.fusion.http.server.spi.MonitoringEndpoint`: endpoints served by the monitoring server (a separate
+  Tomcat connector/port) for health checks and metrics.
+- `io.yupiik.fusion.http.server.observability`: public health/metrics API (`HealthCheck`/`HealthRegistry`,
+  `MetricsRegistry`/`OpenMetricsFormatter`); default `/health` and `/metrics` endpoints live in
+  `io.yupiik.fusion.http.server.impl.observability` and are wired manually in
+  `io.yupiik.fusion.http.server.impl.bean.ObservabilityBeans` (this module cannot use the processor due to the
+  dependency cycle).
 - `io.yupiik.fusion.http.server.impl.tomcat`: Tomcat wiring (internal).
 
 ## Module rules

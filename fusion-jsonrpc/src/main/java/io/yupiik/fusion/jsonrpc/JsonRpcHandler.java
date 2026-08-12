@@ -199,7 +199,7 @@ public class JsonRpcHandler {
                         10_100, "Too much request at once, limit it to " + getMaxBulkRequests() + " max please.", null), request));
             }
 
-            final var maps = (List<Tuple2<Map<String, Object>, Object>>) requests.stream()
+            final var maps = requests.stream()
                     .map(it -> it instanceof Map<?, ?> nested ?
                             new Tuple2<Map<String, Object>, Object>((Map<String, Object>) nested, nested) :
                             new Tuple2<Map<String, Object>, Object>(null, it))

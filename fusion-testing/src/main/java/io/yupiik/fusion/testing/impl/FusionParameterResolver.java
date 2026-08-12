@@ -54,7 +54,7 @@ public class FusionParameterResolver implements ParameterResolver, BeforeEachCal
         final var lookup = runtimeContainer.lookup(parameterContext.getParameter().getParameterizedType());
         extensionContext
                 .getStore(NAMESPACE)
-                .getOrComputeIfAbsent(MethodCleanBag.class, k -> new MethodCleanBag(), MethodCleanBag.class)
+                .computeIfAbsent(MethodCleanBag.class, k -> new MethodCleanBag(), MethodCleanBag.class)
                 .instances.add(lookup);
         return lookup.instance();
     }
@@ -105,7 +105,7 @@ public class FusionParameterResolver implements ParameterResolver, BeforeEachCal
                         final var container = getContainer(context);
                         if (container == null) { // lazy injection
                             context.getStore(NAMESPACE)
-                                    .getOrComputeIfAbsent(LazyTasks.class)
+                                    .computeIfAbsent(LazyTasks.class)
                                     .instances.add(() -> {
                                         try {
                                             processInstance(testInstance, context, it, getContainer(context));
@@ -127,7 +127,7 @@ public class FusionParameterResolver implements ParameterResolver, BeforeEachCal
                                  final Field it, final RuntimeContainer container) throws IllegalAccessException {
         final var lookup = container.lookup(it.getGenericType());
         context.getStore(NAMESPACE)
-                .getOrComputeIfAbsent(CleanBag.class, k -> new CleanBag(), CleanBag.class)
+                .computeIfAbsent(CleanBag.class, k -> new CleanBag(), CleanBag.class)
                 .instances.add(lookup);
         it.set(Modifier.isStatic(it.getModifiers()) ? null : testInstance, lookup.instance());
     }

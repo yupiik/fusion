@@ -41,7 +41,7 @@ public class H2Extension implements BeforeEachCallback, AfterEachCallback, Param
 
     @Override
     public void beforeEach(final ExtensionContext context) {
-        context.getStore(NAMESPACE).getOrComputeIfAbsent(Holder.class, h -> {
+        context.getStore(NAMESPACE).computeIfAbsent(Holder.class, h -> {
             final var url = "jdbc:h2:mem:" + context.getRequiredTestClass().getSimpleName() + "_" + context.getRequiredTestMethod().getName() + ";mode=PostgreSQL";
             final var username = "sa";
             final var password = "";
@@ -50,7 +50,7 @@ public class H2Extension implements BeforeEachCallback, AfterEachCallback, Param
             } catch (final SQLException e) {
                 throw new IllegalStateException(e);
             }
-        });
+        }, Holder.class);
     }
 
     @Override

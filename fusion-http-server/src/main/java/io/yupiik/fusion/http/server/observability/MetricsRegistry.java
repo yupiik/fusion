@@ -13,9 +13,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package io.yupiik.fusion.observability.metrics;
-
-import io.yupiik.fusion.framework.api.scope.ApplicationScoped;
+package io.yupiik.fusion.http.server.observability;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -26,7 +24,9 @@ import java.util.stream.Stream;
 
 import static java.util.Objects.requireNonNull;
 
-@ApplicationScoped
+/**
+ * Simple in-memory OpenMetrics registry rendered by the {@code /metrics} monitoring endpoint.
+ */
 public class MetricsRegistry {
     private final Map<String, RegisteredMetric> counters = new ConcurrentHashMap<>();
     private final Map<String, RegisteredMetric> gauges = new ConcurrentHashMap<>();

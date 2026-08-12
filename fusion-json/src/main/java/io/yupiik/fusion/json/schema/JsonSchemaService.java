@@ -79,6 +79,7 @@ public class JsonSchemaService {
      * @param raw the schema to convert.
      * @return the converted schema root.
      */
+    @SuppressWarnings("unchecked")
     public Map<String, Object> toJsonSchema202012(final Map<String, Object> raw) {
         return (Map<String, Object>) toJsonSchema202012((Object) raw);
     }
@@ -101,6 +102,7 @@ public class JsonSchemaService {
      * @param schemas the schemas to convert.
      * @return a document with a {@code $schema} header and a root {@code $defs} map.
      */
+    @SuppressWarnings("unchecked")
     public Map<String, Object> toJsonSchema202012(final Collection<RawBuildJsonSchema> schemas) {
         final var defs = new LinkedHashMap<String, Object>();
         for (final var schema : schemas) {
@@ -153,6 +155,7 @@ public class JsonSchemaService {
         return out;
     }
 
+    @SuppressWarnings("unchecked")
     private Object nodeTo2020(final Object value, final boolean isRoot) {
         if (value instanceof Map<?, ?> map) {
             return mapTo2020((Map<String, Object>) map, isRoot);

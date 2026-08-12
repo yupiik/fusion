@@ -13,20 +13,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package io.yupiik.fusion.observability.health;
-
-import io.yupiik.fusion.framework.api.scope.ApplicationScoped;
+package io.yupiik.fusion.http.server.observability;
 
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-@ApplicationScoped
+/**
+ * Registry of {@link HealthCheck} instances rendered by the {@code /health} monitoring endpoint.
+ */
 public class HealthRegistry {
     private final List<HealthCheck> healthChecks;
-
-    protected HealthRegistry() {
-        this(null);
-    }
 
     public HealthRegistry(final List<HealthCheck> healthChecks) {
         this.healthChecks = healthChecks == null ? null : new CopyOnWriteArrayList<>(healthChecks);

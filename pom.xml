@@ -21,7 +21,7 @@
 
   <groupId>io.yupiik.fusion</groupId>
   <artifactId>fusion</artifactId>
-  <version>1.0.38-SNAPSHOT</version>
+  <version>1.1.0-SNAPSHOT</version>
   <packaging>pom</packaging>
   <name>Fusion</name>
   <description>Reflectionless and selfcontained framework (no business code dependency on jakarta/spring/guice).</description>
@@ -49,7 +49,6 @@
     <module>fusion-cli</module>
     <module>fusion-httpclient-parent</module>
     <module>fusion-tracing</module>
-    <module>fusion-observability</module>
     <module>fusion-persistence</module>
     <module>fusion-documentation</module>
     <module>fusion-handlebars</module>
@@ -143,7 +142,8 @@
           <parameters>true</parameters>
           <proc>full</proc>
           <compilerArgs>
-            <compilerArg>-Xlint:unchecked</compilerArg>
+            <compilerArg>-Xlint:unchecked,rawtypes,varargs,deprecation,cast,fallthrough,finally,empty</compilerArg>
+            <compilerArg>-Werror</compilerArg>
           </compilerArgs>
         </configuration>
       </plugin>

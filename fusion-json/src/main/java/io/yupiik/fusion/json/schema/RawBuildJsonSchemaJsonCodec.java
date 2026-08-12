@@ -56,6 +56,7 @@ public class RawBuildJsonSchemaJsonCodec extends BaseJsonCodec<RawBuildJsonSchem
         default -> -1;
     };
 
+    @SuppressWarnings("unchecked")
     private static RawBuildJsonSchema createFromSlots(final Object[] args) {
         return new RawBuildJsonSchema(
                 (String) args[0],

@@ -467,7 +467,7 @@ public class HandlebarsCompiler {
                             throw new IllegalArgumentException("Missing {{/" + keyword + "}} at index " + nextIndex + "'");
                         }
                         final var itemPart = doCompile(stripSurroundingEol(content.substring(nextIndex, endBlock)), helpers, partials);
-                        out.add(new BlockHelperPart(helper, value, itemPart, toAccessor(value)));
+                        out.add(new BlockHelperPart(helper, List.of(new Helpers.DynamicArgEvaluator(value)), itemPart, toAccessor(value)));
                         return endBlock + "{{/}}".length() + keyword.length();
                     })
                     .orElseThrow(() -> new IllegalArgumentException("Unknown keyword '" + keyword + "'"));

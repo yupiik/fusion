@@ -37,6 +37,7 @@ import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -127,7 +128,7 @@ class ContainerTest {
     void containerLifecycle() {
         final var startListener = new ArrayList<Start>();
         final var stopListener = new ArrayList<Stop>();
-        try (final var ignored = ConfiguringContainer.of().register(
+        try (final var container = ConfiguringContainer.of().register(
                         new FusionListener<Start>() {
                             @Override
                             public Class<Start> eventType() {
@@ -151,6 +152,7 @@ class ContainerTest {
                             }
                         })
                 .start()) {
+            assertNotNull(container);
             assertEquals(1, startListener.size());
             assertTrue(stopListener.isEmpty());
         }

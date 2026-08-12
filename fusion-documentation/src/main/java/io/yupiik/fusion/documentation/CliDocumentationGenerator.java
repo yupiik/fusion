@@ -48,6 +48,7 @@ public class CliDocumentationGenerator implements Runnable {
     }
 
     @Override
+    @SuppressWarnings("rawtypes")
     public void run() {
         final var packageFilter = configuration.getOrDefault("package", "");
 

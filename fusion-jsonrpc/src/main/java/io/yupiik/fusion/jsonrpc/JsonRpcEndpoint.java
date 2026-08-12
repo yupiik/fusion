@@ -90,10 +90,10 @@ public class JsonRpcEndpoint extends DefaultEndpoint {
                     return completedFuture(mapper.read(Object.class, reader));
                 }
             }
-            return handler.readRequest(request.body());
+            return handler.readRequest(request.fullBody());
         } catch (final IllegalArgumentException iae) {
             logger.log(FINEST, iae, () -> "canUnwrapAsReader=true but reader was not extracted from the request: " + iae.getMessage());
-            return handler.readRequest(request.body());
+            return handler.readRequest(request.fullBody());
         }
     }
 
