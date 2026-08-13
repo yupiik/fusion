@@ -31,15 +31,25 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class ConfigurationImplTest {
+    // resetSecretsProperty() runs for every test of this class, including tests that never set the
+    // property (noPrefixRootConfigurationFallback, addSource). Only clear when this test instance
+    // actually set it, otherwise an unlocked teardown would clear the property of a concurrently
+    // running locked test (the @ResourceLock only serializes the annotated test methods).
+    private boolean secretDirectoryConfigured;
+
     @AfterEach
     void resetSecretsProperty() {
-        System.clearProperty("fusion.configuration.sources.secrets");
+        if (secretDirectoryConfigured) {
+            System.clearProperty("fusion.configuration.sources.secrets");
+            secretDirectoryConfigured = false;
+        }
     }
 
     @Test
     @ResourceLock(value = "fusion.configuration.sources.secrets", mode = ResourceAccessMode.READ_WRITE)
     void secretsDefaults(@TempDir final Path work) throws IOException {
         System.setProperty("fusion.configuration.sources.secrets", work.toString());
+        secretDirectoryConfigured = true;
         Files.writeString(work.resolve("test"), "some");
         final var configuration = new ConfigurationImpl(List.of());
         assertEquals("some", configuration.get("test").orElse(null));
@@ -49,6 +59,7 @@ public class ConfigurationImplTest {
     @ResourceLock(value = "fusion.configuration.sources.secrets", mode = ResourceAccessMode.READ_WRITE)
     void secretsStrip(@TempDir final Path work) throws IOException {
         System.setProperty("fusion.configuration.sources.secrets", work.toString());
+        secretDirectoryConfigured = true;
         Files.writeString(work.resolve("_fusion.secrets.configuration.properties"), "folder.name.mode=strip");
         Files.writeString(work.resolve(work.getFileName() + ".test"), "some");
         final var configuration = new ConfigurationImpl(List.of());
@@ -59,6 +70,7 @@ public class ConfigurationImplTest {
     @ResourceLock(value = "fusion.configuration.sources.secrets", mode = ResourceAccessMode.READ_WRITE)
     void secretsConcat(@TempDir final Path work) throws IOException {
         System.setProperty("fusion.configuration.sources.secrets", work.toString());
+        secretDirectoryConfigured = true;
         Files.writeString(work.resolve("test"), "some");
         Files.writeString(work.resolve("_fusion.secrets.configuration.properties"), "folder.name.mode=concat");
         final var configuration = new ConfigurationImpl(List.of());
