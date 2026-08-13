@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -58,6 +59,32 @@ class BaseCliCommandTest {
                 .create(key -> Optional.empty(), List.of())) {
             result.instance().run(); // no exception = success
         }
+    }
+
+    @Test
+    void pathConstructor() {
+        final var command = new BaseCliCommand<Map<String, String>, Runnable>(
+                new String[]{"deploy", "run"},
+                "...",
+                c -> Map.of("name", "value"),
+                (conf, deps) -> () -> { /* no-op */ },
+                List.of());
+        assertEquals("deploy/run", command.name());
+        assertArrayEquals(new String[]{"deploy", "run"}, command.path());
+        assertEquals("--deploy-run-", command.cliPrefix());
+    }
+
+    @Test
+    void stringConstructorKeepsSingleSegment() {
+        final var command = new BaseCliCommand<Map<String, String>, Runnable>(
+                "single",
+                "...",
+                c -> Map.of(),
+                (conf, deps) -> () -> { /* no-op */ },
+                List.of());
+        assertEquals("single", command.name());
+        assertArrayEquals(new String[]{"single"}, command.path());
+        assertEquals("--single-", command.cliPrefix());
     }
 
     @Test

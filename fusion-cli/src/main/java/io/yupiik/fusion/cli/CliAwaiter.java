@@ -16,6 +16,7 @@
 package io.yupiik.fusion.cli;
 
 import io.yupiik.fusion.cli.internal.CliCommand;
+import io.yupiik.fusion.cli.internal.CliCommandResolver;
 import io.yupiik.fusion.framework.api.configuration.Configuration;
 import io.yupiik.fusion.framework.api.main.Args;
 import io.yupiik.fusion.framework.api.main.Awaiter;
@@ -25,63 +26,90 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
 
 import static java.util.Comparator.comparing;
 import static java.util.Optional.empty;
-import static java.util.function.Function.identity;
-import static java.util.stream.Collectors.toMap;
 
 @DefaultScoped
 public class CliAwaiter implements Awaiter {
     private final Args args;
-    private final Map<String, CliCommand<? extends Runnable>> commands;
+    private final List<CliCommand<? extends Runnable>> commands;
+    private final CliCommandResolver resolver;
     private final Configuration configuration;
 
     public CliAwaiter(final Args args,
                       final Configuration configuration,
                       final List<CliCommand<? extends Runnable>> commands) {
-        this(args, configuration, commands.stream().collect(toMap(CliCommand::name, identity())));
-    }
-
-    private CliAwaiter(final Args args,
-                       final Configuration configuration,
-                       final Map<String, CliCommand<? extends Runnable>> commands) {
         this.args = args;
         this.configuration = configuration;
         this.commands = commands;
+        this.resolver = new CliCommandResolver(this.commands);
     }
 
     public static CliAwaiter of(final Args args,
                                 final Configuration configuration,
                                 final Map<String, CliCommand<? extends Runnable>> commands) {
-        return new CliAwaiter(args, configuration, commands);
+        return new CliAwaiter(args, configuration, List.copyOf(commands.values()));
     }
 
     @Override
     public void await() {
-        if (args.args().isEmpty()) {
+        final var tokens = args.args();
+        if (tokens.isEmpty()) {
             throw new IllegalArgumentException("Ensure to call a command:\n" + usage());
         }
-        final var cmdName = args.args().get(0);
-        final var command = commands.get(cmdName);
-        if (command == null) {
-            throw new IllegalArgumentException("Missing command '" + cmdName + "':\n" + usage());
+
+        final var resolution = resolver.resolve(tokens);
+        if (resolution.isExact()) {
+            final var command = resolution.command();
+            final var commandArgs = tokens.subList(resolution.commandLen(), tokens.size());
+            if (commandArgs.equals(List.of("--help"))) {
+                throw new IllegalArgumentException(optionsFor(command));
+            }
+            run(command, commandArgs);
+            return;
+        }
+        if (resolution.isGroup()) {
+            final var rest = tokens.subList(resolution.groupLen(), tokens.size());
+            if (rest.isEmpty() || rest.equals(List.of("--help"))) {
+                throw new IllegalArgumentException(usage(resolution.group()));
+            }
+            throw new IllegalArgumentException("Missing command '" + rest.get(0) + "' in group '" + String.join("/", resolution.group()) + "':\n" + usage(resolution.group()));
         }
 
-        final var keyMapperFn = command.keyMapper();
-        try (final var instance = command.create(key -> doFindConf(cmdName, keyMapperFn.apply(key)), new ArrayList<>())) {
+        final var first = tokens.get(0);
+        if ("help".equals(first) || "--help".equals(first)) {
+            if (tokens.size() == 1) {
+                throw new IllegalArgumentException(usage());
+            }
+            final var target = resolver.resolve(tokens.subList(1, tokens.size()));
+            if (target.isExact()) {
+                throw new IllegalArgumentException(optionsFor(target.command()));
+            }
+            if (target.isGroup()) {
+                throw new IllegalArgumentException(usage(target.group()));
+            }
+            throw new IllegalArgumentException(usage());
+        }
+        throw new IllegalArgumentException("Missing command '" + first + "':\n" + usage());
+    }
+
+    private void run(final CliCommand<? extends Runnable> command, final List<String> commandArgs) {
+        final var keyMapper = command.keyMapper();
+        try (final var instance = command.create(key -> doFindConf(command, commandArgs, keyMapper.apply(key)), new ArrayList<>())) {
             instance.instance().run();
         }
     }
 
-    private Optional<String> doFindConf(final String cmd, final String key) {
-        final var idx = args.args().indexOf(key);
-        if (idx >= 0 && args.args().size() > idx) {
-            return Optional.of(args.args().get(idx + 1));
+    private Optional<String> doFindConf(final CliCommand<? extends Runnable> command, final List<String> commandArgs, final String key) {
+        final var idx = commandArgs.indexOf(key);
+        if (idx >= 0 && commandArgs.size() > idx) {
+            return Optional.of(commandArgs.get(idx + 1));
         }
         // try short name
-        if (cmd != null && key.startsWith("--" + cmd + '-') && key.length() > cmd.length() + 4) {
-            return doFindConf(null, "--" + key.substring(cmd.length() + 3));
+        if (key.startsWith(command.cliPrefix()) && key.length() > command.cliPrefix().length()) {
+            return doFindConf(command, commandArgs, "--" + key.substring(command.cliPrefix().length()));
         }
         return configuration.get(key)
                 .or(() -> key.startsWith("--") ? configuration.get(key.substring("--".length())) : empty());
@@ -89,7 +117,7 @@ public class CliAwaiter implements Awaiter {
 
     public String usage() {
         final var showParams = configuration.get("fusion.cli.usage.parameters").map(Boolean::parseBoolean).orElse(true);
-        final var sorted = commands.values().stream()
+        final var sorted = commands.stream()
                 .sorted(comparing(CliCommand::name))
                 .toList();
         final var cmdMaxLen = sorted.stream().mapToInt(c -> c.name().length()).max().orElse(0);
@@ -98,21 +126,51 @@ public class CliAwaiter implements Awaiter {
         sorted.forEach(c -> out.append(String.format(fmtCmd, c.name(), c.description())).append('\n'));
         if (showParams) {
             for (final var c : sorted) {
-                if (c.parameters().isEmpty()) {
-                    continue;
+                if (!c.parameters().isEmpty()) {
+                    out.append('\n').append(optionsFor(c));
                 }
-                final var cmdPrefix = "--" + c.name() + "-";
-                final var paramMaxLen = c.parameters().stream()
-                        .mapToInt(p -> displayName(cmdPrefix, p.cliName()).length())
-                        .max().orElse(0);
-                final var fmtParam = "    %-" + paramMaxLen + "s    %s";
-                out.append("\nOptions for '").append(c.name()).append("':\n");
-                c.parameters().stream()
-                        .sorted(comparing(CliCommand.Parameter::cliName))
-                        .forEach(p -> out.append(String.format(fmtParam, displayName(cmdPrefix, p.cliName()),
-                                p.description() == null || p.description().isBlank() ? "-" : p.description())).append('\n'));
             }
         }
+        return out.toString();
+    }
+
+    /**
+     * @param group the group path segments, {@code null} or empty for the global usage.
+     * @return the usage of the direct subcommands of the group (implicit intermediate groups are marked {@code (group)}).
+     */
+    public String usage(final List<String> group) {
+        final var groupLen = group.size();
+        final var children = new TreeMap<String, String>();
+        for (final var command : commands) {
+            final var path = List.of(command.path());
+            if (path.size() <= groupLen || !path.subList(0, groupLen).equals(group)) {
+                continue;
+            }
+            final var child = path.get(groupLen);
+            final var childPath = String.join("/", path.subList(0, groupLen + 1));
+            if (path.size() == groupLen + 1) {
+                children.put(childPath, command.description());
+            } else {
+                children.putIfAbsent(childPath, "(group)");
+            }
+        }
+        final var out = new StringBuilder("Commands in '" + String.join("/", group) + "':\n");
+        final var childMaxLen = children.keySet().stream().mapToInt(String::length).max().orElse(0);
+        final var fmtCmd = "  %-" + childMaxLen + "s    %s";
+        children.forEach((child, description) -> out.append(String.format(fmtCmd, child, description)).append('\n'));
+        return out.toString();
+    }
+
+    public String optionsFor(final CliCommand<? extends Runnable> command) {
+        final var paramMaxLen = command.parameters().stream()
+                .mapToInt(p -> displayName(command.cliPrefix(), p.cliName()).length())
+                .max().orElse(0);
+        final var fmtParam = "    %-" + paramMaxLen + "s    %s";
+        final var out = new StringBuilder("Options for '").append(command.name()).append("':\n");
+        command.parameters().stream()
+                .sorted(comparing(CliCommand.Parameter::cliName))
+                .forEach(p -> out.append(String.format(fmtParam, displayName(command.cliPrefix(), p.cliName()),
+                        p.description() == null || p.description().isBlank() ? "-" : p.description())).append('\n'));
         return out.toString();
     }
 

@@ -44,6 +44,42 @@ You can inject any *simple type* (classes, not lists) beans in your command thro
 
 TIP: if you need to inject a list, you can always create a bean which holds the list and inject this wrapper in your command.
 
+== Subcommands
+
+The command name is a path of segments: `@Command(name = {"deploy", "run"})` declares the `deploy run`
+subcommand while `@Command(name = "deploy/run")` is a single literal `deploy/run` segment. The single-value
+shorthand is accepted for one segment. Segments are matched against the leading CLI arguments and the
+longest match wins, so `deploy` and `deploy run` can coexist.
+
+[source,java]
+----
+@Command(name = {"deploy", "run"}, description = "Run a deployment.") <1>
+public class DeployRunCommand implements Runnable {
+    private final Conf conf;
+
+    public DeployRunCommand(final Conf conf) {
+        this.conf = conf;
+    }
+
+    @Override
+    public void run() {
+        // impl what you want
+    }
+
+    @RootConfiguration("deploy.run") <2>
+    public record Conf(String name) {}
+}
+----
+<.> Use an array to declare a subcommand path, a single value is a single segment (literal `/` are kept),
+<.> Options then use the `--deploy-run-xxx` form.
+
+Parents are implicit dispatchers and need no `@Command` class:
+
+* `my-app deploy` or `my-app deploy --help` prints the group usage filtered to the direct subcommands of `deploy` (implicit intermediate groups are marked `(group)`),
+* `my-app deploy foo` where `foo` is not a subcommand reports a missing command error scoped to the `deploy` group,
+* `my-app --help`, `my-app help` and `my-app help <path>` print the global, command or group usage,
+* `my-app deploy run --help` prints the options of the `deploy run` command.
+
 == Launching
 
 `fusion-cli` provides an integration with `Launcher` main, if you don't use it, you will have to call yourself `CLIAwaiter` and register an instance of `Args`.

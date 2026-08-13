@@ -32,6 +32,37 @@ public class MyCommand implements Runnable {
 - Constructor injections are supported after the configuration parameter: any simple-type bean can be
   injected (no lists - wrap a list in a dedicated bean if needed).
 
+## Subcommands
+
+The command name is a path: `@Command(name = {"deploy", "run"})` declares the `deploy run` subcommand while
+`@Command(name = "deploy/run")` is a single literal `deploy/run` segment. The single-value shorthand is
+accepted for one segment; segments are matched against the leading CLI arguments, the longest match wins.
+
+```java
+@Command(name = {"deploy", "run"}, description = "Run a deployment.")
+public class DeployRunCommand implements Runnable {
+    private final Conf conf;
+
+    public DeployRunCommand(final Conf conf) {
+        this.conf = conf;
+    }
+
+    @Override
+    public void run() {
+        // command implementation
+    }
+
+    @RootConfiguration("deploy.run") // options become --deploy-run-xxx
+    public record Conf(String name) {}
+}
+```
+
+- Parents are implicit dispatchers: they need no `@Command` class. Running a bare group (`my-app deploy`)
+  or a group with `--help` (`my-app deploy --help`) prints the group usage filtered to its direct
+  subcommands (implicit intermediate groups are marked `(group)`).
+- `my-app --help`, `my-app help` and `my-app help <path>` print the global/command/group usage;
+  `my-app <command> --help` prints the command options.
+
 ## Launching
 
 - `io.yupiik.fusion.framework.api.main.CliLauncher` (in `fusion-api`) is the PREFERRED main: unlike plain

@@ -25,6 +25,21 @@ import java.util.function.Function;
 public interface CliCommand<C extends Runnable> {
     String name();
 
+    /**
+     * @return the command path segments, each segment is one leading CLI argument.
+     */
+    default String[] path() {
+        return name().split("/");
+    }
+
+    /**
+     * @return the option prefix used for the short-name resolution and help display,
+     * e.g. {@code deploy/run} maps to {@code --deploy-run-}.
+     */
+    default String cliPrefix() {
+        return "--" + String.join("-", path()) + "-";
+    }
+
     String description();
 
     List<Parameter> parameters();
