@@ -70,7 +70,7 @@ public class CliDocumentationGenerator implements Runnable {
              final var instances = container.lookups(CliCommand.class, it -> it.stream()
                      .filter(c -> packageFilter.isBlank() || c.bean().type().getTypeName().startsWith(packageFilter))
                      .map(Instance::instance)
-                     .map(c -> new Command(c.name(), c.description(), ((CliCommand<?>) c).parameters()))
+                     .map(c -> new Command(c.name(), ((CliCommand<?>) c).path(), c.description(), ((CliCommand<?>) c).parameters()))
                      .sorted(comparing(Command::name))
                      .toList())) {
             commands = instances.instance();
@@ -96,7 +96,7 @@ public class CliDocumentationGenerator implements Runnable {
             }
             final var app = configuration.getOrDefault("application", "java ... io.yupiik.fusion.framework.api.main.Launcher");
             for (final var command : commands) {
-                Files.writeString(base.resolve(command.name() + ".adoc"), generateDetail(app, command, relativePathToIndex));
+                Files.writeString(base.resolve(fileName(command.name())), generateDetail(app, command, relativePathToIndex));
             }
 
         } catch (final IOException e) {
@@ -105,7 +105,7 @@ public class CliDocumentationGenerator implements Runnable {
     }
 
     CharSequence generateDetail(final String app, final Command command, final String relativePathToIndex) {
-        final var cmdPrefix = "--" + command.name() + "-";
+        final var cmdPrefix = "--" + String.join("-", command.path()) + "-";
         return "= " + command.name() + "\n" +
                 ":minisite-nav-prev-link: " + relativePathToIndex + "\n" +
                 ":minisite-nav-prev-label: CLI\n" +
@@ -137,13 +137,17 @@ public class CliDocumentationGenerator implements Runnable {
         return cliName.startsWith(cmdPrefix) ? "--" + cliName.substring(cmdPrefix.length()) : cliName;
     }
 
+    private static String fileName(final String name) {
+        return name.replace('/', '-').replace('\\', '-') + ".adoc";
+    }
+
     private CharSequence generateIndex(final List<Command> commands) {
         final var relativePath = configuration.getOrDefault("indexRelativePath", "");
         return commands.stream()
-                .map(it -> "== " + it.name() + "\n\n" + it.description() + "\n\nSee xref:" + relativePath + it.name() + ".adoc[" + it.name() + "] detail page.\n")
+                .map(it -> "== " + it.name() + "\n\n" + it.description() + "\n\nSee xref:" + relativePath + fileName(it.name()) + "[" + it.name() + "] detail page.\n")
                 .collect(joining("\n"));
     }
 
-    record Command(String name, String description, List<CliCommand.Parameter> parameters) {
+    record Command(String name, String[] path, String description, List<CliCommand.Parameter> parameters) {
     }
 }

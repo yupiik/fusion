@@ -28,18 +28,22 @@ import static java.lang.annotation.RetentionPolicy.SOURCE;
  * The command takes a configuration ({@link io.yupiik.fusion.framework.build.api.configuration.RootConfiguration})
  * as parameter which is built from the args and implements {@link Runnable}.
  * <p>
+ * The command name is a path of segments: {@code @Command(name = {"deploy", "run"})} declares the
+ * {@code deploy run} subcommand while {@code @Command(name = "deploy/run")} declares a single literal
+ * {@code deploy/run} segment. The single value shorthand is accepted for one segment.
+ * <p>
  * Example:
  *
  * <pre>
  * {@code @DefaultScoped}
- * {@code @Command(name = "mycommand", description = "....")}
+ * {@code @Command(name = {"deploy", "run"}, description = "....")}
  * public class MyCommand implements Runnable {
  *     public MyCommand(final MyConf conf) { ... }
  *
  *     {@code @Override}
  *     public void run() { ... }
  *
- *     {@code @RootConfiguration("...")}
+ *     {@code @RootConfiguration("deploy.run")}
  *     public record MyConf(....) {}
  * }
  * </pre>
@@ -48,9 +52,9 @@ import static java.lang.annotation.RetentionPolicy.SOURCE;
 @Retention(SOURCE)
 public @interface Command {
     /**
-     * @return command name (first arg of the CLI in general).
+     * @return command path segments (leading CLI args to select the command). A single value means a single segment.
      */
-    String name();
+    String[] name();
 
     /**
      * @return command description/usage.

@@ -27,6 +27,7 @@ import java.util.function.Function;
 
 public class BaseCliCommand<CF, C extends Runnable> implements CliCommand<C> {
     private final String name;
+    private final String[] path;
     private final String description;
     private final Function<Configuration, CF> configurationProvider;
     private final BiFunction<CF, List<Instance<?>>, C> constructor;
@@ -44,7 +45,29 @@ public class BaseCliCommand<CF, C extends Runnable> implements CliCommand<C> {
                           final Function<Configuration, CF> configurationProvider,
                           final BiFunction<CF, List<Instance<?>>, C> constructor,
                           final List<Parameter> parameters, final Map<String, String> metadata) {
+        this(name, new String[]{name}, description, configurationProvider, constructor, parameters, metadata);
+    }
+
+    public BaseCliCommand(final String[] path, final String description,
+                          final Function<Configuration, CF> configurationProvider,
+                          final BiFunction<CF, List<Instance<?>>, C> constructor,
+                          final List<Parameter> parameters) {
+        this(path, description, configurationProvider, constructor, parameters, Map.of());
+    }
+
+    public BaseCliCommand(final String[] path, final String description,
+                          final Function<Configuration, CF> configurationProvider,
+                          final BiFunction<CF, List<Instance<?>>, C> constructor,
+                          final List<Parameter> parameters, final Map<String, String> metadata) {
+        this(String.join("/", path), path, description, configurationProvider, constructor, parameters, metadata);
+    }
+
+    private BaseCliCommand(final String name, final String[] path, final String description,
+                           final Function<Configuration, CF> configurationProvider,
+                           final BiFunction<CF, List<Instance<?>>, C> constructor,
+                           final List<Parameter> parameters, final Map<String, String> metadata) {
         this.name = name;
+        this.path = path;
         this.description = description;
         this.configurationProvider = configurationProvider;
         this.constructor = constructor;
@@ -60,6 +83,11 @@ public class BaseCliCommand<CF, C extends Runnable> implements CliCommand<C> {
     @Override
     public String name() {
         return name;
+    }
+
+    @Override
+    public String[] path() {
+        return path;
     }
 
     @Override
@@ -88,6 +116,16 @@ public class BaseCliCommand<CF, C extends Runnable> implements CliCommand<C> {
         public ContainerBaseCliCommand(final String name, final String description, final Function<Configuration, CF> configurationProvider,
                                        final BiFunction<CF, List<Instance<?>>, C> constructor, final List<Parameter> parameters) {
             super(name, description, configurationProvider, constructor, parameters);
+        }
+
+        public ContainerBaseCliCommand(final String[] path, final String description, final Function<Configuration, CF> configurationProvider,
+                                       final BiFunction<CF, List<Instance<?>>, C> constructor, final List<Parameter> parameters, final Map<String, String> metadata) {
+            super(path, description, configurationProvider, constructor, parameters, metadata);
+        }
+
+        public ContainerBaseCliCommand(final String[] path, final String description, final Function<Configuration, CF> configurationProvider,
+                                       final BiFunction<CF, List<Instance<?>>, C> constructor, final List<Parameter> parameters) {
+            super(path, description, configurationProvider, constructor, parameters);
         }
 
         protected static <T> T lookup(final RuntimeContainer container, final Class<T> type, final List<Instance<?>> deps) {

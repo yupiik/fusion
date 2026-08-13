@@ -102,6 +102,10 @@ public class CliCommandGenerator extends BaseGenerator implements Supplier<CliCo
 
         final var paramsResult = configurationType == null ? null : parameters(configurationType, null);
 
+        final var path = command.name();
+        validatePath(path, packagePrefix + className);
+        final var pathLiteral = "new String[]{" +
+                java.util.Arrays.stream(path).map(segment -> "\"" + escaped(segment) + "\"").collect(joining(", ")) + "}";
 
         final String metadata = metadata(type);
         return new Output(
@@ -111,7 +115,7 @@ public class CliCommandGenerator extends BaseGenerator implements Supplier<CliCo
                         "<" + (configurationType == null ? Void.class.getName() : configurationType.replace('$', '.')) + ", " + className.replace('$', '.') + "> {\n" +
                         "  public " + commandClassName + "(" + (hasInjections ? "final " + RuntimeContainer.class.getName() + " container" : "") + ") {\n" +
                         "    super(\n" +
-                        "      \"" + command.name() + "\",\n" +
+                        "      " + pathLiteral + ",\n" +
                         "      \"" + command.description().replace("\"", "\\\"").replace("\n", "\\n") + "\",\n" +
                         "      " + (constructorParameters.isEmpty() ?
                         "c -> null" :
@@ -149,17 +153,16 @@ public class CliCommandGenerator extends BaseGenerator implements Supplier<CliCo
     private ParametersResult parameters(final String configurationType, final String parentPrefix) {
         final var keyMapperCases = new StringBuilder();
         final var helpBuilder = new StringBuilder();
-        final var cmdPrefix = "--" + command.name() + "-";
+        final var cmdPrefix = "--" + String.join("-", command.name()) + "-";
         final var params = doFindParameters(configurationType, parentPrefix, keyMapperCases, helpBuilder, cmdPrefix)
                 .collect(joining(", "));
         final var defaultBranch = "return \"--\" + key.replace('.', '-');";
-        final var helpText = helpBuilder.isEmpty() ? "" :
-                "  private static String keyMapper(final String key) {\n" +
-                        "    switch (key) {\n" +
-                        keyMapperCases +
-                        "      default: " + defaultBranch + "\n" +
-                        "    }\n" +
-                        "  }";
+        final var helpText = "  private static String keyMapper(final String key) {\n" +
+                "    switch (key) {\n" +
+                keyMapperCases +
+                "      default: " + defaultBranch + "\n" +
+                "    }\n" +
+                "  }";
         final var cliHelpContent = helpBuilder.isEmpty() ? "\"\"" :
                 "\"\\nAvailable parameters:\\n\" + \n    " +
                         helpBuilder.toString().lines()
@@ -167,6 +170,20 @@ public class CliCommandGenerator extends BaseGenerator implements Supplier<CliCo
                                 .collect(joining(" + \n    ")) +
                         " + \n    \"\\n\"";
         return new ParametersResult(params, helpText, cliHelpContent);
+    }
+
+    private static void validatePath(final String[] path, final String className) {
+        if (path == null || path.length == 0) {
+            throw new IllegalArgumentException("@Command must define at least one name segment: " + className);
+        }
+        for (final var segment : path) {
+            if (segment == null || segment.isBlank()) {
+                throw new IllegalArgumentException("@Command name segments cannot be blank: " + className);
+            }
+            if (segment.startsWith("-")) {
+                throw new IllegalArgumentException("@Command name segments cannot start with '-': " + className);
+            }
+        }
     }
 
     private record ParametersResult(String parameters, String keyMapperContent, String cliHelpContent) {

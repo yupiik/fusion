@@ -30,7 +30,7 @@ class CliDocumentationGeneratorTest {
     void normalPrefix() {
         final var gen = new CliDocumentationGenerator(Path.of("."), Map.of());
         final var result = gen.generateDetail("my-app",
-                new CliDocumentationGenerator.Command("my-command", "A test command.",
+                new CliDocumentationGenerator.Command("my-command", new String[]{"my-command"}, "A test command.",
                         List.of(new CliCommand.Parameter("my-command.name", "--my-command-name", "The name option."))),
                 "index.html").toString();
 
@@ -42,7 +42,7 @@ class CliDocumentationGeneratorTest {
     void dashPrefix() { // @RootConfiguration("-") commands have plain config names and "--" cli names
         final var gen = new CliDocumentationGenerator(Path.of("."), Map.of());
         final var result = gen.generateDetail("my-app",
-                new CliDocumentationGenerator.Command("other", "Another test command.",
+                new CliDocumentationGenerator.Command("other", new String[]{"other"}, "Another test command.",
                         List.of(new CliCommand.Parameter("name", "--name", "The name option."))),
                 "index.html").toString();
 

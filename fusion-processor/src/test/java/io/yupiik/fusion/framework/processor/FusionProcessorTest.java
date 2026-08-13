@@ -2588,6 +2588,131 @@ class FusionProcessorTest {
     }
 
     @Test
+    void commandSubCommand(@TempDir final Path work) throws IOException {
+        final var compiler = new Compiler(work, "SubCommand");
+        compiler.compileAndAsserts((loader, container) -> {
+            withInstance(container, loader, "test.p.SubCommand$FusionCliCommand", CliCommand.class, c -> {
+                final var command = c;
+                assertEquals("deploy/run", command.name());
+                assertEquals(List.of("deploy", "run"), List.of(command.path()));
+                assertEquals("--deploy-run-", command.cliPrefix());
+                assertEquals(
+                        List.of("Parameter[configName=deploy.run.name, cliName=--deploy-run-name, description=]"),
+                        ((CliCommand<?>) command).parameters().stream().map(Object::toString).toList());
+            });
+
+            System.clearProperty("test.p.SubCommand");
+            withInstance(container, loader, "io.yupiik.fusion.cli.CliAwaiter", CliAwaiter.class, CliAwaiter::await);
+            assertEquals("conf=Conf[name=set from test]", System.clearProperty("test.p.SubCommand"));
+        }, new BaseBean<Args>(Args.class, DefaultScoped.class, 1000, Map.of()) {
+            @Override
+            public Args create(final RuntimeContainer container, final List<Instance<?>> dependents) {
+                return new Args(List.of("deploy", "run", "--deploy-run-name", "set from test"));
+            }
+        });
+    }
+
+    @Test
+    void commandSubCommandGroupUsage(@TempDir final Path work) throws IOException {
+        new Compiler(work, "SubCommand").compileAndAsserts((loader, container) -> assertEquals(
+                        """
+                                Commands in 'deploy':
+                                  deploy/run    Run a deployment.
+                                """,
+                        assertThrows(IllegalArgumentException.class, () ->
+                                withInstance(container, loader, "io.yupiik.fusion.cli.CliAwaiter", CliAwaiter.class, CliAwaiter::await))
+                                .getMessage()),
+                new BaseBean<Args>(Args.class, DefaultScoped.class, 1000, Map.of()) {
+                    @Override
+                    public Args create(final RuntimeContainer container, final List<Instance<?>> dependents) {
+                        return new Args(List.of("deploy"));
+                    }
+                });
+    }
+
+    @Test
+    void commandSubCommandHelp(@TempDir final Path work) throws IOException {
+        new Compiler(work, "SubCommand").compileAndAsserts((loader, container) -> assertEquals(
+                        """
+                                Options for 'deploy/run':
+                                    --name    -
+                                """,
+                        assertThrows(IllegalArgumentException.class, () ->
+                                withInstance(container, loader, "io.yupiik.fusion.cli.CliAwaiter", CliAwaiter.class, CliAwaiter::await))
+                                .getMessage()),
+                new BaseBean<Args>(Args.class, DefaultScoped.class, 1000, Map.of()) {
+                    @Override
+                    public Args create(final RuntimeContainer container, final List<Instance<?>> dependents) {
+                        return new Args(List.of("deploy", "run", "--help"));
+                    }
+                });
+    }
+
+    @Test
+    void commandDeep(@TempDir final Path work) throws IOException {
+        final var compiler = new Compiler(work, "DeepCommand");
+        compiler.compileAndAsserts((loader, container) -> {
+            withInstance(container, loader, "test.p.DeepCommand$FusionCliCommand", CliCommand.class, c -> {
+                final var command = c;
+                assertEquals("a/b/c/d/e", command.name());
+                assertEquals(List.of("a", "b", "c", "d", "e"), List.of(command.path()));
+                assertEquals("--a-b-c-d-e-", command.cliPrefix());
+            });
+
+            System.clearProperty("test.p.DeepCommand");
+            withInstance(container, loader, "io.yupiik.fusion.cli.CliAwaiter", CliAwaiter.class, CliAwaiter::await);
+            assertEquals("conf=Conf[value=v]", System.clearProperty("test.p.DeepCommand"));
+        }, new BaseBean<Args>(Args.class, DefaultScoped.class, 1000, Map.of()) {
+            @Override
+            public Args create(final RuntimeContainer container, final List<Instance<?>> dependents) {
+                return new Args(List.of("a", "b", "c", "d", "e", "--a-b-c-d-e-value", "v"));
+            }
+        });
+    }
+
+    @Test
+    void commandLiteralSlash(@TempDir final Path work) throws IOException {
+        final var compiler = new Compiler(work, "LiteralSlashCommand");
+        compiler.compileAndAsserts((loader, container) -> {
+            withInstance(container, loader, "test.p.LiteralSlashCommand$FusionCliCommand", CliCommand.class, c -> {
+                final var command = c;
+                assertEquals("deploy/run", command.name());
+                assertEquals(List.of("deploy/run"), List.of(command.path()));
+            });
+
+            System.clearProperty("test.p.LiteralSlashCommand");
+            withInstance(container, loader, "io.yupiik.fusion.cli.CliAwaiter", CliAwaiter.class, CliAwaiter::await);
+            assertEquals("conf=Conf[value=v]", System.clearProperty("test.p.LiteralSlashCommand"));
+        }, new BaseBean<Args>(Args.class, DefaultScoped.class, 1000, Map.of()) {
+            @Override
+            public Args create(final RuntimeContainer container, final List<Instance<?>> dependents) {
+                return new Args(List.of("deploy/run", "--value", "v"));
+            }
+        });
+    }
+
+    @Test
+    void commandEmptyConf(@TempDir final Path work) throws IOException {
+        final var compiler = new Compiler(work, "EmptyConfCommand");
+        compiler.compileAndAsserts((loader, container) -> {
+            withInstance(container, loader, "test.p.EmptyConfCommand$FusionCliCommand", CliCommand.class, c -> {
+                final var command = c;
+                assertEquals("empty-conf", command.name());
+                assertEquals(List.of("empty-conf"), List.of(command.path()));
+            });
+
+            System.clearProperty("test.p.EmptyConfCommand");
+            withInstance(container, loader, "io.yupiik.fusion.cli.CliAwaiter", CliAwaiter.class, CliAwaiter::await);
+            assertEquals("conf=Conf[]", System.clearProperty("test.p.EmptyConfCommand"));
+        }, new BaseBean<Args>(Args.class, DefaultScoped.class, 1000, Map.of()) {
+            @Override
+            public Args create(final RuntimeContainer container, final List<Instance<?>> dependents) {
+                return new Args(List.of("empty-conf"));
+            }
+        });
+    }
+
+    @Test
     void commandUsage(@TempDir final Path work) throws IOException {
         new Compiler(work, "Commands").compileAndAsserts((loader, container) -> assertEquals(
                         """
