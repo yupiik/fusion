@@ -2649,6 +2649,40 @@ class FusionProcessorTest {
     }
 
     @Test
+    void commandSubCommandPlainPrefix(@TempDir final Path work) throws IOException {
+        final var compiler = new Compiler(work, "PlainSubCommand");
+        compiler.compileAndAsserts((loader, container) -> {
+            withInstance(container, loader, "test.p.PlainSubCommand$FusionCliCommand", CliCommand.class, c -> {
+                final var command = c;
+                assertEquals("--deploy-run-", command.cliPrefix());
+                assertEquals(
+                        List.of("Parameter[configName=name, cliName=--name, description=]"),
+                        ((CliCommand<?>) command).parameters().stream().map(Object::toString).toList());
+            });
+
+            System.clearProperty("test.p.PlainSubCommand");
+            withInstance(container, loader, "io.yupiik.fusion.cli.CliAwaiter", CliAwaiter.class, CliAwaiter::await);
+            assertEquals("conf=Conf[name=v]", System.clearProperty("test.p.PlainSubCommand"));
+        }, new BaseBean<Args>(Args.class, DefaultScoped.class, 1000, Map.of()) {
+            @Override
+            public Args create(final RuntimeContainer container, final List<Instance<?>> dependents) {
+                return new Args(List.of("deploy", "run", "--name", "v"));
+            }
+        });
+
+        compiler.compileAndAsserts((loader, container) -> {
+            System.clearProperty("test.p.PlainSubCommand");
+            withInstance(container, loader, "io.yupiik.fusion.cli.CliAwaiter", CliAwaiter.class, CliAwaiter::await);
+            assertEquals("conf=Conf[name=null]", System.clearProperty("test.p.PlainSubCommand"));
+        }, new BaseBean<Args>(Args.class, DefaultScoped.class, 1000, Map.of()) {
+            @Override
+            public Args create(final RuntimeContainer container, final List<Instance<?>> dependents) {
+                return new Args(List.of("deploy", "run", "--deploy-run-name", "v"));
+            }
+        });
+    }
+
+    @Test
     void commandDeep(@TempDir final Path work) throws IOException {
         final var compiler = new Compiler(work, "DeepCommand");
         compiler.compileAndAsserts((loader, container) -> {
