@@ -108,6 +108,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
@@ -145,9 +146,10 @@ import static javax.tools.StandardLocation.CLASS_OUTPUT;
 //       -> for now we stick to plain default java but it can be revised later.
 @SupportedOptions({
         "fusion.skipNotes", // if false, note messages will be emitted, else they are skipped (default)
-        "fusion.workdir", // where to store state to support incremental compilation, experimental
+        "fusion.workdir", // directory (e.g. <target>/<build>/fusion) holding persistent state to make the generated module/SPI stable across incremental compilations; set to `false` to disable
         "fusion.generateModule", // toggle to enable/disable the automatic module generation (see moduleFqn)
-        "fusion.moduleAppend", // if set to `true`, the fqn of the generated module class is appended to the SPI file instead of overwriten (useful for multiple compilation cycles)
+        // kept for backward compatibility: the SPI file is now always rewritten from a persistent union, so this flag is a no-op
+        "fusion.moduleAppend", // ignored - kept for backward compatibility
         "fusion.moduleFqn", // fully qualified name of the generated module if generateModule=true
         "fusion.generateBeanForCliCommands", // if not false all CLI command (@Command) will get a bean
         "fusion.generateBeanForHttpEndpoints", // if not false all endpoints (@HttpMatcher) will get a bean
@@ -268,20 +270,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
         debugTime = Boolean.parseBoolean(processingEnv.getOptions().getOrDefault("fusion.debug.timeTracking", "false"));
         clock = debugTime ? systemUTC() : null;
         outputRoot = findOutput().orElse(null);
-        workdir = ofNullable(processingEnv.getOptions().get("fusion.workdir"))
-                .filter(it -> !it.isBlank() && !"false".equals(it)) // disable with property for ex
-                .map(Path::of)
-                .or(() -> {
-                    // maven hack
-                    if (outputRoot != null &&
-                            "classes".equals(outputRoot.getFileName().toString()) &&
-                            outputRoot.getParent() != null &&
-                            "target".equals(outputRoot.getParent().getFileName().toString())) {
-                        return of(outputRoot.getParent().resolve("work_fusion"));
-                    }
-                    return empty();
-                })
-                .orElse(null);
+        workdir = findWorkdir(outputRoot);
 
         final var start = debugStart();
 
@@ -304,6 +293,11 @@ public class InternalFusionProcessor extends AbstractProcessor {
         beanForPersistenceEntities = Boolean.parseBoolean(processingEnv.getOptions().getOrDefault("fusion.generateBeanForPersistenceEntities", "true"));
         beanForJsonCodecs = Boolean.parseBoolean(processingEnv.getOptions().getOrDefault("fusion.generateBeanForJsonCodec", "true"));
         generateBeansForConfiguration = Boolean.parseBoolean(processingEnv.getOptions().getOrDefault("fusion.generateBeanForRootConfiguration", "true"));
+        if (processingEnv.getOptions().containsKey("fusion.moduleAppend")) {
+            processingEnv.getMessager().printMessage(WARNING,
+                    "Fusion: the 'fusion.moduleAppend' option is no longer supported (the FusionModule SPI file is now "
+                            + "always rebuilt from a persistent union) - remove it from your configuration to silence this warning");
+        }
         docsMetadataLocation = ofNullable(processingEnv.getOptions().getOrDefault("fusion.generateConfigurationDocMetadata", "true"))
                 .filter(it -> !"false".equals(it))
                 .map(it -> "true".equals(it) ? "META-INF/fusion/configuration/documentation.json" : it)
@@ -457,6 +451,36 @@ public class InternalFusionProcessor extends AbstractProcessor {
             processingEnv.getMessager().printMessage(
                     NOTE, "Ignoring json schema loading (" + e.getClass().getSimpleName() + "): " + e.getMessage());
         }
+    }
+
+    private Path findWorkdir(final Path outputRoot) {
+        if (outputRoot == null) {
+            return null;
+        }
+        final var outputName = outputRoot.getFileName();
+        final var parentName = outputRoot.getParent() == null ? null : outputRoot.getParent().getFileName();
+        // explicit option wins; `false` disables the persistent state
+        final var option = processingEnv.getOptions().get("fusion.workdir");
+        if (option != null && !option.isBlank() && !"false".equals(option)) {
+            return Path.of(option);
+        }
+        // maven: <project>/target/classes -> <project>/target/fusion (volatile, aligned with the maven lifecycle)
+        if (outputName != null && "classes".equals(outputName.toString()) &&
+                parentName != null && "target".equals(parentName.toString())) {
+            return outputRoot.getParent().resolve("fusion");
+        }
+        // gradle: <project>/build/classes/java/Main -> <project>/build/fusion (volatile, aligned with the gradle lifecycle)
+        if (outputName != null && "classes".equals(outputName.toString()) && outputRoot.getParent() != null) {
+            var p = outputRoot.getParent();
+            while (p != null) {
+                final var segment = p.getFileName();
+                if (segment != null && "build".equals(segment.toString())) {
+                    return p.resolve("fusion");
+                }
+                p = p.getParent();
+            }
+        }
+        return null;
     }
 
     @Override
@@ -638,6 +662,10 @@ public class InternalFusionProcessor extends AbstractProcessor {
                                     .map(String::strip)
                                     .filter(l -> !l.isBlank() && !l.startsWith("#"))
                                     .map(l -> {
+                                        // only the module we are generating can be legitimately missing on an
+                                        // incremental compile (it is compiled at the end of the round); for any
+                                        // other failure surface it instead of silently dropping the module
+                                        final var beingBuilt = module != null && module.equals(l);
                                         try {
                                             final var constructor = loader.loadClass(l)
                                                     .asSubclass(FusionModule.class)
@@ -647,6 +675,10 @@ public class InternalFusionProcessor extends AbstractProcessor {
                                         } catch (final NoClassDefFoundError | ClassNotFoundException |
                                                        NoSuchMethodException | InstantiationException |
                                                        IllegalAccessException | InvocationTargetException e) {
+                                            if (!beingBuilt) {
+                                                processingEnv.getMessager().printMessage(WARNING,
+                                                        "Cannot load FusionModule '" + l + "': " + e.getMessage());
+                                            }
                                             return null;
                                         }
                                     })
@@ -1259,35 +1291,24 @@ public class InternalFusionProcessor extends AbstractProcessor {
         final var moduleName = findOrCreateModuleName();
         try {
             final var spiLocation = "META-INF/services/" + FusionModule.class.getName();
-            if ("true".equalsIgnoreCase(processingEnv.getOptions().getOrDefault("fusion.moduleAppend", "false"))) {
-                final String content;
-                try (final var in = new BufferedReader(processingEnv.getFiler().getResource(CLASS_OUTPUT, "", spiLocation).openReader(true))) {
-                    content = in.lines().collect(joining("\n"));
-                }
-                if (!content.contains(moduleName)) { // can happen with incremental compilation, tolerate it
-                    try (final var out = processingEnv.getFiler().createResource(CLASS_OUTPUT, "", spiLocation).openWriter()) {
-                        out.write(content + '\n' + moduleName);
-                    }
-                    if (emitNotes) {
-                        processingEnv.getMessager().printMessage(NOTE, "Updated '" + spiLocation + "'");
-                    }
-                }
-            } else {
-                final var spi = processingEnv.getFiler().createResource(CLASS_OUTPUT, "", spiLocation);
-                try (final var out = spi.openWriter()) {
-                    out.write(moduleName);
-                }
-                if (emitNotes) {
-                    processingEnv.getMessager().printMessage(NOTE, "Generated '" + spiLocation + "'");
-                }
-            }
+            // A processor runs per compilation unit/round: on incremental builds (IDE, Gradle, maven useIncrementalCompilation)
+            // only a subset of the sources is ever seen by one invocation, so the current round state is NOT the whole
+            // application. To avoid the generated module/SPI entries to be clobbered with the partial subset we compose the
+            // module from a durable union persisted in workdir (META-INF-services-kind file) plus the current round, then
+            // prune entries whose generated class no longer exists on the classpath (deletions).
+            final var beans = loadModuleBeans(moduleName);
+            final var listeners = loadModuleListeners(moduleName);
+            prune(beans, listeners);
+            beans.addAll(allBeans);
+            listeners.addAll(allListeners);
+            persistModule(moduleName, beans, listeners);
 
-            final var sortedBeans = allBeans.stream()
-                    .distinct()
+            writeSpi(spiLocation, moduleName, beans, listeners);
+
+            final var sortedBeans = beans.stream()
                     .sorted()
                     .toList();
-            final var sortedListeners = allListeners.stream()
-                    .distinct()
+            final var sortedListeners = listeners.stream()
                     .sorted()
                     .toList();
             final var names = ParsedName.of(moduleName);
@@ -1302,6 +1323,108 @@ public class InternalFusionProcessor extends AbstractProcessor {
         } catch (final IOException | RuntimeException e) {
             processingEnv.getMessager().printMessage(ERROR, e.getMessage());
         }
+    }
+
+    // the SPI file may also list hand-written custom modules: keep them, replace only the generated module entry
+    // (dropping it when the module ends up with no member so the entry does not point to an empty/absent class).
+    private void writeSpi(final String spiLocation, final String moduleName,
+                          final Collection<String> beans, final Collection<String> listeners) throws IOException {
+        final var spiPath = outputRoot == null ? null : outputRoot.resolve(spiLocation);
+        final var otherModules = new TreeSet<String>();
+        if (spiPath != null && Files.exists(spiPath)) {
+            try (final var reader = Files.newBufferedReader(spiPath)) {
+                reader.lines().forEach(line -> {
+                    final var candidate = line.strip();
+                    if (!candidate.isEmpty() && !candidate.startsWith("#") && !candidate.equals(moduleName)) {
+                        otherModules.add(candidate);
+                    }
+                });
+            }
+        }
+        if (!beans.isEmpty() || !listeners.isEmpty()) {
+            otherModules.add(moduleName);
+        }
+        try (final var out = processingEnv.getFiler().createResource(CLASS_OUTPUT, "", spiLocation).openWriter()) {
+            out.write(String.join("\n", otherModules));
+        }
+        if (emitNotes) {
+            processingEnv.getMessager().printMessage(NOTE, "Generated '" + spiLocation + "'");
+        }
+    }
+
+    private Path moduleStateFile(final String moduleName) {
+        if (workdir == null) {
+            return null;
+        }
+        return workdir.resolve("modules").resolve(moduleName.replace('.', '/') + ".members");
+    }
+
+    private Set<String> loadModuleBeans(final String moduleName) {
+        return loadModuleLine(moduleName, "bean:");
+    }
+
+    private Set<String> loadModuleListeners(final String moduleName) {
+        return loadModuleLine(moduleName, "listener:");
+    }
+
+    private Set<String> loadModuleLine(final String moduleName, final String prefix) {
+        final var file = moduleStateFile(moduleName);
+        final var out = new HashSet<String>();
+        if (file == null || !Files.exists(file)) {
+            return out;
+        }
+        try {
+            for (final var line : Files.readAllLines(file, UTF_8)) {
+                if (line.startsWith(prefix)) {
+                    final var value = line.substring(prefix.length()).strip();
+                    if (!value.isEmpty()) {
+                        out.add(value);
+                    }
+                }
+            }
+        } catch (final IOException e) {
+            processingEnv.getMessager().printMessage(WARNING, "Cannot read " + file + ": " + e.getMessage());
+        }
+        return out;
+    }
+
+    private void persistModule(final String moduleName, final Collection<String> beans, final Collection<String> listeners) {
+        final var file = moduleStateFile(moduleName);
+        if (file == null) {
+            return;
+        }
+        try {
+            Files.createDirectories(file.getParent());
+            final var content = Stream.concat(
+                            beans.stream().sorted().map(it -> "bean:" + it),
+                            listeners.stream().sorted().map(it -> "listener:" + it))
+                    .collect(joining("\n", "", "\n"));
+            Files.writeString(file, content, UTF_8);
+        } catch (final IOException e) {
+            processingEnv.getMessager().printMessage(WARNING, "Cannot persist module state in " + file + ": " + e.getMessage());
+        }
+    }
+
+    // a bean/listener whose generated class is not on the output is gone (removed source, or the compiler dropped it):
+    // drop it so the module never references a class that does not exist.
+    private void prune(final Collection<String> beans, final Collection<String> listeners) {
+        final var toRemove = Stream.concat(beans.stream(), listeners.stream())
+                .filter(this::isGeneratedClassGone)
+                .collect(toSet());
+        beans.removeAll(toRemove);
+        listeners.removeAll(toRemove);
+    }
+
+    private boolean isGeneratedClassGone(final String name) {
+        // a FusionBean/FusionListener generated class lives next to the owner type in the classes dir;
+        // if it is gone the source was deleted (or never generated) so we must not reference it anymore.
+        // we can only state that reliably when the class output is reachable: otherwise (embedded javac, forked
+        // tooling, unknown build) we conservatively keep the member - the previous implementation never pruned.
+        if (outputRoot == null || !Files.exists(outputRoot)) {
+            return false;
+        }
+        final var relative = name.replace('.', '/') + ".class";
+        return !Files.exists(outputRoot.resolve(relative));
     }
 
     private boolean containsInnerClass(final Predicate<Object> test, final Object key) {

@@ -25,6 +25,7 @@ import io.yupiik.fusion.framework.api.configuration.ConfigurationSource;
 import io.yupiik.fusion.framework.api.configuration.MissingRequiredParameterException;
 import io.yupiik.fusion.framework.api.container.FusionListener;
 import io.yupiik.fusion.framework.api.container.FusionModule;
+import io.yupiik.fusion.framework.api.container.FusionBean;
 import io.yupiik.fusion.framework.api.container.RuntimeContainerImpl;
 import io.yupiik.fusion.framework.api.container.Types;
 import io.yupiik.fusion.framework.api.container.bean.BaseBean;
@@ -66,10 +67,12 @@ import java.io.StringReader;
 import java.io.StringWriter;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Field;
+import java.io.File;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -86,12 +89,14 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
+import java.util.spi.ToolProvider;
 import java.util.stream.Stream;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 import static java.util.Optional.empty;
 import static java.util.Optional.of;
+import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toMap;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -1718,14 +1723,88 @@ class FusionProcessorTest {
     }
 
     @Test
-    @Disabled("not yet supported")
     void incrementalCompilation(@TempDir final Path work) throws IOException {
-        final var compiler = new Compiler(work, "Bean1", "Bean2");
-        compiler.compileAndAsserts((loader, container) -> assertEquals(6, container.getBeans().getBeans().size()));
+        final var state = work.resolve("fusion").toString();
+        final var compiler = new Compiler(work, "Bean1", "Bean2").workdir(state);
+        compiler.compileAndAsserts((loader, container) ->
+                assertEquals(Long.valueOf(2), countAppBeans(container),
+                        "Bean1 and Bean2 registered on full build"));
 
-        // reuse the same dir and build something new, ensure we don't loose beans
-        new Compiler(work, "Bean21")
-                .compileAndAsserts((loader, container) -> assertEquals(7, container.getBeans().getBeans().size()));
+        // incremental: only Bean21 is compiled again into the same classes dir, but Bean1/Bean2 beans must be preserved
+        final var incremental = new Compiler(work, "Bean21").workdir(state);
+        incremental.compileAndAsserts((loader, container) -> {
+            assertEquals(Long.valueOf(3), countAppBeans(container),
+                    "Bean1,Bean2 kept, Bean21 added across incremental compilation");
+            // previously generated beans must still resolve (their bean class exists and is referenced)
+            assertNotNull(loader.apply("test.p.Bean21"));
+        });
+    }
+
+    private static long countAppBeans(final RuntimeContainer container) {
+        return container.getBeans().getBeans().keySet().stream()
+                .filter(it -> it.getTypeName().startsWith("test.p."))
+                .count();
+    }
+
+    @Test
+    void customModulePlusGeneratedModule(@TempDir final Path work) throws IOException {
+        // a hand-written FusionModule may already be registered in the shared SPI file (e.g. shipped by a dependency):
+        // the processor must add the generated module next to it, not wipe it.
+        // first compile the hand-written custom module + its bean so they are loadable at runtime.
+        final var classes = work.resolve("classes");
+        final var customSrc = work.resolve("custom-src");
+        final var spi = classes.resolve("META-INF/services/" + FusionModule.class.getName());
+        Files.createDirectories(classes);
+        copyResource(customSrc.resolve("test/p/CustomModule.java"), "test/p/CustomModule.java");
+        copyResource(customSrc.resolve("test/p/CustomBean.java"), "test/p/CustomBean.java");
+
+        final var cp = customClasspath();
+        assertEquals(0, ToolProvider.findFirst("javac").orElseThrow()
+                        .run(System.out, System.err,
+                                "--release", "17",
+                                "--class-path", cp,
+                                "-d", classes.toString(),
+                                "-parameters",
+                                customSrc.resolve("test/p/CustomModule.java").toString(),
+                                customSrc.resolve("test/p/CustomBean.java").toString()));
+
+        Files.createDirectories(spi.getParent());
+        Files.writeString(spi, "test.p.CustomModule\n");
+
+        // now the app compile: ModuleWithBean triggers the generated implicit module
+        final var compiler = new Compiler(work, "ModuleWithBean");
+        compiler.assertCompiles(0);
+
+        // the generated module must be added next to the custom one, not replace it
+        final var content = Files.readAllLines(spi);
+        assertTrue(content.contains("test.p.CustomModule"), "custom module kept in the SPI file: " + content);
+        assertTrue(content.contains("test.p.FusionGeneratedModule"), "generated module added to the SPI file: " + content);
+
+        // both modules must be loaded and contribute their beans to the same container
+        compiler.asserts((loader, container) -> {
+            assertTrue(hasBean(container, "test.p.ModuleWithBean"), "generated module bean registered");
+            assertTrue(hasBean(container, "test.p.CustomBean"), "custom module bean registered");
+        });
+    }
+
+    private static void copyResource(final Path out, final String resource) throws IOException {
+        try (final var in = requireNonNull(Thread.currentThread().getContextClassLoader().getResourceAsStream(resource))) {
+            Files.createDirectories(out.getParent());
+            Files.copy(in, out, StandardCopyOption.REPLACE_EXISTING);
+        }
+    }
+
+    private static String customClasspath() {
+        return Stream.of(
+                        FusionModule.class, FusionBean.class, FusionListener.class,
+                        RuntimeContainer.class, Instance.class, DefaultScoped.class)
+                .map(it -> it.getProtectionDomain().getCodeSource().getLocation().getPath())
+                .distinct()
+                .collect(joining(File.pathSeparator));
+    }
+
+    private static boolean hasBean(final RuntimeContainer container, final String type) {
+        return container.getBeans().getBeans().keySet().stream().anyMatch(it -> it.getTypeName().equals(type));
     }
 
     @Test

@@ -58,10 +58,16 @@ public class Compiler {
     private Path classes;
     private Predicate<Class<?>> classpathFilter;
     private String[] processorArgs = new String[0];
+    private String workdir;
 
     public Compiler(final Path work, final String... classNames) {
         this.work = work;
         this.classNames = classNames;
+    }
+
+    public Compiler workdir(final String workdir) {
+        this.workdir = workdir;
+        return this;
     }
 
     public Compiler processorArgs(final String... args) {
@@ -182,12 +188,16 @@ public class Compiler {
                 .filter(it -> classpathFilter == null || classpathFilter.test(it))
                 .map(this::pathOf)
                 .collect(joining(File.pathSeparator));
+        // on incremental compiles previous rounds already wrote classes into the same output dir:
+        // put them on the classpath so a regenerated module can still reference the previously generated beans
+        final var classesCp = this.classes != null && Files.isDirectory(this.classes) ? this.classes.toString() : null;
+        final var incrementalCp = classesCp == null ? cp : classesCp + File.pathSeparator + cp;
         final var cmd = Stream.concat(
                         Stream.concat(
                                 Stream.of(
                                         "--release", version,
                                         "--source-path", src.toString(),
-                                        "--class-path", cp,
+                                        "--class-path", incrementalCp,
                                         "-s", generatedSources.toString(),
                                         "-d", classes.toString(),
                                         "-parameters",
@@ -195,7 +205,7 @@ public class Compiler {
                                         "-Werror",
                                         "-Xlint:unchecked",
                                         "-Afusion.skipNotes=false",
-                                        "-Afusion.workdir=false",
+                                        workdir == null ? "-Afusion.workdir=false" : "-Afusion.workdir=" + workdir,
                                         // "-verbose",
                                         "-processor", "io.yupiik.fusion.framework.processor.FusionProcessor"),
                                 Stream.of(processorArgs)),
