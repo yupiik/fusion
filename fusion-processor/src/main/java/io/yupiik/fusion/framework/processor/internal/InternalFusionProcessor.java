@@ -275,12 +275,15 @@ public class InternalFusionProcessor extends AbstractProcessor {
         final var start = debugStart();
 
         elements = new Elements(processingEnv);
-        init = asTypeElement(Init.class).asType();
-        destroy = asTypeElement(Destroy.class).asType();
-        onInsert = asTypeElement(OnInsert.class).asType();
-        onLoad = asTypeElement(OnLoad.class).asType();
-        onUpdate = asTypeElement(OnUpdate.class).asType();
-        onDelete = asTypeElement(OnDelete.class).asType();
+        // the annotation types live in fusion-build-api: when the processor is discovered on a compilation that does
+        // not put the whole Fusion build API on the classpath (e.g. plain javac reprocessing a project's SPI file) the
+        // elements are absent and must not crash the processor - a missing annotation simply means nothing to process.
+        init = safeType(Init.class);
+        destroy = safeType(Destroy.class);
+        onInsert = safeType(OnInsert.class);
+        onLoad = safeType(OnLoad.class);
+        onUpdate = safeType(OnUpdate.class);
+        onDelete = safeType(OnDelete.class);
         objectType = processingEnv.getElementUtils()
                 .getTypeElement(Object.class.getCanonicalName())
                 .asType();
@@ -1516,6 +1519,11 @@ public class InternalFusionProcessor extends AbstractProcessor {
 
     private TypeElement asTypeElement(final Class<?> type) {
         return processingEnv.getElementUtils().getTypeElement(type.getName());
+    }
+
+    private TypeMirror safeType(final Class<?> type) {
+        final var element = asTypeElement(type);
+        return element == null ? null : element.asType();
     }
 
     private void writeGeneratedClass(final Element relatedTo, final BaseGenerator.GeneratedClass generated) throws IOException {
