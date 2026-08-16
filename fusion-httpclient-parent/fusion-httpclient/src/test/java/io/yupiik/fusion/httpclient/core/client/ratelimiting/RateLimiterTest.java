@@ -48,20 +48,13 @@ class RateLimiterTest {
         assertEquals(0, rateLimiter.before());
         assertEquals(0, rateLimiter.before());
         assertEquals(0, rateLimiter.before());
-        {
-            final var nextWindow = instant.get().toEpochMilli() + 1000;
-            assertEquals(nextWindow, rateLimiter.before());
-            instant.set(Instant.ofEpochMilli(nextWindow));
-        }
+        assertEquals(1000, rateLimiter.before()); // next window is 1000ms away
+        instant.set(Instant.ofEpochMilli(1000));
 
-        assertEquals(2000, rateLimiter.before());
-        assertEquals(2000, rateLimiter.before());
-        assertEquals(2000, rateLimiter.before());
-        {
-            final var nextWindow = instant.get().toEpochMilli() + 1000;
-            assertEquals(nextWindow, rateLimiter.before());
-            instant.set(Instant.ofEpochMilli(nextWindow + 1000));
-        }
+        assertEquals(1000, rateLimiter.before()); // next window (2000) is 1000ms away
+        assertEquals(1000, rateLimiter.before());
+        assertEquals(1000, rateLimiter.before());
+        instant.set(Instant.ofEpochMilli(3000));
 
         assertEquals(0, rateLimiter.before());
         assertEquals(0, rateLimiter.before());
