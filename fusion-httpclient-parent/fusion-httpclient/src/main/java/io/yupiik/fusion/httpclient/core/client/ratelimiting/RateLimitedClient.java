@@ -25,6 +25,7 @@ import java.net.http.HttpResponse;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
@@ -42,7 +43,12 @@ public class RateLimitedClient extends DelegatingHttpClient {
     private final Logger logger = Logger.getLogger(getClass().getName());
     private final ReentrantLock lock = new ReentrantLock();
 
-    private static final DateTimeFormatter RETRY_AFTER_FORMATTER = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss O");
+    private static final DateTimeFormatter RETRY_AFTER_FORMATTER = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss O")
+            .withLocale(Locale.ENGLISH);
+
+    // A header value above this is always an epoch timestamp (an 11+ days
+    // relative delay is never realistic), anything below is a relative delay.
+    private static final long EPOCH_THRESHOLD_MS = 1_000_000_000;
 
     private final RateLimiter clientRateLimiter;
     private final long window;
@@ -158,24 +164,49 @@ public class RateLimitedClient extends DelegatingHttpClient {
     }
 
     // can be interesting to override to get a backoff/jitter for some cases
-    protected  <T> long findPause(final HttpRequest request, final HttpResponse<T> res) {
+    protected <T> long findPause(final HttpRequest request, final HttpResponse<T> res) {
         final var headers = res.headers();
+        final var now = clock.millis();
         return headers.firstValue("Retry-After")
-                .flatMap(a -> {
-                    try { // RFC7231
-                        return Optional.of(OffsetDateTime.parse(a.strip(), RETRY_AFTER_FORMATTER));
-                    } catch (final RuntimeException re2) {
-                        return Optional.empty();
-                    }
-                })
-                .map(d -> Math.max(0, d.toInstant().toEpochMilli() - clock.millis()))
+                .flatMap(value -> parseRetryAfter(value, now))
                 .or(() -> headers.firstValue("X-Rate-Limit-Reset-Ms")
-                        .map(Long::parseLong))
+                        .flatMap(this::parseLong)
+                        .map(value -> normalize(value, now)))
                 .or(() -> headers.firstValue("X-Rate-Limit-Reset")
                         .or(() -> headers.firstValue("Rate-Limit-Reset"))
                         .or(() -> headers.firstValue("RateLimit-Reset"))
-                        .map(it -> TimeUnit.SECONDS.toMillis(Long.parseLong(it))))
+                        .flatMap(this::parseLong)
+                        .map(value -> normalize(TimeUnit.SECONDS.toMillis(value), now)))
+                .map(pause -> Math.max(0, pause))
                 .orElse(window);
+    }
+
+    private Optional<Long> parseRetryAfter(final String value, final long now) {
+        final var stripped = value.strip();
+        try { // RFC 7231 delay-seconds form: "Retry-After: 120"
+            return Optional.of(TimeUnit.SECONDS.toMillis(Long.parseLong(stripped)));
+        } catch (final NumberFormatException nfe) {
+            try { // RFC 7231 HTTP-date form: "Retry-After: Wed, 21 Oct 2015 07:28:00 GMT"
+                return Optional.of(OffsetDateTime.parse(stripped, RETRY_AFTER_FORMATTER).toInstant().toEpochMilli() - now);
+            } catch (final RuntimeException re) {
+                return Optional.empty();
+            }
+        }
+    }
+
+    private Optional<Long> parseLong(final String value) {
+        try {
+            return Optional.of(Long.parseLong(value.strip()));
+        } catch (final NumberFormatException nfe) {
+            return Optional.empty();
+        }
+    }
+
+    private long normalize(final long value, final long now) {
+        if (value > EPOCH_THRESHOLD_MS) { // absolute epoch millis, subtract now
+            return value - now;
+        }
+        return value; // already a relative delay
     }
 
     private static <T> void consumeBody(final HttpResponse<T> res) {
@@ -190,7 +221,8 @@ public class RateLimitedClient extends DelegatingHttpClient {
     }
 
     private <T> boolean isRateLimited(final HttpResponse<T> ok) {
-        return ok.statusCode() == 429;
+        return ok.statusCode() == 429
+                || (ok.statusCode() == 403 && ok.headers().firstValue("Retry-After").isPresent());
     }
 
     private ScheduledExecutorService scheduledExecutorService() { // lazy to avoid to create it if never needed

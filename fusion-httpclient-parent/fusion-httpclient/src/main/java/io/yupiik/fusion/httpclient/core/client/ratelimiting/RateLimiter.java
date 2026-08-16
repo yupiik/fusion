@@ -51,7 +51,7 @@ public class RateLimiter {
             if (windowCounter <= permits) {
                 return 0;
             }
-            return nextWindow(key);
+            return nextWindow(key, now);
         }
 
         final double weightInWindow = (now - key * window) * 1. / window;
@@ -67,11 +67,11 @@ public class RateLimiter {
         if (count <= permits) {
             return 0;
         }
-        return nextWindow(key);
+        return nextWindow(key, now);
     }
 
-    private long nextWindow(final long key) {
-        return (key * window) + window;
+    private long nextWindow(final long key, final long now) {
+        return Math.max(0, (key * window) + window - now);
     }
 
     public void after() {
