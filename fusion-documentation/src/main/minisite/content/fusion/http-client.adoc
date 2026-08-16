@@ -30,6 +30,17 @@ It defaults to chrome one.
 
 This listener enables to force all exchanges to be logged.
 
+==== `CurlLoggerListener`
+
+This listener is a sibling of `ExchangeLogger` but instead of a free-form message it logs each exchange as a ready-to-replay `curl` command (method, URI, headers and body when payload logging is enabled). When payload logging is enabled the command uses `-i` and is followed by the raw response formatted like `curl -i` output (status line, headers, body), errors being logged like `curl: <message>`.
+
+[source,java]
+----
+new CurlLoggerListener(Logger.getLogger(getClass().getName()), false)
+----
+
+TIP: since the listener must read the request body to build the command, it replaces the request publisher with the captured bytes so the request is still sent normally.
+
 ==== `FilteringListener`
 
 This listener wraps another listener to filter the calls to `before`/`after` callbacks either based on the request or on the response.
