@@ -36,12 +36,14 @@ import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 import static java.net.http.HttpResponse.BodyHandlers.discarding;
 import static java.util.concurrent.CompletableFuture.completedFuture;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static java.util.stream.Collectors.toMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -127,6 +129,125 @@ class RateLimitedClientTest {
                         .get()
                         .statusCode());
         assertEquals(List.of(expectedPause), pauses);
+    }
+
+    @Test
+    void clientSideThrottleDefersOverflowRequestByOneWindow() throws ExecutionException, InterruptedException, TimeoutException {
+        final var instant = new AtomicReference<Instant>(Instant.ofEpochMilli(NOW));
+        final var clock = new Clock() {
+            @Override
+            public ZoneId getZone() {
+                return ZoneId.of("UTC");
+            }
+
+            @Override
+            public Clock withZone(final ZoneId zone) {
+                return this;
+            }
+
+            @Override
+            public Instant instant() {
+                return instant.get();
+            }
+        };
+
+        final var sent = new AtomicInteger(0);
+        final var scheduled = new AtomicInteger(0);
+        final var client = new RateLimitedClient(
+                new DelegatingHttpClient(null) {
+                    @Override
+                    public <T> CompletableFuture<HttpResponse<T>> sendAsync(
+                            final HttpRequest request,
+                            final HttpResponse.BodyHandler<T> responseBodyHandler) {
+                        sent.incrementAndGet();
+                        return completedFuture(new StaticHttpResponse<T>(
+                                request, Version.HTTP_1_1, 200, HttpHeaders.of(Map.of(), (a, b) -> true), null));
+                    }
+                },
+                new RateLimiter(2, 1000, clock),
+                1000, clock) {
+            @Override
+            protected <T> CompletableFuture<HttpResponse<T>> doScheduleLater(final long pause, final HttpRequest request, final Supplier<CompletableFuture<HttpResponse<T>>> promise) {
+                scheduled.incrementAndGet();
+                instant.set(Instant.ofEpochMilli(instant.get().toEpochMilli() + pause));
+                return super.doScheduleLater(pause, request, promise);
+            }
+
+            @Override
+            protected <T> void doDelay(final long pause, final Callable<CompletableFuture<HttpResponse<T>>> delayedExecution) {
+                try {
+                    delayedExecution.call();
+                } catch (final Exception e) {
+                    throw new IllegalStateException(e);
+                }
+            }
+        };
+
+        try {
+            final var request = HttpRequest.newBuilder().GET().uri(URI.create("http://localhost:1234")).build();
+            final var responses = java.util.stream.IntStream.range(0, 3)
+                    .mapToObj(i -> client.sendAsync(request, discarding()))
+                    .toList();
+            for (final var response : responses) {
+                assertEquals(200, response.get(20, SECONDS).statusCode());
+            }
+            assertEquals(3, sent.get());
+            assertEquals(1, scheduled.get()); // one window hop, not a compounding chain
+        } finally {
+            client.close();
+        }
+    }
+
+    @Test
+    void completesFacadeWhenScheduledResponseIsAlsoRateLimited() throws ExecutionException, InterruptedException, TimeoutException {
+        final var clock = new Clock() {
+            @Override
+            public ZoneId getZone() {
+                return ZoneId.of("UTC");
+            }
+
+            @Override
+            public Clock withZone(final ZoneId zone) {
+                return this;
+            }
+
+            @Override
+            public Instant instant() {
+                return Instant.ofEpochMilli(NOW);
+            }
+        };
+
+        // call 0: 429, call 1: 429 again (inside scheduled task), call 2: 200
+        final var counter = new AtomicInteger(0);
+        final var client = new RateLimitedClient(
+                new DelegatingHttpClient(null) {
+                    @Override
+                    public <T> CompletableFuture<HttpResponse<T>> sendAsync(
+                            final HttpRequest request,
+                            final HttpResponse.BodyHandler<T> responseBodyHandler) {
+                        final var n = counter.getAndIncrement();
+                        final var status = n < 2 ? 429 : 200;
+                        final var headers = n < 2
+                                ? Map.of("Retry-After", List.of("1"))
+                                : Map.<String, List<String>>of();
+                        return completedFuture(new StaticHttpResponse<>(
+                                request, Version.HTTP_1_1,
+                                status,
+                                HttpHeaders.of(headers, (a, b) -> true),
+                                null));
+                    }
+                },
+                new RateLimiter(Integer.MAX_VALUE, Integer.MAX_VALUE, clock),
+                1000, clock);
+
+        try {
+            final var response = client.sendAsync(
+                            HttpRequest.newBuilder().GET().uri(URI.create("http://localhost:1234")).build(), discarding())
+                    .get(20, SECONDS);
+            assertEquals(200, response.statusCode());
+        } finally {
+            client.close();
+        }
     }
 
     private String httpDate(final long epochMilli) {
