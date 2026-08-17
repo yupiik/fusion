@@ -136,13 +136,18 @@ public class RateLimitedClient extends DelegatingHttpClient {
                                                                      final Supplier<CompletableFuture<HttpResponse<T>>> promise) {
         log(request, pause);
         final var facade = new CompletableFuture<HttpResponse<T>>();
-        final Callable<CompletableFuture<HttpResponse<T>>> delayedExecution = () -> wrap(
-                clientRateLimiter.before(), request,
-                () -> promise.get().whenComplete((ok, ko) -> {
+        final Callable<CompletableFuture<HttpResponse<T>>> delayedExecution = () ->
+                promise.get().whenComplete((ok, ko) -> {
                     try {
                         if (isRateLimited(ok)) {
                             final long newPause = findPause(request, ok);
-                            wrap(newPause, request, promise);
+                            doScheduleLater(newPause, request, promise).whenComplete((innerOk, innerKo) -> {
+                                if (innerKo != null) {
+                                    facade.completeExceptionally(innerKo);
+                                } else {
+                                    facade.complete(innerOk);
+                                }
+                            });
                             return;
                         }
                         if (ko != null) {
@@ -153,7 +158,7 @@ public class RateLimitedClient extends DelegatingHttpClient {
                     } finally {
                         clientRateLimiter.after();
                     }
-                }));
+                });
         doDelay(pause, delayedExecution);
         clientRateLimiter.after();
         return facade;
