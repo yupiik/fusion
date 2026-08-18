@@ -98,6 +98,7 @@ public class JsonRpcEndpoint extends DefaultEndpoint {
     }
 
     private Response jsonRpcError(final int code, final Throwable error, final Request request) {
+        logger.log(SEVERE, error, () -> "JSON-RPC error (code=" + code + "): " + error.getMessage());
         return response(handler.createResponse(null, code, error.getMessage()), request);
     }
 
