@@ -34,7 +34,31 @@ public interface Entity<E, ID> {
 
     String getDeleteQuery();
 
-    String getInsertQuery();
+    /**
+     * @return the plain INSERT statement, without any dialect specific optimization.
+     * This is the statement to use when batching inserts (see {@link #getBatchInsertQuery()}).
+     * @deprecated use {@link #getSingularInsertQuery()} to insert a single instance (it may carry the
+     * RETURNING optimization when the {@code DatabaseTranslation} does not support generated keys) or
+     * {@link #getBatchInsertQuery()} when inserting several instances through {@code batchInsert}.
+     * This accessor is kept for backward compatibility and delegates to {@link #getBatchInsertQuery()}.
+     */
+    @Deprecated
+    default String getInsertQuery() {
+        return getBatchInsertQuery();
+    }
+
+    /**
+     * @return the insert statement optimized for inserting a single instance: for auto incremented
+     * entities whose {@code DatabaseTranslation} does not support generated keys it is completed with
+     * a RETURNING clause reading the generated id(s) back; otherwise it is the plain INSERT statement.
+     */
+    String getSingularInsertQuery();
+
+    /**
+     * @return the plain INSERT statement, without any dialect specific optimization. Batched statements
+     * cannot run a RETURNING clause, so this is always a plain INSERT (used by {@code batchInsert}).
+     */
+    String getBatchInsertQuery();
 
     String getCountAllQuery();
 
@@ -52,7 +76,37 @@ public interface Entity<E, ID> {
 
     void onFindById(final ID instance, final PreparedStatement stmt) throws SQLException;
 
-    E onAfterInsert(final E instance, final PreparedStatement statement) throws SQLException;
+    /**
+     * Invoked after an insert to read the generated key(s) back. It is the only after-insert key
+     * callback: whether the keys come from {@code Statement.getGeneratedKeys()} or from a RETURNING
+     * clause is resolved by the {@code DatabaseImpl} based on
+     * {@code DatabaseTranslation#supportsGeneratedKeys()} before handing the result set to this method.
+     * For non auto incremented entities it is still invoked with a {@code null} keys and typically
+     * just returns {@code instance}.
+     *
+     * @param instance instance which was inserted (as returned by {@link #onInsert(Object, PreparedStatement)}).
+     * @param keys     result set of the generated key(s), positioned on the first row; {@code null} when the
+     *                 entity is not auto incremented.
+     * @return the instance to use in place of {@code instance}, commonly a copy holding the generated key(s).
+     */
+    E onAfterInsert(final E instance, final ResultSet keys) throws SQLException;
+
+    /**
+     * Convenience overload kept for backward compatibility: delegates to
+     * {@link #onAfterInsert(Object, ResultSet)} reading the keys through {@code statement.getGeneratedKeys()}.
+     *
+     * @deprecated use {@link #onAfterInsert(Object, ResultSet)} instead, the key source is resolved by the
+     * database based on the active {@code DatabaseTranslation}.
+     */
+    @Deprecated
+    default E onAfterInsert(final E instance, final PreparedStatement statement) throws SQLException {
+        try (final var rset = statement.getGeneratedKeys()) {
+            if (!rset.next()) {
+                return instance;
+            }
+            return onAfterInsert(instance, rset);
+        }
+    }
 
     /**
      * Creates a string usable when building a SQL query.

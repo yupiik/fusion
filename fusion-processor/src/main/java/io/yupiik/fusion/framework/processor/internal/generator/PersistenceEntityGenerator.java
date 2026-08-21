@@ -140,7 +140,7 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
                 .toList();
 
         final var idType = switch (ids.size()) {
-            case 1 -> ParsedType.of(ids.get(0).asType()).className();
+            case 1 -> boxed(ParsedType.of(ids.get(0).asType()).className());
             default -> "java.util.List<Object>"; // composed key
         };
 
@@ -274,21 +274,17 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
                                             .collect(joining("\n", "", "\n"));
                         } +
                         "          },\n" +
-                        "          (entity, statement) -> " + (!autoIncremented ?
+"          (entity, rset) -> " + (!autoIncremented ?
                         "entity" : "{\n" +
-                                   "            try (final var rset = statement.getGeneratedKeys()) {\n" +
-                                   "              if (!rset.next()) {\n" +
-                                   "                throw new " + PersistenceException.class.getName() + "(\"No generated key available\");\n" +
-                                   "              }\n" +
-                                   // do a copy of all params except the generated id (can be only one for now)
-                                   "              return new " + className + "(" + constructorParameters.stream()
+                                   // do a copy of all params except the generated id (can be only one for now);
+                                   // the result set is already positioned on the returned key row (see DatabaseImpl#insert)
+                                   "            return new " + className + "(" + constructorParameters.stream()
                                                                                    .map(it -> idsSet.contains(it) ?
                                                                                            jdbcGetter(it, 1) :
                                                                                               ("entity." + it.getSimpleName().toString() + "()"))
                                                                                    .collect(joining(", ")) + ");\n" +
-                                   "            }" +
                                    "          }") + ",\n" +
-                        "          columns -> {\n" +
+                         "          columns -> {\n" +
                         createFactory(constructorParameters, onLoadCb, loadInjections, columns, columnsMapping, "return", type) +
                         "          });\n" +
                         "    }\n" +
@@ -399,16 +395,22 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
         }
 
         final var prefix = columnReaderPrefix(name);
-        final var unknownType = "object".equals(prefix);
-        return leftSide + prefix + ofPart + switch (name) {
-            case "int", "double", "float", "long", "boolean", "byte" -> ", true";
-            case "java.lang.Integer", "java.lang.Double", "java.lang.Float", "java.lang.Long", "java.lang.Boolean",
-                 "java.lang.Byte" -> ", false";
-            default -> "";
-        } + (unknownType ? ", " + (switch (parsedType.type()) {
-            case PARAMETERIZED_TYPE -> parsedType.raw();
-            default -> parsedType.className();
-        }) + ".class" : "") + ");\n";
+        if (!"object".equals(prefix)) {
+            return leftSide + prefix + ofPart + switch (name) {
+                case "int", "double", "float", "long", "boolean", "byte" -> ", true";
+                case "java.lang.Integer", "java.lang.Double", "java.lang.Float", "java.lang.Long", "java.lang.Boolean",
+                     "java.lang.Byte" -> ", false";
+                default -> "";
+            } + ");\n";
+        }
+
+        // no native accessor: route the read through the translation to let dialects adapt it
+        return leftSide + "configuration.getTranslation().reader(columns.indexOf(\"" +
+                columnsMapping.getOrDefault(javaName, javaName).toLowerCase(ROOT) + "\"), " +
+                (switch (parsedType.type()) {
+                    case PARAMETERIZED_TYPE -> parsedType.raw();
+                    default -> parsedType.className();
+                }) + ".class);\n";
     }
 
     private List<? extends VariableElement> selectConstructorFor(final Supplier<String> clazz, final TypeElement type) {
@@ -453,9 +455,8 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
             case "java.lang.Short", "short" -> "short";
             case "java.math.BigDecimal" -> "bigdecimal";
             case "byte[]" -> "bytes";
-            case "java.math.BigInteger", "java.time.LocalDate", "java.time.LocalDateTime",
-                 "java.time.OffsetDateTime", "java.time.ZonedDateTime", "java.time.LocalTime" ->
-                    name.substring(name.lastIndexOf('.') + 1).toLowerCase(ROOT); // object
+            // java.math.BigInteger, java.time types and unknown types have no native accessor:
+            // they are routed through DatabaseTranslation#reader (default "object" case)
             default -> "object";
         };
     }
@@ -484,6 +485,14 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
             }
         }
         final var handleNull = !PRIMITIVES.contains(fqn);
+        if ("Object".equals(jdbcMarker(type, fqn))) {
+            // no native setter: route through the translation to let dialects adapt the binding (incl. nulls)
+            final var classLiteral = (parsedType.type() == ParsedType.Type.PARAMETERIZED_TYPE ?
+                    parsedType.raw() :
+                    fqn) + ".class";
+            return "configuration.getTranslation().bind(statement, " +
+                    jdbcIndex + ", " + accessor + (isEnum ? ".name()" : "") + ", " + classLiteral + ");";
+        }
         return (handleNull ?
                 "if (" + nullCheck + ") { " +
                 "statement.setNull(" + jdbcIndex + ", " +
@@ -495,11 +504,7 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
                     case "java.lang.Long", "java.math.BigInteger" -> "java.sql.Types.BIGINT";
                     case "java.lang.Boolean" -> "java.sql.Types.BOOLEAN";
                     case "java.lang.Byte", "java.lang.Short" -> "java.sql.Types.SMALLINT";
-                    case "java.util.Date", "java.sql.Date", "java.time.LocalDate", "java.time.LocalDateTime" ->
-                            "java.sql.Types.DATE";
-                    case "java.time.OffsetDateTime", "java.time.ZonedDateTime" ->
-                            "java.sql.Types.TIMESTAMP_WITH_TIMEZONE";
-                    case "java.time.LocalTime" -> "java.sql.Types.TIME";
+                    case "java.util.Date", "java.sql.Date" -> "java.sql.Types.DATE";
                     case "java.math.BigDecimal" -> "java.sql.Types.DECIMAL";
                     case "byte[]" -> "java.sql.Types.VARBINARY";
                     default -> "java.sql.Types.OTHER";
@@ -508,6 +513,21 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
                 "") +
                 "statement.set" + jdbcMarker(type, fqn) + "(" + jdbcIndex + ", " + accessor + (isEnum ? ".name()" : "") + ");" +
                 (handleNull ? " }" : "");
+    }
+
+    // generics require boxed types (BaseEntity<A, B> with B = id type)
+    private String boxed(final String className) {
+        return switch (className) {
+            case "boolean" -> "java.lang.Boolean";
+            case "byte" -> "java.lang.Byte";
+            case "short" -> "java.lang.Short";
+            case "int" -> "java.lang.Integer";
+            case "long" -> "java.lang.Long";
+            case "float" -> "java.lang.Float";
+            case "double" -> "java.lang.Double";
+            case "char" -> "java.lang.Character";
+            default -> className;
+        };
     }
 
     private String jdbcMarker(final TypeMirror type, final String fqn) {

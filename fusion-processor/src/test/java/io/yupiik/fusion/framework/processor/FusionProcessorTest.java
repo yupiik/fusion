@@ -2898,7 +2898,7 @@ class FusionProcessorTest {
                                       (id, statement) -> {
                                         if (id == null) { statement.setNull(1, java.sql.Types.VARCHAR); } else { statement.setString(1, id); }
                                       },
-                                      (entity, statement) -> entity,
+                                      (entity, rset) -> entity,
                                       columns -> {
                                         final var id = stringOf(columns.indexOf("id"));
                                         final var name = stringOf(columns.indexOf("name"));
@@ -2956,6 +2956,21 @@ class FusionProcessorTest {
     }
 
     @Test
+    void autoIdPersistence(@TempDir final Path work) throws IOException {
+        final var entity = "persistence.AutoIdEntity";
+        final var compiler = new Compiler(work, entity);
+        compiler.compileAndAsserts((loader, container) -> {
+            final var generated = compiler.readGeneratedSource(entity + "$FusionPersistenceEntity");
+            // auto incremented entity: the unified onAfterInsert reads the generated id back from column 1
+            // (result set already positioned by DatabaseImpl#insert) and copies the other (post @OnInsert)
+            // fields onto the returned instance.
+            assertTrue(generated.contains(
+                    "new AutoIdEntity(rset.getLong(1), entity.name(), entity.age())"),
+                    () -> generated);
+        });
+    }
+
+    @Test
     void persistenceOnDelete(@TempDir final Path work) throws IOException {
         final var entity = "persistence.OnDeleteEntity";
         final var compiler = new Compiler(work, entity);
@@ -2991,7 +3006,7 @@ class FusionProcessorTest {
                                   (id, statement) -> {
                                     if (id == null) { statement.setNull(1, java.sql.Types.VARCHAR); } else { statement.setString(1, id); }
                                   },
-                                  (entity, statement) -> entity,
+                                  (entity, rset) -> entity,
                                   columns -> {
                                     final var id = stringOf(columns.indexOf("id"));
                                     return rset -> {
@@ -3070,7 +3085,7 @@ class FusionProcessorTest {
                                   (id, statement) -> {
                                     if (id == null) { statement.setNull(1, java.sql.Types.VARCHAR); } else { statement.setString(1, id); }
                                   },
-                                  (entity, statement) -> entity,
+                                  (entity, rset) -> entity,
                                   columns -> {
                                     final var id = stringOf(columns.indexOf("id"));
                                     return rset -> {
@@ -3164,7 +3179,7 @@ class FusionProcessorTest {
                                       (id, statement) -> {
                                         if (id == null) { statement.setNull(1, java.sql.Types.VARCHAR); } else { statement.setString(1, id); }
                                       },
-                                      (entity, statement) -> entity,
+                                      (entity, rset) -> entity,
                                       columns -> {
                                         final var id = stringOf(columns.indexOf("id"));
                                         final var name = stringOf(columns.indexOf("name"));

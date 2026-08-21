@@ -16,6 +16,7 @@
 package io.yupiik.fusion.persistence.impl;
 
 import io.yupiik.fusion.persistence.impl.translation.DefaultTranslation;
+import io.yupiik.fusion.persistence.impl.translation.DuckDBTranslation;
 import io.yupiik.fusion.persistence.impl.translation.H2Translation;
 import io.yupiik.fusion.persistence.impl.translation.MySQLTranslation;
 import io.yupiik.fusion.persistence.impl.translation.OracleTranslation;
@@ -68,6 +69,9 @@ public class DatabaseConfiguration extends ContextLessDatabaseConfiguration<Data
             }
             if (url.contains("postgres")) {
                 return new PostgresTranslation();
+            }
+            if (url.contains("jdbc:duckdb:")) {
+                return new DuckDBTranslation();
             }
             if (url.contains("jdbc:h2:") || url.contains("h2 database")) {
                 return new H2Translation();
