@@ -55,7 +55,7 @@ public class SimpleFlatEntityModel extends BaseEntity<SimpleFlatEntity, String> 
                 },
                 (instance, statement) -> statement.setString(1, instance.id()),
                 (id, statement) -> statement.setString(1, id),
-                (usedInstance, p) -> usedInstance,
+                (usedInstance, keys) -> usedInstance,
                 columns -> {
                     // /!\ lowercased!
                     final var id = stringOf(columns.indexOf("id"));

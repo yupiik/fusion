@@ -28,17 +28,10 @@ import io.yupiik.fusion.persistence.impl.query.StatementBinderImpl;
 import io.yupiik.fusion.persistence.spi.DatabaseTranslation;
 
 import javax.sql.DataSource;
-import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Types;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.OffsetDateTime;
-import java.time.ZonedDateTime;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
@@ -230,7 +223,7 @@ public class DatabaseImpl extends DefaultBaseDatabase implements Database, Conte
         requireNonNull(type, "no type set");
         requireNonNull(instances, "no instances set");
         final var model = entity(type);
-        try (final var stmt = new StatementBinderImpl(this, model.getInsertQuery(), connection)) {
+        try (final var stmt = new StatementBinderImpl(this, model.getBatchInsertQuery(), connection)) {
             final var preparedStatement = stmt.getPreparedStatement();
             while (instances.hasNext()) {
                 model.onInsert(instances.next(), preparedStatement);
@@ -320,18 +313,56 @@ public class DatabaseImpl extends DefaultBaseDatabase implements Database, Conte
         requireNonNull(connection, "connection must not be null");
         requireNonNull(instance, "can't persist a null instance");
         final var model = (Entity<T, ?>) entity(instance.getClass());
-        final var insertQuery = model.getInsertQuery();
-        try (final var stmt = !model.isAutoIncremented() ?
-                connection.prepareStatement(insertQuery) :
-                connection.prepareStatement(insertQuery, PreparedStatement.RETURN_GENERATED_KEYS)) {
-            final var inst = model.onInsert(instance, stmt);
-            if (stmt.executeUpdate() == 0) {
-                throw new PersistenceException("Can't save " + instance);
+        final var insertQuery = model.getSingularInsertQuery();
+        try {
+            if (!model.isAutoIncremented()) {
+                try (final var stmt = connection.prepareStatement(insertQuery)) {
+                    final var inst = model.onInsert(instance, stmt);
+                    if (stmt.executeUpdate() == 0) {
+                        throw new PersistenceException("Can't save " + instance);
+                    }
+                    return model.onAfterInsert(inst, (ResultSet) null);
+                }
             }
-            return model.onAfterInsert(inst, stmt);
+
+            final var returning = !getTranslation().supportsGeneratedKeys();
+            // translation with getGeneratedKeys() uses RETURN_GENERATED_KEYS and reads them through
+            // Statement#getGeneratedKeys(); otherwise the singular insert query already carries a
+            // RETURNING clause (see BaseEntity#singularizeInsert) and the keys come from its result set.
+            // The RETURNING branch must use the single-arg prepareStatement overload: some drivers
+            // (e.g. DuckDB) only implement it and reject the two-argument ones.
+            try (final var stmt = returning
+                    ? connection.prepareStatement(insertQuery)
+                    : connection.prepareStatement(insertQuery, PreparedStatement.RETURN_GENERATED_KEYS)) {
+                final var inst = model.onInsert(instance, stmt);
+                try (final var keys = generatedKeys(stmt, returning, instance)) {
+                    return model.onAfterInsert(inst, keys);
+                }
+            }
         } catch (final SQLException ex) {
             throw new PersistenceException(ex);
         }
+    }
+
+    private static <T> ResultSet generatedKeys(final PreparedStatement stmt, final boolean returning,
+                                               final T instance) throws SQLException {
+        if (returning) {
+            final var rset = stmt.executeQuery();
+            if (!rset.next()) {
+                rset.close();
+                throw new PersistenceException("Can't save " + instance);
+            }
+            return rset;
+        }
+        if (stmt.executeUpdate() == 0) {
+            throw new PersistenceException("Can't save " + instance);
+        }
+        final var keys = stmt.getGeneratedKeys();
+        if (!keys.next()) {
+            keys.close();
+            throw new PersistenceException("No generated key available");
+        }
+        return keys;
     }
 
     @Override
@@ -505,39 +536,11 @@ public class DatabaseImpl extends DefaultBaseDatabase implements Database, Conte
     }
 
     public void doBind(final PreparedStatement statement, final int idx, final Object value, final Class<?> type) throws SQLException {
-        if (value == null) {
-            bindNull(statement, idx, type);
-        } else {
-            statement.setObject(idx, value);
-        }
+        translation.bind(statement, idx, value, type);
     }
 
     public void bindNull(final PreparedStatement statement, final int idx, final Class<?> type) throws SQLException {
-        if (String.class == type) {
-            statement.setNull(idx, Types.VARCHAR);
-        } else if (byte[].class == type) {
-            statement.setNull(idx, Types.VARBINARY);
-        } else if (Integer.class == type) {
-            statement.setNull(idx, Types.INTEGER);
-        } else if (Double.class == type) {
-            statement.setNull(idx, Types.DOUBLE);
-        } else if (Float.class == type) {
-            statement.setNull(idx, Types.FLOAT);
-        } else if (Long.class == type) {
-            statement.setNull(idx, Types.BIGINT);
-        } else if (Boolean.class == type) {
-            statement.setNull(idx, Types.BOOLEAN);
-        } else if (Date.class == type || LocalDate.class == type || LocalDateTime.class == type) {
-            statement.setNull(idx, Types.DATE);
-        } else if (OffsetDateTime.class == type || ZonedDateTime.class == type) {
-            statement.setNull(idx, Types.TIMESTAMP_WITH_TIMEZONE);
-        } else if (LocalTime.class == type) {
-            statement.setNull(idx, Types.TIME);
-        } else if (BigDecimal.class == type) {
-            statement.setNull(idx, Types.DECIMAL);
-        } else {
-            statement.setNull(idx, Types.OTHER);
-        }
+        translation.bindNull(statement, idx, type);
     }
 
     public Object lookup(final ResultSet resultSet, final String column, final Class<?> type) throws SQLException {
@@ -568,7 +571,7 @@ public class DatabaseImpl extends DefaultBaseDatabase implements Database, Conte
         if (Date.class == type) {
             return resultSet.getDate(column);
         }
-        return resultSet.getObject(column, type);
+        return translation.getObject(resultSet, column, type);
     }
 
     public Object lookup(final ResultSet resultSet, final int column, final Class<?> type) throws SQLException {
@@ -599,6 +602,6 @@ public class DatabaseImpl extends DefaultBaseDatabase implements Database, Conte
         if (Date.class == type) {
             return resultSet.getDate(column);
         }
-        return resultSet.getObject(column, type);
+        return translation.getObject(resultSet, column, type);
     }
 }

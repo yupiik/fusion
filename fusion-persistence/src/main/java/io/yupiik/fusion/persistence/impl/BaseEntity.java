@@ -47,6 +47,7 @@ public abstract class BaseEntity<A, B> extends BaseLookup implements Entity<A, B
     private final String updateById;
     private final String deleteById;
     private final String insert;
+    private final String singularInsert;
     private final String findAll;
     private final String countAll;
     private final List<ColumnMetadata> columns;
@@ -55,7 +56,7 @@ public abstract class BaseEntity<A, B> extends BaseLookup implements Entity<A, B
     private final SQLBiFunction<A, PreparedStatement, A> onUpdate;
     private final SQLBiConsumer<A, PreparedStatement> onDelete;
     private final SQLBiConsumer<B, PreparedStatement> onFindById;
-    private final SQLBiFunction<A, PreparedStatement, A> onAfterInsert;
+    private final SQLBiFunction<A, ResultSet, A> onAfterInsert;
     private final SQLFunction<List<String>, Function<ResultSet, A>> factory;
 
     // used by generation
@@ -67,7 +68,7 @@ public abstract class BaseEntity<A, B> extends BaseLookup implements Entity<A, B
                          final SQLBiFunction<A, PreparedStatement, A> onUpdate,
                          final SQLBiConsumer<A, PreparedStatement> onDelete,
                          final SQLBiConsumer<B, PreparedStatement> onFindById,
-                         final SQLBiFunction<A, PreparedStatement, A> onAfterInsert,
+                         final SQLBiFunction<A, ResultSet, A> onAfterInsert,
                          final SQLFunction<List<String>, Function<ResultSet, A>> factory) {
         this(
                 configuration, rootType, table,
@@ -99,7 +100,7 @@ public abstract class BaseEntity<A, B> extends BaseLookup implements Entity<A, B
                       final SQLBiFunction<A, PreparedStatement, A> onUpdate,
                       final SQLBiConsumer<A, PreparedStatement> onDelete,
                       final SQLBiConsumer<B, PreparedStatement> onFindById,
-                      final SQLBiFunction<A, PreparedStatement, A> onAfterInsert,
+                      final SQLBiFunction<A, ResultSet, A> onAfterInsert,
                       final SQLFunction<List<String>, Function<ResultSet, A>> factory) {
         this.configuration = configuration;
         this.rootType = rootType;
@@ -108,6 +109,7 @@ public abstract class BaseEntity<A, B> extends BaseLookup implements Entity<A, B
         this.updateById = updateById;
         this.deleteById = deleteById;
         this.insert = insert;
+        this.singularInsert = singularizeInsert(configuration, autoIncremented, columns, insert);
         this.findAll = findAll;
         this.countAll = countAll;
         this.columns = columns;
@@ -146,7 +148,18 @@ public abstract class BaseEntity<A, B> extends BaseLookup implements Entity<A, B
     }
 
     @Override
+    @Deprecated
     public String getInsertQuery() {
+        return getBatchInsertQuery();
+    }
+
+    @Override
+    public String getSingularInsertQuery() {
+        return singularInsert;
+    }
+
+    @Override
+    public String getBatchInsertQuery() {
         return insert;
     }
 
@@ -191,8 +204,8 @@ public abstract class BaseEntity<A, B> extends BaseLookup implements Entity<A, B
     }
 
     @Override
-    public A onAfterInsert(final A instance, final PreparedStatement statement) throws SQLException {
-        return onAfterInsert.apply(instance, statement);
+    public A onAfterInsert(final A instance, final ResultSet keys) throws SQLException {
+        return onAfterInsert.apply(instance, keys);
     }
 
     @Override
@@ -366,30 +379,60 @@ public abstract class BaseEntity<A, B> extends BaseLookup implements Entity<A, B
         return r -> r.getDate(idx);
     }
 
+    /**
+     * @deprecated generated entities read non-native column types through {@link io.yupiik.fusion.persistence.spi.DatabaseTranslation#reader}
+     * instead of the {@code *Of} helpers: this method is kept for backward compatibility.
+     */
+    @Deprecated(forRemoval = true, since = "1.1.0")
     protected static SQLFunction<ResultSet, BigInteger> bigintegerOf(final int index) {
         return objectOf(index, BigInteger.class);
     }
 
+    /**
+     * @deprecated see {@link #bigintegerOf(int)}.
+     */
+    @Deprecated(forRemoval = true, since = "1.1.0")
     protected static SQLFunction<ResultSet, LocalDate> localdateOf(final int index) {
         return objectOf(index, LocalDate.class);
     }
 
+    /**
+     * @deprecated see {@link #bigintegerOf(int)}.
+     */
+    @Deprecated(forRemoval = true, since = "1.1.0")
     protected static SQLFunction<ResultSet, LocalTime> localtimeOf(final int index) {
         return objectOf(index, LocalTime.class);
     }
 
+    /**
+     * @deprecated see {@link #bigintegerOf(int)}.
+     */
+    @Deprecated(forRemoval = true, since = "1.1.0")
     protected static SQLFunction<ResultSet, LocalDateTime> localdatetimeOf(final int index) {
         return objectOf(index, LocalDateTime.class);
     }
 
+    /**
+     * @deprecated see {@link #bigintegerOf(int)}.
+     */
+    @Deprecated(forRemoval = true, since = "1.1.0")
     protected static SQLFunction<ResultSet, OffsetDateTime> offsetdatetimeOf(final int index) {
         return objectOf(index, OffsetDateTime.class);
     }
 
+    /**
+     * @deprecated see {@link #bigintegerOf(int)}.
+     */
+    @Deprecated(forRemoval = true, since = "1.1.0")
     protected static SQLFunction<ResultSet, ZonedDateTime> zoneddatetimeOf(final int index) {
         return objectOf(index, ZonedDateTime.class);
     }
 
+    /**
+     * @deprecated shared reader of the superseded {@code *Of} helpers: use
+     * {@link io.yupiik.fusion.persistence.spi.DatabaseTranslation#reader} instead.
+     */
+    @Deprecated(forRemoval = true, since = "1.1.0")
     protected static <T> SQLFunction<ResultSet, T> objectOf(final int index, final Class<T> type) {
         if (index < 0) {
             return r -> null;
@@ -414,11 +457,31 @@ public abstract class BaseEntity<A, B> extends BaseLookup implements Entity<A, B
         return r -> r.getBytes(idx);
     }
 
-    private static String byIdWhereClause(final DatabaseConfiguration configuration, final List<ColumnMetadata> columns) {
+private static String byIdWhereClause(final DatabaseConfiguration configuration, final List<ColumnMetadata> columns) {
         return " WHERE " + columns.stream()
                 .filter(it -> it.idIndex() >= 0)
                 .map(f -> configuration.getTranslation().wrapFieldName(f.columnName()) + " = ?")
                 .collect(joining(" AND "));
+    }
+
+    /**
+     * Builds the singular insert statement: when the entity is auto incremented and the dialect does not
+     * support {@code getGeneratedKeys()}, appends a RETURNING clause reading the generated id(s) back so
+     * {@code insert} never has to compute it on each call. Otherwise returns the plain insert.
+     */
+    private static String singularizeInsert(final DatabaseConfiguration configuration, final boolean autoIncremented,
+                                            final List<ColumnMetadata> columns, final String insert) {
+        if (!autoIncremented || configuration.getTranslation().supportsGeneratedKeys()) {
+            return insert;
+        }
+        final var idColumns = columns.stream()
+                .filter(it -> it.idIndex() >= 0 && it.autoIncremented())
+                .map(Entity.ColumnMetadata::columnName)
+                .toList();
+        if (idColumns.isEmpty()) {
+            throw new PersistenceException("No auto incremented id column found");
+        }
+        return configuration.getTranslation().withReturningColumns(insert, idColumns);
     }
 
     private static String fieldsCommaSeparated(final DatabaseConfiguration configuration,

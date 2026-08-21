@@ -50,14 +50,7 @@ public class AutoIncrementEntityModel extends BaseEntity<AutoIncrementEntity, Lo
                 },
                 (instance, statement) -> statement.setLong(1, instance.id()),
                 (id, statement) -> statement.setLong(1, id),
-                (usedInstance, p) -> {
-                    try (final var rset = p.getGeneratedKeys()) {
-                        if (!rset.next()) {
-                            throw new PersistenceException("No generated key available");
-                        }
-                        return new AutoIncrementEntity(rset.getLong(1), usedInstance.name());
-                    }
-                },
+                (usedInstance, rset) -> new AutoIncrementEntity(rset.getLong(1), usedInstance.name()),
                 columns -> {
                     final var id = longOf(columns.indexOf("id"), false);
                     final var name = stringOf(columns.indexOf("name"));
