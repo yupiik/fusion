@@ -27,6 +27,7 @@ import io.yupiik.fusion.framework.processor.internal.metadata.MetadataContributo
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
 import java.util.List;
@@ -66,8 +67,10 @@ public class BeanGenerator extends BaseGenerator implements Supplier<BaseGenerat
     public BaseGenerator.GeneratedClass get() {
         final var scope = findScope(element);
         final int priority = findPriority(element);
-        final var postConstruct = callMethodsWithMarker(element, init);
-        final var preDestroy = callMethodsWithMarker(element, destroy);
+        final var lifecycle = element instanceof TypeElement te ?
+                elements.findAnnotatedMethods(te, init, destroy) : null;
+        final var postConstruct = lifecycle == null ? "" : callMethodsWithMarker(lifecycle.get(init));
+        final var preDestroy = lifecycle == null ? "" : callMethodsWithMarker(lifecycle.get(destroy));
         final var constructorInjections = constructorInjectionsFor(element);
 
         final var out = new StringBuilder(2048);
@@ -154,11 +157,8 @@ public class BeanGenerator extends BaseGenerator implements Supplier<BaseGenerat
         return "    instance." + injection.name() + " = " + injectionLookup(injection) + ";\n";
     }
 
-    private String callMethodsWithMarker(final Element element, final TypeMirror marker) { // todo: support parent or better to use @Override?
-        if (!(element instanceof TypeElement te)) {
-            return "";
-        }
-        final var calls = findMethods(te, marker)
+    private String callMethodsWithMarker(final List<ExecutableElement> methods) {
+        final var calls = methods.stream()
                 .peek(e -> {
                     if (e.getModifiers().contains(PRIVATE)) {
                         processingEnv.getMessager().printMessage(ERROR, "Private methods are unsupported for now: '" +

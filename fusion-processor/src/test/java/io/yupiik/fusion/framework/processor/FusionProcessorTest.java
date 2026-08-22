@@ -441,6 +441,42 @@ class FusionProcessorTest {
     }
 
     @Test
+    void lifecycleDestroyInheritedFromParent(@TempDir final Path work) throws IOException {
+        final var ref = new AtomicReference<Instance<?>>();
+        new Compiler(work, "Child", "BaseType").compileAndAsserts((loader, container) -> {
+            final var instance = container.lookup(loader.apply("test.p.Child"));
+            ref.set(instance);
+            assertEquals("destroyed=0, by=", instance.instance().toString());
+        });
+        // no override in the child so the parent @Destroy callback implementation is the one invoked
+        assertEquals("destroyed=1, by=BaseType", ref.get().instance().toString());
+    }
+
+    @Test
+    void lifecycleDestroyOverriddenByChild(@TempDir final Path work) throws IOException {
+        final var ref = new AtomicReference<Instance<?>>();
+        new Compiler(work, "ChildOverridingDestroy", "BaseType").compileAndAsserts((loader, container) -> {
+            final var instance = container.lookup(loader.apply("test.p.ChildOverridingDestroy"));
+            ref.set(instance);
+            assertEquals("destroyed=0, by=", instance.instance().toString());
+        });
+        // an override not carrying @Destroy shadows the inherited callback: nothing is invoked for this bean
+        assertEquals("destroyed=0, by=", ref.get().instance().toString());
+    }
+
+    @Test
+    void lifecycleDestroyOverriddenAndReAnnotatedByChild(@TempDir final Path work) throws IOException {
+        final var ref = new AtomicReference<Instance<?>>();
+        new Compiler(work, "ChildOverridingAnnotatedDestroy", "BaseType").compileAndAsserts((loader, container) -> {
+            final var instance = container.lookup(loader.apply("test.p.ChildOverridingAnnotatedDestroy"));
+            ref.set(instance);
+            assertEquals("destroyed=0, by=", instance.instance().toString());
+        });
+        // both declarations carry @Destroy but only the most derived one must be invoked, exactly once
+        assertEquals("destroyed=1, by=ChildOverridingAnnotatedDestroy", ref.get().instance().toString());
+    }
+
+    @Test
     void emitting(@TempDir final Path work) throws IOException {
         new Compiler(work, "Emitting").compileAndAsserts((loader, container) -> {
             final var events = new ArrayList<String>();

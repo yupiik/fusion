@@ -13,3 +13,6 @@ generated_*
 .sdkmanrc
 dependency-reduced-pom.xml
 
+
+# graft's local graph cache — regenerable, not committed (run `graft build`).
+/graft/

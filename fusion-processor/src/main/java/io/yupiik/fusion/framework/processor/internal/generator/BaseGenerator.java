@@ -150,12 +150,6 @@ public abstract class BaseGenerator {
         return elements.isComparable(type);
     }
 
-    protected Stream<ExecutableElement> findMethods(final TypeElement element, final TypeMirror marker) {
-        return elements.findMethods(element)
-                .filter(it -> it.getAnnotationMirrors().stream()
-                        .anyMatch(a -> processingEnv.getTypeUtils().isSameType(a.getAnnotationType(), marker)));
-    }
-
     protected int findPriority(final Element element) {
         return ofNullable(element.getAnnotation(Order.class)).map(Order::value).orElse(1000);
     }

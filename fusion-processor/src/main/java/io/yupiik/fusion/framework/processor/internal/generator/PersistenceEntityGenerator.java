@@ -111,22 +111,23 @@ public class PersistenceEntityGenerator extends BaseGenerator implements Supplie
         // todo: avoid to visit so often the methods and do a single visitor to capture them all?
         // note: in practise not critical for a record (few methods) but better
 
-        final var onInsertCb = findMethods(type, onInsert).peek(this::isNotPrivate).toList();
+        final var entityCallbacks = elements.findAnnotatedMethods(type, onInsert, onUpdate, onDelete, onLoad);
+        final var onInsertCb = entityCallbacks.get(onInsert).stream().peek(this::isNotPrivate).toList();
         if (onInsertCb.size() > 1) {
             throw new IllegalArgumentException("Multiple @OnInsert were found, this behavior is forbidden for now because not deterministic.");
         }
 
-        final var onUpdateCb = findMethods(type, onUpdate).peek(this::isNotPrivate).toList();
+        final var onUpdateCb = entityCallbacks.get(onUpdate).stream().peek(this::isNotPrivate).toList();
         if (onUpdateCb.size() > 1) {
             throw new IllegalArgumentException("Multiple @OnUpdate were found, this behavior is forbidden for now because not deterministic.");
         }
 
-        final var onDeleteCb = findMethods(type, onDelete).peek(this::isNotPrivate).toList();
+        final var onDeleteCb = entityCallbacks.get(onDelete).stream().peek(this::isNotPrivate).toList();
         if (onDeleteCb.size() > 1) {
             throw new IllegalArgumentException("Multiple @OnDelete were found, this behavior is forbidden for now because not deterministic.");
         }
 
-        final var onLoadCb = findMethods(type, onLoad).peek(this::isNotPrivate).toList();
+        final var onLoadCb = entityCallbacks.get(onLoad).stream().peek(this::isNotPrivate).toList();
         if (onLoadCb.size() > 1) {
             throw new IllegalArgumentException("Multiple @OnLoad were found, this behavior is forbidden for now because not deterministic.");
         }
