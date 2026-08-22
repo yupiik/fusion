@@ -18,11 +18,31 @@ package io.yupiik.fusion.cli.internal;
 import io.yupiik.fusion.framework.api.container.FusionBean;
 import io.yupiik.fusion.framework.api.container.FusionModule;
 
+import java.util.List;
+import java.util.Locale;
 import java.util.stream.Stream;
 
 public class CliModule implements FusionModule {
     @Override
     public Stream<FusionBean<?>> beans() {
-        return Stream.of(new CliAwaiterBean());
+        return Stream.concat(
+                Stream.of(new CliAwaiterBean()),
+                resolveShells().stream().map(CliShell::newCommand));
+    }
+
+    private static List<CliShell> resolveShells() {
+        return CliShell.select(
+                resolve("fusion.cli.shell", "FUSION_CLI_SHELL"),
+                System.getenv("SHELL"),
+                isWindows());
+    }
+
+    private static String resolve(final String property, final String env) {
+        final var value = System.getProperty(property);
+        return value != null && !value.isBlank() ? value : System.getenv(env);
+    }
+
+    private static boolean isWindows() {
+        return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
     }
 }

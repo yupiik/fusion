@@ -54,12 +54,15 @@ import io.yupiik.fusion.persistence.api.Database;
 import io.yupiik.fusion.persistence.api.Entity;
 import io.yupiik.fusion.persistence.impl.DatabaseConfiguration;
 import io.yupiik.fusion.persistence.impl.translation.DefaultTranslation;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
 import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.api.parallel.ResourceLock;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -109,8 +112,20 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
+import static org.junit.jupiter.api.parallel.Resources.SYSTEM_PROPERTIES;
 
+@ResourceLock(SYSTEM_PROPERTIES)
 class FusionProcessorTest {
+    @BeforeAll
+    static void pinCliShell() {
+        System.setProperty("fusion.cli.shell", "all");
+    }
+
+    @AfterAll
+    static void clearCliShell() {
+        System.clearProperty("fusion.cli.shell");
+    }
+
     @Test
     void reuseParentConstructorInSubClass(@TempDir final Path work) throws IOException {
         final var compiler = new Compiler(work, "AppScopedBeanWithoutSubClassFriendlyConstructor");
@@ -2607,7 +2622,10 @@ class FusionProcessorTest {
                         """
                                 Missing command 'unknown':
                                 Commands:
-                                  np    A command without any configuration prefix.
+                                  completion/bash          Print a bash completion script. Usage: <app> completion bash > /etc/bash_completion.d/<app> (then source it, or eval "$(<app> completion bash)").
+                                  completion/powershell    Print a PowerShell completion script. Usage: add the output to your PowerShell profile, or run "<app> completion powershell | Out-String | Invoke-Expression".
+                                  completion/zsh           Print a zsh completion script. Usage: save the output as "_<app>" in a fpath directory (e.g. ~/.zfunc/_<app>) and add fpath+autoload -Uz compinit && compinit.
+                                  np                       A command without any configuration prefix.
 
                                 Options for 'np':
                                     --name            The name.
@@ -2831,8 +2849,11 @@ class FusionProcessorTest {
                         """
                                 Missing command 'unknown':
                                 Commands:
-                                  c1    A super command.
-                                
+                                  c1                       A super command.
+                                  completion/bash          Print a bash completion script. Usage: <app> completion bash > /etc/bash_completion.d/<app> (then source it, or eval "$(<app> completion bash)").
+                                  completion/powershell    Print a PowerShell completion script. Usage: add the output to your PowerShell profile, or run "<app> completion powershell | Out-String | Invoke-Expression".
+                                  completion/zsh           Print a zsh completion script. Usage: save the output as "_<app>" in a fpath directory (e.g. ~/.zfunc/_<app>) and add fpath+autoload -Uz compinit && compinit.
+
                                 Options for 'c1':
                                     --list                    -
                                     --name                    The main "name", e.g. {"a":"b\\\\c"}.
