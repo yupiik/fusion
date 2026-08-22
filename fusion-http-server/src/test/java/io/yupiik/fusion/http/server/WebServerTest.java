@@ -279,8 +279,8 @@ class WebServerTest {
     }
 
     private Thread[] listThreads(final ThreadGroup group) {
-        final var threads = new Thread[Thread.activeCount()];
+        final var threads = new Thread[Thread.activeCount() + 8];
         Thread.enumerate(threads);
-        return Stream.of(threads).filter(i -> i.getThreadGroup() == group).toArray(Thread[]::new);
+        return Stream.of(threads).filter(i -> i != null && i.getThreadGroup() == group).toArray(Thread[]::new);
     }
 }
