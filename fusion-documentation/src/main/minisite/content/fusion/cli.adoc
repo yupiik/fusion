@@ -83,3 +83,24 @@ Parents are implicit dispatchers and need no `@Command` class:
 == Launching
 
 `fusion-cli` provides an integration with `Launcher` main, if you don't use it, you will have to call yourself `CLIAwaiter` and register an instance of `Args`.
+
+== Shell completion
+
+Every Fusion CLI application exposes completion commands generating shell completion scripts
+(subcommands `completion/bash`, `completion/powershell` and `completion/zsh`): they register as regular
+`CliCommand` beans, so they appear in the app usage, documentation and their own completion.
+
+Only the completion command matching the current shell is registered by default: the shell is detected from
+`$SHELL` (bash/zsh) or the OS (powershell on Windows), defaulting to `bash`. You can force the set with the
+`fusion.cli.shell` configuration key (`fusion.cli.shell` or `FUSION_CLI_SHELL`):
+`bash`, `zsh`, `powershell` to keep a single one, `all` to register every shell, or `none` to register none.
+
+* bash: `my-app completion bash > /etc/bash_completion.d/my-app` then source it, or `eval "$(my-app completion bash)"`.
+* zsh: `my-app completion zsh > ~/.zfunc/_my-app` and add `fpath+autoload -Uz compinit && compinit`.
+* powershell: `my-app completion powershell | Out-String | Invoke-Expression` or paste the output into your `$PROFILE`.
+
+The application name used in the scripts defaults to `app` and can be overridden with the
+`fusion.cli.app.name` configuration key. Completion proposes subcommand segments while the command path is
+incomplete, then the `--options` of the resolved leaf command. For testing, `completion/bash` also reads the
+`comp.line` and `comp.point` configuration keys (the `COMP_LINE`/`COMP_POINT` environment variables set by the
+shell completer) to report the candidates for an arbitrary cursor position instead of printing the script.
