@@ -25,9 +25,11 @@ import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.ByteBuffer;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.Flow;
 import java.util.logging.Handler;
 import java.util.logging.Level;
@@ -41,7 +43,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 class CurlLoggerListenerTest {
     @Test
     void getWithoutPayload() {
-        final var listener = new CurlLoggerListener(Logger.getLogger("test"), false);
+        final var listener = new CurlLoggerListener(new CurlLoggerListener.Configuration(Logger.getLogger("test")));
         final var request = new UnlockedHttpRequest(
                 "GET", URI.create("http://localhost:1234/test1"),
                 HttpHeaders.of(Map.of("Accept", List.of("*/*")), (a, b) -> true));
@@ -53,7 +55,7 @@ class CurlLoggerListenerTest {
 
     @Test
     void postWithPayloadAndSingleQuote() {
-        final var listener = new CurlLoggerListener(Logger.getLogger("test"), false);
+        final var listener = new CurlLoggerListener(new CurlLoggerListener.Configuration(Logger.getLogger("test")));
         final var request = new UnlockedHttpRequest(
                 "POST", URI.create("http://localhost:1234/test1"),
                 HttpRequest.BodyPublishers.ofString("{\"name\":\"it's\"}"),
@@ -66,8 +68,85 @@ class CurlLoggerListenerTest {
     }
 
     @Test
+    void defaultSensitiveHeadersAreMasked() {
+        final var listener = new CurlLoggerListener(new CurlLoggerListener.Configuration(Logger.getLogger("test")));
+        final var headers = new LinkedHashMap<String, List<String>>();
+        headers.put("Authorization", List.of("Bearer secret"));
+        headers.put("X-API-Key", List.of("key-value"));
+        headers.put("Set-Cookie", List.of("session=abc"));
+        headers.put("Accept", List.of("*/*"));
+        final var request = new UnlockedHttpRequest(
+                "GET", URI.create("http://localhost:1234/test1"),
+                HttpHeaders.of(headers, (a, b) -> true));
+        assertEquals(
+                "curl -X GET 'http://localhost:1234/test1' \\\n" +
+                        "  -H 'Accept: */*' \\\n" +
+                        "  -H 'Authorization: ******' \\\n" +
+                        "  -H 'Set-Cookie: ******' \\\n" +
+                        "  -H 'X-API-Key: ******'",
+                listener.toLogMessage(request, null, null, response(200, request)));
+    }
+
+    @Test
+    void emptySensitiveHeadersDisableMasking() {
+        final var listener = new CurlLoggerListener(new CurlLoggerListener.Configuration(Logger.getLogger("test"))
+                .setSensitiveHeaders(Set.of()));
+        final var request = new UnlockedHttpRequest(
+                "GET", URI.create("http://localhost:1234/test1"),
+                HttpHeaders.of(Map.of("Authorization", List.of("Bearer secret")), (a, b) -> true));
+        assertEquals(
+                "curl -X GET 'http://localhost:1234/test1' \\\n" +
+                        "  -H 'Authorization: Bearer secret'",
+                listener.toLogMessage(request, null, null, response(200, request)));
+    }
+
+    @Test
+    void sensitiveRequestHeadersAreMasked() {
+        final var listener = new CurlLoggerListener(new CurlLoggerListener.Configuration(
+                Logger.getLogger("test")).setSensitiveHeaders(List.of("Authorization", "X-API-Key")));
+        final var headers = new LinkedHashMap<String, List<String>>();
+        headers.put("Authorization", List.of("Bearer secret"));
+        headers.put("x-api-key", List.of("key-value"));
+        headers.put("Accept", List.of("*/*"));
+        final var request = new UnlockedHttpRequest(
+                "GET", URI.create("http://localhost:1234/test1"),
+                HttpHeaders.of(headers, (a, b) -> true));
+        assertEquals(
+                "curl -X GET 'http://localhost:1234/test1' \\\n" +
+                        "  -H 'Accept: */*' \\\n" +
+                        "  -H 'Authorization: ******' \\\n" +
+                        "  -H 'x-api-key: ******'",
+                listener.toLogMessage(request, null, null, response(200, request)));
+    }
+
+    @Test
+    void sensitiveResponseHeadersAreMasked() {
+        final var listener = new CurlLoggerListener(new CurlLoggerListener.Configuration(
+                Logger.getLogger("test"))
+                .setLogPayload(true)
+                .setSensitiveHeaders(Set.of("set-cookie")));
+        final var request = new UnlockedHttpRequest(
+                "GET", URI.create("http://localhost:1234/test1"),
+                HttpHeaders.of(Map.of(), (a, b) -> true));
+        assertEquals(
+                "curl -i -X GET 'http://localhost:1234/test1'\n" +
+                        "HTTP/1.1 200\n" +
+                        "Set-Cookie: ******\n" +
+                        "\n" +
+                        "",
+                listener.toLogMessage(request, null, null,
+                        response(200, request, Map.of("Set-Cookie", List.of("session=abc")), "")));
+    }
+
+    @Test
+    void configurationRequiresALogger() {
+        assertThrows(NullPointerException.class, () -> new CurlLoggerListener.Configuration(null));
+        assertThrows(NullPointerException.class, () -> new CurlLoggerListener(null));
+    }
+
+    @Test
     void responseIsFormattedLikeCurlOutput() {
-        final var listener = new CurlLoggerListener(Logger.getLogger("test"), true);
+        final var listener = new CurlLoggerListener(new CurlLoggerListener.Configuration(Logger.getLogger("test")).setLogPayload(true));
         final var request = new UnlockedHttpRequest(
                 "GET", URI.create("http://localhost:1234/test1"),
                 HttpHeaders.of(Map.of(), (a, b) -> true));
@@ -83,7 +162,7 @@ class CurlLoggerListenerTest {
 
     @Test
     void responseWithoutHeadersIsFormattedLikeCurlOutput() {
-        final var listener = new CurlLoggerListener(Logger.getLogger("test"), true);
+        final var listener = new CurlLoggerListener(new CurlLoggerListener.Configuration(Logger.getLogger("test")).setLogPayload(true));
         final var request = new UnlockedHttpRequest(
                 "GET", URI.create("http://localhost:1234/test1"),
                 HttpHeaders.of(Map.of(), (a, b) -> true));
@@ -97,7 +176,7 @@ class CurlLoggerListenerTest {
 
     @Test
     void errorIsLoggedLikeCurl() {
-        final var listener = new CurlLoggerListener(Logger.getLogger("test"), true);
+        final var listener = new CurlLoggerListener(new CurlLoggerListener.Configuration(Logger.getLogger("test")).setLogPayload(true));
         final var request = new UnlockedHttpRequest(
                 "GET", URI.create("http://localhost:1234/test1"),
                 HttpHeaders.of(Map.of(), (a, b) -> true));
@@ -109,7 +188,7 @@ class CurlLoggerListenerTest {
 
     @Test
     void beforeKeepsBodyReusable() {
-        final var listener = new CurlLoggerListener(Logger.getLogger("test"), true);
+        final var listener = new CurlLoggerListener(new CurlLoggerListener.Configuration(Logger.getLogger("test")).setLogPayload(true));
         final var request = new UnlockedHttpRequest(
                 "POST", URI.create("http://localhost:1234/test1"),
                 HttpRequest.BodyPublishers.ofString("payload"),
@@ -126,7 +205,7 @@ class CurlLoggerListenerTest {
         logger.addHandler(capture);
 
         try {
-            final var listener = new CurlLoggerListener(logger, true);
+            final var listener = new CurlLoggerListener(new CurlLoggerListener.Configuration(logger).setLogPayload(true));
             final var request = new UnlockedHttpRequest(
                     "GET", URI.create("http://localhost:1234/test1"),
                     HttpHeaders.of(Map.of(), (a, b) -> true));
@@ -146,7 +225,7 @@ class CurlLoggerListenerTest {
     void disabledLoggerDoesNotEvaluateMessage() {
         final var logger = Logger.getLogger("curl-disabled-" + System.nanoTime());
         logger.setLevel(Level.OFF);
-        final var listener = new CurlLoggerListener(logger, false);
+        final var listener = new CurlLoggerListener(new CurlLoggerListener.Configuration(logger).setLogPayload(false));
         final var request = new UnlockedHttpRequest(
                 "GET", URI.create("http://localhost:1234/test1"),
                 HttpHeaders.of(Map.of(), (a, b) -> true));
@@ -155,7 +234,7 @@ class CurlLoggerListenerTest {
 
     @Test
     void failingBodyPublisherIsWrapped() {
-        final var listener = new CurlLoggerListener(Logger.getLogger("test"), false);
+        final var listener = new CurlLoggerListener(new CurlLoggerListener.Configuration(Logger.getLogger("test")));
         final var failing = new HttpRequest.BodyPublisher() {
             @Override
             public long contentLength() {
