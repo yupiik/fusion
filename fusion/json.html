@@ -98,7 +98,8 @@
         }
     </style>
     
-    <link id="theme-style" rel="stylesheet" href="//www.yupiik.io/fusion/css/theme.css?v=1.0.33-SNAPSHOT">
+    <link id="theme-style" rel="stylesheet" href="//www.yupiik.io/fusion/css/theme.css?v=1.1.1-SNAPSHOT">
+<link rel="stylesheet" href="//www.yupiik.io/fusion/css/llm-chat.css?v=1.1.1-SNAPSHOT">
 </head>
 <body>
     <header class="header fixed-top">
@@ -140,12 +141,12 @@
                         <i class="fas fa-building"></i>Setup
                     </a>
                 </li>                <li>
-                    <a title="Fusion JSON support" href="//www.yupiik.io/fusion/fusion/json.html">
-                        <i class="fas fa-wifi"></i>JSON
-                    </a>
-                </li>                <li>
                     <a title="Fusion CLI" href="//www.yupiik.io/fusion/fusion/cli.html">
                         <i class="fas fa-terminal"></i>CLI
+                    </a>
+                </li>                <li>
+                    <a title="Fusion JSON support" href="//www.yupiik.io/fusion/fusion/json.html">
+                        <i class="fas fa-wifi"></i>JSON
                     </a>
                 </li>                <li>
                     <a title="framework and GraalVM (native-image)" href="//www.yupiik.io/fusion/fusion/graalvm.html">
@@ -246,7 +247,8 @@ Supported primitives are <div class="ulist">
   &lt;groupId&gt;${project.groupId}&lt;/groupId&gt;
   &lt;artifactId&gt;fusion-json&lt;/artifactId&gt;
   &lt;version&gt;${project.version}&lt;/version&gt;
-&lt;/dependency&gt;</code></pre>
+&lt;/dependency&gt;
+</code></pre>
  </div>
  </div>
  </div>
@@ -289,7 +291,8 @@ public record MyModel(
     Map&lt;String, String&gt; mapStringString,
     Map&lt;String, Integer&gt; mapStringInt,
     Map&lt;String, AnotherModel&gt; mapNested) {
-}</code></pre>
+}
+</code></pre>
  </div>
  </div>
  <div class="admonitionblock warning">
@@ -324,8 +327,25 @@ public class MyService extends HttpServlet {
             mapper.write(createMyModelInstance(req), out);
         }
     }
-}</code></pre>
+}
+</code></pre>
  </div>
+ </div>
+ <div class="admonitionblock tip">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">TIP</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p>for byte oriented sources/sinks prefer the <code>InputStream</code>/<code>OutputStream</code> flavors (<code>mapper.read(MyModel.class, inputStream)</code>, <code>mapper.write(instance, outputStream)</code>, both UTF-8): the mapper does the UTF-8 conversion itself with a decoder optimized for JSON payloads which is faster than an <code>InputStreamReader</code>/<code>OutputStreamWriter</code> bridge.</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
  </div>
  </div>
  </div>
@@ -353,7 +373,8 @@ Enumerations (de)serialization behavior can be customized by using some specific
             default -&gt; throw new IllegalArgumentException(&quot;Unsupported '&quot; + v + &quot;'&quot;);
         };
     }
-}</code></pre>
+}
+</code></pre>
  </div>
  </div>
  <div class="colist arabic">
@@ -400,7 +421,8 @@ final var patch = new GenericJsonPatch(List.of(new JsonPatchOperation(add, &quot
 // &quot;runtime&quot;
 final var object = Map.of(&quot;foo&quot;, &quot;bar&quot;);
 final var patched = patch.apply(object);
-// patched={&quot;foo&quot;:&quot;bar&quot;,&quot;baz&quot;:&quot;qux&quot;}</code></pre>
+// patched={&quot;foo&quot;:&quot;bar&quot;,&quot;baz&quot;:&quot;qux&quot;}
+</code></pre>
  </div>
  </div>
  </div>
@@ -437,7 +459,8 @@ public class MyService {
         validator.close();
         return result.isSuccess(); <b class="conum">(5)</b>
     }
-}</code></pre>
+}
+</code></pre>
  </div>
  </div>
  <div class="colist arabic">
@@ -481,7 +504,112 @@ If the validation failed, the result object of the apply method will contain a l
  <div class="content">
  <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">final var result = validator.apply(myModel);
 final var error = result.errors().iterator().next();
-logger.info(&quot;Error on field '&quot; + error.field() + &quot;' &quot; + error.message());</code></pre>
+logger.info(&quot;Error on field '&quot; + error.field() + &quot;' &quot; + error.message());
+</code></pre>
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>
+If the validation failed, the result object of the apply method will contain a list of the messages for each validation check:
+ </p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">final var result = validator.apply(myModel);
+final var error = result.errors().iterator().next();
+logger.info(&quot;Error on field '&quot; + error.field() + &quot;' &quot; + error.message());
+</code></pre>
+ </div>
+ </div>
+ </div>
+ </div>
+ <div class="sect1" id="_json_schema_draft_202012_conversion">
+  <h2>Json Schema Draft 2020-12 conversion</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>The JSON schemas emitted by the annotation processor use a lightweight Draft-07/OpenAPI hybrid format: they rely on a<code>nullable</code> keyword and reference shared models with <code>#/schemas/&lt;fqn&gt;</code> pointers. When you need a &gt; document, use<code>io.yupiik.fusion.json.schema.JsonSchemaService</code> to convert them in a purely structural and reflectionless way.</p>
+ </div>
+ <div class="paragraph">
+ <p>The conversion is applied on the generic JSON tree (//scalar values as produced by <code>JsonMapper</code>) and rewrites the schema keywords only, never the payload values:</p>
+ </div>
+ <div class="ulist">
+ <ul>
+  <li>
+ <div class="paragraph">
+ <p><code>nullable: true</code> becomes <code>type: [&quot;&lt;base&gt;&quot;, &quot;null&quot;]</code> (2020-12 dropped <code>nullable</code> in favor of <code>type</code> unions),</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p><code>definitions</code> and the generated <code>schemas</code> container are renamed <code>$defs</code>,</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p><code>#/definitions/...</code> and <code>#/schemas/...</code> references are relocated to <code>#/$defs/...</code>,</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p>a <code>$schema: https://json-schema.org/draft/2020-12/schema</code> header is added at the root when missing.</p>
+ </div>
+  </li>
+ </ul>
+ </div>
+ <div class="paragraph">
+ <p>Use it on a single schema, or on a whole <code>META-INF/fusion/json/schemas.json</code> bundle to get a self-contained document:</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">final JsonSchemaService service = new JsonSchemaService(); // or @Injection
+
+// convert a single generic schema
+final Map&lt;String, Object&gt; converted = service.toJsonSchema202012(rawSchemaMap); // <b class="conum">(1)</b>
+
+// convert the whole &quot;schemas.json&quot; bundle {&quot;schemas&quot;: {...}} into a document with a root $defs
+final var bundle = mapper.fromString(Object.class, json);
+final Map&lt;String, Object&gt; document = service.to2020Bundle((Map&lt;String, Object&gt;) bundle); // <b class="conum">(2)</b>
+</code></pre>
+ </div>
+ </div>
+ <div class="colist arabic">
+  <ol>
+   <li>
+<code>nullable:true</code> <span>
+ becomes 
+ </span>
+<code>type:[&quot;&lt;base&gt;&quot;,&quot;null&quot;]</code> <span>
+, refs become 
+ </span>
+<code>#/$defs/...</code> <span>
+,
+ </span>
+   </li>
+   <li>
+ <span>
+the document gets a 
+ </span>
+<code>$schema</code> <span>
+ header and a root 
+ </span>
+<code>$defs</code> <span>
+ map holding every model keyed by its 
+ </span>
+<code>$id</code> <span>
+.
+ </span>
+   </li>
+  </ol>
+ </div>
+ <div class="paragraph">
+ <p>The processor also ships a typed view (<code>RawBuildJsonSchema</code>) and a hand-written reflectionless <code>JsonCodec</code>(<code>RawBuildJsonSchemaJsonCodec</code>) so the generated schema payloads can be deserialized with a <code>JsonMapper</code> and then upgraded:</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">// read one schema-json payload into the typed model with the standard mapper
+final RawBuildJsonSchema schema = mapper.read(RawBuildJsonSchema.class, reader);
+final Map&lt;String, Object&gt; converted = service.toJsonSchema202012(schema); // -&gt; Draft 2020-12
+</code></pre>
  </div>
  </div>
  </div>
@@ -501,7 +629,7 @@ import io.yupiik.fusion.json.JsonMapper;
 import io.yupiik.fusion.json.pretty.PrettyJsonMapper;
 
 @Bean
-public class MyService {
+public class MyClass {
 
     @Injection
     JsonMapper jsonMapper;
@@ -510,7 +638,8 @@ public class MyService {
         final JsonMapper prettyJsonMapper = new PrettyJsonMapper(jsonMapper); <b class="conum">(1)</b>
         logger.info(jsonMapper.toString(MyClass));
     }
-}</code></pre>
+}
+</code></pre>
  </div>
  </div>
  <div class="colist arabic">
@@ -524,6 +653,207 @@ use the injected
  </span>
    </li>
   </ol>
+ </div>
+ </div>
+ </div>
+ <div class="sect1" id="_jsonconfigurationsource">
+  <h2>JsonConfigurationSource</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p><code>JsonConfigurationSource</code> is a <code>ConfigurationSource</code> that reads a JSON document and flattens it into a <code>Map&lt;String, String&gt;</code> accessible via dot-notation keys. It uses the generic <code>Object</code> mapping (<code>JsonMapper.fromString(Object.class, ...)</code>) to parse the JSON and then recursively flattens the result. The goal is to be able to register a custom JSON resource which serve as Yupiik Fusion <code>ConfigurationSource</code> - backing <code>Configuration</code> API.</p>
+ </div>
+ <div class="sect2" id="_creating_a_jsonconfigurationsource">
+  <h3>Creating a JsonConfigurationSource</h3>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>Use <code>ReaderSupplier</code> to load the JSON from a classpath resource, file, or inline reader:</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">import io.yupiik.fusion.framework.api.io.ReaderSupplier;
+import io.yupiik.fusion.json.configuration.JsonConfigurationSource;
+
+// from classpath
+final var source = new JsonConfigurationSource(
+    ReaderSupplier.fromClasspath(&quot;config.json&quot;));
+
+// from a file
+final var source = new JsonConfigurationSource(
+    ReaderSupplier.fromFile(Path.of(&quot;/etc/app/config.json&quot;)));
+
+// from a file
+final var source = new JsonConfigurationSource(
+    ReaderSupplier.fromInline(&quot;{\&quot;my\&quot;:\&quot;content\&quot;}&quot;);
+
+// from a resource or file with a default
+final var source = new JsonConfigurationSource(
+    ReaderSupplier.from(&quot;config.json&quot;, &quot;{\&quot;myDefaultPort\&quot;: 8080}&quot;));
+</code></pre>
+ </div>
+ </div>
+ </div>
+ </div>
+ <div class="sect2" id="_flattening_rules">
+  <h3>Flattening rules</h3>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>
+The JSON structure is flattened as follows:
+ </p>
+ </div>
+ <div class="ulist">
+ <ul>
+  <li>
+ <div class="paragraph">
+ <p><strong>Primitive values</strong> (<code>Boolean</code>, <code>String</code>, <code>BigDecimal</code>) are stored directly as strings at the current path.</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p><strong>Maps</strong> (JSON objects) are flattened as bean properties: each key becomes a path segment using dot-notation. Nested objects are recursively flattened.</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p><strong>Collections</strong> (JSON arrays) of primitives are serialized as comma-separated values. Collections of objects use a <code>.length</code> key and indexed children (<code>path.0.xxx</code>, <code>path.1.xxx</code>, ...).</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p><code>$asList</code> attribute on a map changes the flattening to use the list convention (<code>path.length</code>, <code>path.N.key</code>, <code>path.N.value</code>), which matches the <code>Map&lt;String, V&gt;</code> reading pattern in <code>ConfigurationFactoryGenerator</code>. When all values are primitives, the map is serialized as a <code>Properties</code>-format string. This enables to comply to <code>Map&lt;String, Object&gt;</code> handling of the configuration mapper.</p>
+ </div>
+  </li>
+ </ul>
+ </div>
+ </div>
+ </div>
+ <div class="sect2" id="_examples">
+  <h3>Examples</h3>
+ <div class="sectionbody">
+ <div class="sect3" id="_objects">
+  <h4>Objects</h4>
+ <div class="sectionbody">
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">final var source = new JsonConfigurationSource(mapper,
+    () -&gt; new StringReader(&quot;&quot;&quot;
+        {&quot;server&quot;: {&quot;host&quot;: &quot;localhost&quot;, &quot;port&quot;: 8080}}
+        &quot;&quot;&quot;));
+
+source.get(&quot;server.host&quot;); // &quot;localhost&quot;
+source.get(&quot;server.port&quot;); // &quot;8080&quot;
+</code></pre>
+ </div>
+ </div>
+ </div>
+ </div>
+ </div>
+ </div>
+ <div class="sect2" id="_collections">
+  <h3>Collections</h3>
+ <div class="sectionbody">
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">final var source = new JsonConfigurationSource(mapper,
+    () -&gt; new StringReader(&quot;&quot;&quot;
+        {&quot;tags&quot;: [&quot;tag1&quot;, &quot;tag2&quot;], &quot;items&quot;: [{&quot;name&quot;: &quot;a&quot;}, {&quot;name&quot;: &quot;b&quot;}]}
+        &quot;&quot;&quot;));
+
+// primitive collection &rarr; CSV
+source.get(&quot;tags&quot;); // &quot;tag1, tag2&quot;
+
+// object collection &rarr; length + indexed children
+source.get(&quot;items.length&quot;); // &quot;2&quot;
+source.get(&quot;items.0.name&quot;); // &quot;a&quot;
+source.get(&quot;items.1.name&quot;); // &quot;b&quot;
+</code></pre>
+ </div>
+ </div>
+ </div>
+ </div>
+ <div class="sect2" id="_map_support_with_aslist">
+  <h3>Map support with $asList</h3>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>When a JSON object represents a <code>Map&lt;String, V&gt;</code>, mark it with <code>&quot;$asList&quot;: true</code>:</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">final var source = new JsonConfigurationSource(mapper,
+    () -&gt; new StringReader(&quot;&quot;&quot;
+        {
+          &quot;config&quot;: {
+            &quot;$asList&quot;: true,
+            &quot;key1&quot;: {&quot;enabled&quot;: true},
+            &quot;key2&quot;: {&quot;enabled&quot;: false}
+          }
+        }
+        &quot;&quot;&quot;));
+
+source.get(&quot;config.length&quot;);      // &quot;2&quot;
+source.get(&quot;config.0.key&quot;);       // &quot;key1&quot;
+source.get(&quot;config.0.value.enabled&quot;); // &quot;true&quot;
+source.get(&quot;config.1.key&quot;);       // &quot;key2&quot;
+source.get(&quot;config.1.value.enabled&quot;); // &quot;false&quot;
+</code></pre>
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>For <code>Map&lt;String, String&gt;</code> with <code>$asList</code>, all-primitive values are serialized as a <code>Properties</code>-format string:</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">final var source = new JsonConfigurationSource(mapper,
+    () -&gt; new StringReader(&quot;&quot;&quot;
+        {&quot;metadata&quot;: {&quot;$asList&quot;: true, &quot;dc&quot;: &quot;us-east&quot;, &quot;env&quot;: &quot;prod&quot;}}
+        &quot;&quot;&quot;));
+
+// uses Properties.store() format, readable by Properties.load()
+final var value = source.get(&quot;metadata&quot;); // contains &quot;dc=us-east&quot; and &quot;env=prod&quot; - 2 lines
+</code></pre>
+ </div>
+ </div>
+ </div>
+ </div>
+ <div class="sect2" id="_registration">
+  <h3>Registration</h3>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>Since <code>ConfigurationSource</code> are just plain bean you can create a method marked with <code>@Bean</code> and return your instance of <code>JsonConfigurationSource</code>.</p>
+ </div>
+ <div class="admonitionblock important">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">IMPORTANT</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p>if you do use <code>Configuration</code> anywhere before your enclosing class and method is called, it will ignore your <code>ConfigurationSource</code> until you do re-register the <code>Configuration</code> instance or invalidate its singleton cache.</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ <div class="paragraph">
+ <p>An alternative to avoid that is to register the configuration source in a listener, listening for <code>ConfigurationRegistration</code> event:</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public class MyListener {
+    public void onStart(@OnEvent final ConfigurationRegistration event) {
+        event.addSource().accept(new JsonConfigurationSource(
+            ReaderSupplier.from(
+                    event.configuration().get(&quot;my.config.path&quot;).orElse(&quot;config.json&quot;),
+                    &quot;{\&quot;myDefaultPort\&quot;: 8080}&quot;)));
+    }
+}
+</code></pre>
+ </div>
+ </div>
+ </div>
  </div>
  </div>
  </div>
@@ -543,7 +873,7 @@ use the injected
               <li class="list-inline-item"><a title="Twitter" target="_blank" href="https://twitter.com/Yupiik/"><i class="fab fa-twitter fa-fw"></i></a></li>
               <li class="list-inline-item"><a title="Github" target="_blank" href="https://www.github.com/yupiik/fusion"><i class="fab fa-github fa-fw"></i></a></li>
 	        </ul>
-            <small class="copyright">© 2025 <strong><a href="https://www.yupiik.com">Yupiik</a></strong>. All Rights Reserved</small> | <a href="https://www.yupiik.com/terms-of-use/">Terms of use</a> | <a href="https://www.yupiik.com/privacy-policy/">Privacy policy</a>
+            <small class="copyright">© 2026 <strong><a href="https://www.yupiik.com">Yupiik</a></strong>. All Rights Reserved</small> | <a href="https://www.yupiik.com/terms-of-use/">Terms of use</a> | <a href="https://www.yupiik.com/privacy-policy/">Privacy policy</a>
 	    </div>
     </footer>
 
@@ -585,10 +915,18 @@ function addCopyButtons(clipboard) {
   document.querySelectorAll('pre > code').forEach(function (codeBlock) {
   var button = document.createElement('button');  button.className = 'copy-code-button';  button.type = 'button';  button.innerText = 'Copy';  button.addEventListener('click', function () {   clipboard.writeText(codeBlock.innerText).then(function () {   button.blur();   button.innerText = 'Copied!';   setTimeout(function () { button.innerText = 'Copy'; }, 2000); }, function (error) { button.innerText = 'Error'; });  });  var pre = codeBlock.parentNode;  if (pre.parentNode.classList.contains('highlight')) {   var highlight = pre.parentNode; highlight.parentNode.insertBefore(button, highlight);  } else { pre.parentNode.insertBefore(button, pre); } });}
 if (navigator && navigator.clipboard) { addCopyButtons(navigator.clipboard);} else { var script = document.createElement('script'); script.src = '//cdnjs.cloudflare.com/ajax/libs/clipboard-polyfill/2.7.0/clipboard-polyfill.promise.js'; script.integrity = 'sha256-waClS2re9NUbXRsryKoof+F9qc1gjjIhc2eT7ZbIv94='; script.crossOrigin = 'anonymous'; script.onload = function() {addCopyButtons(clipboard);}; document.body.appendChild(script);} }</script>
-    <script src="//www.yupiik.io/fusion/js/minisite.js?v=1.0.33-SNAPSHOT"></script>
+    <script src="//www.yupiik.io/fusion/js/minisite.js?v=1.1.1-SNAPSHOT"></script>
     <script>$('.page-content-body').generatedNavMenu();</script>
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/fuse.js/6.4.3/fuse.min.js" integrity="sha512-neoBxVNv0UMXjoilAYGxfWrSsW6iAVclx7vQKdPJ9Peet1bM5YQjU0aIB8LtH8iNPa+pAyMZprBBw2ZQ/Q1LjQ==" crossorigin="anonymous"></script>
 
+<div id="llm-chat-root" style="display:none"
+     data-model-id="Llama-3.2-3B-Instruct-q4f16_1-MLC"
+     data-base="//www.yupiik.io/fusion"></div>
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('//www.yupiik.io/fusion/llm-chat-sw.js', {scope: '/'});
+}
+</script>
+<script src="//www.yupiik.io/fusion/js/llm-chat.js?v=1.1.1-SNAPSHOT"></script>
 </body>
 </html>

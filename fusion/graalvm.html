@@ -98,7 +98,8 @@
         }
     </style>
     
-    <link id="theme-style" rel="stylesheet" href="//www.yupiik.io/fusion/css/theme.css?v=1.0.33-SNAPSHOT">
+    <link id="theme-style" rel="stylesheet" href="//www.yupiik.io/fusion/css/theme.css?v=1.1.1-SNAPSHOT">
+<link rel="stylesheet" href="//www.yupiik.io/fusion/css/llm-chat.css?v=1.1.1-SNAPSHOT">
 </head>
 <body>
     <header class="header fixed-top">
@@ -140,12 +141,12 @@
                         <i class="fas fa-building"></i>Setup
                     </a>
                 </li>                <li>
-                    <a title="Fusion JSON support" href="//www.yupiik.io/fusion/fusion/json.html">
-                        <i class="fas fa-wifi"></i>JSON
-                    </a>
-                </li>                <li>
                     <a title="Fusion CLI" href="//www.yupiik.io/fusion/fusion/cli.html">
                         <i class="fas fa-terminal"></i>CLI
+                    </a>
+                </li>                <li>
+                    <a title="Fusion JSON support" href="//www.yupiik.io/fusion/fusion/json.html">
+                        <i class="fas fa-wifi"></i>JSON
                     </a>
                 </li>                <li>
                     <a title="framework and GraalVM (native-image)" href="//www.yupiik.io/fusion/fusion/graalvm.html">
@@ -196,7 +197,8 @@ public class Greeter {
             // no-op
         }
     }
-}</code></pre>
+}
+</code></pre>
  </div>
  </div>
  <div class="paragraph">
@@ -214,7 +216,8 @@ You can just add this plugin:
     &lt;graalVersion&gt;22.3.0.r17&lt;/graalVersion&gt;
     &lt;main&gt;demo.fusion.Greeter&lt;/main&gt;
   &lt;/configuration&gt;
-&lt;/plugin&gt;</code></pre>
+&lt;/plugin&gt;
+</code></pre>
  </div>
  </div>
  <div class="paragraph">
@@ -232,7 +235,8 @@ You can just add this plugin:
 if you are a purist, and depending your needs and Arthur version you can need to add the following configuration to avoid warnings: <div class="listingblock">
  <div class="content">
  <pre class="highlightjs highlight"><code class="language-xml hljs" data-lang="xml">&lt;enableAllSecurityServices&gt;false&lt;/enableAllSecurityServices&gt;
-&lt;allowIncompleteClasspath&gt;false&lt;/allowIncompleteClasspath&gt;</code></pre>
+&lt;allowIncompleteClasspath&gt;false&lt;/allowIncompleteClasspath&gt;
+</code></pre>
  </div>
  </div>
  </div>
@@ -254,11 +258,12 @@ if you are a purist, and depending your needs and Arthur version you can need to
  <p>if you want a JUL implementation which is GraalVM friendly you can use  <a href="https://www.yupiik.io/yupiik-logging/">yupiik Logging</a>
  (<code>yupiik-logging-jul</code> dependency concretely which works smoothly with GraalVM and enables a runtime system property logging control) and configure it in Arthur Maven Plugin (or GraalVM <code>native-image</code>) using:</p>
  </div>
- <div class="listingblock">
+ <div class="literalblock">
  <div class="content">
- <pre class="highlightjs highlight"><code class="null hljs">&lt;customOptions&gt;
+ <pre>&lt;customOptions&gt;
   &lt;customOption&gt;-Djava.util.logging.manager=io.yupiik.logging.jul.YupiikLogManager&lt;/customOption&gt;
-&lt;/customOptions&gt;</code></pre>
+&lt;/customOptions&gt;
+</pre>
  </div>
  </div>
  </div>
@@ -283,7 +288,7 @@ if you are a purist, and depending your needs and Arthur version you can need to
               <li class="list-inline-item"><a title="Twitter" target="_blank" href="https://twitter.com/Yupiik/"><i class="fab fa-twitter fa-fw"></i></a></li>
               <li class="list-inline-item"><a title="Github" target="_blank" href="https://www.github.com/yupiik/fusion"><i class="fab fa-github fa-fw"></i></a></li>
 	        </ul>
-            <small class="copyright">© 2025 <strong><a href="https://www.yupiik.com">Yupiik</a></strong>. All Rights Reserved</small> | <a href="https://www.yupiik.com/terms-of-use/">Terms of use</a> | <a href="https://www.yupiik.com/privacy-policy/">Privacy policy</a>
+            <small class="copyright">© 2026 <strong><a href="https://www.yupiik.com">Yupiik</a></strong>. All Rights Reserved</small> | <a href="https://www.yupiik.com/terms-of-use/">Terms of use</a> | <a href="https://www.yupiik.com/privacy-policy/">Privacy policy</a>
 	    </div>
     </footer>
 
@@ -325,10 +330,18 @@ function addCopyButtons(clipboard) {
   document.querySelectorAll('pre > code').forEach(function (codeBlock) {
   var button = document.createElement('button');  button.className = 'copy-code-button';  button.type = 'button';  button.innerText = 'Copy';  button.addEventListener('click', function () {   clipboard.writeText(codeBlock.innerText).then(function () {   button.blur();   button.innerText = 'Copied!';   setTimeout(function () { button.innerText = 'Copy'; }, 2000); }, function (error) { button.innerText = 'Error'; });  });  var pre = codeBlock.parentNode;  if (pre.parentNode.classList.contains('highlight')) {   var highlight = pre.parentNode; highlight.parentNode.insertBefore(button, highlight);  } else { pre.parentNode.insertBefore(button, pre); } });}
 if (navigator && navigator.clipboard) { addCopyButtons(navigator.clipboard);} else { var script = document.createElement('script'); script.src = '//cdnjs.cloudflare.com/ajax/libs/clipboard-polyfill/2.7.0/clipboard-polyfill.promise.js'; script.integrity = 'sha256-waClS2re9NUbXRsryKoof+F9qc1gjjIhc2eT7ZbIv94='; script.crossOrigin = 'anonymous'; script.onload = function() {addCopyButtons(clipboard);}; document.body.appendChild(script);} }</script>
-    <script src="//www.yupiik.io/fusion/js/minisite.js?v=1.0.33-SNAPSHOT"></script>
+    <script src="//www.yupiik.io/fusion/js/minisite.js?v=1.1.1-SNAPSHOT"></script>
     <script>$('.page-content-body').generatedNavMenu();</script>
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/fuse.js/6.4.3/fuse.min.js" integrity="sha512-neoBxVNv0UMXjoilAYGxfWrSsW6iAVclx7vQKdPJ9Peet1bM5YQjU0aIB8LtH8iNPa+pAyMZprBBw2ZQ/Q1LjQ==" crossorigin="anonymous"></script>
 
+<div id="llm-chat-root" style="display:none"
+     data-model-id="Llama-3.2-3B-Instruct-q4f16_1-MLC"
+     data-base="//www.yupiik.io/fusion"></div>
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('//www.yupiik.io/fusion/llm-chat-sw.js', {scope: '/'});
+}
+</script>
+<script src="//www.yupiik.io/fusion/js/llm-chat.js?v=1.1.1-SNAPSHOT"></script>
 </body>
 </html>

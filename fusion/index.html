@@ -98,7 +98,8 @@
         }
     </style>
     
-    <link id="theme-style" rel="stylesheet" href="//www.yupiik.io/fusion/css/theme.css?v=1.0.33-SNAPSHOT">
+    <link id="theme-style" rel="stylesheet" href="//www.yupiik.io/fusion/css/theme.css?v=1.1.1-SNAPSHOT">
+<link rel="stylesheet" href="//www.yupiik.io/fusion/css/llm-chat.css?v=1.1.1-SNAPSHOT">
 </head>
 <body>
     <header class="header fixed-top">
@@ -140,12 +141,12 @@
                         <i class="fas fa-building"></i>Setup
                     </a>
                 </li>                <li>
-                    <a title="Fusion JSON support" href="//www.yupiik.io/fusion/fusion/json.html">
-                        <i class="fas fa-wifi"></i>JSON
-                    </a>
-                </li>                <li>
                     <a title="Fusion CLI" href="//www.yupiik.io/fusion/fusion/cli.html">
                         <i class="fas fa-terminal"></i>CLI
+                    </a>
+                </li>                <li>
+                    <a title="Fusion JSON support" href="//www.yupiik.io/fusion/fusion/json.html">
+                        <i class="fas fa-wifi"></i>JSON
                     </a>
                 </li>                <li>
                     <a title="framework and GraalVM (native-image)" href="//www.yupiik.io/fusion/fusion/graalvm.html">
@@ -266,13 +267,13 @@ Event bus <div class="ulist">
   </li>
   <li>
  <div class="paragraph">
- <p>Adding  <a href="testing.html">`fusion-testing`</a>
+ <p>Adding  <a href="testing.html"><code>fusion-testing</code></a>
  module, you get some JUnit 5 integration enabling to test easily your code.</p>
  </div>
   </li>
   <li>
  <div class="paragraph">
- <p>Adding  <a href="cli.html">`fusion-cli`</a>
+ <p>Adding  <a href="cli.html"><code>fusion-cli</code></a>
  module, you can generate simple CLI applications just writing commands.</p>
  </div>
   </li>
@@ -310,7 +311,8 @@ Since some years we got used to see declarative interceptors (annotations) like 
     public void doSomething() {
         // ...
     }
-}</code></pre>
+}
+</code></pre>
  </div>
  </div>
  <div class="paragraph">
@@ -350,7 +352,8 @@ For these reasons, we think that we don't need an interceptor solution in Fusion
             // ...
         });
     }
-}</code></pre>
+}
+</code></pre>
  </div>
  </div>
  <div class="paragraph">
@@ -366,7 +369,8 @@ The big advantage is you can use some static utility if you want but also rely o
             // ...
         })));
     }
-}</code></pre>
+}
+</code></pre>
  </div>
  </div>
  <div class="paragraph">
@@ -385,7 +389,8 @@ can become:
             // ...
         });
     }
-}</code></pre>
+}
+</code></pre>
  </div>
  </div>
  <div class="paragraph">
@@ -409,7 +414,8 @@ If you compare the case with parameters it is way more efficient in general sinc
           tx.id(),
           () -&gt; jpa.tx(() -&gt; em.persist(tx)));
     }
-}</code></pre>
+}
+</code></pre>
  </div>
  </div>
  <div class="admonitionblock tip">
@@ -422,7 +428,7 @@ If you compare the case with parameters it is way more efficient in general sinc
       <td class="content">
  <div class="paragraph">
  <div class="paragraph">
- <p>going with this solution can, however, get the <i>chaining lambda</i> pitfall (a.k.a. <i>callback hell</i> in JavaScript), to solve this one we encourage you to ensure your &quot;interceptor&quot; can be chained properly using the same kind of callback.</p>
+ <p>going with this solution can, however, get the <em>chaining lambda</em> pitfall (a.k.a. <em>callback hell</em> in JavaScript), to solve this one we encourage you to ensure your &quot;interceptor&quot; can be chained properly using the same kind of callback.</p>
  </div>
  <div class="paragraph">
  <p>Here is an example (the important part is more the signature than the fact it is a <code>static</code> method or a bean method):</p>
@@ -439,7 +445,8 @@ If you compare the case with parameters it is way more efficient in general sinc
 
 public static &lt;T&gt; Supplier&lt;T&gt; interceptor12(Params params, Supplier&lt;T&gt; nested) {
     // same kind of logic for the impl
-}</code></pre>
+}
+</code></pre>
  </div>
  </div>
  <div class="paragraph">
@@ -456,7 +463,8 @@ public static &lt;T&gt; Supplier&lt;T&gt; interceptor12(Params params, Supplier&
                     // business code
                 }))
     .get(); // trigger the actual execution, it is the terminal operation for the chain
-}</code></pre>
+}
+</code></pre>
  </div>
  </div>
  <div class="paragraph">
@@ -477,7 +485,8 @@ public static &lt;T&gt; Supplier&lt;T&gt; interceptor12(Params params, Supplier&
             return null;
         })
         .get(); // execute it
-}</code></pre>
+}
+</code></pre>
  </div>
  </div>
 Indeed in practise you can extract that kind of code in an utility and use something like: <div class="listingblock">
@@ -499,7 +508,8 @@ intercepted(
     // interceptors
     delegate -&gt; interceptor2(Params.of(customer), delegate),
     delegate -&gt; interceptor1(&quot;incoming-customer&quot;, Map.of(&quot;id&quot;, customer.id()), delegate)
-);</code></pre>
+);
+</code></pre>
  </div>
  </div>
  <div class="paragraph">
@@ -530,7 +540,7 @@ intercepted(
        </td>
       <td class="content">
  <div class="paragraph">
- <p>these are limitations <i>as of today</i>, none are <i>technically</i> strong limitations we can't fix at a later point if desired.</p>
+ <p>these are limitations <em>as of today</em>, none are <em>technically</em> strong limitations we can't fix at a later point if desired.</p>
  </div>
     </td>
    </tr>
@@ -566,7 +576,12 @@ Event bus listeners can only have the event as method parameter,
   </li>
   <li>
  <div class="paragraph">
- <p>Only classes are supported exception for method producers which can return a <code>ParameterizedType</code> (ex: <code>List&lt;String&gt;</code>) but injections must exactly match this type and <code>List</code>/<code>Set</code> injections are handled by looking up all beans matching the parameter.</p>
+ <p>Only classes are supported exception for method producers which can return a <code>ParameterizedType</code> (ex: <code>List&lt;String&gt;</code>) but injections must exactly match this type and <code>List</code>/<code>Set</code> injections are handled by looking up all beans matching the parameter,</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p>Generic class beans (ex: <code>class MyService&lt;X&gt;</code>) are registered with their raw type, a parameterized injection or lookup of the same class (ex: <code>MyService&lt;String&gt;</code>) matches this bean whatever the type arguments are.</p>
  </div>
   </li>
  </ul>
@@ -600,9 +615,6 @@ Event bus listeners can only have the event as method parameter,
  <a href="http-client.html">HTTP Client</a>
   </li>
   <li>
- <a href="observability.html">Observability</a>
-  </li>
-  <li>
  <a href="handlebars.html">Handlebars</a>
   </li>
   <li>
@@ -631,7 +643,7 @@ Event bus listeners can only have the event as method parameter,
               <li class="list-inline-item"><a title="Twitter" target="_blank" href="https://twitter.com/Yupiik/"><i class="fab fa-twitter fa-fw"></i></a></li>
               <li class="list-inline-item"><a title="Github" target="_blank" href="https://www.github.com/yupiik/fusion"><i class="fab fa-github fa-fw"></i></a></li>
 	        </ul>
-            <small class="copyright">© 2025 <strong><a href="https://www.yupiik.com">Yupiik</a></strong>. All Rights Reserved</small> | <a href="https://www.yupiik.com/terms-of-use/">Terms of use</a> | <a href="https://www.yupiik.com/privacy-policy/">Privacy policy</a>
+            <small class="copyright">© 2026 <strong><a href="https://www.yupiik.com">Yupiik</a></strong>. All Rights Reserved</small> | <a href="https://www.yupiik.com/terms-of-use/">Terms of use</a> | <a href="https://www.yupiik.com/privacy-policy/">Privacy policy</a>
 	    </div>
     </footer>
 
@@ -673,10 +685,18 @@ function addCopyButtons(clipboard) {
   document.querySelectorAll('pre > code').forEach(function (codeBlock) {
   var button = document.createElement('button');  button.className = 'copy-code-button';  button.type = 'button';  button.innerText = 'Copy';  button.addEventListener('click', function () {   clipboard.writeText(codeBlock.innerText).then(function () {   button.blur();   button.innerText = 'Copied!';   setTimeout(function () { button.innerText = 'Copy'; }, 2000); }, function (error) { button.innerText = 'Error'; });  });  var pre = codeBlock.parentNode;  if (pre.parentNode.classList.contains('highlight')) {   var highlight = pre.parentNode; highlight.parentNode.insertBefore(button, highlight);  } else { pre.parentNode.insertBefore(button, pre); } });}
 if (navigator && navigator.clipboard) { addCopyButtons(navigator.clipboard);} else { var script = document.createElement('script'); script.src = '//cdnjs.cloudflare.com/ajax/libs/clipboard-polyfill/2.7.0/clipboard-polyfill.promise.js'; script.integrity = 'sha256-waClS2re9NUbXRsryKoof+F9qc1gjjIhc2eT7ZbIv94='; script.crossOrigin = 'anonymous'; script.onload = function() {addCopyButtons(clipboard);}; document.body.appendChild(script);} }</script>
-    <script src="//www.yupiik.io/fusion/js/minisite.js?v=1.0.33-SNAPSHOT"></script>
+    <script src="//www.yupiik.io/fusion/js/minisite.js?v=1.1.1-SNAPSHOT"></script>
     <script>$('.page-content-body').generatedNavMenu();</script>
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/fuse.js/6.4.3/fuse.min.js" integrity="sha512-neoBxVNv0UMXjoilAYGxfWrSsW6iAVclx7vQKdPJ9Peet1bM5YQjU0aIB8LtH8iNPa+pAyMZprBBw2ZQ/Q1LjQ==" crossorigin="anonymous"></script>
 
+<div id="llm-chat-root" style="display:none"
+     data-model-id="Llama-3.2-3B-Instruct-q4f16_1-MLC"
+     data-base="//www.yupiik.io/fusion"></div>
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('//www.yupiik.io/fusion/llm-chat-sw.js', {scope: '/'});
+}
+</script>
+<script src="//www.yupiik.io/fusion/js/llm-chat.js?v=1.1.1-SNAPSHOT"></script>
 </body>
 </html>

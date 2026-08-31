@@ -98,7 +98,8 @@
         }
     </style>
     
-    <link id="theme-style" rel="stylesheet" href="//www.yupiik.io/fusion/css/theme.css?v=1.0.33-SNAPSHOT">
+    <link id="theme-style" rel="stylesheet" href="//www.yupiik.io/fusion/css/theme.css?v=1.1.1-SNAPSHOT">
+<link rel="stylesheet" href="//www.yupiik.io/fusion/css/llm-chat.css?v=1.1.1-SNAPSHOT">
 </head>
 <body>
     <header class="header fixed-top">
@@ -140,12 +141,12 @@
                         <i class="fas fa-building"></i>Setup
                     </a>
                 </li>                <li>
-                    <a title="Fusion JSON support" href="//www.yupiik.io/fusion/fusion/json.html">
-                        <i class="fas fa-wifi"></i>JSON
-                    </a>
-                </li>                <li>
                     <a title="Fusion CLI" href="//www.yupiik.io/fusion/fusion/cli.html">
                         <i class="fas fa-terminal"></i>CLI
+                    </a>
+                </li>                <li>
+                    <a title="Fusion JSON support" href="//www.yupiik.io/fusion/fusion/json.html">
+                        <i class="fas fa-wifi"></i>JSON
                     </a>
                 </li>                <li>
                     <a title="framework and GraalVM (native-image)" href="//www.yupiik.io/fusion/fusion/graalvm.html">
@@ -190,7 +191,7 @@ The Fusion Persistence module provides capabilities to deal with common database
   <h2>Project definition</h2>
  <div class="sectionbody">
  <div class="paragraph">
- <p>First you need to add the <b>fusion-persistence</b> module in your <code>pom.xml</code> dependencies section:</p>
+ <p>First you need to add the <strong>fusion-persistence</strong> module in your <code>pom.xml</code> dependencies section:</p>
  </div>
  <div class="listingblock">
  <div class="content">
@@ -198,7 +199,8 @@ The Fusion Persistence module provides capabilities to deal with common database
     &lt;groupId&gt;io.yupiik.fusion&lt;/groupId&gt;
     &lt;artifactId&gt;fusion-persistence&lt;/artifactId&gt;
     &lt;version&gt;${fusion.version}&lt;/version&gt;
-&lt;/dependency&gt;</code></pre>
+&lt;/dependency&gt;
+</code></pre>
  </div>
  </div>
  <div class="admonitionblock important">
@@ -231,7 +233,8 @@ The Fusion Persistence module provides capabilities to deal with common database
     &lt;groupId&gt;org.apache.tomcat&lt;/groupId&gt;
     &lt;artifactId&gt;tomcat-jdbc&lt;/artifactId&gt;
     &lt;version&gt;${tomcat.version}&lt;/version&gt;
-&lt;/dependency&gt;</code></pre>
+&lt;/dependency&gt;
+</code></pre>
  </div>
  </div>
  <div class="paragraph">
@@ -322,7 +325,7 @@ Here are the available keys:
   <h2>Entity</h2>
  <div class="sectionbody">
  <div class="paragraph">
- <p>Fusion support java <b>record</b> for database entity definition.</p>
+ <p>Fusion support java <strong>record</strong> for database entity definition.</p>
  </div>
  <div class="listingblock">
  <div class="content">
@@ -333,7 +336,8 @@ public record CustomerEntity(
         @Column(name = &quot;LAST_NAME&quot;) String lastname, <b class="conum">(3)</b>
         @Column String title,
         @Column String organization) {
-}</code></pre>
+}
+</code></pre>
  </div>
  </div>
  <div class="colist arabic">
@@ -347,10 +351,10 @@ Activate the record as an entity and setting the name enables to force the table
  <span>
 Indicate the primary key of the entity.
  </span>
-<b>autoIncremented</b> <span>
+<strong>autoIncremented</strong> <span>
 : It is recommended to use a UUID or equivalent as identifier but when mapping an existing database you can need to synchronize and use java.sql.Statement.getGeneratedKeys to map the keys. For these cases, set this toggle to true. If your model is a POJO the value is directly set but if it is a record the value will be copied at insert time.
  </span>
-<b>order</b> <span>
+<strong>order</strong> <span>
 : When using multiple times this annotation, enables to sort the fields.
  </span>
    </li>
@@ -371,7 +375,7 @@ Some hooks are available and can be added in the entity record directly:
  </div>
  <div class="listingblock">
  <div class="content">
- <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@OnInsert
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">    @OnInsert
     public CustomerEntity onInsert() {
         return id() == null ?
                 new CustomerEntity(UUID.randomUUID().toString(), firstname(), lastname(), title(), organization()) :
@@ -393,7 +397,8 @@ Some hooks are available and can be added in the entity record directly:
     @OnDelete
     private void onDelete() {
         // no-op
-    }</code></pre>
+    }
+</code></pre>
  </div>
  </div>
  <div class="admonitionblock tip">
@@ -476,7 +481,8 @@ public class CustomerDao {
             // error, rollback is managed by datasource, no need to manage it by hand
         }
     }
-}</code></pre>
+}
+</code></pre>
  </div>
  </div>
  </div>
@@ -497,7 +503,8 @@ final var sql = &quot;SELECT &quot; + String.join(&quot;, &quot;,
         customer.concatenateColumns(new Entity.ColumnsConcatenationRequest())) +
         &quot;FROM &quot; + customer.getTable() +
         &quot;WHERE name = ?&quot;;
-final var lines = database.query(Customer.class, sql, b -&gt; b.bind(&quot;the-name&quot;));</code></pre>
+final var lines = database.query(Customer.class, sql, b -&gt; b.bind(&quot;the-name&quot;));
+</code></pre>
  </div>
  </div>
  </div>
@@ -521,7 +528,8 @@ final var sql = &quot;SELECT DISTINCT &quot; + String.join(&quot;, &quot;,
         &quot;FROM &quot; + entity1.getTable() + &quot; e1 &quot; +
         &quot;LEFT JOIN ENTITY2 admin on e2.e1_id = e1.id &quot; +
         &quot;WHERE e1.id = ?&quot;;
-final var lines = database.query(JoinModel.class, sql, b -&gt; b.bind(&quot;the-id&quot;));</code></pre>
+final var lines = database.query(JoinModel.class, sql, b -&gt; b.bind(&quot;the-id&quot;));
+</code></pre>
  </div>
  </div>
  <div class="paragraph">
@@ -537,7 +545,8 @@ public record JoinModel (
     // e2
     @Id private String e2Id,
     @Column private String e2Label) {
-}</code></pre>
+}
+</code></pre>
  </div>
  </div>
  <div class="paragraph">
@@ -581,7 +590,8 @@ final var lines = database.query(
             return result.mapAll(line -&gt; Tuple2.of(e1Binder.apply(line), e2Binder.apply(line)));
         });
 // lines will get both Entity1 and Entity2 instances, then you can just filter them checking there is an id or not for example
-// and join them as needed to create your output model</code></pre>
+// and join them as needed to create your output model
+</code></pre>
  </div>
  </div>
  </div>
@@ -599,7 +609,8 @@ final var lines = database.query(
  <div class="content">
  <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">try (final var connection = dataSource.getConnection()) {
  database.insert(connection, entity);
-}</code></pre>
+}
+</code></pre>
  </div>
  </div>
  <div class="paragraph">
@@ -610,7 +621,8 @@ final var lines = database.query(
  <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">dataSource.write(connection -&gt; {
  database.insert(connection, entity);
  aServiceDoingAnInsert(connection);
-});</code></pre>
+});
+</code></pre>
  </div>
  </div>
  <div class="paragraph">
@@ -631,7 +643,8 @@ public class MyPersistingService {
     public void insert(final MyModel model) {
         txMgr.write(connection -&gt; db.insert(connection, model));
     }
-}</code></pre>
+}
+</code></pre>
  </div>
  </div>
  </div>
@@ -654,7 +667,7 @@ public class MyPersistingService {
               <li class="list-inline-item"><a title="Twitter" target="_blank" href="https://twitter.com/Yupiik/"><i class="fab fa-twitter fa-fw"></i></a></li>
               <li class="list-inline-item"><a title="Github" target="_blank" href="https://www.github.com/yupiik/fusion"><i class="fab fa-github fa-fw"></i></a></li>
 	        </ul>
-            <small class="copyright">© 2025 <strong><a href="https://www.yupiik.com">Yupiik</a></strong>. All Rights Reserved</small> | <a href="https://www.yupiik.com/terms-of-use/">Terms of use</a> | <a href="https://www.yupiik.com/privacy-policy/">Privacy policy</a>
+            <small class="copyright">© 2026 <strong><a href="https://www.yupiik.com">Yupiik</a></strong>. All Rights Reserved</small> | <a href="https://www.yupiik.com/terms-of-use/">Terms of use</a> | <a href="https://www.yupiik.com/privacy-policy/">Privacy policy</a>
 	    </div>
     </footer>
 
@@ -696,10 +709,18 @@ function addCopyButtons(clipboard) {
   document.querySelectorAll('pre > code').forEach(function (codeBlock) {
   var button = document.createElement('button');  button.className = 'copy-code-button';  button.type = 'button';  button.innerText = 'Copy';  button.addEventListener('click', function () {   clipboard.writeText(codeBlock.innerText).then(function () {   button.blur();   button.innerText = 'Copied!';   setTimeout(function () { button.innerText = 'Copy'; }, 2000); }, function (error) { button.innerText = 'Error'; });  });  var pre = codeBlock.parentNode;  if (pre.parentNode.classList.contains('highlight')) {   var highlight = pre.parentNode; highlight.parentNode.insertBefore(button, highlight);  } else { pre.parentNode.insertBefore(button, pre); } });}
 if (navigator && navigator.clipboard) { addCopyButtons(navigator.clipboard);} else { var script = document.createElement('script'); script.src = '//cdnjs.cloudflare.com/ajax/libs/clipboard-polyfill/2.7.0/clipboard-polyfill.promise.js'; script.integrity = 'sha256-waClS2re9NUbXRsryKoof+F9qc1gjjIhc2eT7ZbIv94='; script.crossOrigin = 'anonymous'; script.onload = function() {addCopyButtons(clipboard);}; document.body.appendChild(script);} }</script>
-    <script src="//www.yupiik.io/fusion/js/minisite.js?v=1.0.33-SNAPSHOT"></script>
+    <script src="//www.yupiik.io/fusion/js/minisite.js?v=1.1.1-SNAPSHOT"></script>
     <script>$('.page-content-body').generatedNavMenu();</script>
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/fuse.js/6.4.3/fuse.min.js" integrity="sha512-neoBxVNv0UMXjoilAYGxfWrSsW6iAVclx7vQKdPJ9Peet1bM5YQjU0aIB8LtH8iNPa+pAyMZprBBw2ZQ/Q1LjQ==" crossorigin="anonymous"></script>
 
+<div id="llm-chat-root" style="display:none"
+     data-model-id="Llama-3.2-3B-Instruct-q4f16_1-MLC"
+     data-base="//www.yupiik.io/fusion"></div>
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('//www.yupiik.io/fusion/llm-chat-sw.js', {scope: '/'});
+}
+</script>
+<script src="//www.yupiik.io/fusion/js/llm-chat.js?v=1.1.1-SNAPSHOT"></script>
 </body>
 </html>

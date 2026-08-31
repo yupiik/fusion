@@ -98,7 +98,8 @@
         }
     </style>
     
-    <link id="theme-style" rel="stylesheet" href="//www.yupiik.io/fusion/css/theme.css?v=1.0.33-SNAPSHOT">
+    <link id="theme-style" rel="stylesheet" href="//www.yupiik.io/fusion/css/theme.css?v=1.1.1-SNAPSHOT">
+<link rel="stylesheet" href="//www.yupiik.io/fusion/css/llm-chat.css?v=1.1.1-SNAPSHOT">
 </head>
 <body>
     <header class="header fixed-top">
@@ -140,12 +141,12 @@
                         <i class="fas fa-building"></i>Setup
                     </a>
                 </li>                <li>
-                    <a title="Fusion JSON support" href="//www.yupiik.io/fusion/fusion/json.html">
-                        <i class="fas fa-wifi"></i>JSON
-                    </a>
-                </li>                <li>
                     <a title="Fusion CLI" href="//www.yupiik.io/fusion/fusion/cli.html">
                         <i class="fas fa-terminal"></i>CLI
+                    </a>
+                </li>                <li>
+                    <a title="Fusion JSON support" href="//www.yupiik.io/fusion/fusion/json.html">
+                        <i class="fas fa-wifi"></i>JSON
                     </a>
                 </li>                <li>
                     <a title="framework and GraalVM (native-image)" href="//www.yupiik.io/fusion/fusion/graalvm.html">
@@ -233,6 +234,33 @@ This listener enforce a custom user-agent value. It defaults to chrome one.
  <p>
 This listener enables to force all exchanges to be logged.
  </p>
+ </div>
+ </div>
+ </div>
+ <div class="sect3" id="_curlloggerlistener">
+  <h4><code>CurlLoggerListener</code></h4>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>This listener is a sibling of <code>ExchangeLogger</code> but instead of a free-form message it logs each exchange as a ready-to-replay <code>curl</code> command (method, URI, headers and body when payload logging is enabled). When payload logging is enabled the command uses <code>-i</code> and is followed by the raw response formatted like <code>curl -i</code> output (status line, headers, body), errors being logged like <code>curl: &lt;message&gt;</code>.</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">new CurlLoggerListener(Logger.getLogger(getClass().getName()), false)
+</code></pre>
+ </div>
+ </div>
+ <div class="admonitionblock tip">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">TIP</div>
+       </td>
+      <td class="content">
+since the listener must read the request body to build the command, it replaces the request publisher with the captured bytes so the request is still sent normally.    </td>
+   </tr>
+      </tbody>
+  </table>
  </div>
  </div>
  </div>
@@ -325,12 +353,13 @@ conf.setListeners(List.of(
         new ExchangeLogger(
             Logger.getLogger(getClass().getName()),
             Clock.systemUTC(),
-            false)));</code></pre>
+            false)));
+</code></pre>
  </div>
  </div>
  </div>
  </div>
- <div class="sect2" id="_open_tracing">
+ <div class="sect2 [client-tracing]" id="_open_tracing">
   <h3>(Open) Tracing</h3>
  <div class="sectionbody">
  <div class="admonitionblock important">
@@ -364,7 +393,8 @@ conf.setListeners(List.of(
 (6)
 final var configuration = new ExtendedHttpClientConfiguration()
     .setRequestListeners(List.of(listener));
-final var client = new ExtendedHttpClient(configuration);</code></pre>
+final var client = new ExtendedHttpClient(configuration);
+</code></pre>
  </div>
  </div>
  <div class="colist arabic">
@@ -485,7 +515,8 @@ final var response = k8s.send(
                 .header(&quot;Accept&quot;, &quot;application/json&quot;)
                 .build(),
         HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-// handle the response</code></pre>
+// handle the response
+</code></pre>
  </div>
  </div>
  <div class="admonitionblock important">
@@ -523,7 +554,7 @@ final var response = k8s.send(
               <li class="list-inline-item"><a title="Twitter" target="_blank" href="https://twitter.com/Yupiik/"><i class="fab fa-twitter fa-fw"></i></a></li>
               <li class="list-inline-item"><a title="Github" target="_blank" href="https://www.github.com/yupiik/fusion"><i class="fab fa-github fa-fw"></i></a></li>
 	        </ul>
-            <small class="copyright">© 2025 <strong><a href="https://www.yupiik.com">Yupiik</a></strong>. All Rights Reserved</small> | <a href="https://www.yupiik.com/terms-of-use/">Terms of use</a> | <a href="https://www.yupiik.com/privacy-policy/">Privacy policy</a>
+            <small class="copyright">© 2026 <strong><a href="https://www.yupiik.com">Yupiik</a></strong>. All Rights Reserved</small> | <a href="https://www.yupiik.com/terms-of-use/">Terms of use</a> | <a href="https://www.yupiik.com/privacy-policy/">Privacy policy</a>
 	    </div>
     </footer>
 
@@ -565,10 +596,18 @@ function addCopyButtons(clipboard) {
   document.querySelectorAll('pre > code').forEach(function (codeBlock) {
   var button = document.createElement('button');  button.className = 'copy-code-button';  button.type = 'button';  button.innerText = 'Copy';  button.addEventListener('click', function () {   clipboard.writeText(codeBlock.innerText).then(function () {   button.blur();   button.innerText = 'Copied!';   setTimeout(function () { button.innerText = 'Copy'; }, 2000); }, function (error) { button.innerText = 'Error'; });  });  var pre = codeBlock.parentNode;  if (pre.parentNode.classList.contains('highlight')) {   var highlight = pre.parentNode; highlight.parentNode.insertBefore(button, highlight);  } else { pre.parentNode.insertBefore(button, pre); } });}
 if (navigator && navigator.clipboard) { addCopyButtons(navigator.clipboard);} else { var script = document.createElement('script'); script.src = '//cdnjs.cloudflare.com/ajax/libs/clipboard-polyfill/2.7.0/clipboard-polyfill.promise.js'; script.integrity = 'sha256-waClS2re9NUbXRsryKoof+F9qc1gjjIhc2eT7ZbIv94='; script.crossOrigin = 'anonymous'; script.onload = function() {addCopyButtons(clipboard);}; document.body.appendChild(script);} }</script>
-    <script src="//www.yupiik.io/fusion/js/minisite.js?v=1.0.33-SNAPSHOT"></script>
+    <script src="//www.yupiik.io/fusion/js/minisite.js?v=1.1.1-SNAPSHOT"></script>
     <script>$('.page-content-body').generatedNavMenu();</script>
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/fuse.js/6.4.3/fuse.min.js" integrity="sha512-neoBxVNv0UMXjoilAYGxfWrSsW6iAVclx7vQKdPJ9Peet1bM5YQjU0aIB8LtH8iNPa+pAyMZprBBw2ZQ/Q1LjQ==" crossorigin="anonymous"></script>
 
+<div id="llm-chat-root" style="display:none"
+     data-model-id="Llama-3.2-3B-Instruct-q4f16_1-MLC"
+     data-base="//www.yupiik.io/fusion"></div>
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('//www.yupiik.io/fusion/llm-chat-sw.js', {scope: '/'});
+}
+</script>
+<script src="//www.yupiik.io/fusion/js/llm-chat.js?v=1.1.1-SNAPSHOT"></script>
 </body>
 </html>

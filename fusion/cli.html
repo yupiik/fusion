@@ -98,7 +98,8 @@
         }
     </style>
     
-    <link id="theme-style" rel="stylesheet" href="//www.yupiik.io/fusion/css/theme.css?v=1.0.33-SNAPSHOT">
+    <link id="theme-style" rel="stylesheet" href="//www.yupiik.io/fusion/css/theme.css?v=1.1.1-SNAPSHOT">
+<link rel="stylesheet" href="//www.yupiik.io/fusion/css/llm-chat.css?v=1.1.1-SNAPSHOT">
 </head>
 <body>
     <header class="header fixed-top">
@@ -140,12 +141,12 @@
                         <i class="fas fa-building"></i>Setup
                     </a>
                 </li>                <li>
-                    <a title="Fusion JSON support" href="//www.yupiik.io/fusion/fusion/json.html">
-                        <i class="fas fa-wifi"></i>JSON
-                    </a>
-                </li>                <li>
                     <a title="Fusion CLI" href="//www.yupiik.io/fusion/fusion/cli.html">
                         <i class="fas fa-terminal"></i>CLI
+                    </a>
+                </li>                <li>
+                    <a title="Fusion JSON support" href="//www.yupiik.io/fusion/fusion/json.html">
+                        <i class="fas fa-wifi"></i>JSON
                     </a>
                 </li>                <li>
                     <a title="framework and GraalVM (native-image)" href="//www.yupiik.io/fusion/fusion/graalvm.html">
@@ -187,7 +188,8 @@ public class MyCommand implements Runnable { <b class="conum">(2)</b>
 
     @RootConfiguration(&quot;my-commands&quot;) <b class="conum">(5)</b>
     public record Conf(String name) {}
-}</code></pre>
+}
+</code></pre>
  </div>
  </div>
  <div class="colist arabic">
@@ -250,7 +252,23 @@ The configuration of the command is a standard one, you can customize the prefix
        </td>
       <td class="content">
  <div class="paragraph">
- <p>if you don't want to set any prefix for the configuration, set the prefix in <code>@RootConfiguration</code> to <code>-</code>.</p>
+ <p>if you don't want to set any prefix for the configuration, set the prefix in <code>@RootConfiguration</code> to <code>-</code>: the generated factory then reads the plain <code>xxx</code> keys (so <code>--xxx</code> on the command line) instead of <code>&lt;prefix&gt;.xxx</code>.</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ <div class="admonitionblock note">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">NOTE</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p>since the keys of a <code>-</code> configuration are plain keys, the record also resolves naturally when injected as a plain bean: command line arguments (<code>--xxx</code>), system properties (<code>xxx</code>) and environment variables (<code>XXX</code>) are all usable without any custom configuration source bridge.</p>
  </div>
     </td>
    </tr>
@@ -263,7 +281,7 @@ The configuration of the command is a standard one, you can customize the prefix
   <h2>Injections</h2>
  <div class="sectionbody">
  <div class="paragraph">
- <p>You can inject any <b>simple type</b> (classes, not lists) beans in your command through the constructor (&gt; first parameter).</p>
+ <p>You can inject any <strong>simple type</strong> (classes, not lists) beans in your command through the constructor (&gt; first parameter).</p>
  </div>
  <div class="admonitionblock tip">
   <table>
@@ -280,11 +298,120 @@ if you need to inject a list, you can always create a bean which holds the list 
  </div>
  </div>
  </div>
+ <div class="sect1" id="_subcommands">
+  <h2>Subcommands</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>The command name is a path of segments: <code>@Command(name = {&quot;deploy&quot;, &quot;run&quot;})</code> declares the <code>deploy run</code>subcommand while <code>@Command(name = &quot;deploy/run&quot;)</code> is a single literal <code>deploy/run</code> segment. The single-value shorthand is accepted for one segment. Segments are matched against the leading CLI arguments and the longest match wins, so <code>deploy</code> and <code>deploy run</code> can coexist.</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@Command(name = {&quot;deploy&quot;, &quot;run&quot;}, description = &quot;Run a deployment.&quot;) <b class="conum">(1)</b>
+public class DeployRunCommand implements Runnable {
+    private final Conf conf;
+
+    public DeployRunCommand(final Conf conf) {
+        this.conf = conf;
+    }
+
+    @Override
+    public void run() {
+        // impl what you want
+    }
+
+    @RootConfiguration(&quot;deploy.run&quot;) <b class="conum">(2)</b>
+    public record Conf(String name) {}
+}
+</code></pre>
+ </div>
+ </div>
+ <div class="colist arabic">
+  <ol>
+   <li>
+ <span>
+Use an array to declare a subcommand path, a single value is a single segment (literal 
+ </span>
+<code>/</code> <span>
+ are kept),
+ </span>
+   </li>
+   <li>
+ <span>
+Options then use the 
+ </span>
+<code>--deploy-run-xxx</code> <span>
+ form.
+ </span>
+   </li>
+  </ol>
+ </div>
+ <div class="paragraph">
+ <p>Parents are implicit dispatchers and need no <code>@Command</code> class:</p>
+ </div>
+ <div class="ulist">
+ <ul>
+  <li>
+ <div class="paragraph">
+ <p><code>my-app deploy</code> or <code>my-app deploy --help</code> prints the group usage filtered to the direct subcommands of <code>deploy</code> (implicit intermediate groups are marked <code>(group)</code>),</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p><code>my-app deploy foo</code> where <code>foo</code> is not a subcommand reports a missing command error scoped to the <code>deploy</code> group,</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p><code>my-app --help</code>, <code>my-app help</code> and <code>my-app help &lt;path&gt;</code> print the global, command or group usage,</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p><code>my-app deploy run --help</code> prints the options of the <code>deploy run</code> command.</p>
+ </div>
+  </li>
+ </ul>
+ </div>
+ </div>
+ </div>
  <div class="sect1" id="_launching">
   <h2>Launching</h2>
  <div class="sectionbody">
  <div class="paragraph">
  <p><code>fusion-cli</code> provides an integration with <code>Launcher</code> main, if you don't use it, you will have to call yourself <code>CLIAwaiter</code> and register an instance of <code>Args</code>.</p>
+ </div>
+ </div>
+ </div>
+ <div class="sect1" id="_shell_completion">
+  <h2>Shell completion</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>Every Fusion CLI application exposes completion commands generating shell completion scripts (subcommands <code>completion/bash</code>, <code>completion/powershell</code> and <code>completion/zsh</code>): they register as regular<code>CliCommand</code> beans, so they appear in the app usage, documentation and their own completion.</p>
+ </div>
+ <div class="paragraph">
+ <p>Only the completion command matching the current shell is registered by default: the shell is detected from<code>$SHELL</code> (bash/zsh) or the OS (powershell on Windows), defaulting to <code>bash</code>. You can force the set with the<code>fusion.cli.shell</code> configuration key (<code>fusion.cli.shell</code> or <code>FUSION_CLI_SHELL</code>):<code>bash</code>, <code>zsh</code>, <code>powershell</code> to keep a single one, <code>all</code> to register every shell, or <code>none</code> to register none.</p>
+ </div>
+ <div class="ulist">
+ <ul>
+  <li>
+ <div class="paragraph">
+ <p>bash: <code>my-app completion bash &gt; /etc/bash_completion.d/my-app</code> then source it, or <code>eval &quot;$(my-app completion bash)&quot;</code>.</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p>zsh: <code>my-app completion zsh &gt; ~/.zfunc/_my-app</code> and add <code>fpath+autoload -Uz compinit &amp;&amp; compinit</code>.</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p>powershell: <code>my-app completion powershell | Out-String | Invoke-Expression</code> or paste the output into your <code>$PROFILE</code>.</p>
+ </div>
+  </li>
+ </ul>
+ </div>
+ <div class="paragraph">
+ <p>The application name used in the scripts defaults to <code>app</code> and can be overridden with the<code>fusion.cli.app.name</code> configuration key. Completion proposes subcommand segments while the command path is incomplete, then the <code>--options</code> of the resolved leaf command. For testing, <code>completion/bash</code> also reads the<code>comp.line</code> and <code>comp.point</code> configuration keys (the <code>COMP_LINE</code>/<code>COMP_POINT</code> environment variables set by the shell completer) to report the candidates for an arbitrary cursor position instead of printing the script.</p>
  </div>
  </div>
  </div>
@@ -304,7 +431,7 @@ if you need to inject a list, you can always create a bean which holds the list 
               <li class="list-inline-item"><a title="Twitter" target="_blank" href="https://twitter.com/Yupiik/"><i class="fab fa-twitter fa-fw"></i></a></li>
               <li class="list-inline-item"><a title="Github" target="_blank" href="https://www.github.com/yupiik/fusion"><i class="fab fa-github fa-fw"></i></a></li>
 	        </ul>
-            <small class="copyright">© 2025 <strong><a href="https://www.yupiik.com">Yupiik</a></strong>. All Rights Reserved</small> | <a href="https://www.yupiik.com/terms-of-use/">Terms of use</a> | <a href="https://www.yupiik.com/privacy-policy/">Privacy policy</a>
+            <small class="copyright">© 2026 <strong><a href="https://www.yupiik.com">Yupiik</a></strong>. All Rights Reserved</small> | <a href="https://www.yupiik.com/terms-of-use/">Terms of use</a> | <a href="https://www.yupiik.com/privacy-policy/">Privacy policy</a>
 	    </div>
     </footer>
 
@@ -346,10 +473,18 @@ function addCopyButtons(clipboard) {
   document.querySelectorAll('pre > code').forEach(function (codeBlock) {
   var button = document.createElement('button');  button.className = 'copy-code-button';  button.type = 'button';  button.innerText = 'Copy';  button.addEventListener('click', function () {   clipboard.writeText(codeBlock.innerText).then(function () {   button.blur();   button.innerText = 'Copied!';   setTimeout(function () { button.innerText = 'Copy'; }, 2000); }, function (error) { button.innerText = 'Error'; });  });  var pre = codeBlock.parentNode;  if (pre.parentNode.classList.contains('highlight')) {   var highlight = pre.parentNode; highlight.parentNode.insertBefore(button, highlight);  } else { pre.parentNode.insertBefore(button, pre); } });}
 if (navigator && navigator.clipboard) { addCopyButtons(navigator.clipboard);} else { var script = document.createElement('script'); script.src = '//cdnjs.cloudflare.com/ajax/libs/clipboard-polyfill/2.7.0/clipboard-polyfill.promise.js'; script.integrity = 'sha256-waClS2re9NUbXRsryKoof+F9qc1gjjIhc2eT7ZbIv94='; script.crossOrigin = 'anonymous'; script.onload = function() {addCopyButtons(clipboard);}; document.body.appendChild(script);} }</script>
-    <script src="//www.yupiik.io/fusion/js/minisite.js?v=1.0.33-SNAPSHOT"></script>
+    <script src="//www.yupiik.io/fusion/js/minisite.js?v=1.1.1-SNAPSHOT"></script>
     <script>$('.page-content-body').generatedNavMenu();</script>
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/fuse.js/6.4.3/fuse.min.js" integrity="sha512-neoBxVNv0UMXjoilAYGxfWrSsW6iAVclx7vQKdPJ9Peet1bM5YQjU0aIB8LtH8iNPa+pAyMZprBBw2ZQ/Q1LjQ==" crossorigin="anonymous"></script>
 
+<div id="llm-chat-root" style="display:none"
+     data-model-id="Llama-3.2-3B-Instruct-q4f16_1-MLC"
+     data-base="//www.yupiik.io/fusion"></div>
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('//www.yupiik.io/fusion/llm-chat-sw.js', {scope: '/'});
+}
+</script>
+<script src="//www.yupiik.io/fusion/js/llm-chat.js?v=1.1.1-SNAPSHOT"></script>
 </body>
 </html>

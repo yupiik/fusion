@@ -98,7 +98,8 @@
         }
     </style>
     
-    <link id="theme-style" rel="stylesheet" href="//www.yupiik.io/fusion/css/theme.css?v=1.0.33-SNAPSHOT">
+    <link id="theme-style" rel="stylesheet" href="//www.yupiik.io/fusion/css/theme.css?v=1.1.1-SNAPSHOT">
+<link rel="stylesheet" href="//www.yupiik.io/fusion/css/llm-chat.css?v=1.1.1-SNAPSHOT">
 </head>
 <body>
     <header class="header fixed-top">
@@ -140,12 +141,12 @@
                         <i class="fas fa-building"></i>Setup
                     </a>
                 </li>                <li>
-                    <a title="Fusion JSON support" href="//www.yupiik.io/fusion/fusion/json.html">
-                        <i class="fas fa-wifi"></i>JSON
-                    </a>
-                </li>                <li>
                     <a title="Fusion CLI" href="//www.yupiik.io/fusion/fusion/cli.html">
                         <i class="fas fa-terminal"></i>CLI
+                    </a>
+                </li>                <li>
+                    <a title="Fusion JSON support" href="//www.yupiik.io/fusion/fusion/json.html">
+                        <i class="fas fa-wifi"></i>JSON
                     </a>
                 </li>                <li>
                     <a title="framework and GraalVM (native-image)" href="//www.yupiik.io/fusion/fusion/graalvm.html">
@@ -179,7 +180,8 @@ Documentation module provides some tasks you can integrate with Yupiik minisite 
   &lt;groupId&gt;io.yupiik.fusion&lt;/groupId&gt;
   &lt;artifactId&gt;fusion-documentation&lt;/artifactId&gt;
   &lt;version&gt;${fusion.version}&lt;/artifactId&gt;
-&lt;/dependency&gt;</code></pre>
+&lt;/dependency&gt;
+</code></pre>
  </div>
  </div>
  </div>
@@ -197,32 +199,40 @@ Configuration:
  </div>
  <table class="tableblock frame-all grid-all stretch">
   <colgroup>
-   <col width="50%">
-   <col width="50%">
+   <col style="width: 50%;">
+   <col style="width: 50%;">
   </colgroup>
   <thead>
    <tr>
-    <th>
+    <th class="tableblock halign-center">
  Name     </th>
-    <th>
+    <th class="tableblock halign-center">
  Description    </th>
    </tr>
   </thead>
   <tbody>
    <tr>
-    <td>
- input     </td>
-    <td>
+    <td class="tableblock halign-center">
+<p class="tableblock">
+ input </p>
+    </td>
+    <td class="tableblock halign-center">
+<p class="tableblock">
  <div class="paragraph">
  <p> the location of the input file (json), often it will be <code>target/classes/META-INF/fusion/jsonrpc/openrpc.json</code>.</p>
  </div>
+</p>
     </td>
    </tr>
    <tr>
-    <td>
- output     </td>
-    <td>
- the location of the output file (asciidoc).    </td>
+    <td class="tableblock halign-center">
+<p class="tableblock">
+ output </p>
+    </td>
+    <td class="tableblock halign-center">
+<p class="tableblock">
+ the location of the output file (asciidoc).</p>
+    </td>
    </tr>
   </tbody>
  </table>
@@ -246,58 +256,78 @@ Configuration:
  </div>
  <table class="tableblock frame-all grid-all stretch">
   <colgroup>
-   <col width="50%">
-   <col width="50%">
+   <col style="width: 50%;">
+   <col style="width: 50%;">
   </colgroup>
   <thead>
    <tr>
-    <th>
+    <th class="tableblock halign-center">
  Name     </th>
-    <th>
+    <th class="tableblock halign-center">
  Description    </th>
    </tr>
   </thead>
   <tbody>
    <tr>
-    <td>
- input     </td>
-    <td>
+    <td class="tableblock halign-center">
+<p class="tableblock">
+ input </p>
+    </td>
+    <td class="tableblock halign-center">
+<p class="tableblock">
  <div class="paragraph">
  <p> the location of the input file (json), often it will be <code>target/classes/META-INF/fusion/jsonrpc/openrpc.json</code>.</p>
  </div>
+</p>
     </td>
    </tr>
    <tr>
-    <td>
- output     </td>
-    <td>
- the location of the output file (json).    </td>
+    <td class="tableblock halign-center">
+<p class="tableblock">
+ output </p>
+    </td>
+    <td class="tableblock halign-center">
+<p class="tableblock">
+ the location of the output file (json).</p>
+    </td>
    </tr>
    <tr>
-    <td>
- *.url     </td>
-    <td>
+    <td class="tableblock halign-center">
+<p class="tableblock">
+ *.url </p>
+    </td>
+    <td class="tableblock halign-center">
+<p class="tableblock">
  <div class="paragraph">
  <p> define a server URL, <code>*</code> is a prefix used to match the description (you can define multiple servers while prefix is unique).</p>
  </div>
+</p>
     </td>
    </tr>
    <tr>
-    <td>
- *.description     </td>
-    <td>
+    <td class="tableblock halign-center">
+<p class="tableblock">
+ *.description </p>
+    </td>
+    <td class="tableblock halign-center">
+<p class="tableblock">
  <div class="paragraph">
  <p> define a server description, <code>*</code> is a prefix used to match the url.</p>
  </div>
+</p>
     </td>
    </tr>
    <tr>
-    <td>
- info.*     </td>
-    <td>
+    <td class="tableblock halign-center">
+<p class="tableblock">
+ info.* </p>
+    </td>
+    <td class="tableblock halign-center">
+<p class="tableblock">
  <div class="paragraph">
  <p> define <code>info</code> block of OpenAPI. Ensure to define <code>info.title</code>, <code>info.version</code> and <code>info.description</code> at least.</p>
  </div>
+</p>
     </td>
    </tr>
   </tbody>
@@ -319,7 +349,8 @@ Configuration:
       body: JSON.stringify({ jsonrpc: '2.0', method: method, params: JSON.parse(request.body) }, undefined, 2)
     });
   },
-});</code></pre>
+});
+</code></pre>
  </div>
  </div>
  </div>
@@ -337,47 +368,63 @@ Configuration:
  </div>
  <table class="tableblock frame-all grid-all stretch">
   <colgroup>
-   <col width="50%">
-   <col width="50%">
+   <col style="width: 50%;">
+   <col style="width: 50%;">
   </colgroup>
   <thead>
    <tr>
-    <th>
+    <th class="tableblock halign-center">
  Name     </th>
-    <th>
+    <th class="tableblock halign-center">
  Description    </th>
    </tr>
   </thead>
   <tbody>
    <tr>
-    <td>
- input     </td>
-    <td>
+    <td class="tableblock halign-center">
+<p class="tableblock">
+ input </p>
+    </td>
+    <td class="tableblock halign-center">
+<p class="tableblock">
  <div class="paragraph">
  <p> the location of the input file (json), often it will be <code>target/classes/META-INF/fusion/jsonrpc/openrpc.json</code>.</p>
  </div>
+</p>
     </td>
    </tr>
    <tr>
-    <td>
- output     </td>
-    <td>
- the location of the output file (json).    </td>
+    <td class="tableblock halign-center">
+<p class="tableblock">
+ output </p>
+    </td>
+    <td class="tableblock halign-center">
+<p class="tableblock">
+ the location of the output file (json).</p>
+    </td>
    </tr>
    <tr>
-    <td>
- info.*     </td>
-    <td>
+    <td class="tableblock halign-center">
+<p class="tableblock">
+ info.* </p>
+    </td>
+    <td class="tableblock halign-center">
+<p class="tableblock">
  <div class="paragraph">
  <p> define <code>info</code> block of collection. Ensure to define <code>info.title</code>, <code>info.version</code>.</p>
  </div>
+</p>
     </td>
    </tr>
    <tr>
-    <td>
- server.url     </td>
-    <td>
- define a server URL to use.    </td>
+    <td class="tableblock halign-center">
+<p class="tableblock">
+ server.url </p>
+    </td>
+    <td class="tableblock halign-center">
+<p class="tableblock">
+ define a server URL to use.</p>
+    </td>
    </tr>
   </tbody>
  </table>
@@ -400,7 +447,8 @@ If you use Yupiik tools minisite, configuration will often look like:
   &lt;preAction&gt;
     &lt;type&gt;io.yupiik.fusion.documentation.ConfigurationDocumentationGenerator&lt;/type&gt;
   &lt;/preAction&gt;
-&lt;/preActions&gt;</code></pre>
+&lt;/preActions&gt;
+</code></pre>
  </div>
  </div>
  <div class="paragraph">
@@ -410,68 +458,92 @@ Configuration:
  </div>
  <table class="tableblock frame-all grid-all stretch">
   <colgroup>
-   <col width="50%">
-   <col width="50%">
+   <col style="width: 50%;">
+   <col style="width: 50%;">
   </colgroup>
   <thead>
    <tr>
-    <th>
+    <th class="tableblock halign-center">
  Name     </th>
-    <th>
+    <th class="tableblock halign-center">
  Description    </th>
    </tr>
   </thead>
   <tbody>
    <tr>
-    <td>
- includeEnvironmentNames     </td>
-    <td>
+    <td class="tableblock halign-center">
+<p class="tableblock">
+ includeEnvironmentNames </p>
+    </td>
+    <td class="tableblock halign-center">
+<p class="tableblock">
  <div class="paragraph">
  <p> Should environment names of the keys be shown or ignored. Default <code>false</code>.</p>
  </div>
+</p>
     </td>
    </tr>
    <tr>
-    <td>
- module     </td>
-    <td>
+    <td class="tableblock halign-center">
+<p class="tableblock">
+ module </p>
+    </td>
+    <td class="tableblock halign-center">
+<p class="tableblock">
  <div class="paragraph">
  <p> Title name for <code>list</code> formatter.</p>
  </div>
+</p>
     </td>
    </tr>
    <tr>
-    <td>
- output     </td>
-    <td>
+    <td class="tableblock halign-center">
+<p class="tableblock">
+ output </p>
+    </td>
+    <td class="tableblock halign-center">
+<p class="tableblock">
  <div class="paragraph">
  <p> When to generate the asciidoc file, by default - when not set - it uses <code>$source/content/_partials/generated/documentation.$module.adoc</code>.</p>
  </div>
+</p>
     </td>
    </tr>
    <tr>
-    <td>
- formatter     </td>
-    <td>
+    <td class="tableblock halign-center">
+<p class="tableblock">
+ formatter </p>
+    </td>
+    <td class="tableblock halign-center">
+<p class="tableblock">
  <div class="paragraph">
  <p> Can be <code>list</code> for a plain asciidoc list (with h1/h2 titles), <code>table</code> for a table and <code>definitionlist</code> for a definition list. Data are globally the same but depending your confguration it can be easier to read in one style or another.</p>
  </div>
+</p>
     </td>
    </tr>
    <tr>
-    <td>
- urls     </td>
-    <td>
+    <td class="tableblock halign-center">
+<p class="tableblock">
+ urls </p>
+    </td>
+    <td class="tableblock halign-center">
+<p class="tableblock">
  <div class="paragraph">
  <p> If not set <code>META-INF/fusion/configuration/documentation.json</code> is loaded from the classpath else the url to convert to asciidoc (same format).</p>
  </div>
+</p>
     </td>
    </tr>
    <tr>
-    <td>
- roots     </td>
-    <td>
- If you don't want to generate the configuration for all classes, the root classes to include from the JSON file (urls).    </td>
+    <td class="tableblock halign-center">
+<p class="tableblock">
+ roots </p>
+    </td>
+    <td class="tableblock halign-center">
+<p class="tableblock">
+ If you don't want to generate the configuration for all classes, the root classes to include from the JSON file (urls).</p>
+    </td>
    </tr>
   </tbody>
  </table>
@@ -494,7 +566,8 @@ If you use Yupiik tools minisite, configuration will often look like:
   &lt;preAction&gt;
     &lt;type&gt;io.yupiik.fusion.documentation.CliDocumentationGenerator&lt;/type&gt;
   &lt;/preAction&gt;
-&lt;/preActions&gt;</code></pre>
+&lt;/preActions&gt;
+</code></pre>
  </div>
  </div>
  <div class="paragraph">
@@ -504,29 +577,73 @@ Configuration:
  </div>
  <table class="tableblock frame-all grid-all stretch">
   <colgroup>
-   <col width="50%">
-   <col width="50%">
+   <col style="width: 50%;">
+   <col style="width: 50%;">
   </colgroup>
   <thead>
    <tr>
-    <th>
- Name     </th>
-    <th>
+    <th class="tableblock halign-center">
+ Name                   </th>
+    <th class="tableblock halign-center">
  Description    </th>
    </tr>
   </thead>
   <tbody>
    <tr>
-    <td>
- package     </td>
-    <td>
- If set enables to filter the commands included by package.    </td>
+    <td class="tableblock halign-center">
+<p class="tableblock">
+ indexHeader        </p>
+    </td>
+    <td class="tableblock halign-center">
+<p class="tableblock">
+ Header - top content - of the index page.</p>
+    </td>
    </tr>
    <tr>
-    <td>
- outputBase     </td>
-    <td>
- Base directory where to generate the commands and command index documents.    </td>
+    <td class="tableblock halign-center">
+<p class="tableblock">
+ indexName          </p>
+    </td>
+    <td class="tableblock halign-center">
+<p class="tableblock">
+ <div class="paragraph">
+ <p> Name if the index page listing commands, defaults to <code>index.adoc</code>. Can also include some relative path to render it in another folder but ensure to adjus <code>indexRelativePath</code> then.</p>
+ </div>
+</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-center">
+<p class="tableblock">
+ <div class="paragraph">
+ indexRelativePath<br>
+ </div>
+</p>
+    </td>
+    <td class="tableblock halign-center">
+<p class="tableblock">
+ Prefix to links to the command documentation, this is useful when the index page is generated in partials directory for example and you include it in another page.</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-center">
+<p class="tableblock">
+ package            </p>
+    </td>
+    <td class="tableblock halign-center">
+<p class="tableblock">
+ If set enables to filter the commands included by package.</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-center">
+<p class="tableblock">
+ outputBase         </p>
+    </td>
+    <td class="tableblock halign-center">
+<p class="tableblock">
+ Base directory where to generate the commands and command index documents.</p>
+    </td>
    </tr>
   </tbody>
  </table>
@@ -564,7 +681,7 @@ Configuration:
               <li class="list-inline-item"><a title="Twitter" target="_blank" href="https://twitter.com/Yupiik/"><i class="fab fa-twitter fa-fw"></i></a></li>
               <li class="list-inline-item"><a title="Github" target="_blank" href="https://www.github.com/yupiik/fusion"><i class="fab fa-github fa-fw"></i></a></li>
 	        </ul>
-            <small class="copyright">© 2025 <strong><a href="https://www.yupiik.com">Yupiik</a></strong>. All Rights Reserved</small> | <a href="https://www.yupiik.com/terms-of-use/">Terms of use</a> | <a href="https://www.yupiik.com/privacy-policy/">Privacy policy</a>
+            <small class="copyright">© 2026 <strong><a href="https://www.yupiik.com">Yupiik</a></strong>. All Rights Reserved</small> | <a href="https://www.yupiik.com/terms-of-use/">Terms of use</a> | <a href="https://www.yupiik.com/privacy-policy/">Privacy policy</a>
 	    </div>
     </footer>
 
@@ -606,10 +723,18 @@ function addCopyButtons(clipboard) {
   document.querySelectorAll('pre > code').forEach(function (codeBlock) {
   var button = document.createElement('button');  button.className = 'copy-code-button';  button.type = 'button';  button.innerText = 'Copy';  button.addEventListener('click', function () {   clipboard.writeText(codeBlock.innerText).then(function () {   button.blur();   button.innerText = 'Copied!';   setTimeout(function () { button.innerText = 'Copy'; }, 2000); }, function (error) { button.innerText = 'Error'; });  });  var pre = codeBlock.parentNode;  if (pre.parentNode.classList.contains('highlight')) {   var highlight = pre.parentNode; highlight.parentNode.insertBefore(button, highlight);  } else { pre.parentNode.insertBefore(button, pre); } });}
 if (navigator && navigator.clipboard) { addCopyButtons(navigator.clipboard);} else { var script = document.createElement('script'); script.src = '//cdnjs.cloudflare.com/ajax/libs/clipboard-polyfill/2.7.0/clipboard-polyfill.promise.js'; script.integrity = 'sha256-waClS2re9NUbXRsryKoof+F9qc1gjjIhc2eT7ZbIv94='; script.crossOrigin = 'anonymous'; script.onload = function() {addCopyButtons(clipboard);}; document.body.appendChild(script);} }</script>
-    <script src="//www.yupiik.io/fusion/js/minisite.js?v=1.0.33-SNAPSHOT"></script>
+    <script src="//www.yupiik.io/fusion/js/minisite.js?v=1.1.1-SNAPSHOT"></script>
     <script>$('.page-content-body').generatedNavMenu();</script>
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/fuse.js/6.4.3/fuse.min.js" integrity="sha512-neoBxVNv0UMXjoilAYGxfWrSsW6iAVclx7vQKdPJ9Peet1bM5YQjU0aIB8LtH8iNPa+pAyMZprBBw2ZQ/Q1LjQ==" crossorigin="anonymous"></script>
 
+<div id="llm-chat-root" style="display:none"
+     data-model-id="Llama-3.2-3B-Instruct-q4f16_1-MLC"
+     data-base="//www.yupiik.io/fusion"></div>
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('//www.yupiik.io/fusion/llm-chat-sw.js', {scope: '/'});
+}
+</script>
+<script src="//www.yupiik.io/fusion/js/llm-chat.js?v=1.1.1-SNAPSHOT"></script>
 </body>
 </html>
