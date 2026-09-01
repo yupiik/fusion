@@ -1,0 +1,65 @@
+---
+name: fusion-json
+description: Fusion `fusion-json` - Reflectionless JSON mapping with compile time generated codecs, JSON-Patch/Pointer/diff utilities. Use when working on or integrating this module, or
+  when a task touches its annotations, entry points or configuration.
+---
+
+# fusion-json
+
+Reflectionless JSON mapping with compile time generated codecs, JSON-Patch/Pointer/diff utilities.
+
+# Fusion :: JSON (`fusion-json`)
+
+Reflectionless JSON mapping with compile time generated codecs, JSON-Patch/Pointer/diff utilities.
+
+Records annotated with `@JsonModel` get a codec generated at compile time; this module provides the runtime
+mapper executing those codecs plus a streaming parser.
+
+```java
+@JsonModel
+public record MyModel(
+        @JsonProperty("boolean") boolean aBool, // renames the attribute in the JSON payload
+        String simplest,
+        LocalDate date,
+        AnotherModel nested,
+        List<AnotherModel> list,
+        @JsonOthers Map<String, Object> extensions) { // catch-all for unknown attributes
+}
+
+// JsonMapper is a bean once fusion-json is on the classpath, inject it
+final MyModel model = jsonMapper.fromString(MyModel.class, "{\"simplest\":\"value\"}");
+final String json = jsonMapper.toString(model);
+```
+
+## Entry points
+
+- `io.yupiik.fusion.json.JsonMapper`: main user API (a bean once `FusionJsonModule` is on the classpath).
+- `io.yupiik.fusion.json.serialization.JsonCodec`: SPI implemented by generated codecs.
+- `io.yupiik.fusion.json.spi.Parser`: streaming parser abstraction.
+- `io.yupiik.fusion.json.pretty.PrettyJsonMapper`: formatting decorator.
+- `io.yupiik.fusion.json.patch`/`pointer`/`diff`: JSON-Patch, JSON-Pointer and diff utilities.
+- `io.yupiik.fusion.json.schema.JsonSchemaService`: converts processor-generated (Draft-07/OpenAPI hybrid) schemas to JSON Schema Draft 2020-12 (including `$defs` bundling).
+- `io.yupiik.fusion.json.schema.RawBuildJsonSchema` + `RawBuildJsonSchemaJsonCodec`: typed, reflectionless model + codec for the processor-generated schema / `META-INF/fusion/**/schemas.json` bundles.
+- `io.yupiik.fusion.json.internal.JsonMapperImpl`: implementation (internal, do not expose in signatures).
+
+## Module rules
+
+- Reflectionless: no reflection-based (de)serialization fallback, unsupported types must fail clearly.
+- Codec generation lives in `fusion-processor` (`internal/json`), only the runtime belongs here.
+
+
+
+## Working in this module
+
+- Build it: `mvn install -pl fusion-json -am` (from the repository root).
+- The root [AGENTS.md](/AGENTS.md) holds the global rules: reflectionless design, license headers, parallel JUnit 5 tests, ASCII-only.
+
+
+
+## Skill relationship
+
+This is the module-specific skill. For the cross-cutting Fusion mechanics (dependency triad, compile-time
+annotation processing, writing `@Command` CLI beans, testing helpers, documentation) load the corresponding
+concept skills: `fusion-project-setup`, `fusion-annotation-processing`, `fusion-cli`, `fusion-testing`,
+`fusion-documentation`.
+<!-- generated from fusion-build-internal agents/skills/module/SKILL.md - do not edit -->

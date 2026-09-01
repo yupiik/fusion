@@ -54,6 +54,7 @@
     <module>fusion-handlebars</module>
     <module>fusion-jwt</module>
     <module>fusion-kubernetes-operator-base</module>
+    <module>fusion-ai-skills</module>
     <module>fusion-build-internal</module>
   </modules>
 

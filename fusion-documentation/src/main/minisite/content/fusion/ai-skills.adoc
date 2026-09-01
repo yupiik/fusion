@@ -1,0 +1,101 @@
+= Fusion AI skills
+:minisite-index: 900
+:minisite-index-title: AI skills
+:minisite-index-description: Install Fusion coding agent skills for opencode and Claude.
+:minisite-index-icon: sparkles
+
+[abstract]
+`fusion-ai-skills` ships installable AI coding agent skills that teach opencode / Claude Code how
+this project works (the compile-time annotation processing model, the dependency triad, module and testing
+conventions). It is distributed as a self-contained CLI so you can install the skills into any agent skill
+directory, on any OS.
+
+== Distribution
+
+The module is published to Maven Central as `io.yupiik.fusion:fusion-ai-skills`. The shaded, runnable jar is
+attached with the `fatjat` classifier:
+
+[source,bash]
+----
+mvn dependency:copy \
+  -Dartifact=io.yupiik.fusion:fusion-ai-skills:VERSION:jar:bin \
+  -DoutputDirectory=.
+java -jar fusion-ai-skills-VERSION-fatjar.jar --help
+----
+
+== Installing skills
+
+The CLI has two commands: `install` copies the bundled skills into the target agent's skill directory, and
+`delete` removes them again. When `--target` is not given, the default path for the `--agent` and `--scope`
+is used; if the default cannot be resolved you will get an error telling you what to pass.
+
+[source,bash]
+----
+# opencode, per project
+java -jar fusion-ai-skills-VERSION-fatjar.jar install --agent opencode --scope local
+
+# Claude, per project
+java -jar fusion-ai-skills-VERSION-fatjar.jar install --agent claude --scope local
+
+# global (user home) for any agent
+java -jar fusion-ai-skills-VERSION-fatjar.jar install --agent opencode --scope global
+
+# explicit target directory
+java -jar fusion-ai-skills-VERSION-fatjar.jar install --agent claude --target /srv/shared/.claude/skills
+
+# remove previously installed skills
+java -jar fusion-ai-skills-VERSION-fatjar.jar delete --agent opencode --scope local
+----
+
+Use `--force` to overwrite already installed skills.
+
+=== Default install paths
+
+These are the defaults documented by the `--agent`, `--scope` and `--target` properties. They differ per OS
+for the global scope:
+
+[opts="header"]
+|===
+| Agent | Scope | Linux / macOS | Windows
+| opencode | global | `~/.config/opencode/skills` | `%USERPROFILE%\.config\opencode\skills`
+| opencode | local | `.opencode/skills` | `.opencode\skills`
+| claude | global | `~/.claude/skills` | `%USERPROFILE%\.claude\skills`
+| claude | local | `.claude/skills` | `.claude\skills`
+|===
+
+== Bundled skills
+
+The installed set is composed of cross-cutting "concept" skills and one skill per runtime module. Concept
+skills:
+
+[opts="header"]
+|===
+| Skill | Purpose
+| `fusion-project-setup` | Dependency triad, module conventions, build/license/test commands.
+| `fusion-annotation-processing` | Compile-time generation model, `@Property` defaultValue rules.
+| `fusion-cli` | Writing `@Command` Runnable beans, config binding, bootstrapping via `CliLauncher`.
+| `fusion-documentation` | How the minisite and generated reference are built.
+| `fusion-testing` | JUnit 5 helpers and parallel-test rules.
+|===
+
+Per-module skills (generated from the module guides so they stay in sync):
+
+[opts="header"]
+|===
+| Skill | Module
+| `fusion-json` | Reflectionless JSON mapping.
+| `fusion-http-server` | Apache Tomcat HTTP server and endpoint matchers.
+| `fusion-jsonrpc` | JSON-RPC 2.0 over HTTP with OpenRPC support.
+| `fusion-httpclient` | Extended java.net.http client.
+| `fusion-kubernetes-client` | Lightweight Kubernetes client.
+| `fusion-kubernetes-operator-base` | Building Kubernetes operators with Fusion.
+| `fusion-persistence` | Reflectionless JDBC persistence.
+| `fusion-tracing` | Zipkin oriented tracing.
+| `fusion-handlebars` | Dependency-free Handlebars engine.
+| `fusion-jwt` | JWT signing and validation.
+|===
+
+== CLI reference
+
+The install command is documented in detail at xref:cli/index.adoc[] (per-command pages under `cli/`). It is
+generated from the `@Command` metadata, not written by hand.

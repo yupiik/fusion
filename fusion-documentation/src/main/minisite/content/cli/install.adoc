@@ -1,0 +1,34 @@
+= install
+:minisite-nav-prev-link: index.html
+:minisite-nav-prev-label: CLI
+
+== Description
+
+Install the bundled Fusion AI skills into a coding agent skill directory.
+
+== Synopsis
+
+[source,bash]
+.install-sample
+----
+java -jar fusion-ai-skills-fatjar.jar \
+    install \
+    --agent ...\
+    --force ...\
+    --scope ...\
+    --target ...
+----
+
+== Parameters
+
+--agent::
+Target coding agent: 'opencode', 'claude' or 'generic'.Each agent uses its own skill directory layout. Defaults: opencode global ~/.config/opencode/skills (Linux/macOS) and %USERPROFILE%\.config\opencode\skills (Windows), local .opencode/skills; claude global ~/.claude/skills (Linux/macOS) and %USERPROFILE%\.claude\skills (Windows), local .claude/skills; generic global ~/.agents/skills and local .agents/skills. Provide --target to override the resolved path.
+
+--force::
+Overwrite already installed skills instead of skipping them.
+
+--scope::
+Install scope: 'local' (current project directory) or 'global' (user home).
+
+--target::
+Explicit target directory holding the skills (overrides the --agent/--scope default).Common values: opencode global is ~/.config/opencode/skills on Linux/macOS and %USERPROFILE%\.config\opencode\skills on Windows; claude global is ~/.claude/skills on Linux/macOS and %USERPROFILE%\.claude\skills on Windows. Per-project installs use .opencode/skills and .claude/skills relative to the project root.

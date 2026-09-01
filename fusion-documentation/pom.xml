@@ -105,6 +105,12 @@
       <version>${project.version}</version>
       <scope>provided</scope>
     </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>fusion-ai-skills</artifactId>
+      <version>${project.version}</version>
+      <scope>provided</scope>
+    </dependency>
   </dependencies>
 
   <build>
@@ -146,6 +152,14 @@
               <type>io.yupiik.fusion.documentation.DocumentationGenerator</type>
               <configuration>
                 <includeEnvironmentNames>true</includeEnvironmentNames>
+              </configuration>
+            </preAction>
+            <preAction>
+              <type>io.yupiik.fusion.documentation.CliDocumentationGenerator</type>
+              <configuration>
+                <package>io.yupiik.fusion.ai.skill.install</package>
+                <application>java -jar fusion-ai-skills-fatjar.jar</application>
+                <indexHeader>== Fusion AI Skills CLI</indexHeader>
               </configuration>
             </preAction>
           </preActions>

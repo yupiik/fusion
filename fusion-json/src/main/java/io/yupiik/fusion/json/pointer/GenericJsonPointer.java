@@ -37,7 +37,7 @@ public class GenericJsonPointer implements Function<Object, Object> {
      * @param raw the pointer as in the RFC.
      */
     public GenericJsonPointer(final String raw) {
-        if (raw == null || (!raw.equals("") && !raw.startsWith("/"))) {
+        if (raw == null || (!raw.isEmpty() && !raw.startsWith("/"))) {
             throw new IllegalArgumentException("A non-empty JsonPointer string must begin with a '/'");
         }
 

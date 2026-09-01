@@ -49,6 +49,7 @@ Each module has its own `AGENTS.md` with entry points and module specific rules.
 | [fusion-handlebars](fusion-handlebars/AGENTS.md) | Handlebars templating engine implementation without any dependency. |
 | [fusion-jwt](fusion-jwt/AGENTS.md) | JWT signing and validation based on JDK cryptography. |
 | [fusion-kubernetes-operator-base](fusion-kubernetes-operator-base/AGENTS.md) | Base to build Kubernetes operators with Fusion (watch/reconcile runtime, CRD support). |
+| [fusion-ai-skills](fusion-ai-skills/AGENTS.md) | Installable AI coding agent skills (opencode, Claude) for Fusion, distributed as a self-contained CLI. |
 | [fusion-build-internal](fusion-build-internal/AGENTS.md) | Internal build tooling keeping repository agent files (AGENTS.md/CLAUDE.md) in sync. Never published. |
 
 How consumers use Fusion (the "triad"): applications depend on `fusion-build-api` + `fusion-processor`
