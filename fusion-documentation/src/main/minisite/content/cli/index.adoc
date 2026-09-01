@@ -1,0 +1,13 @@
+== Fusion AI Skills CLI
+
+== delete
+
+Remove the Fusion AI skills previously installed for a coding agent.
+
+See xref:delete.adoc[delete] detail page.
+
+== install
+
+Install the bundled Fusion AI skills into a coding agent skill directory.
+
+See xref:install.adoc[install] detail page.

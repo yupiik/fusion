@@ -1,0 +1,30 @@
+= delete
+:minisite-nav-prev-link: index.html
+:minisite-nav-prev-label: CLI
+
+== Description
+
+Remove the Fusion AI skills previously installed for a coding agent.
+
+== Synopsis
+
+[source,bash]
+.delete-sample
+----
+java -jar fusion-ai-skills-fatjar.jar \
+    delete \
+    --agent ...\
+    --scope ...\
+    --target ...
+----
+
+== Parameters
+
+--agent::
+Target coding agent: 'opencode', 'claude' or 'generic'.Provide --target to override the resolved path.
+
+--scope::
+Install scope: 'local' (current project directory) or 'global' (user home).
+
+--target::
+Explicit target directory holding the skills (overrides the --agent/--scope default).

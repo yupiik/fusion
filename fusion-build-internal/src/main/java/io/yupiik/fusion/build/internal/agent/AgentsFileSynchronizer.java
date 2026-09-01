@@ -32,6 +32,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.logging.Logger;
@@ -95,17 +96,7 @@ public class AgentsFileSynchronizer implements Runnable {
             write(outputRoot.resolve("AGENTS.md"), banner("agents/root.md") + render(compiler, "agents/root.md", globalData), stale);
             write(outputRoot.resolve("CLAUDE.md"), banner("agents/claude.md") + render(compiler, "agents/claude.md", globalData), stale);
             for (final var module : modules) {
-                final var data = new HashMap<String, Object>(globalData);
-                data.put("artifactId", module.artifactId());
-                data.put("path", module.path());
-                data.put("name", module.name());
-                data.put("description", module.description());
-                data.put("configuration", configurations.getOrDefault(module.artifactId(), ""));
-                if ("fusion-build-api".equals(module.artifactId())) {
-                    data.put("annotations", buildApiAnnotationCatalog());
-                }
-                data.put("footer", render(compiler, "agents/module/_footer.md", data));
-
+                final var data = moduleData(compiler, globalData, module, configurations);
                 final var template = ofNullable(getClass().getClassLoader().getResource("agents/module/" + module.artifactId() + ".md"))
                         .map(url -> "agents/module/" + module.artifactId() + ".md")
                         .orElseGet(() -> {
@@ -115,6 +106,8 @@ public class AgentsFileSynchronizer implements Runnable {
                         });
                 write(outputRoot.resolve(module.path()).resolve("AGENTS.md"), banner(template) + render(compiler, template, data), stale);
             }
+
+            syncSkills(compiler, modules, configurations, stale);
 
             if (checkOnly && !stale.isEmpty()) {
                 throw new IllegalStateException(
@@ -142,6 +135,67 @@ public class AgentsFileSynchronizer implements Runnable {
                     .compile(new HandlebarsCompiler.CompilationContext(new String(in.readAllBytes(), UTF_8)))
                     .render(data);
             return rendered.endsWith("\n") ? rendered : rendered + '\n';
+        }
+    }
+
+    private Map<String, Object> moduleData(final HandlebarsCompiler compiler, final Map<String, Object> globalData,
+                                           final Module module, final Map<String, String> configurations) throws IOException {
+        final var data = new HashMap<String, Object>(globalData);
+        data.put("artifactId", module.artifactId());
+        data.put("path", module.path());
+        data.put("name", module.name());
+        data.put("description", module.description());
+        data.put("configuration", configurations.getOrDefault(module.artifactId(), ""));
+        if ("fusion-build-api".equals(module.artifactId())) {
+            data.put("annotations", buildApiAnnotationCatalog());
+        }
+        data.put("footer", render(compiler, "agents/module/_footer.md", data));
+        return data;
+    }
+
+    private void syncSkills(final HandlebarsCompiler compiler, final List<Module> modules,
+                            final Map<String, String> configurations, final List<Path> stale) throws IOException {
+        final var skillsRoot = repositoryRoot.resolve("fusion-build-internal/src/main/resources/agents/skills");
+        if (!Files.isDirectory(skillsRoot)) {
+            return;
+        }
+        try (final var skills = Files.walk(skillsRoot)) {
+            skills.filter(Files::isRegularFile)
+                    .filter(path -> path.getFileName().toString().equals("SKILL.md"))
+                    .filter(path -> !path.getParent().getFileName().toString().equals("module"))
+                    .forEach(path -> {
+                        final var relative = skillsRoot.relativize(path);
+                        final var target = repositoryRoot.resolve("fusion-ai-skills/src/main/resources/skills").resolve(relative);
+                        try {
+                            final var content = Files.readString(path) + "<!-- generated from fusion-build-internal "
+                                    + "src/main/resources/agents/skills/" + relative + " - do not edit -->\n";
+                            write(target, content, stale);
+                        } catch (final IOException e) {
+                            throw new IllegalStateException(e);
+                        }
+                    });
+        }
+        // per-module runtime skills: only for the modules that ship a distinct consumer-facing API.
+        final var moduleSkillArtifacts = Set.of(
+                "fusion-json", "fusion-http-server", "fusion-jsonrpc", "fusion-httpclient",
+                "fusion-kubernetes-client", "fusion-persistence", "fusion-tracing", "fusion-handlebars",
+                "fusion-jwt", "fusion-kubernetes-operator-base");
+        for (final var module : modules) {
+            if (!moduleSkillArtifacts.contains(module.artifactId())) {
+                continue;
+            }
+            final var data = moduleData(compiler, Map.of(
+                            "javaRelease", "17",
+                            "modules", modules.stream().map(Module::artifactId).toList()),
+                    module, configurations);
+            final var guideTemplate = getClass().getClassLoader().getResource("agents/module/" + module.artifactId() + ".md") == null
+                    ? "agents/module/_default.md"
+                    : "agents/module/" + module.artifactId() + ".md";
+            data.put("guide", render(compiler, guideTemplate, data));
+            final var skill = render(compiler, "agents/skills/module/SKILL.md", data);
+            final var target = repositoryRoot.resolve("fusion-ai-skills/src/main/resources/skills")
+                    .resolve(module.artifactId()).resolve("SKILL.md");
+            write(target, skill + "<!-- generated from fusion-build-internal agents/skills/module/SKILL.md - do not edit -->\n", stale);
         }
     }
 
