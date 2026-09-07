@@ -131,8 +131,25 @@ public class CliDocumentationGenerator implements Runnable {
                 "== Parameters\n" +
                 "\n" +
                 (command.parameters().isEmpty() ? "No parameter." : command.parameters().stream()
-                                                                     .map(p -> displayName(cmdPrefix, p.cliName()) + "::\n" + p.description() + detail(p) + "\n")
+                                                                     .map(p -> displayName(cmdPrefix, p.cliName()) + "::\n" + parameterBody(p) + "\n")
                                                                      .collect(joining("\n")));
+    }
+
+    // definition-list body for one option: description, then optional Type/Default lines.
+    // lines are joined with a single '\n' (never a blank line) so the AsciiDoc item body stays grouped,
+    // even when the description is empty (the first detail line becomes the body right after '::').
+    private String parameterBody(final CliCommand.Parameter parameter) {
+        final var description = parameter.description();
+        final var type = parameter.type();
+        final var defaultValue = parameter.defaultValue();
+        return Stream.concat(
+                        description == null || description.isBlank() ? Stream.empty() : Stream.of(description),
+                        Stream.of(
+                                type == null || type.isBlank() ? null : ("Type: `" + displayType(type) + "`."),
+                                defaultValue == null || defaultValue.isBlank() || "null".equals(defaultValue) ?
+                                        null : "Default: `" + defaultValue + "`."))
+                .filter(java.util.Objects::nonNull)
+                .collect(joining("\n"));
     }
 
     private String argPlaceholder(final CliCommand.Parameter parameter) {
@@ -168,19 +185,7 @@ public class CliDocumentationGenerator implements Runnable {
         }
     }
 
-    // trailing info (type/default) appended to the parameter description, empty when nothing to report
-    private String detail(final CliCommand.Parameter parameter) {
-        final var type = parameter.type();
-        final var defaultValue = parameter.defaultValue();
-        final var typeLine = type == null || type.isBlank() ? null : ("\n\nType: `" + displayType(type) + "`.");
-        final var defaultLine = defaultValue == null || defaultValue.isBlank() || "null".equals(defaultValue) ?
-                null : "\n\nDefault: `" + defaultValue + "`.";
-        return Stream.of(typeLine, defaultLine)
-                .filter(java.util.Objects::nonNull)
-                .collect(joining());
-    }
-
-    private String displayType(final String type) {
+private String displayType(final String type) {
         final var printable = type.replace('$', '.');
         // collapse the package for well-known JDK types (java.lang, java.util, ...) to keep the doc readable
         if (printable.startsWith("java.") || printable.startsWith("javax.")) {

@@ -23,24 +23,18 @@ java -jar fusion-ai-skills-fatjar.jar \
 
 --agent::
 Target coding agent: 'opencode', 'claude' or 'generic'.Each agent uses its own skill directory layout. Defaults: opencode global ~/.config/opencode/skills (Linux/macOS) and %USERPROFILE%\.config\opencode\skills (Windows), local .opencode/skills; claude global ~/.claude/skills (Linux/macOS) and %USERPROFILE%\.claude\skills (Windows), local .claude/skills; generic global ~/.agents/skills and local .agents/skills. Provide --target to override the resolved path.
-
 Type: `String`.
 
 --force::
 Overwrite already installed skills instead of skipping them.
-
 Type: `boolean`.
-
 Default: `false`.
 
 --scope::
 Install scope: 'local' (current project directory) or 'global' (user home).
-
 Type: `String`.
-
 Default: `"local"`.
 
 --target::
 Explicit target directory holding the skills (overrides the --agent/--scope default).Common values: opencode global is ~/.config/opencode/skills on Linux/macOS and %USERPROFILE%\.config\opencode\skills on Windows; claude global is ~/.claude/skills on Linux/macOS and %USERPROFILE%\.claude\skills on Windows. Per-project installs use .opencode/skills and .claude/skills relative to the project root.
-
 Type: `String`.

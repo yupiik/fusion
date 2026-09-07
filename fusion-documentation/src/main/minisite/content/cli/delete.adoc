@@ -22,17 +22,13 @@ java -jar fusion-ai-skills-fatjar.jar \
 
 --agent::
 Target coding agent: 'opencode', 'claude' or 'generic'.Provide --target to override the resolved path.
-
 Type: `String`.
 
 --scope::
 Install scope: 'local' (current project directory) or 'global' (user home).
-
 Type: `String`.
-
 Default: `"local"`.
 
 --target::
 Explicit target directory holding the skills (overrides the --agent/--scope default).
-
 Type: `String`.
