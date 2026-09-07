@@ -54,5 +54,9 @@ public interface CliCommand<C extends Runnable> {
         return Function.identity();
     }
 
-    record Parameter(String configName, String cliName, String description) {}
+    record Parameter(String configName, String cliName, String description, String type, String defaultValue) {
+        public Parameter(final String configName, final String cliName, final String description) {
+            this(configName, cliName, description, null, null);
+        }
+    }
 }

@@ -215,7 +215,9 @@ public class CliCommandGenerator extends BaseGenerator implements Supplier<CliCo
         return "new " + CliCommand.Parameter.class.getName().replace('$', '.') + "(" +
                 "\"" + escaped(javaName) + "\", " +
                 "\"" + escaped(cliName) + "\", " +
-                "\"" + escaped(item.doc()) + "\")";
+                "\"" + escaped(item.doc()) + "\", " +
+                "\"" + escaped(item.type()) + "\", " +
+                "\"" + escaped(item.defaultValue()) + "\")";
     }
 
     // escapes a raw value once for its embedding in a generated java string literal

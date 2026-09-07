@@ -51,4 +51,43 @@ class CliDocumentationGeneratorTest {
         assertFalse(result.contains("--other-name"), "Should not show a command prefixed form, got:\n" + result);
         assertFalse(result.contains("-."), "Should not leak the old '-.' key form, got:\n" + result);
     }
+
+    @Test
+    void booleanShowsChoicesAndDefault() {
+        final var gen = new CliDocumentationGenerator(Path.of("."), Map.of());
+        final var result = gen.generateDetail("my-app",
+                new CliDocumentationGenerator.Command("my-command", new String[]{"my-command"}, "A test command.",
+                        List.of(new CliCommand.Parameter("my-command.flag", "--my-command-flag", "A flag.", "boolean", "false"))),
+                "index.html").toString();
+
+        assertTrue(result.contains("--flag [true|false]"), "Boolean should render [true|false], got:\n" + result);
+        assertTrue(result.contains("Type: `boolean`."), "Should document the type, got:\n" + result);
+        assertTrue(result.contains("Default: `false`."), "Should document the default, got:\n" + result);
+    }
+
+    @Test
+    void enumShowsConstants() {
+        final var gen = new CliDocumentationGenerator(Path.of("."), Map.of());
+        final var result = gen.generateDetail("my-app",
+                new CliDocumentationGenerator.Command("my-command", new String[]{"my-command"}, "A test command.",
+                        List.of(new CliCommand.Parameter("my-command.mode", "--my-command-mode", "A mode.", "java.nio.file.AccessMode", null))),
+                "index.html").toString();
+
+        assertTrue(result.contains("--mode [READ|WRITE|EXECUTE]"),
+                "Enum should render its constants, got:\n" + result);
+        assertTrue(result.contains("Type: `AccessMode`."), "Should document the type, got:\n" + result);
+    }
+
+    @Test
+    void unknownTypeKeepsEllipsisAndOmitsNullDefault() {
+        final var gen = new CliDocumentationGenerator(Path.of("."), Map.of());
+        final var result = gen.generateDetail("my-app",
+                new CliDocumentationGenerator.Command("my-command", new String[]{"my-command"}, "A test command.",
+                        List.of(new CliCommand.Parameter("my-command.name", "--my-command-name", "The name option.", "java.lang.String", null))),
+                "index.html").toString();
+
+        assertTrue(result.contains("--name ..."), "Non boolean/enum keeps ellipsis, got:\n" + result);
+        assertFalse(result.contains("Default:"), "Null default must not be rendered, got:\n" + result);
+        assertTrue(result.contains("Type: `String`."), "Should document the type, got:\n" + result);
+    }
 }

@@ -30,9 +30,11 @@ import io.yupiik.fusion.framework.api.scope.ApplicationScoped;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiPredicate;
+import java.util.stream.Stream;
 
 import static java.util.Comparator.comparing;
 import static java.util.Optional.ofNullable;
@@ -123,14 +125,69 @@ public class CliDocumentationGenerator implements Runnable {
                         """.replace("${name}", command.name()) +
                 app + " \\\n" +
                 "    " + command.name + (command.parameters().isEmpty() ? "" : " \\") + '\n' +
-                command.parameters().stream().map(it -> "    " + displayName(cmdPrefix, it.cliName()) + " ...").collect(joining("\\\n", "", "\n")) +
+                command.parameters().stream().map(it -> "    " + displayName(cmdPrefix, it.cliName()) + " " + argPlaceholder(it)).collect(joining("\\\n", "", "\n")) +
                 "----\n" +
                 "\n" +
                 "== Parameters\n" +
                 "\n" +
                 (command.parameters().isEmpty() ? "No parameter." : command.parameters().stream()
-                                                                     .map(p -> displayName(cmdPrefix, p.cliName()) + "::\n" + p.description() + "\n")
+                                                                     .map(p -> displayName(cmdPrefix, p.cliName()) + "::\n" + p.description() + detail(p) + "\n")
                                                                      .collect(joining("\n")));
+    }
+
+    private String argPlaceholder(final CliCommand.Parameter parameter) {
+        final var type = parameter.type();
+        if (type == null || type.isBlank()) {
+            return "...";
+        }
+        if (isBoolean(type)) {
+            return "[true|false]";
+        }
+        final var constants = enumConstants(type);
+        if (constants != null) {
+            return "[".concat(String.join("|", constants)).concat("]");
+        }
+        return "...";
+    }
+
+    private boolean isBoolean(final String type) {
+        return boolean.class.getTypeName().equals(type) || Boolean.class.getName().equals(type);
+    }
+
+    // best effort: resolves enum constants at doc generation time (the command/config types are on the classpath);
+    // returns null when the type is not a loadable enum
+    private List<String> enumConstants(final String type) {
+        try {
+            final var clazz = Class.forName(type, false, Thread.currentThread().getContextClassLoader());
+            if (clazz.isEnum() && clazz.getEnumConstants() != null) {
+                return Arrays.stream(clazz.getEnumConstants()).map(it -> ((Enum<?>) it).name()).toList();
+            }
+            return null;
+        } catch (final ClassNotFoundException | LinkageError e) {
+            return null;
+        }
+    }
+
+    // trailing info (type/default) appended to the parameter description, empty when nothing to report
+    private String detail(final CliCommand.Parameter parameter) {
+        final var type = parameter.type();
+        final var defaultValue = parameter.defaultValue();
+        final var typeLine = type == null || type.isBlank() ? null : ("\n\nType: `" + displayType(type) + "`.");
+        final var defaultLine = defaultValue == null || defaultValue.isBlank() || "null".equals(defaultValue) ?
+                null : "\n\nDefault: `" + defaultValue + "`.";
+        return Stream.of(typeLine, defaultLine)
+                .filter(java.util.Objects::nonNull)
+                .collect(joining());
+    }
+
+    private String displayType(final String type) {
+        final var printable = type.replace('$', '.');
+        // collapse the package for well-known JDK types (java.lang, java.util, ...) to keep the doc readable
+        if (printable.startsWith("java.") || printable.startsWith("javax.")) {
+            final var dot = printable.lastIndexOf('.');
+            return dot > 0 ? printable.substring(dot + 1) : printable;
+        }
+        return printable;
     }
 
     private static String displayName(final String cmdPrefix, final String cliName) {

@@ -195,32 +195,32 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
         //
 
         if (String.class.getName().equals(typeStr) || CharSequence.class.getName().equals(typeStr)) {
-            return lookup(javaName, name, required, "", defaultValue != null ? defaultValue : "null", docName, desc);
+            return lookup(javaName, name, required, "", defaultValue != null ? defaultValue : "null", docName, desc, typeStr);
         }
         if (boolean.class.getName().equals(typeStr) || Boolean.class.getName().equals(typeStr)) {
-            return lookup(javaName, name, required, ".map(Boolean::parseBoolean)", defaultValue != null ? defaultValue : "false", docName, desc);
+            return lookup(javaName, name, required, ".map(Boolean::parseBoolean)", defaultValue != null ? defaultValue : "false", docName, desc, typeStr);
         }
         if (int.class.getName().equals(typeStr) || Integer.class.getName().equals(typeStr)) {
-            return lookup(javaName, name, required, ".map(Integer::parseInt)", defaultValue != null ? defaultValue : "0", docName, desc);
+            return lookup(javaName, name, required, ".map(Integer::parseInt)", defaultValue != null ? defaultValue : "0", docName, desc, typeStr);
         }
         if (long.class.getName().equals(typeStr) || Long.class.getName().equals(typeStr)) {
-            return lookup(javaName, name, required, ".map(Long::parseLong)", defaultValue != null ? defaultValue : "0L", docName, desc);
+            return lookup(javaName, name, required, ".map(Long::parseLong)", defaultValue != null ? defaultValue : "0L", docName, desc, typeStr);
         }
         if (float.class.getName().equals(typeStr) || Float.class.getName().equals(typeStr)) {
-            return lookup(javaName, name, required, ".map(Float::parseFloat)", defaultValue != null ? defaultValue : "0.f", docName, desc);
+            return lookup(javaName, name, required, ".map(Float::parseFloat)", defaultValue != null ? defaultValue : "0.f", docName, desc, typeStr);
         }
         if (double.class.getName().equals(typeStr) || Double.class.getName().equals(typeStr)) {
-            return lookup(javaName, name, required, ".map(Double::parseDouble)", defaultValue != null ? defaultValue : "0.", docName, desc);
+            return lookup(javaName, name, required, ".map(Double::parseDouble)", defaultValue != null ? defaultValue : "0.", docName, desc, typeStr);
         }
         if (BigInteger.class.getName().equals(typeStr)) {
-            return lookup(javaName, name, required, ".map(" + BigInteger.class.getName() + "::new)", defaultValue != null ? defaultValue : "null", docName, desc);
+            return lookup(javaName, name, required, ".map(" + BigInteger.class.getName() + "::new)", defaultValue != null ? defaultValue : "null", docName, desc, typeStr);
         }
         if (BigDecimal.class.getName().equals(typeStr)) {
-            return lookup(javaName, name, required, ".map(" + BigDecimal.class.getName() + "::new)", defaultValue != null ? defaultValue : "null", docName, desc);
+            return lookup(javaName, name, required, ".map(" + BigDecimal.class.getName() + "::new)", defaultValue != null ? defaultValue : "null", docName, desc, typeStr);
         }
         final var asElement = processingEnv.getTypeUtils().asElement(type);
         if (asElement != null && asElement.getKind() == ENUM) {
-            return lookup(javaName, name, required, ".map(" + typeStr + "::" + enumValueOf(asElement) + ")", defaultValue != null ? defaultValue : "null", docName, desc);
+            return lookup(javaName, name, required, ".map(" + typeStr + "::" + enumValueOf(asElement) + ")", defaultValue != null ? defaultValue : "null", docName, desc, typeStr);
         }
 
         //
@@ -231,32 +231,32 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
             final var itemType = dt.getTypeArguments().get(0);
             final var itemString = itemType.toString();
             if (String.class.getName().equals(itemString) || CharSequence.class.getName().equals(itemString)) {
-                return lookup(javaName, name, required, listOf(""), defaultValue != null ? defaultValue : "null", docName, desc);
+                return lookup(javaName, name, required, listOf(""), defaultValue != null ? defaultValue : "null", docName, desc, typeStr);
             }
             if (boolean.class.getName().equals(itemString) || Boolean.class.getName().equals(itemString)) {
-                return lookup(javaName, name, required, listOf(".map(Boolean::parseBoolean)"), defaultValue != null ? defaultValue : "null", docName, desc);
+                return lookup(javaName, name, required, listOf(".map(Boolean::parseBoolean)"), defaultValue != null ? defaultValue : "null", docName, desc, typeStr);
             }
             if (int.class.getName().equals(itemString) || Integer.class.getName().equals(itemString)) {
-                return lookup(javaName, name, required, listOf(".map(Integer::parseInt)"), defaultValue != null ? defaultValue : "null", docName, desc);
+                return lookup(javaName, name, required, listOf(".map(Integer::parseInt)"), defaultValue != null ? defaultValue : "null", docName, desc, typeStr);
             }
             if (long.class.getName().equals(itemString) || Long.class.getName().equals(itemString)) {
-                return lookup(javaName, name, required, listOf(".map(Long::parseLong)"), defaultValue != null ? defaultValue : "null", docName, desc);
+                return lookup(javaName, name, required, listOf(".map(Long::parseLong)"), defaultValue != null ? defaultValue : "null", docName, desc, typeStr);
             }
             if (float.class.getName().equals(itemString) || Float.class.getName().equals(itemString)) {
-                return lookup(javaName, name, required, listOf(".map(Float::parseFloat)"), defaultValue != null ? defaultValue : "null", docName, desc);
+                return lookup(javaName, name, required, listOf(".map(Float::parseFloat)"), defaultValue != null ? defaultValue : "null", docName, desc, typeStr);
             }
             if (double.class.getName().equals(itemString) || Double.class.getName().equals(itemString)) {
-                return lookup(javaName, name, required, listOf(".map(Double::parseDouble)"), defaultValue != null ? defaultValue : "null", docName, desc);
+                return lookup(javaName, name, required, listOf(".map(Double::parseDouble)"), defaultValue != null ? defaultValue : "null", docName, desc, typeStr);
             }
             if (BigInteger.class.getName().equals(itemString)) {
-                return lookup(javaName, name, required, listOf(".map(" + BigInteger.class.getName() + "::new)"), defaultValue != null ? defaultValue : "null", docName, desc);
+                return lookup(javaName, name, required, listOf(".map(" + BigInteger.class.getName() + "::new)"), defaultValue != null ? defaultValue : "null", docName, desc, typeStr);
             }
             if (BigDecimal.class.getName().equals(itemString)) {
-                return lookup(javaName, name, required, listOf(".map(" + BigDecimal.class.getName() + "::new)"), defaultValue != null ? defaultValue : "null", docName, desc);
+                return lookup(javaName, name, required, listOf(".map(" + BigDecimal.class.getName() + "::new)"), defaultValue != null ? defaultValue : "null", docName, desc, typeStr);
             }
             final var dtElt = processingEnv.getTypeUtils().asElement(itemType);
             if (dtElt != null && dtElt.getKind() == ENUM) {
-                return lookup(javaName, name, required, listOf(".map(" + itemString + "::" + enumValueOf(dtElt) + ")"), defaultValue != null ? defaultValue : "null", docName, desc);
+                return lookup(javaName, name, required, listOf(".map(" + itemString + "::" + enumValueOf(dtElt) + ")"), defaultValue != null ? defaultValue : "null", docName, desc, typeStr);
             }
             if (itemString.startsWith("java.")) { // unsupported
                 processingEnv.getMessager().printMessage(ERROR, "Type not supported: '" + typeStr + "' (" + element + "." + param.getSimpleName() + ")");
@@ -269,7 +269,7 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
                         (TypeElement) processingEnv.getTypeUtils().asElement(itemType), itemString, null, nestedClasses));
             }
 
-            this.docStack.getLast().items().add(new Docs.DocItem(javaName, docName + ".$index", desc, required, itemString, defaultValue));
+            this.docStack.getLast().items().add(new Docs.DocItem(javaName, docName + ".$index", desc, required, itemString, defaultValue, itemString));
             listUsages.add(itemString);
             return nestedFactory(itemString) + ".list(configuration, keyMapper, " + name + ", " + (defaultValue == null ? "null" : ("() -> " + defaultValue)) + ")";
         }
@@ -286,32 +286,32 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
             final var valueType = dt.getTypeArguments().get(1);
             final var valueTypeString = valueType.toString();
             if (String.class.getName().equals(valueTypeString) || CharSequence.class.getName().equals(valueTypeString)) {
-                return lookup(javaName, name, required, mapOf(""), defaultValue != null ? defaultValue : "null", docName, desc);
+                return lookup(javaName, name, required, mapOf(""), defaultValue != null ? defaultValue : "null", docName, desc, typeStr);
             }
             if (boolean.class.getName().equals(valueTypeString) || Boolean.class.getName().equals(valueTypeString)) {
-                return lookup(javaName, name, required, mapOf(".map(Boolean::parseBoolean)"), defaultValue != null ? defaultValue : "null", docName, desc);
+                return lookup(javaName, name, required, mapOf(".map(Boolean::parseBoolean)"), defaultValue != null ? defaultValue : "null", docName, desc, typeStr);
             }
             if (int.class.getName().equals(valueTypeString) || Integer.class.getName().equals(valueTypeString)) {
-                return lookup(javaName, name, required, mapOf(".map(Integer::parseInt)"), defaultValue != null ? defaultValue : "null", docName, desc);
+                return lookup(javaName, name, required, mapOf(".map(Integer::parseInt)"), defaultValue != null ? defaultValue : "null", docName, desc, typeStr);
             }
             if (long.class.getName().equals(valueTypeString) || Long.class.getName().equals(valueTypeString)) {
-                return lookup(javaName, name, required, mapOf(".map(Long::parseLong)"), defaultValue != null ? defaultValue : "null", docName, desc);
+                return lookup(javaName, name, required, mapOf(".map(Long::parseLong)"), defaultValue != null ? defaultValue : "null", docName, desc, typeStr);
             }
             if (float.class.getName().equals(valueTypeString) || Float.class.getName().equals(valueTypeString)) {
-                return lookup(javaName, name, required, mapOf(".map(Float::parseFloat)"), defaultValue != null ? defaultValue : "null", docName, desc);
+                return lookup(javaName, name, required, mapOf(".map(Float::parseFloat)"), defaultValue != null ? defaultValue : "null", docName, desc, typeStr);
             }
             if (double.class.getName().equals(valueTypeString) || Double.class.getName().equals(valueTypeString)) {
-                return lookup(javaName, name, required, mapOf(".map(Double::parseDouble)"), defaultValue != null ? defaultValue : "null", docName, desc);
+                return lookup(javaName, name, required, mapOf(".map(Double::parseDouble)"), defaultValue != null ? defaultValue : "null", docName, desc, typeStr);
             }
             if (BigInteger.class.getName().equals(valueTypeString)) {
-                return lookup(javaName, name, required, mapOf(".map(" + BigInteger.class.getName() + "::new)"), defaultValue != null ? defaultValue : "null", docName, desc);
+                return lookup(javaName, name, required, mapOf(".map(" + BigInteger.class.getName() + "::new)"), defaultValue != null ? defaultValue : "null", docName, desc, typeStr);
             }
             if (BigDecimal.class.getName().equals(valueTypeString)) {
-                return lookup(javaName, name, required, mapOf(".map(" + BigDecimal.class.getName() + "::new)"), defaultValue != null ? defaultValue : "null", docName, desc);
+                return lookup(javaName, name, required, mapOf(".map(" + BigDecimal.class.getName() + "::new)"), defaultValue != null ? defaultValue : "null", docName, desc, typeStr);
             }
             final var dtElt = processingEnv.getTypeUtils().asElement(valueType);
             if (dtElt != null && dtElt.getKind() == ENUM) {
-                return lookup(javaName, name, required, mapOf(".map(" + valueTypeString + "::" + enumValueOf(dtElt) + ")"), defaultValue != null ? defaultValue : "null", docName, desc);
+                return lookup(javaName, name, required, mapOf(".map(" + valueTypeString + "::" + enumValueOf(dtElt) + ")"), defaultValue != null ? defaultValue : "null", docName, desc, typeStr);
             }
             if (valueTypeString.startsWith("java.")) { // unsupported
                 processingEnv.getMessager().printMessage(ERROR, "Type not supported: '" + typeStr + "' (" + element + "." + param.getSimpleName() + ")");
@@ -325,8 +325,8 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
             }
 
             this.docStack.getLast().items().addAll(List.of(
-                new Docs.DocItem(javaName + ".$key", docName + ".$index.key", desc + " (Key).", required, "java.lang.String", "null"),
-                new Docs.DocItem(javaName +  ".$value", docName + ".$index.value", desc + " (Value).", required, valueTypeString, "null")));
+                new Docs.DocItem(javaName + ".$key", docName + ".$index.key", desc + " (Key).", required, "java.lang.String", "null", "java.lang.String"),
+                new Docs.DocItem(javaName +  ".$value", docName + ".$index.value", desc + " (Value).", required, valueTypeString, "null", valueTypeString)));
             mapUsages.add(valueTypeString);
             return nestedFactory(valueTypeString) + ".map(configuration, keyMapper, " + name + ", " + (defaultValue == null ? "null" : ("() -> " + defaultValue)) + ")";
         }
@@ -342,7 +342,7 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
                     (TypeElement) processingEnv.getTypeUtils().asElement(type), typeStr, null, nestedClasses));
         }
 
-        this.docStack.getLast().items().add(new Docs.DocItem(javaName, docName, desc, required, typeStr, defaultValue));
+        this.docStack.getLast().items().add(new Docs.DocItem(javaName, docName, desc, required, typeStr, defaultValue, typeStr));
         if (defaultValue != null) {
             nestedFactory(typeStr); // visit doc
             return defaultValue;
@@ -385,8 +385,8 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
 
     private String lookup(final String javaName,
                           final String name, final boolean required, final String mapper, final String defaultValue,
-                          final String docName, final String desc) {
-        this.docStack.getLast().items().add(new Docs.DocItem(javaName, docName, desc, required, null, defaultValue));
+                          final String docName, final String desc, final String type) {
+        this.docStack.getLast().items().add(new Docs.DocItem(javaName, docName, desc, required, null, defaultValue, type));
         return "configuration.get(" + name + ")" +
                 mapper +
                 (required ?

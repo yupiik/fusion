@@ -23,7 +23,7 @@ public record Docs(List<ClassDoc> docs) {
         return 0; // don't be dependent of docs size
     }
 
-    public record DocItem(String javaName, String name, String doc, boolean required, String ref, String defaultValue) {
+    public record DocItem(String javaName, String name, String doc, boolean required, String ref, String defaultValue, String type) {
         @Override
         public int hashCode() {
             return name.hashCode();
