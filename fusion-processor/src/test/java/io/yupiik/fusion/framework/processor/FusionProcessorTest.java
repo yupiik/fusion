@@ -2615,8 +2615,8 @@ class FusionProcessorTest {
                 final List<CliCommand.Parameter> parameters = c.parameters();
                 assertEquals(
                         List.of(
-                                "Parameter[configName=name, cliName=--name, description=The name.]",
-                                "Parameter[configName=nested.lower, cliName=--nested-lower, description=Nested value.]"),
+                                "Parameter[configName=name, cliName=--name, description=The name., type=java.lang.String, defaultValue=null]",
+                                "Parameter[configName=nested.lower, cliName=--nested-lower, description=Nested value., type=java.lang.String, defaultValue=null]"),
                         parameters.stream().map(Object::toString).toList());
             });
 
@@ -2688,8 +2688,8 @@ class FusionProcessorTest {
                     assertEquals(2, params.size());
                     assertEquals(
                             List.of(
-                                    "Parameter[configName=c1.first.lower, cliName=--c1-first-lower, description=]",
-                                    "Parameter[configName=c1.nested.$index.other.lower, cliName=--c1-nested-$index-other-lower, description=]"
+                                    "Parameter[configName=c1.first.lower, cliName=--c1-first-lower, description=, type=java.lang.String, defaultValue=null]",
+                                    "Parameter[configName=c1.nested.$index.other.lower, cliName=--c1-nested-$index-other-lower, description=, type=java.lang.String, defaultValue=null]"
                             ),
                             params.stream().map(Object::toString).toList());
                 }), new BaseBean<Args>(Args.class, DefaultScoped.class, 1000, Map.of()) {
@@ -2730,7 +2730,7 @@ class FusionProcessorTest {
                 assertEquals(List.of("deploy", "run"), List.of(command.path()));
                 assertEquals("--deploy-run-", command.cliPrefix());
                 assertEquals(
-                        List.of("Parameter[configName=deploy.run.name, cliName=--deploy-run-name, description=]"),
+                        List.of("Parameter[configName=deploy.run.name, cliName=--deploy-run-name, description=, type=java.lang.String, defaultValue=null]"),
                         ((CliCommand<?>) command).parameters().stream().map(Object::toString).toList());
             });
 
@@ -2789,7 +2789,7 @@ class FusionProcessorTest {
                 final var command = c;
                 assertEquals("--deploy-run-", command.cliPrefix());
                 assertEquals(
-                        List.of("Parameter[configName=name, cliName=--name, description=]"),
+                        List.of("Parameter[configName=name, cliName=--name, description=, type=java.lang.String, defaultValue=null]"),
                         ((CliCommand<?>) command).parameters().stream().map(Object::toString).toList());
             });
 
