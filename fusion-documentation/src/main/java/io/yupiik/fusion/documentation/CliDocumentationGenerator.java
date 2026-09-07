@@ -94,7 +94,7 @@ public class CliDocumentationGenerator implements Runnable {
             if (relativePathToIndex.endsWith(".adoc")) {
                 relativePathToIndex = relativePathToIndex.substring(0, relativePathToIndex.length() - ".adoc".length()) + ".html";
             }
-            final var app = configuration.getOrDefault("application", "java ... io.yupiik.fusion.framework.api.main.Launcher");
+            final var app = configuration.getOrDefault("application", "java ... io.yupiik.fusion.framework.api.main.CliLauncher");
             for (final var command : commands) {
                 Files.writeString(base.resolve(fileName(command.name())), generateDetail(app, command, relativePathToIndex));
             }
