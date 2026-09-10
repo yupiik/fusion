@@ -1,0 +1,76 @@
+= Tracing
+:toc:
+:toclevels: 3
+
+[abstract]
+This page details Tracing.
+
+
+== Dependency
+
+[source,xml]
+----
+<dependency>
+  <groupId>io.yupiik.fusion</groupId>
+  <artifactId>fusion-tracing</artifactId>
+  <version>${fusion.version}</version>
+</dependency>
+----
+
+== Concepts
+
+A span is created by an *evaluator* (`Supplier<Span>`) which provides the parent span, optionally over the request. Traces are aggregated by an `AccumulatingSpanCollector` which you combine with a *flusher* (`ZipkinFlusher` or `OpenTelemetryFlusher`) to send spans to a collector. Identifiers are provided by an `IdGenerator` - use `IdGenerator.Type.HEX` for Zipkin. A `Clock` is used to timestamp spans and compute their duration.
+
+TIP: the accumulator should generally be closed if you reuse `AccumulatingSpanCollector`.
+
+== Server side (Tomcat valve)
+
+`TracingValve` is added to the Tomcat pipeline to trace incoming requests:
+
+[source,java]
+----
+serverConfiguration
+    .unwrap(TomcatWebServerConfiguration.class)
+    .setContextCustomizers(List.of(c -> c.getPipeline() <1>
+        .addValve(new TracingValve( <1>
+            new ServerTracingConfiguration(), <2>
+            new AccumulatingSpanCollector().setOnFlush(...), <3>
+            new IdGenerator(IdGenerator.Type.HEX), <4>
+            systemUTC())))); <5>
+----
+<.> Add the valve to the context pipeline, it is recommended to add it as early as possible (just after the error report and access log valve in general),
+<.> The configuration enables to customize the span tags and headers to read for span propagation,
+<.> The accumulator is what will send/log/... the spans once aggregated, ensure to configure it as needed,
+<.> The `IdGenerator` provides the span/trace identifiers, it must be compatible with your collector (`hex` for zipkin for example),
+<.> Finally the clock enables to timestamp the span and compute its duration.
+
+IMPORTANT: if you reuse `AccumulatingSpanCollector`, it is automatically closed with the valve "stop" phase. You can combine the accumulator with `ZipkinFlusher` or `OpenTelemetryFlusher` `onFlush` implementation to flush to a zipkin collector v2.
+
+== Client side (request listener)
+
+`TracingListener` is registered on an `ExtendedHttpClient` to propagate and trace outgoing requests:
+
+[source,java]
+----
+final var listener = new TracingListener(
+    new ClientTracingConfiguration(), <1>
+    accumulator, <2>
+    new IdGenerator(IdGenerator.Type.HEX), <3>
+    new ServletContextAttributeEvaluator(servletRequest), <4>
+    systemUTC()); <5>
+
+<6>
+final var configuration = new ExtendedHttpClientConfiguration()
+    .setRequestListeners(List.of(listener));
+final var client = new ExtendedHttpClient(configuration);
+----
+<.> The configuration enables to customize the span tags and headers to enrich the request with,
+<.> The accumulator is what will send/log/... the spans once aggregated, ensure to configure it as needed,
+<.> The `IdGenerator` provides the span/trace identifiers, it must be compatible with your collector (`hex` for zipkin for example),
+<.> Actually a `Supplier<Span>`, the span evaluator enables to get the parent span, here from the `request` in a `webserver-tomcat` using `TracingValve` but any evaluation will work,
+<.> The clock enables to timestamp the span and compute its duration,
+<.> Finally, add the listener to your http client configuration and create your client.
+
+TIP: when the client runs inside a server traced by a `TracingValve`, use a `ServletContextAttributeEvaluator` to bind the client span to the current server request.
+
+NOTE: the tracing configuration models (`ServerTracingConfiguration`, `ClientTracingConfiguration`, flusher configurations) are plain builder classes, not `@RootConfiguration` records.

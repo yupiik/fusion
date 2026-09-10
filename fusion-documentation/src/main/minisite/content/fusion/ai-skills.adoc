@@ -1,19 +1,15 @@
-= Fusion AI skills
-:minisite-index: 900
-:minisite-index-title: AI skills
-:minisite-index-description: Install Fusion coding agent skills for opencode and Claude.
-:minisite-index-icon: sparkles
+= AI skills
+:toc:
+:toclevels: 3
 
 [abstract]
-`fusion-ai-skills` ships installable AI coding agent skills that teach opencode / Claude Code how
-this project works (the compile-time annotation processing model, the dependency triad, module and testing
-conventions). It is distributed as a self-contained CLI so you can install the skills into any agent skill
-directory, on any OS.
+This page details AI skills.
+
 
 == Distribution
 
-The module is published to Maven Central as `io.yupiik.fusion:fusion-ai-skills`. The shaded, runnable jar is
-attached with the `fatjat` classifier:
+The module is published to Maven Central as `io.yupiik.fusion:fusion-ai-skills`.
+The shaded, runnable jar is attached with the `fatjar` classifier:
 
 [source,bash]
 ----
@@ -25,9 +21,8 @@ java -jar fusion-ai-skills-VERSION-fatjar.jar --help
 
 == Installing skills
 
-The CLI has two commands: `install` copies the bundled skills into the target agent's skill directory, and
-`delete` removes them again. When `--target` is not given, the default path for the `--agent` and `--scope`
-is used; if the default cannot be resolved you will get an error telling you what to pass.
+The CLI has two commands: `install` copies the bundled skills into the target agent's skill directory, and `delete` removes them again.
+When `--target` is not given, the default path for the `--agent` and `--scope` is used; if the default cannot be resolved you will get an error telling you what to pass.
 
 [source,bash]
 ----
@@ -51,10 +46,10 @@ Use `--force` to overwrite already installed skills.
 
 === Default install paths
 
-These are the defaults documented by the `--agent`, `--scope` and `--target` properties. They differ per OS
-for the global scope:
+These are the defaults documented by the `--agent`, `--scope` and `--target` properties.
+They differ per OS for the global scope:
 
-[opts="header"]
+[opts="header",cols="a,a,a,a"]
 |===
 | Agent | Scope | Linux / macOS | Windows
 | opencode | global | `~/.config/opencode/skills` | `%USERPROFILE%\.config\opencode\skills`
@@ -65,10 +60,10 @@ for the global scope:
 
 == Bundled skills
 
-The installed set is composed of cross-cutting "concept" skills and one skill per runtime module. Concept
-skills:
+The installed set is composed of cross-cutting "concept" skills and one skill per runtime module.
+Concept skills:
 
-[opts="header"]
+[opts="header",cols="a,a"]
 |===
 | Skill | Purpose
 | `fusion-project-setup` | Dependency triad, module conventions, build/license/test commands.
@@ -80,7 +75,7 @@ skills:
 
 Per-module skills (generated from the module guides so they stay in sync):
 
-[opts="header"]
+[opts="header",cols="a,a"]
 |===
 | Skill | Module
 | `fusion-json` | Reflectionless JSON mapping.
@@ -97,5 +92,5 @@ Per-module skills (generated from the module guides so they stay in sync):
 
 == CLI reference
 
-The install command is documented in detail at xref:cli/index.adoc[] (per-command pages under `cli/`). It is
-generated from the `@Command` metadata, not written by hand.
+The install command is documented in detail at xref:cli/index.adoc[] (per-command pages under `cli/`).
+These pages are generated at build time from the `@Command` metadata by the `CliDocumentationGenerator` pre-action of `yupiik-tools-maven-plugin` (see xref:documentation.adoc[documentation generation]) and committed - they are not written by hand.

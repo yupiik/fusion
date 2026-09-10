@@ -1,8 +1,10 @@
 = Persistence
+:toc:
+:toclevels: 3
 
-The Fusion Persistence module provides capabilities to deal with common database operations.
+[abstract]
+This page details Persistence.
 
-TIP: even if the default `Database` is the more tempting thanks its simplicity, we encourage you to go with the `ContextLessDatabase` instead which has a way better design, in particular on recent JVM.
 
 == Project definition
 
@@ -64,6 +66,15 @@ Here are the available keys:
 
 IMPORTANT: this (implicit) datasource requires to define its bounds/transactions calling `read` or `write` wrapper, you can inject `TomcatDataSource` to have these methods.
 
+=== Dialects
+
+A `DatabaseTranslation` SPI adapts the generated SQL to the target database. Fusion ships:
+
+* `DefaultTranslation` - the default, generic dialect,
+* `H2Translation`, `MySQLTranslation`, `PostgresTranslation`, `OracleTranslation`, `DuckDBTranslation`.
+
+When you create a database through `DatabaseFactory`/`DatabaseConfiguration`, the dialect is auto-detected from the JDBC URL; if none is recognized you get an explicit error suggesting `DefaultTranslation`.
+
 == Entity
 
 Fusion support java *record* for database entity definition.
@@ -72,7 +83,7 @@ Fusion support java *record* for database entity definition.
 ----
 @Table("CUSTOMER") <1>
 public record CustomerEntity(
-        @Id(autoIncremented = true, order = 0) Integer id, <2>
+        @Id(order = 0) String id, <2>
         @Column String firstname,
         @Column(name = "LAST_NAME") String lastname, <3>
         @Column String title,
@@ -82,8 +93,8 @@ public record CustomerEntity(
 
 <.> Activate the record as an entity and setting the name enables to force the table name, if not set it is the simple class name which is used.
 <.> Indicate the primary key of the entity.
-*autoIncremented*: It is recommended to use a UUID or equivalent as identifier but when mapping an existing database you can need to synchronize and use java.sql.Statement.getGeneratedKeys to map the keys.
-For these cases, set this toggle to true.
+Fusion recommends to use a UUID or equivalent as identifier, hence the `String` type here, the `onInsert` hook below generates it when missing.
+When mapping an existing database with an auto-incremented key you can instead use a numeric type with `@Id(autoIncremented = true)`: it relies on `java.sql.Statement.getGeneratedKeys` to map the key.
 If your model is a POJO the value is directly set but if it is a record the value will be copied at insert time.
 *order*: When using multiple times this annotation, enables to sort the fields.
 <.> Activate the field as a column table.
@@ -110,12 +121,12 @@ Some hooks are available and can be added in the entity record directly:
     }
 
     @OnUpdate
-    private CustomerEntity onUpdate() {
+    public CustomerEntity onUpdate() {
         return this;
     }
 
     @OnDelete
-    private void onDelete() {
+    public void onDelete() {
         // no-op
     }
 ----
@@ -154,7 +165,7 @@ public class CustomerDao {
     public void createCustomer(CustomerEntity entity) {
         try {
             dataSource.write(() -> database.insert(entity));
-        } catch (Error error) {
+        } catch (Exception exception) {
             // error, rollback is managed by datasource, no need to manage it by hand
         }
     }
@@ -162,7 +173,7 @@ public class CustomerDao {
     public void updateCustomer(CustomerEntity entity) {
         try {
             dataSource.write(() -> database.update(entity));
-        } catch (Error error) {
+        } catch (Exception exception) {
             // error, rollback is managed by datasource, no need to manage it by hand
         }
     }
@@ -170,7 +181,7 @@ public class CustomerDao {
     public void deleteCustomer(CustomerEntity entity) {
         try {
             dataSource.write(() -> database.delete(entity));
-        } catch (Error error) {
+        } catch (Exception exception) {
             // error, rollback is managed by datasource, no need to manage it by hand
         }
     }
@@ -187,8 +198,8 @@ final var customer = database.entity(Customer.class);
 
 final var sql = "SELECT " + String.join(", ",
         customer.concatenateColumns(new Entity.ColumnsConcatenationRequest())) +
-        "FROM " + customer.getTable() +
-        "WHERE name = ?";
+        " FROM " + customer.getTable() +
+        " WHERE name = ?";
 final var lines = database.query(Customer.class, sql, b -> b.bind("the-name"));
 ----
 
@@ -216,14 +227,14 @@ with `JoinModel` being something like:
 
 [source,java]
 ----
-@Table(name = "ignored")
+@Table("ignored") // project-only entity, the table name is ignored for the query
 public record JoinModel (
     // e1
-    @Id private String id,
-    @Column private String name,
+    @Id String id,
+    @Column String name,
     // e2
-    @Id private String e2Id,
-    @Column private String e2Label) {
+    @Id String e2Id,
+    @Column String e2Label) {
 }
 ----
 
@@ -238,8 +249,8 @@ final var sql = "SELECT DISTINCT " + String.join(", ",
                 .setPrefix("e1.").setAliasPrefix("")),
         entity2.concatenateColumns(new Entity.ColumnsConcatenationRequest()
                 .setPrefix(e2Alias + '.').setAliasPrefix(e2Alias).setIgnored(e2Ignored))) + " " +
-        "FROM ENTITY1 e1" +
-        " LEFT JOIN ENTITY2 admin on e2.e1_id = e1.id " +
+        "FROM ENTITY1 e1 " +
+        "LEFT JOIN ENTITY2 admin on e2.e1_id = e1.id " +
         "WHERE e1.id = ?";
 
 // precompile the binders
@@ -314,3 +325,4 @@ public class MyPersistingService {
     }
 }
 ----
+

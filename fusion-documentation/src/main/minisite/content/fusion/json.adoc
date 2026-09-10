@@ -1,33 +1,19 @@
-= Fusion JSON support
-:minisite-index: 400
-:minisite-index-title: JSON
-:minisite-index-description: Json Mapper.
-:minisite-index-icon: wifi
+= JSON
+:toc:
+:toclevels: 3
 
-Fusion JSON proposes a `JsonMapper` API which intends to support `record` models.
+[abstract]
+This page details JSON.
 
-Here the supported features list:
-
-* Models must be records or `List<X>` of a supported type, or a `Map<String, X>` of a supported type
-* Supported primitives are
-** `String`
-** `String`, `BigDecimal` (represented as `string` in JSON but incoming data can be a number), `{b,B}oolean`, `{d,D}ouble`, `int`/`Integer`, `{l,L}ong`, `OffsetDateTime`, `ZonedDateTime`, `LocalDate`, `LocalDateTime`
-* Generic mapper is supported, it will bind `Object` as a `Map<String, Object>` values being `String` for JSON strings, `BigDecimal` for JSON numbers, another `Map<String, Object>` for JSON objects and `List<Object>` for JSON lists,
-* A simple post processor prettifier (takes a JSON as input and formats it). It is used decorating the default `JsonMapper`: `io.yupiik.fusion.json.pretty.PrettyJsonMapper`,
-* The Fusion annotation processor will generate the JSON "codecs" from the code when a record is marked with `@JsonModel`, the codec will be reflection free,
-* You can customize the attribute names using `@JsonProperty` on the record members,
-* You can map all unknown attributes in a `Map<String, Object>` member marked with `@JsonOthers` annotation.
-
-IMPORTANT: static model (annotations) are in `fusion-build-api` which is a `provided` bundle - build time only.
 
 == Runtime Dependency
 
 [source,xml]
 ----
 <dependency>
-  <groupId>${project.groupId}</groupId>
+  <groupId>io.yupiik.fusion</groupId>
   <artifactId>fusion-json</artifactId>
-  <version>${project.version}</version>
+  <version>${fusion.version}</version>
 </dependency>
 ----
 
@@ -77,7 +63,7 @@ Then read/write data using `JsonMapper`:
 
 [source,java]
 ----
-@Bean
+@ApplicationScoped
 public class MyService extends HttpServlet {
     @Injection
     JsonMapper mapper;
@@ -141,7 +127,7 @@ The Json Schema Validator can be used to validate a json content according to a 
 
 [source,java]
 ----
-@Bean
+@ApplicationScoped
 public class MyService {
 
     @Injection
@@ -171,15 +157,6 @@ public class MyService {
 <.> create a validator from the json schema loaded,
 <.> apply the validator to the input model object,
 <.> result of the validation.
-
-If the validation failed, the result object of the apply method will contain a list of the messages for each validation check:
-
-[source,java]
-----
-final var result = validator.apply(myModel);
-final var error = result.errors().iterator().next();
-logger.info("Error on field '" + error.field() + "' " + error.message());
-----
 
 If the validation failed, the result object of the apply method will contain a list of the messages for each validation check:
 
@@ -220,9 +197,7 @@ final Map<String, Object> document = service.to2020Bundle((Map<String, Object>) 
 <.> `nullable:true` becomes `type:["<base>","null"]`, refs become `#/$defs/...`,
 <.> the document gets a `$schema` header and a root `$defs` map holding every model keyed by its `$id`.
 
-The processor also ships a typed view (`RawBuildJsonSchema`) and a hand-written reflectionless `JsonCodec`
-(`RawBuildJsonSchemaJsonCodec`) so the generated schema payloads can be deserialized with a `JsonMapper` and then
-upgraded:
+The processor also ships a typed view (`RawBuildJsonSchema`) and a hand-written reflectionless `JsonCodec` (`RawBuildJsonSchemaJsonCodec`) so the generated schema payloads can be deserialized with a `JsonMapper` and then upgraded:
 
 [source,java]
 ----
@@ -241,7 +216,7 @@ import io.yupiik.fusion.framework.build.api.scanning.Injection;
 import io.yupiik.fusion.json.JsonMapper;
 import io.yupiik.fusion.json.pretty.PrettyJsonMapper;
 
-@Bean
+@ApplicationScoped
 public class MyClass {
 
     @Injection
@@ -249,11 +224,12 @@ public class MyClass {
 
     public void printJson() {
         final JsonMapper prettyJsonMapper = new PrettyJsonMapper(jsonMapper); <1>
-        logger.info(jsonMapper.toString(MyClass));
+        logger.info(prettyJsonMapper.toString(instance)); <2>
     }
 }
 ----
-<.> use the injected `jsonMapper` to create the instance of the PrettyJsonMapper.
+<.> use the injected `jsonMapper` to create the instance of the PrettyJsonMapper,
+<.> pretty-print your model instance using the decorated mapper.
 
 == JsonConfigurationSource
 
@@ -310,7 +286,7 @@ source.get("server.host"); // "localhost"
 source.get("server.port"); // "8080"
 ----
 
-=== Collections
+==== Collections
 
 [source,java]
 ----
@@ -328,7 +304,7 @@ source.get("items.0.name"); // "a"
 source.get("items.1.name"); // "b"
 ----
 
-=== Map support with $asList
+==== Map support with $asList
 
 When a JSON object represents a `Map<String, V>`, mark it with `"$asList": true`:
 
@@ -384,3 +360,4 @@ public class MyListener {
     }
 }
 ----
+

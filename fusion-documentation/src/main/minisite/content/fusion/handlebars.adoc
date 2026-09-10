@@ -1,7 +1,10 @@
-= Fusion Handlebars
+= Handlebars templating
+:toc:
+:toclevels: 3
 
 [abstract]
-Fusion handlebars provides a light link:https://handlebarsjs.com/[handlebars] templating support.
+This page details Handlebars templating.
+
 
 == Dependency
 
@@ -10,7 +13,7 @@ Fusion handlebars provides a light link:https://handlebarsjs.com/[handlebars] te
 <dependency>
   <groupId>io.yupiik.fusion</groupId>
   <artifactId>fusion-handlebars</artifactId>
-  <version>${fusion.version}</artifactId>
+  <version>${fusion.version}</version>
 </dependency>
 ----
 
@@ -28,18 +31,18 @@ final var compiler = new HandlebarsCompiler();
 final var tpl = compiler.compile(new HandlebarsCompiler.CompilationContext(
         new HandlebarsCompiler.Settings()
                 .helpers(Map.of( // some helpers - can be Map.of() if you don't use them
-                    "uppercase", o -> o.toString().toUpperCase(ROOT))
+                        "uppercase", o -> o.toString().toUpperCase(ROOT)))
                 .partials(Map.of(
                         "person", "{{person.name}} is {{person.age}} years old.")),
         "{{firstname}} {{uppercase lastname}}"));
 
 // at runtime
-final var rendering = tpl.render(Map.of(...)));
+final var rendering = tpl.render(Map.of(...));
 ----
 
 == Each built-in helper data-variables
 
-`{{each xxx}` supports the following data-variables:
+`{{#each xxx}}` supports the following data-variables:
 
 * `@first` (boolean): is the current element the first one,
 * `@last` (boolean): is the current element the last one,
@@ -47,17 +50,3 @@ final var rendering = tpl.render(Map.of(...)));
 
 If the `xxx` variable is not a `Collection` but a `Map`, the additional `@key` and `@value` data-variables are available.
 
-== Future
-
-Technically it is possible to go further but it has to be proven useful, here are some ideas:
-
-. Support records (potentially POJO but immutability would be a plus) as model,
-. Support `CompletionStage` as model - requires to return a `CompletionStage<String>` instead but generally we can always await the model is available before the rendering and making helpers promise friendly has other drawbacks,
-. Support to precompile the template at build time, this can use an API like `public interface MyTemplates { @HandleBars(template = "myresource.handlebars") String myResource(MyRecordDataOrMap data); }` and fusion processor would generate an implementation of this type which would be a bean.
-This option requires to override most of `*Part` implementations but is very feasible,
-. Support more `this` cases, right now a few cases don't support `this` keyword,
-. Support `lookup`, this is built-in in handlebars but has the drawback to rely on lookup at runtimes, maybe something to not add,
-. Support streaming? If the output can be huge - assuming we support later `Iterable` or `Stream` for example - then we can replace the output `String` by a `InputStream` or a `Publisher<ByteBuffer>` for ex,
-. Correct whitespace control (https://handlebarsjs.com/guide/expressions.html#subexpressions),
-. Else support (in if blocks),
-. ...

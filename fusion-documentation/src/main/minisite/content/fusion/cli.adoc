@@ -1,11 +1,10 @@
-= Fusion CLI
-:minisite-index: 400
-:minisite-index-title: CLI
-:minisite-index-description: Write CLI applications.
-:minisite-index-icon: terminal
+= CLI
+:toc:
+:toclevels: 3
 
 [abstract]
-CLI modules enables you to write simple `@Command` beans reusing `@RootConfiguration` for their parameters.
+This page details CLI.
+
 
 == Sample
 
@@ -46,10 +45,9 @@ TIP: if you need to inject a list, you can always create a bean which holds the 
 
 == Subcommands
 
-The command name is a path of segments: `@Command(name = {"deploy", "run"})` declares the `deploy run`
-subcommand while `@Command(name = "deploy/run")` is a single literal `deploy/run` segment. The single-value
-shorthand is accepted for one segment. Segments are matched against the leading CLI arguments and the
-longest match wins, so `deploy` and `deploy run` can coexist.
+The command name is a path of segments: `@Command(name = {"deploy", "run"})` declares the `deploy run` subcommand while `@Command(name = "deploy/run")` is a single literal `deploy/run` segment.
+The single-value shorthand is accepted for one segment.
+Segments are matched against the leading CLI arguments and the longest match wins, so `deploy` and `deploy run` can coexist.
 
 [source,java]
 ----
@@ -86,9 +84,7 @@ Parents are implicit dispatchers and need no `@Command` class:
 
 == Shell completion
 
-Every Fusion CLI application exposes completion commands generating shell completion scripts
-(subcommands `completion/bash`, `completion/powershell` and `completion/zsh`): they register as regular
-`CliCommand` beans, so they appear in the app usage, documentation and their own completion.
+Every Fusion CLI application exposes completion commands generating shell completion scripts (subcommands `completion/bash`, `completion/powershell` and `completion/zsh`): they register as regular `CliCommand` beans, so they appear in the app usage, documentation and their own completion.
 
 Only the completion command matching the current shell is registered by default: the shell is detected from
 `$SHELL` (bash/zsh) or the OS (powershell on Windows), defaulting to `bash`. You can force the set with the
@@ -99,8 +95,7 @@ Only the completion command matching the current shell is registered by default:
 * zsh: `my-app completion zsh > ~/.zfunc/_my-app` and add `fpath+autoload -Uz compinit && compinit`.
 * powershell: `my-app completion powershell | Out-String | Invoke-Expression` or paste the output into your `$PROFILE`.
 
-The application name used in the scripts defaults to `app` and can be overridden with the
-`fusion.cli.app.name` configuration key. Completion proposes subcommand segments while the command path is
-incomplete, then the `--options` of the resolved leaf command. For testing, `completion/bash` also reads the
-`comp.line` and `comp.point` configuration keys (the `COMP_LINE`/`COMP_POINT` environment variables set by the
-shell completer) to report the candidates for an arbitrary cursor position instead of printing the script.
+The application name used in the scripts defaults to `app` and can be overridden with the `fusion.cli.app.name` configuration key.
+Completion proposes subcommand segments while the command path is incomplete, then the `--options` of the resolved leaf command.
+For testing, `completion/bash` also reads the `comp.line` and `comp.point` configuration keys (the `COMP_LINE`/`COMP_POINT` environment variables set by the shell completer) to report the candidates for an arbitrary cursor position instead of printing the script.
+

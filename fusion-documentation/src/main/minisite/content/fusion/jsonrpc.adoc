@@ -1,0 +1,91 @@
+= JSON-RPC
+:toc:
+:toclevels: 3
+
+[abstract]
+This page details JSON-RPC.
+
+
+== Dependency
+
+[source,xml]
+----
+<dependency>
+  <groupId>io.yupiik.fusion</groupId>
+  <artifactId>fusion-jsonrpc</artifactId>
+  <version>${fusion.version}</version>
+</dependency>
+----
+
+IMPORTANT: the `@JsonRpc`/`@JsonRpcParam` annotations - design API - are in `fusion-build-api` (scope `provided`) and only useful at build time.
+
+== Endpoint
+
+Mark a method with `@JsonRpc` to expose it. Parameters are mapped from the JSON-RPC params by name, records annotated with `@JsonModel` are used as input and output:
+
+[source,java]
+----
+public class Endpoints {
+    @JsonRpc("copy")
+    public MyResult result(final MyInput input) {
+        return new MyResult(input.name());
+    }
+
+    @JsonModel
+    public record MyResult(String name) {
+    }
+
+    @JsonModel
+    public record MyInput(String name) {
+    }
+}
+----
+
+The endpoint is served by default at `/jsonrpc` with:
+
+* `fusion.jsonrpc.binding` to change the default `/jsonrpc` path,
+* `fusion.jsonrpc.forceInputStreamUsage` set to `true` to force the input to be reactive instead of using the default request `Reader`,
+* `fusion.jsonrpc.voidStatus` to change the HTTP status (default `202`) of void/notification responses,
+* `fusion.jsonrpc.responseContentType` to change the response content type.
+
+== Reactive endpoints
+
+A method can return a `CompletionStage` to handle asynchronous responses without blocking:
+
+[source,java]
+----
+public class Endpoints {
+    private final MyRemoteService remote;
+
+    public Endpoints(final MyRemoteService remote) {
+        this.remote = remote;
+    }
+
+    @JsonRpc("remoteById")
+    public CompletionStage<MyResult> result(final String id) {
+        return remote.invoke(id);
+    }
+}
+----
+
+== Hooks
+
+To validate or enrich a request (authentication, claim checks, ...) observe the `io.yupiik.fusion.jsonrpc.event.BeforeRequest` event. It exposes the request and a list of `promises` you can complete exceptionally to fail the whole request (all requests when bulk is used).
+
+Handlers can also inject custom response headers through the `Response.HEADERS` request attribute.
+
+== OpenRPC
+
+To expose the JSON-RPC specification, register an `OpenRPCEndpoint` bean:
+
+[source,java]
+----
+@Bean
+public OpenRPCEndpoint openrpc() {
+    return new OpenRPCEndpoint()
+        /*.setInfo(new Info(...))*/;
+}
+----
+
+OpenRPC metadata (`META-INF/fusion/jsonrpc/openrpc.json`) from all jars is merged, and partial documents are aggregated at startup. You can review the xref:tooling.adoc[documentation] page to see how to render OpenRPC as Asciidoc, OpenAPI or Postman content.
+

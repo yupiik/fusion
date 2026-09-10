@@ -1,21 +1,19 @@
-= Fusion framework Examples
-:minisite-index: 200
-:minisite-index-title: Example
-:minisite-index-description: Example gallery.
-:minisite-index-icon: vial
+= Common examples
 :toc:
+:toclevels: 3
 
 [abstract]
-This page lists some common examples using Fusion framework.
+This page details Common examples.
+
 
 == Defining a Bean _without_ injections
 
 If a bean has an injection or an event listener it will be automatically defined as a bean, but in some cases, you want to define a bean on a plain class without any injection nor event listener.
-For such a case, you can mark the class with `@Bean`:
+For such a case, you can mark the class with `@ApplicationScoped`:
 
 [source,java]
 ----
-@Bean
+@ApplicationScoped
 public class MyService {
     public int magicNumber() {
         return 42;
@@ -46,7 +44,7 @@ Alternatively, you can use constructor injections:
 
 [source,java]
 ----
-@ApplicationScoped // any marker making it a bean, can be as simple as @Bean
+@ApplicationScoped // any marker making it a bean, can be another scope
 public class MyService {
     private final ConfigService config; <1>
 
@@ -78,7 +76,7 @@ public class MyProducer {
 
     @Bean
     public DataSource dataSource() {
-        return new DataSourcefactory(conf).create();
+        return new DataSourceFactory(conf).create();
     }
 }
 ----
@@ -124,6 +122,50 @@ public class MyServiceOverride implements MyService {
 IMPORTANT: if several matching beans share the greatest `@Order` value, the injection stays ambiguous and `AmbiguousBeanException` is thrown.
 
 TIP: this also applies to assignable lookups so it is a common way to replace a bean provided by a module/library by your own implementation.
+
+== Optional injection
+
+A `Optional<T>` injection is always satisfied: if no bean matches `T`, an empty `Optional` is injected instead of failing:
+
+[source,java]
+----
+public class MyService {
+    @Injection
+    Optional<ConfigService> config; // empty if no ConfigService bean
+}
+----
+
+The same behavior applies to a `RuntimeContainer.lookup` on `Optional<T>`.
+
+== List sorting
+
+Injected `List<T>` are sorted by `@Order` (lower values first) and then by type name. If the injected element type implements `Comparable`, natural ordering wins over `@Order`:
+
+[source,java]
+----
+public class MyService {
+    @Injection
+    List<MySpi> implementations; // sorted naturally if MySpi extends Comparable<MySpi>
+}
+----
+
+== Replace beans with a module
+
+`FusionModule` SPI (discovered via `ServiceLoader`) exposes `beanFilter()`, `beanMapper()`, `contextMapper()`, `listenerMapper()` and friends to replace any bean/context/listener before integration. This is what `fusion-testing` uses to swap application beans with test doubles - see xref:tooling.adoc[testing].
+
+== Manual interception with `Wraps`
+
+Since there is no declarative interceptor support, `io.yupiik.fusion.framework.api.composable.Wraps` composes interceptors manually as functions:
+
+[source,java]
+----
+final var result = Wraps.wrap(
+    () -> { /* business code */ return value; },
+    interceptor1,
+    interceptor2);
+----
+
+Each interceptor is a function turning a `Supplier` into another `Supplier`, enabling a functional composition of cross-cutting concerns without reflection.
 
 == Listen to an event
 
@@ -191,7 +233,7 @@ The instance of `ServerConfiguration` can be injected in any bean:
 
 [source,java]
 ----
-@Bean
+@ApplicationScoped
 public class MyServer {
     private final ServerConfiguration conf;
 
@@ -332,7 +374,7 @@ Then simply inject the `JsonMapper` in any bean to read/write such a model:
 
 [source,java]
 ----
-@Bean
+@ApplicationScoped
 public class MyServer {
     private final JsonMapper mapper;
 
@@ -377,7 +419,7 @@ And convert it to the following record mapping: `MyModel[name=fusion, extensions
 
 [source,java]
 ----
-@Bean
+@ApplicationScoped
 public class MyEndpoint implements Endpoint {
     ....
 }
@@ -403,6 +445,8 @@ public Response myEndpoint(final Request request) {
 
 == Define a JSON-RPC endpoint
 
+Mark a method with `@JsonRpc` to expose it as a JSON-RPC method. Input and output are `@JsonModel` records mapped by name:
+
 [source,java]
 ----
 public class Endpoints {
@@ -424,38 +468,7 @@ public class Endpoints {
 TIP: you can use the configuration entry `fusion.jsonrpc.binding` to change the `/jsonrpc` default binding.
 You can also set `fusion.jsonrpc.forceInputStreamUsage` to `true` to force the input to be reactive instead of using default request `Reader`.
 
-NOTE: you can review xref:documentation.adoc[documentation] page to see how to render OpenRPC as asciidoc or OpenAPI content.
-
-== Define a "reactive" JSON-RPC endpoint
-
-[source,java]
-----
-public class Endpoints {
-    private final MyRemoteService remote;
-
-    public Endpoints(final MyRemoteService remote) {
-        this.remote = remote;
-    }
-
-    @JsonRpc("remoteById")
-    public CompletionStage<MyResult> result(final String id) {
-        return remote.invoke(id);
-    }
-}
-----
-
-== Register OpenRPC endpoint
-
-It is possible to register an OpenRPC endpoint named `openrpc` to serve JSON-RPC specification:
-
-[source,java]
-----
-@Bean
-public OpenRPCEndpoint openrpc() {
-    return new OpenRPCEndpoint()
-        /*.setInfo(new Info(...))*/;
-}
-----
+See xref:http.adoc[json-rpc] for reactive endpoints, pre-request hooks and OpenRPC registration.
 
 == Start the container
 
@@ -568,3 +581,184 @@ Here is how to do it very easily with Apache Maven shade plugin:
   </executions>
 </plugin>
 ----
+
+
+== Design notes
+
+
+==== No interceptor support
+
+Since some years we got used to see declarative interceptors (annotations) like in this snippet:
+
+[source,java]
+----
+public class MyBean {
+    @Traced
+    public void doSomething() {
+        // ...
+    }
+}
+----
+
+These are great and the container is actually linking the annotation to an implementation (a bean in general) which intercepts the call.
+This is not bad but has some design pitfalls:
+
+* Most interceptors will use parameters and for such a generic approach to work, it needs an `Object[]` (or `List`) of parameters.
+This is really not fast (it requires to allocate an array for that purpose).
+* It requires to know and understand the rules between class interceptors, method interceptors, appending/overriding when relevant plus the same with parent classes.
+All that can quickly become complex.
+* It is often static: once put on a method disabling an interceptor requires the underlying library to be able to do that or to use some advanced customization at startup to do it.
+
+For these reasons, we think that we don't need an interceptor solution in Fusion framework but we don't say the underlying feature is pointless, not at all.
+However, thanks to a more modern programming style, we can use a more functional approach to solve the same problem.
+Therefore, previous example would rather become:
+
+[source,java]
+----
+public class MyBean {
+    public void doSomething() {
+        tracing(() -> {
+            // ...
+        });
+    }
+}
+----
+
+The big advantage is you can use some static utility if you want but also rely on beans and even combine more efficiently interceptions in a custom and configurable fashion:
+
+[source,java]
+----
+public class MyBean {
+    public void doSomething() {
+        tracing(() -> timed(() -> logged(() -> {
+            // ...
+        })));
+    }
+}
+----
+
+can become:
+
+[source,java]
+----
+public class MyBean {
+    @Injection
+    MyObservabilityService obs;
+
+    public void doSomething() {
+        obs.instrumented(() -> {
+            // ...
+        });
+    }
+}
+----
+
+If you compare the case with parameters it is way more efficient in general since you just do a standard parameter passing call:
+
+[source,java]
+----
+public class MyBean {
+    @Injection
+    EntityManager em; // assume the application used JPA - not required
+
+    @Injection
+    JpaService jpa; // custom bean to handle transactions for ex
+
+    public void store(final Transaction tx) {
+        tracing(
+          // no Object[] created for an interceptor
+          // and no reflection to extract the id
+          tx.id(),
+          () -> jpa.tx(() -> em.persist(tx)));
+    }
+}
+----
+
+[TIP]
+--
+Going with this solution can, however, get the _chaining lambda_ pitfall (a.k.a. _callback hell_ in JavaScript).
+To solve this one we encourage you to ensure your "interceptor" can be chained properly using the same kind of callback.
+
+Here is an example (the important part is more the signature than the fact it is a `static` method or a bean method):
+
+[source,java]
+----
+public static <T> Supplier<T> interceptor1(String marker, Map<String, String> data, Supplier<T> nested) {
+    return () -> {
+        logger.info(message(marker, data)); // interceptor role
+        return task.get();  // intercepted business, "ic.proceed()" in jakarta interceptor API
+    };
+}
+
+
+public static <T> Supplier<T> interceptor12(Params params, Supplier<T> nested) {
+    // same kind of logic for the impl
+}
+----
+
+Thanks this definition which commonly agreed to use `Supplier<T>` as the intercepted call and the fact interceptor methods return a call and not execute it directly, you can chain them more easily:
+
+[source,java]
+----
+public void storeCustomer(final Customer customer) {
+    interceptor2(
+            Params.of(customer),
+            interceptor1(
+                "incoming-customer", Map.of("id", customer.id()),
+                () -> {
+                    // business code
+                }))
+    .get(); // trigger the actual execution, it is the terminal operation for the chain
+}
+----
+
+If you want to go further you can use a `Stream` to represent that.
+Now an interceptor is a `Function<Supplier<T>, Supplier<T>>` so if you define the list of interceptors in a `Stream`, then you can just reduce  them using the business function/logic as identity to have the actual invocation and execute it.
+Only detail to take care: ensure to reverse the stream to call the interceptor in order:
+
+[source,java]
+----
+public void storeCustomer(final Customer customer) {
+    Stream.<Function<Supplier<Void>, Supplier<Void>>>of(
+                // reversed chain of interceptor (i1 will be executed before i2)
+                delegate -> interceptor2(Params.of(customer), delegate),
+                delegate -> interceptor1("incoming-customer", Map.of("id", customer.id()), delegate)
+        )
+        // merge the stream of interceptors as one execution wrapper
+        .reduce(identity(), Function::andThen)
+        .apply(() -> { // apply to the actual business logic
+            System.out.println(">Business");
+            return null;
+        })
+        .get(); // execute it
+}
+----
+
+Indeed in practise you can extract that kind of code in an utility and use something like:
+
+[source,java]
+----
+// utility
+public static <T> T intercepted(final Supplier<T> execution, final Function<Supplier<T>, Supplier<T>>... interceptors) {
+    return Stream.of(interceptors)
+            .reduce(identity(), Function::andThen)
+            .apply(execution)
+            .get();
+}
+
+// usage
+intercepted(
+    () -> { // business logic
+        System.out.println(">Business");
+        return null;
+    },
+    // interceptors
+    delegate -> interceptor2(Params.of(customer), delegate),
+    delegate -> interceptor1("incoming-customer", Map.of("id", customer.id()), delegate)
+);
+----
+
+This is what the class `io.yupiik.fusion.framework.api.composable.Wraps` does.
+--
+
+Last tip: you interceptor can work with `CompletionStage` to add some behavior before/after the call even if the result is not computed synchronously ;).

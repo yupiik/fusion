@@ -1,8 +1,12 @@
-= framework and GraalVM (native-image)
-:minisite-index: 500
-:minisite-index-title: GraalVM
-:minisite-index-description: GraalVM support.
-:minisite-index-icon: server
+= GraalVM native image
+:toc:
+:toclevels: 3
+
+[abstract]
+This page details GraalVM native image.
+
+
+== Native compilation
 
 To convert your application to a native binary - assuming your dependencies are native friendly like Fusion framework, you can use Apache Geronimo Arthur maven plugin.
 
@@ -44,15 +48,23 @@ You can just add this plugin:
 <plugin>
   <groupId>org.apache.geronimo.arthur</groupId>
   <artifactId>arthur-maven-plugin</artifactId>
-  <version>1.0.5</version>
+  <version>1.1.6</version>
   <configuration>
-    <graalVersion>22.3.0.r17</graalVersion>
+    <graalVersion>22.3.2</graalVersion>
     <main>demo.fusion.Greeter</main>
   </configuration>
 </plugin>
 ----
 
 And run `mvn package arthur:native-image` and you will get your binary in `target/`.
+
+TIP: the exact `arthur-maven-plugin` and `graalVersion` to use depend on the GraalVM release you target - check the table in the link:https://github.com/apache/geronimo-arthur[arthur documentation] for the pairing you need.
+
+== Native-image metadata
+
+When native image generation is enabled (`fusion.generateNativeImage`, on by default), the Fusion annotation processor generates a `META-INF/native-image/<group>/<artifact>/reachability-metadata.json` globbing `META-INF/fusion/**/*.json` so the generated JSON metadata (configuration, JSON schemas, OpenRPC partials, generated CRDs) is reachable in the native binary. `fusion-http-server` additionally ships its own reachability metadata for its GraalVM-friendly Tomcat wiring.
+
+If you write your own GraalVM reachability metadata, point the Arthur plugin (or `native-image` options) at your jar's `META-INF/native-image` directory so the generator and the plugin metadata are merged.
 
 [TIP]
 --

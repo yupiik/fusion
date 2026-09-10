@@ -1,0 +1,18 @@
+= Cloud and Kubernetes
+:minisite-index: 500
+:minisite-index-title: Cloud and Kubernetes
+:minisite-index-description: Kubernetes client and operators.
+:minisite-index-icon: cloud
+:toc:
+
+[abstract]
+Talk to the Kubernetes API and build operators on top of it.
+
+== Overview
+
+Fusion provides a lightweight in-cluster Kubernetes client (implementing `java.net.http.HttpClient`) and a base to build Kubernetes operators that watch custom resources.
+
+== Modules
+
+* xref:kubernetes-client.adoc[Kubernetes client] - a light client configured for in-cluster connections, with token, certificates and `kubeconfig` support.
+* xref:kubernetes-operator.adoc[Kubernetes operator base] - watch/reconcile runtime, `Operator` and `BulkingOperator` SPI, CRD generation.
