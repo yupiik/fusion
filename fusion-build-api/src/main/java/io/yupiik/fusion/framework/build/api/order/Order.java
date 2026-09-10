@@ -27,7 +27,8 @@ import static java.lang.annotation.RetentionPolicy.SOURCE;
  * Can be used on:
  * <ul>
  *     <li>A {@link io.yupiik.fusion.framework.build.api.event.OnEvent} parameter to sort the listener in the event chaine.</li>
- *     <li>A {@link io.yupiik.fusion.framework.build.api.scanning.Bean}  (explicit or not) to sort its position in a {@link java.util.Collection} injection if not {@link Comparable}.</li>
+ *     <li>A {@link io.yupiik.fusion.framework.build.api.scanning.Bean}  (explicit or not) to sort its position in a {@link java.util.Collection} injection if not {@link Comparable} (lower values first, default is {@code 1000}).</li>
+ *     <li>A {@link io.yupiik.fusion.framework.build.api.scanning.Bean} to override a single (not a {@link java.util.Collection}) injection: when several beans match the injection and one has a strictly greater value than all the others, it is the injected one instead of throwing an ambiguity error.</li>
  * </ul>
  */
 @Target({PARAMETER, TYPE, METHOD})

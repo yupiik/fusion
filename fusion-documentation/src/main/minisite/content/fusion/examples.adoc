@@ -99,7 +99,31 @@ public class MyService {
 }
 ----
 
-TIP: you can put on the implementations (or beans) the annotation `@Order` to sort their position in the `List` - ignored for `Set`.
+TIP: you can put on the implementations (or beans) the annotation `@Order` to sort their position in the `List` (lower values first) - ignored for `Set`.
+
+== Override a single injection
+
+When several beans match a single injection (i.e. not a `List`/`Set` injection), the injection is ambiguous and the container throws `AmbiguousBeanException`.
+You can mark one of the candidate beans with `@Order` to elect it: when its `@Order` value is strictly greater than the ones of all the other matching beans, it is the injected one.
+
+[source,java]
+----
+@DefaultScoped
+public class MyServiceImpl implements MyService { // default @Order value is 1000
+}
+----
+
+[source,java]
+----
+@DefaultScoped
+@Order(1001) // > 1000 so this implementation overrides MyServiceImpl for MyService injections
+public class MyServiceOverride implements MyService {
+}
+----
+
+IMPORTANT: if several matching beans share the greatest `@Order` value, the injection stays ambiguous and `AmbiguousBeanException` is thrown.
+
+TIP: this also applies to assignable lookups so it is a common way to replace a bean provided by a module/library by your own implementation.
 
 == Listen to an event
 
