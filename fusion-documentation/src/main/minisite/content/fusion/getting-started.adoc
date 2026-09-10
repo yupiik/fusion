@@ -1,0 +1,22 @@
+= Getting Started
+:minisite-index: 200
+:minisite-index-title: Getting Started
+:minisite-index-description: Set up a project and learn the core concepts.
+:minisite-index-icon: rocket
+:toc:
+
+[abstract]
+How to set up a project, configure the runtime and write your first Fusion applications.
+
+== Overview
+
+Fusion is a build-time oriented, reflectionless Java framework. You declare models and beans with plain annotations, and an annotation processor generates the wiring, codecs and configuration binding at *compile time* - only bean resolution happens at runtime. This keeps applications light and GraalVM-native friendly.
+
+The pages below take you from an empty project to a running application:
+
+== Core steps
+
+* xref:setup.adoc[Setup your project] - the dependency triad (runtime API, build-time API, processor) and the Maven compiler configuration.
+* xref:examples.adoc[Common examples] - defining beans, injections, events, configuration and JSON models, endpoints, container startup and testing.
+* xref:configuration.adoc[Configuration] - the `Configuration` API, its sources, secrets and the well-known `fusion.*` keys.
+* xref:graalvm.adoc[GraalVM native image] - compiling your application to a native binary with the Arthur Maven plugin.

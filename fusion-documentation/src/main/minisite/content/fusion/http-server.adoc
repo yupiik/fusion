@@ -1,6 +1,10 @@
-= HTTP Server
+= HTTP server
+:toc:
+:toclevels: 3
 
-HTTP server module provides an abstraction over an Apache Tomcat server.
+[abstract]
+This page details HTTP server.
+
 
 == Dependency
 
@@ -9,13 +13,13 @@ HTTP server module provides an abstraction over an Apache Tomcat server.
 <dependency>
   <groupId>io.yupiik.fusion</groupId>
   <artifactId>fusion-http-server</artifactId>
-  <version>${fusion.version}</artifactId>
+  <version>${fusion.version}</version>
 </dependency>
 ----
 
-IMPORTANT: annotations - design API - is in `fusion-build-api` and is only useful at build time.
+IMPORTANT: annotations - design API - are in `fusion-build-api` and only useful at build time.
 
-TIP: set tomcat-catalina in scope runtime to avoid to show the internal API if you don't need them, will also avoid to let your IDE complete javakarta.* transitive dependencies of tomcat.
+TIP: set tomcat-catalina in scope runtime to avoid to show the internal API if you don't need them, it will also avoid letting your IDE complete `jakarta.*` transitive dependencies of tomcat.
 
 == Usage
 
@@ -26,7 +30,7 @@ Defining an endpoint can be done creating an `Endpoint` bean and implementing th
 
 [source,java]
 ----
-@Bean
+@ApplicationScoped
 public class Greeting implements Endpoint {
     @Override
     public boolean matches(final Request request) {
@@ -62,8 +66,7 @@ Finally, you can also set by default the deployment of a monitoring server (for 
 This is done setting `fusion.http-server.monitoring.enabled` to `true`, optionally `fusion.http-server.monitoring.port` to something else than `8081`.
 The deployed endpoints in this context will be the `MonitoringEndpoint` bean instances.
 
-The `fusion-http-server` module directly provides the classic health and metrics endpoints as `MonitoringEndpoint`
-beans, in the API package `io.yupiik.fusion.http.server.observability`:
+The `fusion-http-server` module directly provides the classic health and metrics endpoints as `MonitoringEndpoint` beans, in the API package `io.yupiik.fusion.http.server.observability`:
 
 * a `/health` endpoint backed by the `HealthRegistry`/`HealthCheck` API,
 * a `/metrics` endpoint rendering a `MetricsRegistry` in OpenMetrics format.
@@ -78,8 +81,8 @@ A health check implements `io.yupiik.fusion.http.server.observability.HealthChec
 The monitoring server exposes a `/health` endpoint returning an HTTP 200 if all health checks are successful and an HTTP 503 if there is at least one failure.
 
 To distinguish between health check types, implement `type()` returning something other than the default `live`.
-Then call `/health?type=<my type>` - for example `/health?type=live` - to run only those checks. Without the `type`
-query parameter, all checks are executed.
+Then call `/health?type=<my type>` - for example `/health?type=live` - to run only those checks.
+Without the `type` query parameter, all checks are executed.
 
 === Metrics
 
@@ -108,21 +111,21 @@ public class MyService {
 TIP: you can unregister your counter on the registry if it is a short live counter (to use with a session for example), it will then no more be available but using that with prometheus, you have no guarantee it will be polled, so it can be neat to delay the un-registration until next polling.
 Gauge can make it easy using `registerReadOnlyGauge` since you then pass a `LongSupplier` you control.
 
-Here is a sample `MonitoringEndpoint`:
+Here is a sample `MonitoringEndpoint` (a custom endpoint - the module already provides a default `/health` backed by `HealthRegistry`):
 
 [source,java]
 ----
 @DefaultScoped
-public class Health implements MonitoringEndpoint {
+public class DatabaseProbe implements MonitoringEndpoint {
     private final TransactionManager transactionManager;
 
-    public Health(final TransactionManager transactionManager) {
+    public DatabaseProbe(final TransactionManager transactionManager) {
         this.transactionManager = transactionManager;
     }
 
     @Override
     public boolean matches(final Request request) {
-        return "GET".equalsIgnoreCase(request.method()) && "/metrics".equalsIgnoreCase(request.path());
+        return "GET".equalsIgnoreCase(request.method()) && "/health/db".equalsIgnoreCase(request.path());
     }
 
     @Override
@@ -186,26 +189,7 @@ TIP: if your endpoint is fully synchronous you can drop the `CompletionStage` wr
 You can also pass as first parameter a `Request` parameter.
 
 [[server-tracing]]
-== (Open) Tracing
+== Tracing
 
-`fusion-tracing` module provides a Tomcat valve you can set up on your web container to add tracing capabilities to your Tomcat:
+`fusion-tracing` module provides a Tomcat valve you can set up on your web container to add tracing capabilities - see the xref:tracing.adoc[tracing] page.
 
-[source,java]
-----
-serverConfiguration
-    .unwrap(TomcatWebServerConfiguration.class)
-    .setContextCustomizers(List.of(c -> c.getPipeline() <1>
-        .addValve(new TracingValve( <1>
-            new ServerTracingConfiguration(), <2>
-            new AccumulatingSpanCollector().setOnFlush(...), <3>
-            new IdGenerator(IdGenerator.Type.HEX), <4>
-            systemUTC())))); <5>
-----
-<.> Add the valve to the context pipeline, it is recommended to add it as early as possible (just after error report and access log valve in general),
-<.> The configuration enables to customize the span tags and headers to read for span propagation,
-<.> The accumulator is what will send/log/... the spans once aggregated, ensure to configure it as needed,
-<.> The `IdGenerator` provides the span/trace identifiers, it must be compatible with your collector (`hex` for zipkin for example),
-<.> Finally the clock enables to timestamp the span and compute its duration.
-
-IMPORTANT: if you reuse `AccumulatingSpanCollector`, it is automatically closed with the valve "stop" phase.
-You can combine the accumulator with `ZipkinFlusher` or `OpenTelemetryFlusher` `onFlush` implementation to flush to a zipkin collector v2.

@@ -1,0 +1,19 @@
+= Data and JSON
+:minisite-index: 300
+:minisite-index-title: Data and JSON
+:minisite-index-description: Persistence, JSON and JWT.
+:minisite-index-icon: database
+:toc:
+
+[abstract]
+How to persist entities, map JSON without reflection and validate JWT tokens.
+
+== Overview
+
+The data side of Fusion is entirely reflectionless: entities and JSON models are turned into generated code at build time, and JWT validation builds on the JVM cryptography without extra dependencies.
+
+== Modules
+
+* xref:persistence.adoc[Persistence] - record entities mapped to JDBC, generated CRUD and queries, thread-safe `ContextLessDatabase`.
+* xref:json.adoc[JSON] - reflectionless records mapping, JSON-Pointer/Patch/diff, JSON Schema validation, pretty mapper and `JsonConfigurationSource`.
+* xref:jwt.adoc[JWT] - signing and validation based on JDK cryptography and `fusion-json`.

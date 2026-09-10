@@ -1,0 +1,21 @@
+= Tooling and extras
+:minisite-index: 600
+:minisite-index-title: Tooling and extras
+:minisite-index-description: CLI, testing, documentation, templating and AI skills.
+:minisite-index-icon: wrench
+:toc:
+
+[abstract]
+Command line applications, testing helpers, documentation generation, templating and AI coding skills.
+
+== Overview
+
+Beyond the core runtime, Fusion ships a set of standalone modules for building CLI applications, testing your code with the same container, documenting the metadata it generates, rendering templates and installing coding-agent skills.
+
+== Modules
+
+* xref:cli.adoc[CLI] - `@Command` applications with `@RootConfiguration` parameters, subcommands and shell completion.
+* xref:testing.adoc[Testing] - JUnit 5 extensions, `TestClient`, `@Task` hooks and programmatic bean replacement.
+* xref:documentation.adoc[Documentation generation] - convert OpenRPC/configuration/CLI metadata to Asciidoc, OpenAPI or Postman.
+* xref:handlebars.adoc[Handlebars templating] - a dependency-free Handlebars engine with helpers and partials.
+* xref:ai-skills.adoc[AI skills] - install Fusion coding-agent skills for opencode and Claude.

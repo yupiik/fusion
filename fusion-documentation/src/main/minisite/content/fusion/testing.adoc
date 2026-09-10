@@ -1,14 +1,17 @@
-= Fusion Testing
+= Testing
+:toc:
+:toclevels: 3
 
 [abstract]
-Fusion Testing provides a way to start/stop a container for your tests and get injections in your test classes through method parameters or fields (still marked with `@Fusion`).
+This page details Testing.
+
 
 == Example
 
 [source,java]
 ----
 @FusionSupport
-class Mytest {
+class MyTest {
     @Test
     void run(@Fusion final MyService service) {
         // ...
@@ -33,7 +36,7 @@ It is recommended to combine it in a custom annotation to control the ordering a
 @Target(TYPE)
 @Retention(RUNTIME)
 @MonoFusionSupport
-@ExtendsWith(MyAppSupport.MyConf.class)
+@ExtendWith(MyAppSupport.MyConf.class)
 public @interface MyAppSupport {
     class MyConf implements Extension {
         static {
@@ -129,16 +132,15 @@ void run(@TaskResult(InsertMyData.class) final MyData data) { <3>
 <.> After the test run the bean `CleanMyData`,
 <.> Inject the result of `InsertMyData` as first parameter.
 
-`@Task(value)` must implement `Task.Supplier` which can be a java `Supplier<T>` - which,
-for `BEFORE` tasks will enable to inject some state as parameter referencing the bean class,
-or a `Runnable` - mainly for `AFTER` tasks.
+`@Task(value)` must implement `Task.Supplier`, which can be a java `Supplier<T>` - which, for `BEFORE` tasks, will enable to inject some state as parameter referencing the bean class.
+It can also be a `Runnable` - mainly for `AFTER` tasks.
 
 Here is a sample `BEFORE` task:
 
 [source,java]
 ----
 @DefaultScoped
-public class BeforeTask implements Task.Supplier<String> {
+public class BeforeTask implements Task.Supplier<MyData> {
     private final MyService service;
 
     // constructor...
@@ -168,3 +170,16 @@ public class AfterTask implements Task.Supplier<String> {
 ----
 
 What is interesting is that, since tasks are beans, you can use an `@ApplicationScoped` bean to link both before/after tasks and for example store the before identifiers to delete in the after phase.
+
+== Replacing beans in tests
+
+`fusion-testing` ships `TestingModule` and `ListingPredicateModule` which let you replace application beans with test doubles. `TestingModule` scans the generated `$FusionBean` classes of the current project (from `target/classes` and `target/test-classes`) and swaps the matched bean for your replacement, so you can override any `@ApplicationScoped`/`@DefaultScoped` bean without reflection.
+
+[source,java]
+----
+final var container = ConfiguringContainer.of()
+    .disableModule(/**/ TestingModule.class) <1>
+    .start();
+----
+<.> Register your own `TestingModule` instance (or a `ListingPredicateModule`) to replace the matching beans before the container starts.
+

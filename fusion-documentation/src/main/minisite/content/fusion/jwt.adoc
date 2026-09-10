@@ -1,30 +1,46 @@
-= JWT validation
+= JWT
+:toc:
+:toclevels: 3
 
-The JWT module intend to parse and validate a JWT just using `fusion-json` dependency and the JVM.
+[abstract]
+This page details JWT.
 
-Most of the time you will use an API gateway to do that but for advanced business validations or lighter architectures, it can make sense to do it in the application.
 
 == Runtime Dependency
 
 [source,xml]
 ----
 <dependency>
-  <groupId>${project.groupId}</groupId>
+  <groupId>io.yupiik.fusion</groupId>
   <artifactId>fusion-jwt</artifactId>
-  <version>${project.version}</version>
+  <version>${fusion.version}</version>
 </dependency>
 ----
 
 == Configuration
 
-The configuration is a `JwtValidationConfiguration` (you have to integrate it in your application configuration or reuse the `jwt` named one you can inject).
+The configuration is a `JwtValidatorConfiguration` (you have to integrate it in your application configuration or reuse the `jwt` named one you can inject).
 Here are the subkeys:
 
-include::{partialsdir}/generated/documentation.jwt.adoc[lines=4..-1]
+[opts="header",cols="^,^,^"]
+|===
+| Key | Default | Description
+| `jwt.key` | required | The public/private key used to validate.
+| `jwt.algo` | `RS256` | The signature algorithm.
+| `jwt.issuer` | - | The expected issuer.
+| `jwt.tolerance` | `30s` | Clock tolerance in seconds.
+| `jwt.jtiRequired` | `true` | Whether the JWT ID is required.
+| `jwt.expRequired` | `true` | Whether the expiration is required.
+| `jwt.iatRequired` | `false` | Whether the issued-at is required.
+| `jwt.nbfRequired` | `false` | Whether the not-before is required.
+| `jwt.keys` | - | A JWKS list of keys (`kid`/`kty`/`alg`/`use`/`n`/`e`/`x5c`/`crv`/`x`/`y`).
+|===
+
+The signer side uses a `JwtSignerConfiguration` with `jwt-signer.*` keys (`key` required, `algorithm` `RS256`, `issuer` required, `kid` `k001`, `expRequired` `true`, `expValidity`, `iatRequired` `false`, `nbfRequired` `false`).
 
 == Usage
 
-Entry point is to inject a `JwtvalidatorFactory` (through constructor or `@Injection` on a field) and create an instance of validator passing a `JwtValidatorConfiguration` which sets the JWT algorithm, issuer, key etc...
+Entry point is to inject a `JwtValidatorFactory` (through constructor or `@Injection` on a field) and create an instance of validator passing a `JwtValidatorConfiguration` which sets the JWT algorithm, issuer, key etc...
 
 [source,java]
 ----

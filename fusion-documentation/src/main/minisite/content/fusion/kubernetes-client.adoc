@@ -1,0 +1,59 @@
+= Kubernetes client
+:toc:
+:toclevels: 3
+
+[abstract]
+This page details Kubernetes client.
+
+
+== Dependency
+
+[source,xml]
+----
+<dependency>
+  <groupId>io.yupiik.fusion</groupId>
+  <artifactId>fusion-kubernetes-client</artifactId>
+  <version>${fusion.version}</version>
+</dependency>
+----
+
+== Usage
+
+The `KubernetesClient` implements `java.net.http.HttpClient`. It is typically used from an operator or a cloud native application to call the Kubernetes API using a plain and very light HTTP client from the JVM.
+
+TIP: you can combine it with the enhanced HTTP client configuring it in the `KubernetesClientConfiguration`. It is recommended to do it using `setClientWrapper` on the configuration and pass the automatically created client to `ExtendedHttpClientConfiguration.setDelegate` to avoid having to handle the `SSLContext` yourself.
+
+[source,java]
+----
+final var conf = new KubernetesClientConfiguration()
+    .setClientWrapper(client -> new ExtendedHttpClient(new ExtendedHttpClientConfiguration()
+        .setDelegate(client)));
+final var k8s = new KubernetesClient(conf);
+
+// now call any API you need:
+final var response = k8s.send(
+        HttpRequest.newBuilder()
+                .GET()
+                .uri(URI.create(
+                    "https://kubernetes.api/api/v1/namespaces/" + k8s.namespace().orElse("default") + "/configmaps?" +
+                            "includeUninitialized=false&" +
+                            "limit=1000&" +
+                            "timeoutSeconds=600")
+                .header("Accept", "application/json")
+                .build(),
+        HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+// handle the response
+----
+
+IMPORTANT: as you can see, there is no need to pass the token to the request, it is done under the hood by the `KubernetesClient`. The other important note is that `https://kubernetes.api` is automatically replaced by the `conf.getMaster()` value. This enables your code to stay more straightforward in general but if you pass them, the client will handle it properly too.
+
+== Configuration
+
+`KubernetesClientConfiguration` reads the master URL from the `KUBERNETES_SERVICE_HOST`/`KUBERNETES_SERVICE_PORT` environment variables when running in cluster and supports:
+
+* token path or evaluator (`/var/run/secrets/kubernetes.io/serviceaccount/token`),
+* client/server certificates and private key,
+* `skipTls`,
+* a `kubeconfig` for out-of-cluster usage,
+* a client customizer/wrapper to decorate the underlying `HttpClient`.
+

@@ -1,15 +1,17 @@
-= Fusion Kubernetes Operator Base
-:partialsdir: content/_partials
+= Kubernetes operator base
+:toc:
+:toclevels: 3
 
 [abstract]
-Fusion Kubernetes operator base module provides a simple backbone to build a custom operator.
+This page details Kubernetes operator base.
+
 
 == What an operator is
 
 An operator is generally a process handling _Custom Resource Definition_ (CRD).
 In other words, it is a process handling custom descriptor types.
 
-A common example is to handle an `API` kind of descriptor instead of creating a `ConfigMap` plus a `Deployemnt` plus an `Ingress` plus a `LoadBalancer`:
+A common example is to handle an `API` kind of descriptor instead of creating a `ConfigMap` plus a `Deployment` plus an `Ingress` plus a `LoadBalancer`:
 
 [source,yaml]
 ----
@@ -35,7 +37,7 @@ On the user side you can manage your API with any Kubernetes API client, includi
 <dependency>
 <groupId>io.yupiik.fusion</groupId>
 <artifactId>fusion-kubernetes-operator-base</artifactId>
-<version>${fusion.version}</artifactId>
+<version>${fusion.version}</version>
 </dependency>
 ----
 
@@ -43,7 +45,21 @@ On the user side you can manage your API with any Kubernetes API client, includi
 
 The operator default runtime has these default configuration keys:
 
-include::{partialsdir}/generated/documentation.kubernetes-operator-base.adoc[lines=4..-1]
+[opts="header",cols="^,^,^"]
+|===
+| Key | Default | Description
+| `operator.kubernetes.master` | from `KUBERNETES_SERVICE_HOST`/`PORT` | The Kubernetes API master URL.
+| `operator.kubernetes.tls-skip` | `false` | Skip TLS validation.
+| `operator.kubernetes.token` | `/var/run/secrets/kubernetes.io/serviceaccount/token` | The service account token.
+| `operator.kubernetes.certificates` | `.../ca.crt` | The cluster CA certificate.
+| `operator.use-bookmarks` | `true` | Use bookmarks in previews.
+| `operator.event-thread-count` | `1` | Number of event dispatch threads.
+| `operator.probe-port` | `8081` | Port of the probe/health server.
+| `operator.await` | `true` | Await the operator before the container exits.
+| `operator.storage` | - | Where to persist the last seen `resourceVersion`.
+|===
+
+`Operator.DefaultOperatorConfiguration` (reusable in custom `@RootConfiguration` records) exposes `namespaced` (`true`), `namespaces` (`["default"]`), `resource-plural-name` (required) and `api-version` (required).
 
 == Build a custom operator
 
@@ -51,7 +67,7 @@ As soon as you imported `fusion-kubernetes-operator-base` module (and as any Fus
 
 This API enables you to get current state of the descriptors (it starts by a "find all") and listen for any change (add, modify, delete hooks).
 
-TIP: these is an `Operator.Base` class which enables to ease the configuration and a `BulkingOperator` which gives you events by bulk instead of one by one to bulk changes and reduce the work you do with the API when needed.
+TIP: there is an `Operator.Base` class which enables to ease the configuration and a `BulkingOperator` which gives you events by bulk instead of one by one to bulk changes and reduce the work you do with the API when needed.
 
 Here is an operator just logging custom resource events - the other actions are generally custom:
 
@@ -98,7 +114,7 @@ public class APIOperator extends Operator.Base<APIResource> { //  <1>
 }
 ----
 <.> We inherit from `Operator.Base` to simplify the implementation (fully optional),
-<.> We inject the kubernetes client (generally to do the `Deployement` or other resources creation),
+<.> We inject the kubernetes client (generally to do the `Deployment` or other resources creation),
 <.> We define our custom model type for our resource/CRD,
 <.> We define the name we register for our CRD (see later),
 <.> On startup we have a callback before watching events giving us the opportunity to query the same of the mapping between the CRD and actual instance (the deployment behind an API for example) to be able to update it easily later on,
@@ -137,7 +153,6 @@ Here is how with JIB I can convert my module to a container:
 </plugin>
 ----
 
---
 TIP: it is recommended to add the following dependency to your pom:
 
 [source,xml]
@@ -157,7 +172,6 @@ and then in your `jvmFlags` add (to get logs in JSON):
 <jvmFlag>-Djava.util.logging.manager=io.yupiik.logging.jul.YupiikLogManager</jvmFlag>
 <jvmFlag>-Dio.yupiik.logging.jul.handler.StandardHandler.formatter=json</jvmFlag>
 ----
---
 
 Once done, you can run `mvn package jib:build` to push the image to the remote registry if set or `mvn package jib:dockerBuild` to push it to your docker daemon.
 
@@ -240,7 +254,6 @@ It is at least the permissions to `get`, `list`, `watch` the custom resources we
 
 TIP: you can use `ClusterRole` but it is good to ensure it is namespaces to avoid the operator to break something in other namespaces - at least while testing or until your operator is cluster wide (like an observability one for ex).
 
---
 TIP: you can also use `@CustomResourceDefinition` to generate a default descriptor in your jar:
 
 [source,java]
@@ -256,7 +269,6 @@ TIP: you can also use `@CustomResourceDefinition` to generate a default descript
         additionalPrinterColumns = @CustomResourceDefinition.PrinterColumn(name = "Type", jsonPath = ".spec.type", type = "string"))
 public class ....
 ----
---
 
 NOTE: we decided to not generate the role/cluster role since except the default `list` and `watch` (optionally `status`) permissions on your CRD,
 it 100% depends on what you're doing so would be 1-1 with defining the role.
@@ -424,7 +436,7 @@ The controller can be a deployment or statefulset if you need to store some stat
 
 If you want to deploy this CRD with bundlebee, we recommend you to create:
 
-* An alveolus (deployable) for the CRD itseld,
+* An alveolus (deployable) for the CRD itself,
 * An alveolus for the controller stack (with service account),
 * An alveolus for both.
 
@@ -502,6 +514,4 @@ Note that when bookmarks are enabled, only bookmarks are persisted else any new 
 
 The persistence is on the local storage so implies a single replica of the operator as of today.
 
-== TIP
-
-You can disable, in the configuration, the probes, this is to ease to embed the operator stack in a custom `fusion-http-server` based module which will implement the probes itself.
+TIP: you can disable, in the configuration, the probes, this is to ease to embed the operator stack in a custom `fusion-http-server` based module which will implement the probes itself.

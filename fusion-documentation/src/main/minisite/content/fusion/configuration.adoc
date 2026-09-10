@@ -1,0 +1,117 @@
+= Configuration
+:toc:
+:toclevels: 3
+
+[abstract]
+This page details Configuration.
+
+
+== Basics
+
+The runtime entry point is `io.yupiik.fusion.framework.api.configuration.Configuration`, an injectable bean with a single operation:
+
+[source,java]
+----
+Optional<String> get(String key);
+----
+
+A typical way to use it is to declare a configuration model - a record marked with `@RootConfiguration` - and inject the generated instance directly:
+
+[source,java]
+----
+@RootConfiguration("server")
+public record ServerConfiguration(int port, String accessLogPattern) {}
+----
+
+This reads `server.port`, `server.accessLogPattern` (or their environment variables `SERVER_PORT`, `SERVER_ACCESSLOGPATTERN`) at injection time. See the xref:examples.adoc#configuration_model[configuration model] example for `@Property`, `List`, `Map` and nested models.
+
+TIP: if you do use a nested configuration model coming from another jar, ensure it is flagged `@ConfigurationModel` and annotation processing is enabled on this other module otherwise you will lose default values, custom names and documentation.
+
+== Sources
+
+Sources are ordered: keys found in the first matching source win. Fusion ships these sources out of the box, in increasing priority:
+
+* system properties (`System.getProperty`),
+* environment variables (`System.getenv`) - POSIX-normalized and uppercased (`my.key` -> `MY_KEY`),
+* secret directories (see below),
+* any additional `ConfigurationSource` bean you register.
+
+You can plug your own values by defining a bean of type `io.yupiik.fusion.framework.api.configuration.ConfigurationSource`. It can be a class bean or a producer method:
+
+[source,java]
+----
+@Bean
+public ConfigurationSource mySource() {
+    return new ConfigurationSource() {
+        @Override
+        public String get(final String key) {
+            return "my-value".equals(key) ? "value" : null;
+        }
+    };
+}
+----
+
+When several `ConfigurationSource` beans exist, they are sorted using `@Order` (lower values first) in the default `Configuration` implementation.
+
+TIP: `fusion-json` provides a `JsonConfigurationSource` which reads a JSON document and flattens it into keys - see xref:json.adoc#_jsonconfigurationsource[the JSON page] for the flattening rules and the `ConfigurationRegistration` event to register it before the `Configuration` is first used.
+
+== Secrets
+
+Beyond system properties and environment variables, Fusion can read values from directories holding one file per secret.
+
+* Set the directories (comma separated) with `fusion.configuration.sources.secrets` (or the `FUSION_CONFIGURATION_SOURCES_SECRETS` environment variable).
+* If you mount them at `/var/run/secrets`, they are picked up automatically when the `KUBERNETES_SERVICE_HOST` environment variable is set.
+* Each file name becomes the configuration key.
+* If you use `/var/run/secrets`, bind the secrets in a directory named as your configuration prefix - for example `/var/run/secrets/app` if you use `app.*` keys - to make the autodiscovery work automatically.
+
+You can bind a `_fusion.secrets.configuration.properties` file in the same directory to refine how the directory name and children files recompose the key name. It accepts a `folder.name.mode` entry:
+
+* `default` (or empty): do nothing, take the file name as configuration key,
+* `concat`: concatenate the directory name and file name separated by a dot (`app/xxxx` leads to `app.xxxx` key),
+* `strip`: if the file name starts with the directory name, remove the directory name (with a dot suffix; for example `app/app.xxxx` leads to `xxxx` key).
+
+TIP: configuration keys emitted before the "no prefix" root support used a leading `-.` - Fusion still strips such a leading `-.` for backward compatibility.
+
+== Lifecycle hook
+
+Sources registered after the `Configuration` singleton was already used are ignored until the `Configuration` singleton cache is invalidated. To register a source lazily and reliably, listen for the `io.yupiik.fusion.framework.api.container.configuration.ConfigurationRegistration` event:
+
+[source,java]
+----
+public class MyListener {
+    public void onStart(@OnEvent final ConfigurationRegistration event) {
+        event.addSource().accept(new ConfigurationSource() {
+            // ...
+        });
+    }
+}
+----
+
+== Well-known keys
+
+The following implicit keys are read directly from `Configuration` by the runtime modules (they are not declared through a configuration model):
+
+[opts="header",cols="a,a,a,a"]
+|===
+| Key | Module | Default | Purpose
+| `fusion.launcher.useHook` | fusion-api | `false` | Register a JVM shutdown hook closing the container.
+| `fusion.configuration.sources.secrets` | fusion-api | set | Comma separated secret directories (see above).
+| `fusion.http-server.start` | http-server | `true` | Set `false` to not auto-start the server.
+| `fusion.http-server.monitoring.enabled` | http-server | `false` | Deploy a separate monitoring server.
+| `fusion.http-server.monitoring.port` | http-server | `8081` | Port of the monitoring server.
+| `fusion.jsonrpc.binding` | jsonrpc | `/jsonrpc` | JSON-RPC endpoint path.
+| `fusion.jsonrpc.forceInputStreamUsage` | jsonrpc | `false` | Read the input reactively instead of using the request `Reader`.
+| `fusion.jsonrpc.voidStatus` | jsonrpc | `202` | HTTP status for void/notification responses.
+| `fusion.jsonrpc.responseContentType` | jsonrpc | `application/json;charset=utf-8` | JSON-RPC response content type.
+| `fusion.json.maxStringLength` | json | - | Mapper string buffer tuning.
+| `fusion.json.maxBuffers` | json | - | Mapper buffer tuning.
+| `fusion.json.bufferAutoAdjust` | json | - | Mapper buffer tuning.
+| `fusion.persistence.contextLess` | persistence | `false` | Inject a `ContextLessDatabase` instead of the thread-local `Database`.
+| `fusion.cli.usage.parameters` | cli | `true` | Show options in usage.
+| `fusion.cli.app.name` | cli | `app` | Application name in shell completion scripts.
+| `fusion.cli.shell` | cli | auto | Which completion commands are registered (`bash`/`zsh`/`powershell`/`all`/`none`).
+| `comp.line`, `comp.point` | cli | - | Bash completion candidate-mode inputs.
+|===
+
+Module specific keys (`fusion.http-server.*`, `fusion.persistence.datasource.*`, the JWT and operator keys) are documented in their own pages.
+
