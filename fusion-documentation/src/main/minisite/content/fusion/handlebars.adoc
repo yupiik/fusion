@@ -1,6 +1,4 @@
 = Handlebars templating
-:toc:
-:toclevels: 3
 
 [abstract]
 This page details Handlebars templating.

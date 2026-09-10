@@ -3,7 +3,6 @@
 :minisite-index-title: HTTP and APIs
 :minisite-index-description: HTTP server, client, JSON-RPC and tracing.
 :minisite-index-icon: globe
-:toc:
 
 [abstract]
 Serve and call HTTP APIs, expose JSON-RPC methods and trace the whole stack.

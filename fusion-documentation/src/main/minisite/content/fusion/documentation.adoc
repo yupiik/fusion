@@ -1,6 +1,4 @@
 = Documentation generation
-:toc:
-:toclevels: 3
 
 [abstract]
 This page details Documentation generation.

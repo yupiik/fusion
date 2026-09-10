@@ -1,6 +1,4 @@
 = Setup your project
-:toc:
-:toclevels: 3
 
 [abstract]
 This page details Setup your project.

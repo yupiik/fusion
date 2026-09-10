@@ -1,6 +1,4 @@
 = Tracing
-:toc:
-:toclevels: 3
 
 [abstract]
 This page details Tracing.

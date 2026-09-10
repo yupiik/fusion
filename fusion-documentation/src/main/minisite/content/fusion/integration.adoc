@@ -3,7 +3,6 @@
 :minisite-index-title: Cloud and Kubernetes
 :minisite-index-description: Kubernetes client and operators.
 :minisite-index-icon: cloud
-:toc:
 
 [abstract]
 Talk to the Kubernetes API and build operators on top of it.

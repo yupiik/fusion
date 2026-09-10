@@ -3,7 +3,6 @@
 :minisite-index-title: Data and JSON
 :minisite-index-description: Persistence, JSON and JWT.
 :minisite-index-icon: database
-:toc:
 
 [abstract]
 How to persist entities, map JSON without reflection and validate JWT tokens.
