@@ -1,6 +1,4 @@
 = GraalVM native image
-:toc:
-:toclevels: 3
 
 [abstract]
 This page details GraalVM native image.

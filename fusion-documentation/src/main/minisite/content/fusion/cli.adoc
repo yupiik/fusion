@@ -1,6 +1,4 @@
 = CLI
-:toc:
-:toclevels: 3
 
 [abstract]
 This page details CLI.

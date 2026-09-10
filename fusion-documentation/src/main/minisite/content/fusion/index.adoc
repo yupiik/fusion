@@ -3,7 +3,6 @@
 :minisite-index-title: Fusion
 :minisite-index-description: A light, build-time oriented, native-friendly Java framework.
 :minisite-index-icon: play
-:toc:
 
 [abstract]
 Fusion framework aims at providing a very light framework.

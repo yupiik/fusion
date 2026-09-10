@@ -1,6 +1,4 @@
 = HTTP server
-:toc:
-:toclevels: 3
 
 [abstract]
 This page details HTTP server.

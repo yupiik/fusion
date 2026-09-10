@@ -1,6 +1,4 @@
 = Configuration
-:toc:
-:toclevels: 3
 
 [abstract]
 This page details Configuration.

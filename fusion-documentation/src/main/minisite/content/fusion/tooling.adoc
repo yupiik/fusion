@@ -3,7 +3,6 @@
 :minisite-index-title: Tooling and extras
 :minisite-index-description: CLI, testing, documentation, templating and AI skills.
 :minisite-index-icon: wrench
-:toc:
 
 [abstract]
 Command line applications, testing helpers, documentation generation, templating and AI coding skills.

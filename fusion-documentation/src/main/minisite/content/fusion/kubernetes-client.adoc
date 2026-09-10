@@ -1,6 +1,4 @@
 = Kubernetes client
-:toc:
-:toclevels: 3
 
 [abstract]
 This page details Kubernetes client.

@@ -1,6 +1,4 @@
 = JSON-RPC
-:toc:
-:toclevels: 3
 
 [abstract]
 This page details JSON-RPC.
