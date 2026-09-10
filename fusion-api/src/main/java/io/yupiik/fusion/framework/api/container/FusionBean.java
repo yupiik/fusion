@@ -61,7 +61,8 @@ public interface FusionBean<T> {
     }
 
     /**
-     * @return the priority of the bean in the case of a list injection.
+     * @return the priority of the bean in the case of a list injection (lower first)
+     * or to override a single injection when strictly greater than the other matching beans (max wins).
      */
     default int priority() {
         return 1000;
