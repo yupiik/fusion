@@ -249,6 +249,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
     private final Collection<Docs.ClassDoc> allConfigurationsDocs = new HashSet<>();
     private final Collection<String> metadataContributors = new HashSet<>();
     private Map<String, GeneratedJsonSchema> allJsonSchemas; // if null don't store them
+    private Set<String> localJsonSchemas; // subset of allJsonSchemas keys owned by the compiled module (not loaded from dependencies)
     private PartialOpenRPC partialOpenRPC; // if null don't store them
 
     // just for perf
@@ -353,12 +354,13 @@ public class InternalFusionProcessor extends AbstractProcessor {
                     return containsInnerClass(super::containsKey, key);
                 }
             };
+            localJsonSchemas = new HashSet<>();
 
             if (workdir != null) {
                 final var base = workdir.resolve("json_schema");
                 if (Files.exists(base)) {
                     try (final var list = Files.list(base)) {
-                        allJsonSchemas.putAll(list.filter(it -> it.getFileName().toString().endsWith(".json"))
+                        final var cached = list.filter(it -> it.getFileName().toString().endsWith(".json"))
                                 .collect(toMap(
                                         it -> {
                                             final var name = it.getFileName().toString();
@@ -371,7 +373,10 @@ public class InternalFusionProcessor extends AbstractProcessor {
                                                 throw new IllegalStateException(e);
                                             }
                                         }
-                                )));
+                                ));
+                        allJsonSchemas.putAll(cached);
+                        // the workdir cache is only ever written from localJsonSchemas so it is an own-only set
+                        localJsonSchemas.addAll(cached.keySet());
                     } catch (final IOException e) {
                         processingEnv.getMessager().printMessage(WARNING, e.getMessage());
                     }
@@ -736,11 +741,20 @@ public class InternalFusionProcessor extends AbstractProcessor {
         if (jsonSchemaLocation == null || allJsonSchemas == null || allJsonSchemas.isEmpty()) {
             return;
         }
+        // only write the schemas owned by the compiled module: transitive ones (loaded from
+        // dependency bundles) stay in their own bundle and are merged back by the readers
+        final var local = allJsonSchemas.entrySet().stream()
+                .filter(it -> localJsonSchemas != null && localJsonSchemas.contains(it.getKey()))
+                .toList();
+        if (local.isEmpty()) {
+            allJsonSchemas.clear();
+            return;
+        }
 
         final var json = processingEnv.getFiler().createResource(CLASS_OUTPUT, "", jsonSchemaLocation);
         final var cache = new HashMap<String, String>();
         try (final var out = json.openWriter()) {
-            out.write(allJsonSchemas.entrySet().stream()
+            out.write(local.stream()
                     .sorted(Map.Entry.comparingByKey()) // the map is case insensitive so enforce the previous natural ordering
                     .map(e -> {
                         final var value = e.getValue().raw() != null ? e.getValue().raw() : e.getValue().content().toJson();
@@ -1049,7 +1063,8 @@ public class InternalFusionProcessor extends AbstractProcessor {
                                 .orElse(null))
                         .filter(Objects::nonNull)
                         .collect(joining(", "));
-                allJsonSchemas.put(names.packageName() + '.' + names.className().replace('$', '.'),
+                final var schemaKey = names.packageName() + '.' + names.className().replace('$', '.');
+                allJsonSchemas.put(schemaKey,
                         new GeneratedJsonSchema(
                                 new JsonSchema(
                                         null, null,
@@ -1058,6 +1073,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
                                         descriptions.isBlank() ? null : descriptions,
                                         ParsedType.of(element.asType()).enumValues()),
                                 null));
+                localJsonSchemas.add(schemaKey);
                 return;
             }
 
@@ -1069,6 +1085,8 @@ public class InternalFusionProcessor extends AbstractProcessor {
             if (schemas != null && !schemas.isEmpty()) {
                 allJsonSchemas.putAll(schemas.entrySet().stream()
                         .collect(toMap(Map.Entry::getKey, e -> new GeneratedJsonSchema(e.getValue(), null))));
+                // JsonCodecGenerator only puts the "self" schema (dotted FQN) into schemas so they are all local
+                localJsonSchemas.addAll(schemas.keySet());
             }
             writeGeneratedClass(model, generation);
             jsonModels.put(generation.name(), element);
