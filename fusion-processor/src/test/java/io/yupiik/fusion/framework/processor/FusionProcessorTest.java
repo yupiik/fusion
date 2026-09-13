@@ -1791,6 +1791,54 @@ class FusionProcessorTest {
         });
     }
 
+    @Test
+    void incrementalCompilationKeepsLocalJsonSchemasOnly(@TempDir final Path work) throws IOException {
+        final var state = work.resolve("fusion").toString();
+        final var workdir = Path.of(state).resolve("json_schema");
+        final var compiler = new Compiler(work, "JsonEnumCustomMapping", "EmptyRecord").workdir(state);
+        compiler.assertCompiles(0);
+
+        // cold build: the module bundle and the workdir cache only hold local schemas (record AND enum)
+        final var bundle = work.resolve("classes").resolve("META-INF").resolve("fusion").resolve("json").resolve("schemas.json");
+        final var coldBundle = Files.readString(bundle);
+        assertTrue(coldBundle.contains("\"test.p.JsonEnumCustomMapping.MyEnum\""), coldBundle);
+        assertTrue(coldBundle.contains("\"test.p.JsonEnumCustomMapping.Model\""), coldBundle);
+        assertTrue(coldBundle.contains("\"test.p.EmptyRecord\""), coldBundle);
+        try (final var cached = Files.list(workdir)) {
+            final var names = cached.map(it -> it.getFileName().toString()).sorted().toList();
+            assertEquals(
+                    List.of(
+                            "test.p.EmptyRecord.json",
+                            "test.p.JsonEnumCustomMapping.Model.json",
+                            "test.p.JsonEnumCustomMapping.MyEnum.json"),
+                    names, names.toString());
+        }
+
+        // simulate a dependency bundle pulled transitively: it holds a schema the module must not copy
+        Files.writeString(bundle, coldBundle.substring(0, coldBundle.length() - 2) +
+                ",\"fake.transitive.Thing\":{\"type\":\"string\",\"enum\":[\"a\",\"b\"]}}}");
+
+        // incremental build recompiling only EmptyRecord: JsonEnumCustomMapping schemas must be restored
+        // from the workdir cache (their codecs are not re-generated) and the transitive schema must
+        // neither be written back into the module bundle nor into the workdir cache
+        new Compiler(work, "EmptyRecord").workdir(state).assertCompiles(0);
+
+        final var incrementalBundle = Files.readString(bundle);
+        assertTrue(incrementalBundle.contains("\"test.p.JsonEnumCustomMapping.MyEnum\""), incrementalBundle);
+        assertTrue(incrementalBundle.contains("\"test.p.JsonEnumCustomMapping.Model\""), incrementalBundle);
+        assertTrue(incrementalBundle.contains("\"test.p.EmptyRecord\""), incrementalBundle);
+        assertFalse(incrementalBundle.contains("fake.transitive.Thing"), incrementalBundle);
+        try (final var cached = Files.list(workdir)) {
+            final var names = cached.map(it -> it.getFileName().toString()).sorted().toList();
+            assertEquals(
+                    List.of(
+                            "test.p.EmptyRecord.json",
+                            "test.p.JsonEnumCustomMapping.Model.json",
+                            "test.p.JsonEnumCustomMapping.MyEnum.json"),
+                    names, names.toString());
+        }
+    }
+
     private static long countAppBeans(final RuntimeContainer container) {
         return container.getBeans().getBeans().keySet().stream()
                 .filter(it -> it.getTypeName().startsWith("test.p."))
