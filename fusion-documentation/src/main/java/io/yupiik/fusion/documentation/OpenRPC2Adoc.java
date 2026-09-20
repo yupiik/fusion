@@ -71,7 +71,8 @@ public class OpenRPC2Adoc extends BaseOpenRPCConverter {
             return "";
         }
 
-        return "=== " + schema.getOrDefault("title", name) + " (" + name + ") schema\n" +
+        return "[[" + anchorOf(name) + "]]\n" +
+                "=== " + schema.getOrDefault("title", name) + " (" + name + ") schema\n" +
                 "\n" +
                 "[cols=\"m,1a,m,3a\",opts=header" + (tableAttributes.isEmpty() ? "" : (',' + tableAttributes)) + "]\n" +
                 "|===\n" +
@@ -91,21 +92,80 @@ public class OpenRPC2Adoc extends BaseOpenRPCConverter {
 
     private String toAdoc(final Map<String, Object> schemas, final Map<String, Object> method) {
         final var params = method.get("params");
+        final var result = method.get("result");
+        final var paramsAdoc = params == null || params instanceof List<?> l && l.isEmpty() ?
+                "This method does not have any parameter." :
+                "Parameters:\n" +
+                        ((List<?>) params).stream()
+                                .map(this::asObject)
+                                .map(p -> "* `" + p.getOrDefault("name", "?") + "`" +
+                                        ofNullable(schemaLink(schemas, asObject(p.get("schema")))).map(it -> " (" + it + ')').orElse("") +
+                                        ofNullable(p.get("description")).map(i -> ": " + i).orElse(""))
+                                .collect(joining("\n"));
+        final var resultLine = result == null ? "" : resultAdoc(schemas, asObject(result));
         return "=== " + method.get("name") + "\n" +
                 "\n" +
                 "Parameter structure: " + method.getOrDefault("paramStructure", "either") + ".\n" +
                 "\n" +
                 method.getOrDefault("description", method.getOrDefault("summary", "")) + "\n" +
                 "\n" +
-                (params == null || params instanceof List<?> l && l.isEmpty() ?
-                        "This method does not have any parameter.\n" :
-                        "Parameters:\n" +
-                                ((List<?>) params).stream()
-                                        .map(this::asObject)
-                                        .map(p -> "* `" + p.getOrDefault("name", "?") + "`" +
-                                                ofNullable(type(schemas, asObject(p.get("schema")), new HashSet<>())).map(it -> " (" + it + ')').orElse("") +
-                                                ofNullable(p.get("description")).map(i -> ": " + i).orElse(""))
-                                        .collect(joining("\n", "", "\n\n")));
+                paramsAdoc +
+                (resultLine.isEmpty() ? "\n" : "\n\n" + resultLine + "\n");
+    }
+
+    private String resultAdoc(final Map<String, Object> schemas, final Map<String, Object> result) {
+        final var schema = asObject(result.get("schema"));
+        final String rendered;
+        if (isOnPage(schemas, schema)) {
+            rendered = schemaLink(schemas, schema);
+        } else {
+            rendered = type(schemas, schema, new HashSet<>());
+        }
+        return rendered == null || rendered.isEmpty() ? "" : "Result: " + rendered;
+    }
+
+    /**
+     * Renders a schema (either a {@code $ref} to an on-page schema or an inline type) as an AsciiDoc link or
+     * plain type. Returns {@code null} when nothing meaningful can be rendered.
+     */
+    private String schemaLink(final Map<String, Object> schemas, final Map<String, Object> schema) {
+        final var ref = schema.get("$ref");
+        if (ref != null) {
+            final var key = ref.toString().substring("#/schemas/".length());
+            if (schemas.containsKey(key) && isOnPage(schemas, key)) {
+                final var onPage = asObject(schemas.get(key));
+                final var title = onPage.getOrDefault("title", key).toString();
+                return "xref:" + anchorOf(key) + "[`" + title + "`]";
+            }
+        }
+        final var t = type(schemas, schema, new HashSet<>());
+        return t == null || t.isEmpty() || "unknown".equals(t) ? null : t;
+    }
+
+    private boolean isOnPage(final Map<String, Object> schemas, final Map<String, Object> schema) {
+        final var ref = schema.get("$ref");
+        if (ref == null) {
+            return false;
+        }
+        final var key = ref.toString().substring("#/schemas/".length());
+        return isOnPage(schemas, key);
+    }
+
+    private boolean isOnPage(final Map<String, Object> schemas, final String key) {
+        final var schema = schemas.get(key);
+        if (schema == null) {
+            return false;
+        }
+        final var object = asObject(schema);
+        if (object.getOrDefault("type", "").equals("string") && schemas.containsKey("enum")) {
+            return false;
+        }
+        return !asObject(object.getOrDefault("properties", Map.of())).isEmpty();
+    }
+
+    private String anchorOf(final String name) {
+        final var sanitized = name.replace('.', '_').replace('$', '_');
+        return Character.isDigit(sanitized.charAt(0)) ? '_' + sanitized : sanitized;
     }
 
     private String type(final Map<String, Object> schemas, final Map<String, Object> schema, final Collection<String> visited) {
