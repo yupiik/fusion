@@ -87,10 +87,12 @@ class OpenRPC2AdocTest {
                 Parameters:
                 * `name` (`string`)
                 
+                Result: xref:org_example_application_jsonrpc_Greeting[`Greeting`]
                 
                 
                 == Schemas
-                                
+                
+                [[org_example_application_jsonrpc_Greeting]]
                 === Greeting (org.example.application.jsonrpc.Greeting) schema
                                 
                 [cols="m,1a,m,3a",opts=header]
