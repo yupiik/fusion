@@ -210,6 +210,15 @@ class CliAwaiterTest {
                 new CliAwaiter(new Args(List.of("deploy")), NO_CONFIG, cmds(noop("deploy"))).await());
     }
 
+    @Test
+    void flagAsLastArgumentFallsBackToConfiguration() {
+        final var capture = new AtomicReference<String>();
+        assertDoesNotThrow(() ->
+                new CliAwaiter(new Args(List.of("deploy", "run", "--deploy-run-value")), NO_CONFIG,
+                        cmds(capturing(capture, "deploy", "run"))).await());
+        assertEquals("missing", capture.get());
+    }
+
     private static CliCommand<? extends Runnable> capturing(final AtomicReference<String> capture, final String... path) {
         final var key = "--" + String.join("-", path) + "-value";
         return new BaseCliCommand<Configuration, Runnable>(path, "desc", c -> c,
