@@ -104,7 +104,7 @@ public class CliAwaiter implements Awaiter {
 
     private Optional<String> doFindConf(final CliCommand<? extends Runnable> command, final List<String> commandArgs, final String key) {
         final var idx = commandArgs.indexOf(key);
-        if (idx >= 0 && commandArgs.size() > idx) {
+        if (idx >= 0 && commandArgs.size() > idx + 1) {
             return Optional.of(commandArgs.get(idx + 1));
         }
         // try short name
