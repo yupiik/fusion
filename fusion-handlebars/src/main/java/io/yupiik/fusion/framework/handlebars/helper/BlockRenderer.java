@@ -15,7 +15,16 @@
  */
 package io.yupiik.fusion.framework.handlebars.helper;
 
+import java.util.List;
 import java.util.function.Function;
 
-public record BlockHelperContext(Object data, Function<Object, String> blockRenderer) {
+/**
+ * Renders a block body ({@code options.fn} in handlebars.js) or an inverse body ({@code options.inverse}).
+ * {@link #apply(Object, List)} additionally carries the block params ({@code as |a b|}) values;
+ * the single-arg form renders without block params.
+ */
+public interface BlockRenderer extends Function<Object, String> {
+    default String apply(final Object data, final List<Object> blockParams) {
+        return apply(data);
+    }
 }

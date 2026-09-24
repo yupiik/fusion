@@ -19,6 +19,11 @@ import io.yupiik.fusion.framework.handlebars.spi.Accessor;
 
 import java.util.Iterator;
 
+/**
+ * The current data of an iteration: {@code @first}, {@code @last} and {@code @index} for any iterable.
+ * Unknown names fall back to the delegate accessor (which is typically chained with the parent data accessor)
+ * and to the current item of the iteration.
+ */
 public class IterableDataVariablesAccessor implements Accessor, Iterator<Object> {
     private final Iterator<?> iterator;
     private int index = 0;

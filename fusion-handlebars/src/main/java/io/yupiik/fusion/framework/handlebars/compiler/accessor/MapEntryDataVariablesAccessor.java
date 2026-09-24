@@ -21,17 +21,25 @@ import java.util.Map;
 
 public class MapEntryDataVariablesAccessor implements Accessor {
     private final Accessor delegate;
+    private final Accessor valueAccessor;
 
-    public MapEntryDataVariablesAccessor(final Accessor delegate) {
+    public MapEntryDataVariablesAccessor(final Accessor delegate, final Accessor valueAccessor) {
         this.delegate = delegate;
+        this.valueAccessor = valueAccessor;
     }
 
     @Override
     public Object find(final Object data, final String name) {
+        if (!(data instanceof Map.Entry<?, ?> entry)) {
+            return delegate.find(data, name);
+        }
         return switch (name) {
-            case "@key" -> data instanceof Map.Entry<?, ?> e ? e.getKey() : null;
-            case "@value" -> data instanceof Map.Entry<?, ?> e ? e.getValue() : null;
-            default -> delegate.find(data, name);
+            case "@key" -> entry.getKey();
+            case "@value" -> entry.getValue();
+            default -> { // like handlebars.js: the current data of an object iteration is the entry value
+                final var fromValue = valueAccessor.find(entry.getValue(), name);
+                yield fromValue == null ? delegate.find(data, name) : fromValue;
+            }
         };
     }
 }

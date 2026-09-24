@@ -15,15 +15,29 @@
  */
 package io.yupiik.fusion.framework.handlebars.compiler.part;
 
+import io.yupiik.fusion.framework.handlebars.helper.Truthiness;
 import io.yupiik.fusion.framework.handlebars.spi.Accessor;
 
-public record NestedVariablePart(String name, Part next, Accessor accessor) implements Part {
+import java.util.List;
+import java.util.Map;
+
+/**
+ * {@code {{#with value}}} renders the block with {@code value} as the current data when it is truthy,
+ * the {@code {{else}}} branch otherwise. With {@code {{#with value as |foo|}}}, the first block param
+ * is bound to {@code value} and {@code ../} inside the block refers to the enclosing data.
+ */
+public record NestedVariablePart(ArgEvaluator value, Part next, Part elsePart, Accessor accessor,
+                                 List<String> blockParams) implements Part {
     @Override
     public String apply(final RenderContext context, final Object currentData) {
-        final var value = ".".equals(name) || "this".equals(name) ? currentData : accessor.find(currentData, name);
-        if (value == null) {
-            return "";
+        final var resolved = value.eval(accessor, currentData, context);
+        if (Truthiness.INSTANCE.isFalsy(resolved)) {
+            return elsePart == null ? "" : elsePart.apply(context, currentData);
         }
-        return next.apply(context, value);
+        return next.apply(context.child(resolved, accessor, bind(resolved)), resolved);
+    }
+
+    private Map<String, Object> bind(final Object resolved) {
+        return blockParams.isEmpty() ? Map.of() : Map.of(blockParams.get(0), resolved);
     }
 }
