@@ -13,17 +13,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package io.yupiik.fusion.framework.handlebars.spi;
+package io.yupiik.fusion.framework.handlebars.helper;
 
-import io.yupiik.fusion.framework.handlebars.compiler.part.Part;
-
-import java.util.Map;
-
-public interface Template {
-    Part part();
-
-    default String render(Object data) {
-        // seed the root context frame so `../` from a top-level block resolves the root data
-        return part().apply(new Part.RenderContext(null, data, null, Map.of()), data);
-    }
+/**
+ * Marks a helper result as safe: it is rendered without HTML escaping even in a double-brace
+ * mustache ({@code {{helper}}}), like handlebars.js {@code SafeString}.
+ */
+public record SafeString(String value) {
 }

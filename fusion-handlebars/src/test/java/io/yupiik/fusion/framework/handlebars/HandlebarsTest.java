@@ -16,10 +16,16 @@
 package io.yupiik.fusion.framework.handlebars;
 
 import io.yupiik.fusion.framework.handlebars.compiler.accessor.MapAccessor;
-import io.yupiik.fusion.framework.handlebars.helper.BlockHelperContext;
+import io.yupiik.fusion.framework.handlebars.helper.HelperContext;
 import io.yupiik.fusion.framework.handlebars.spi.Accessor;
+import io.yupiik.fusion.framework.handlebars.spi.Template;
 import org.junit.jupiter.api.Test;
 
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -30,6 +36,7 @@ import java.util.function.Supplier;
 import static java.util.Locale.ROOT;
 import static java.util.stream.Collectors.joining;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class HandlebarsTest {
     @Test
@@ -105,6 +112,19 @@ class HandlebarsTest {
                         {{/with}}""",
                 Map.of("person", Map.of("firstname", "Yehuda", "lastname", "Katz")),
                 "Yehuda Katz");
+    }
+
+    @Test
+    void withElse() {
+        assertRender(
+                """
+                        {{#with person}}
+                        {{firstname}}
+                        {{else}}
+                        missing
+                        {{/with}}""",
+                Map.of(),
+                "missing");
     }
 
     @Test
@@ -225,7 +245,7 @@ class HandlebarsTest {
         assertRender(
                 "{{list_helper lastname 3}}",
                 Map.of("lastname", "Katz"),
-                "[Katz, 3]: java.util.ImmutableCollections$ListN");
+                "Katz: java.lang.String, 3: java.lang.Integer");
     }
 
     @Test
@@ -350,37 +370,319 @@ class HandlebarsTest {
                         s3 (last): 4""");
     }
 
+    // ---- new features ----
+
+    @Test
+    void eachElse() {
+        assertRender(
+                "{{#each people}}<li>{{this}}</li>{{else}}empty{{/each}}",
+                Map.of("people", List.of()),
+                "empty");
+        assertRender(
+                "{{#each people}}<li>{{this}}</li>{{else}}empty{{/each}}",
+                Map.of(),
+                "empty");
+    }
+
+    @Test
+    void eachLimitOffset() {
+        assertRender(
+                "{{#each people limit=2}}{{this}}{{/each}}",
+                Map.of("people", List.of("a", "b", "c")),
+                "a\nb");
+        assertRender(
+                "{{#each people offset=1 limit=1}}{{this}}{{/each}}",
+                Map.of("people", List.of("a", "b", "c")),
+                "b");
+        assertRender(
+                "{{#each people limit=0}}{{this}}{{else}}empty{{/each}}",
+                Map.of("people", List.of("a", "b")),
+                "empty");
+        assertRender(
+                "{{#each people offset=10}}{{this}}{{else}}empty{{/each}}",
+                Map.of("people", List.of("a", "b")),
+                "empty");
+    }
+
+    @Test
+    void unlessFalse() {
+        assertRender(
+                "{{#unless license}}no license{{else}}licensed{{/unless}}",
+                Map.of("license", false),
+                "no license");
+    }
+
+    @Test
+    void ifElse() {
+        assertRender(
+                "{{#if author}}yes{{else}}no{{/if}}",
+                Map.of("author", true),
+                "yes");
+        assertRender(
+                "{{#if author}}yes{{else}}no{{/if}}",
+                Map.of(),
+                "no");
+        assertRender(
+                "{{#if author}}yes{{else}}no{{/if}}",
+                Map.of("author", false),
+                "no");
+    }
+
+    @Test
+    void elseIfChain() {
+        assertRender(
+                "{{#if a}}A{{else if b}}B{{else}}C{{/if}}",
+                Map.of("a", true),
+                "A");
+        assertRender(
+                "{{#if a}}A{{else if b}}B{{else}}C{{/if}}",
+                Map.of("b", true),
+                "B");
+        assertRender(
+                "{{#if a}}A{{else if b}}B{{else}}C{{/if}}",
+                Map.of(),
+                "C");
+    }
+
+    @Test
+    void nestedElse() {
+        assertRender(
+                "{{#if a}}{{#each xs}}{{this}}{{else}}inner empty{{/each}}{{else}}outer no{{/if}}",
+                Map.of("a", true, "xs", List.of()),
+                "inner empty");
+        assertRender(
+                "{{#if a}}{{#each xs}}{{this}}{{else}}inner empty{{/each}}{{else}}outer no{{/if}}",
+                Map.of(),
+                "outer no");
+    }
+
+    @Test
+    void eqBlockHelper() {
+        assertRenderDefaults(
+                "{{#eq a b}}equal{{else}}different{{/eq}}",
+                Map.of("a", 1, "b", 1),
+                "equal");
+        assertRenderDefaults(
+                "{{#eq a b}}equal{{else}}different{{/eq}}",
+                Map.of("a", 1, "b", 2),
+                "different");
+    }
+
+    @Test
+    void ifSubExpression() {
+        assertRenderDefaults(
+                "{{#if (eq a b)}}equal{{else}}different{{/if}}",
+                Map.of("a", 1, "b", 1),
+                "equal");
+        assertRenderDefaults(
+                "{{#if (eq a b)}}equal{{else}}different{{/if}}",
+                Map.of("a", 1, "b", 2),
+                "different");
+    }
+
+    @Test
+    void nestedSubExpression() {
+        assertRenderDefaults(
+                "{{#if (and (eq a 1) (gt b 0))}}yes{{else}}no{{/if}}",
+                Map.of("a", 1, "b", 5),
+                "yes");
+        assertRenderDefaults(
+                "{{#if (and (eq a 1) (gt b 0))}}yes{{else}}no{{/if}}",
+                Map.of("a", 2, "b", 5),
+                "no");
+    }
+
+    @Test
+    void eachSubExpression() {
+        assertRender(
+                "{{#each (items xs)}}{{this}}{{/each}}",
+                Map.of("xs", List.of("a", "b")),
+                "a\nb");
+    }
+
+    @Test
+    void defaultHelpers() {
+        assertRenderDefaults("{{eq 1 1}}", Map.of(), "true");
+        assertRenderDefaults("{{eq 1 2}}", Map.of(), "false");
+        assertRenderDefaults("{{ne 1 2}}", Map.of(), "true");
+        assertRenderDefaults("{{gt 2 1}}", Map.of(), "true");
+        assertRenderDefaults("{{gte 2 2}}", Map.of(), "true");
+        assertRenderDefaults("{{lt 1 2}}", Map.of(), "true");
+        assertRenderDefaults("{{lte 2 2}}", Map.of(), "true");
+        assertRenderDefaults("{{and true 1}}", Map.of(), "true");
+        assertRenderDefaults("{{or false 1}}", Map.of(), "true");
+        assertRenderDefaults("{{not false}}", Map.of(), "true");
+        assertRenderDefaults("{{default missing \"fallback\"}}", Map.of(), "fallback");
+        assertRenderDefaults("{{lookup person \"name\"}}", Map.of("person", Map.of("name", "Ada")), "Ada");
+    }
+
+    @Test
+    void eqNumbersOfDifferentTypes() {
+        assertRenderDefaults("{{eq a b}}", Map.of("a", 1, "b", 1L), "true");
+        assertRenderDefaults("{{gt a b}}", Map.of("a", 10, "b", 5.5), "true");
+        assertRenderDefaults("{{lt \"5\" 10}}", Map.of(), "true");
+    }
+
+    @Test
+    void timeHelper() {
+        final var instant = Instant.parse("2023-04-05T06:07:08Z");
+        final var defaultPattern = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.systemDefault());
+        assertRender(
+                "{{time value}}",
+                Map.of("value", instant.toEpochMilli()),
+                defaultPattern.format(instant));
+
+        assertRender(
+                "{{time value pattern=\"yyyy-MM-dd\"}}",
+                Map.of("value", instant),
+                "2023-04-05");
+
+        assertRender(
+                "{{time (lookup values \"date\") pattern=\"HH:mm\"}}",
+                Map.of("values", Map.of("date", LocalDateTime.parse("2023-04-05T06:07:08"))),
+                "06:07");
+
+        // 0-arg form = now
+        final var now = LocalDate.now();
+        assertRender(
+                "{{time pattern=\"yyyy\"}}",
+                Map.of(),
+                String.valueOf(now.getYear()));
+    }
+
+    @Test
+    void partialLiteralParam() {
+        assertRender(
+                "{{>person2 name=\"Nils\" age=20}}",
+                Map.of(),
+                "Nils is 20 years old.");
+    }
+
+    @Test
+    void userHelperOverridesDefault() {
+        assertEquals(
+                "overridden",
+                new HandlebarsCompiler(new MapAccessor())
+                        .compile(new HandlebarsCompiler.CompilationContext(
+                                new HandlebarsCompiler.Settings()
+                                        .helpers(Map.of("eq", ctx -> "overridden"))
+                                        .partials(partialsTemplates()),
+                                "{{eq a b}}"))
+                        .render(Map.of("a", "x", "b", "y")));
+    }
+
+    // ---- raw blocks ----
+
+    @Test
+    void rawBlock() {
+        assertRender(
+                "{{{{hbs}}}}{{else}}{{{{/hbs}}}}",
+                Map.of(),
+                "{{else}}");
+        assertRender(
+                "{{{{hbs}}}}#if (eq a b){{{{/hbs}}}}",
+                Map.of(),
+                "#if (eq a b)");
+    }
+
+    @Test
+    void rawBlockVerbatim() {
+        assertRender(
+                "{{{{x}}}} a {{b}} c {{{{/x}}}}",
+                Map.of("b", "resolved"),
+                " a {{b}} c ");
+    }
+
+    @Test
+    void rawBlockUnclosed() {
+        assertThrows(IllegalArgumentException.class, () -> assertCompile("{{{{x}} a {{b}}"));
+    }
+
+    @Test
+    void rawBlockMissingEnd() {
+        assertThrows(IllegalArgumentException.class, () -> assertCompile("{{{{x}}}} a {{b}}"));
+    }
+
+    // ---- error cases ----
+
+    @Test
+    void mismatchedBlockClose() {
+        assertThrows(IllegalArgumentException.class, () -> assertCompile("{{#if a}}{{/each}}"));
+    }
+
+    @Test
+    void topLevelElse() {
+        assertThrows(IllegalArgumentException.class, () -> assertCompile("{{else}}"));
+    }
+
+    @Test
+    void unknownSectionKeyword() {
+        assertThrows(IllegalArgumentException.class, () -> assertCompile("{{#unknown a}}x{{/unknown}}"));
+    }
+
+    @Test
+    void unknownHashEach() {
+        assertThrows(IllegalArgumentException.class, () -> assertCompile("{{#each people size=2}}x{{/each}}"));
+    }
+
+    @Test
+    void hashOnIf() {
+        assertThrows(IllegalArgumentException.class, () -> assertCompile("{{#if a size=2}}x{{/if}}"));
+    }
+
     private void assertRender(final String resource, final Object data, final String expected) {
         assertRender(resource, data, expected, new MapAccessor());
     }
 
     private void assertRender(final String resource, final Object data, final String expected, final Accessor accessor) {
+        assertRender(resource, data, expected,
+                new HandlebarsCompiler.Settings().helpers(helpers()).partials(partialsTemplates()), accessor);
+    }
+
+    private void assertRenderDefaults(final String resource, final Object data, final String expected) {
+        assertRender(resource, data, expected,
+                new HandlebarsCompiler.Settings().partials(partialsTemplates()), new MapAccessor());
+    }
+
+    private void assertRender(final String resource, final Object data, final String expected,
+                              final HandlebarsCompiler.Settings settings, final Accessor accessor) {
         assertEquals(
                 expected,
                 new HandlebarsCompiler(accessor)
-                        .compile(new HandlebarsCompiler.CompilationContext(
-                                new HandlebarsCompiler.Settings()
-                                        .helpers(helpers())
-                                        .partials(partialsTemplates()),
-                                resource))
+                        .compile(new HandlebarsCompiler.CompilationContext(settings, resource))
                         .render(data));
+    }
+
+    private Template assertCompile(final String resource) {
+        return new HandlebarsCompiler(new MapAccessor())
+                .compile(new HandlebarsCompiler.CompilationContext(
+                        new HandlebarsCompiler.Settings()
+                                .helpers(helpers())
+                                .partials(partialsTemplates()),
+                        resource));
     }
 
     private Map<String, String> partialsTemplates() {
         return Map.of(
-                "person", "{{person.name}} is {{person.age}} years old.");
+                "person", "{{person.name}} is {{person.age}} years old.",
+                "person2", "{{name}} is {{age}} years old.");
     }
 
-    private Map<String, Function<Object, String>> helpers() {
+    private Map<String, Function<HelperContext, Object>> helpers() {
         return Map.of(
-                "loud", o -> o.toString().toUpperCase(ROOT),
-                "print_person", o -> o instanceof Map<?, ?> map ? map.get("firstname") + " " + map.get("lastname") : "failed, not a map",
-                "list_helper", o -> o instanceof List<?> l ? l.stream().map(it -> it + ": " + it.getClass().getName()).collect(joining(", ")) : "failed, not a list",
-                "list", o -> o instanceof BlockHelperContext ctx && ctx.data() instanceof Collection<?> list ?
-                        list.stream()
-                                .map(ctx.blockRenderer())
-                                .map(it -> "<li>" + it + "</li>")
-                                .collect(joining("\n", "<ul>\n", "\n</ul>")) : "failed, not a list");
+                "loud", ctx -> ctx.args().isEmpty() ? null : ctx.args().get(0).toString().toUpperCase(ROOT),
+                "print_person", ctx -> ctx.args().isEmpty() ? null :
+                        ctx.args().get(0) instanceof Map<?, ?> map ? map.get("firstname") + " " + map.get("lastname") : "failed, not a map",
+                "list_helper", ctx -> ctx.args().stream()
+                        .map(it -> it + ": " + it.getClass().getName())
+                        .collect(joining(", ")),
+                "list", ctx -> ctx.args().isEmpty() || !(ctx.args().get(0) instanceof Collection<?> list) ? "failed, not a list" :
+                        list.isEmpty() ? (ctx.inverseRenderer() == null ? "" : ctx.inverseRenderer().apply(ctx.args().get(0))) :
+                                list.stream()
+                                        .map(ctx.blockRenderer())
+                                        .map(it -> "<li>" + it + "</li>")
+                                        .collect(joining("\n", "<ul>\n", "\n</ul>")),
+                "items", ctx -> ctx.args().isEmpty() ? null : ctx.args().get(0));
     }
 
     private record Person(String firstname, String lastname) {

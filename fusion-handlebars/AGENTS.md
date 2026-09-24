@@ -7,19 +7,24 @@
 
 Handlebars templating engine implementation without any dependency.
 
-Small handlebars-compatible template engine (each/if/unless/with, partials, helpers, `@first`/`@last`/`@index`
-data variables) used for server-side rendering without any third party dependency.
+Small handlebars-compatible template engine (each/if/unless/with, `{{else}}`/`{{else if}}` chains, hash arguments
+like `{{#each people limit=2}}`, sub-expressions like `{{#if (eq a b)}}`, partials, custom helpers and a set of
+built-in helpers `eq`/`ne`/`gt`/`gte`/`lt`/`lte`/`and`/`or`/`not`/`default`/`lookup`/`time`, plus
+`@first`/`@last`/`@index` (and `@key`/`@value` for maps) data variables) used for server-side rendering without
+any third party dependency.
 
 ## Entry points
 
 - `io.yupiik.fusion.framework.handlebars.HandlebarsCompiler`: compile a template
   (`compile(new CompilationContext(content)).render(data)`); `Settings` carries helpers and partials.
+- `io.yupiik.fusion.framework.handlebars.helper.HelperContext` and `helper.DefaultHelpers`: helper contract and built-in helpers.
 - `io.yupiik.fusion.framework.handlebars.spi.Accessor` / `Template`: data access and rendering SPI.
-- `io.yupiik.fusion.framework.handlebars.helper`: built-in helpers.
 
 ## Module rules
 
 - Double-brace interpolation HTML-escapes, triple-brace renders raw: preserve that handlebars semantic.
+- Blocks support `{{else}}` and `{{else if ...}}` chains; mismatched `{{/...}}` is a compile error.
+- Helper args are parsed once at compile time (positionals, hash `key=value`, nested sub-expressions `(helper a b)`).
 - Data access goes through `Accessor` (maps/lists by default): no reflection on user objects.
 
 

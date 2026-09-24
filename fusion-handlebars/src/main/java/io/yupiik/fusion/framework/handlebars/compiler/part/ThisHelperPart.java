@@ -15,11 +15,29 @@
  */
 package io.yupiik.fusion.framework.handlebars.compiler.part;
 
+import io.yupiik.fusion.framework.handlebars.compiler.escaping.Escaper;
+import io.yupiik.fusion.framework.handlebars.helper.HelperContext;
+import io.yupiik.fusion.framework.handlebars.helper.SafeString;
+
+import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 
-public record ThisHelperPart(Function<Object, String> helper) implements Part {
+/**
+ * A bare helper call {@code {{helper}}} (no args): the helper receives the current data as its single argument.
+ * The result is HTML-escaped unless the call is a raw triple-stache {@code {{{helper}}}} or returns a
+ * {@link SafeString}.
+ */
+public record ThisHelperPart(Function<HelperContext, Object> helper, boolean escaped) implements Part, Escaper {
     @Override
     public String apply(final RenderContext context, final Object currentData) {
-        return helper.apply(currentData);
+        final var result = helper.apply(new HelperContext(List.of(currentData), Map.of()));
+        if (result == null) {
+            return "";
+        }
+        if (result instanceof SafeString s) { // SafeString renders raw even in a double-brace mustache
+            return s.value();
+        }
+        return escaped ? escape(String.valueOf(result)) : String.valueOf(result);
     }
 }
