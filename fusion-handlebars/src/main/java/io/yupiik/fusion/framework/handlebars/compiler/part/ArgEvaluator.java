@@ -19,5 +19,9 @@ import io.yupiik.fusion.framework.handlebars.spi.Accessor;
 
 @FunctionalInterface
 public interface ArgEvaluator {
-    Object eval(Accessor accessor, Object current);
+    Object eval(Accessor accessor, Object current, Part.RenderContext context);
+
+    default Object eval(final Accessor accessor, final Object current) {
+        return eval(accessor, current, null);
+    }
 }
