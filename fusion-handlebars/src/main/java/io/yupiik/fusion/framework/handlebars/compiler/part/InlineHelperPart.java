@@ -15,26 +15,32 @@
  */
 package io.yupiik.fusion.framework.handlebars.compiler.part;
 
+import io.yupiik.fusion.framework.handlebars.compiler.escaping.Escaper;
+import io.yupiik.fusion.framework.handlebars.helper.HelperContext;
+import io.yupiik.fusion.framework.handlebars.helper.SafeString;
 import io.yupiik.fusion.framework.handlebars.spi.Accessor;
 
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 
-public record InlineHelperPart(Function<Object, String> helper, List<ArgEvaluator> args, Accessor accessor) implements Part {
-    @Deprecated // for backward compatibility only
-    public InlineHelperPart(final Function<Object, String> helper, final String name, final Accessor accessor) {
-        this(helper, List.of(new Helpers.DynamicArgEvaluator(name)), accessor);
-    }
-
+/**
+ * An inline helper call {@code {{helper args hash=..}}}: the result is HTML-escaped like a variable
+ * unless the call is a raw triple-stache {@code {{{helper args}}}} or returns a {@link SafeString}.
+ */
+public record InlineHelperPart(Function<HelperContext, Object> helper, List<ArgEvaluator> args,
+                               Map<String, ArgEvaluator> hash, Accessor accessor, boolean escaped) implements Part, Escaper {
     @Override
     public String apply(final RenderContext context, final Object currentData) {
-        if (args.size() == 1) {
-            final var value = args.get(0).eval(accessor, currentData);
-            if (value == null) {
-                return "";
-            }
-            return helper.apply(value);
+        final var result = helper.apply(new HelperContext(
+                Helpers.evalArgs(args, accessor, currentData, context),
+                Helpers.evalHash(hash, accessor, currentData, context)));
+        if (result == null) {
+            return "";
         }
-        return helper.apply(List.of(args.stream().map(it -> it.eval(accessor, currentData)).toList()));
+        if (result instanceof SafeString s) { // SafeString renders raw even in a double-brace mustache
+            return s.value();
+        }
+        return escaped ? escape(String.valueOf(result)) : String.valueOf(result);
     }
 }

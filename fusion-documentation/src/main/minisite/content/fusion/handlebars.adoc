@@ -18,6 +18,7 @@ This page details Handlebars templating.
 == Usage
 
 It starts from `HandlebarsCompiler` (available as a fusion bean) which compiles a template + its helpers and partials as a `Template` which supports to render the template.
+The template is parsed once into a precomputed part tree: nothing is parsed, tokenized or looked up at render time.
 
 Data can be map of primitives (or data which have a `toString()`) or lists for now.
 It tolerates that you pass a `Supplier` too as map value for a lazy evaluation.
@@ -29,7 +30,7 @@ final var compiler = new HandlebarsCompiler();
 final var tpl = compiler.compile(new HandlebarsCompiler.CompilationContext(
         new HandlebarsCompiler.Settings()
                 .helpers(Map.of( // some helpers - can be Map.of() if you don't use them
-                        "uppercase", o -> o.toString().toUpperCase(ROOT)))
+                        "uppercase", ctx -> ((String) ctx.args().get(0)).toUpperCase(ROOT)))
                 .partials(Map.of(
                         "person", "{{person.name}} is {{person.age}} years old.")),
         "{{firstname}} {{uppercase lastname}}"));
@@ -38,13 +39,161 @@ final var tpl = compiler.compile(new HandlebarsCompiler.CompilationContext(
 final var rendering = tpl.render(Map.of(...));
 ----
 
-== Each built-in helper data-variables
+== Syntax reference
+
+[opts="header",cols="3,7"]
+|===
+| Syntax | Description
+| `{{name}}` | Outputs `name`, HTML-escaped.
+| `{{{name}}}` | Outputs `name` raw.
+| `{{this}}` / `{{.}}` | Outputs the current data.
+| `{{a.b.c}}` | Nested path resolution.
+| `{{../name}}` / `{{@../index}}` | Resolves a path (or data variable) against the parent context frame.
+| `{{#if cond}}...{{else}}...{{/if}}` | Conditional block with optional else.
+| `{{#if a}}A{{else if b}}B{{else}}C{{/if}}` | `else if` chains.
+| `{{#unless cond}}...{{else}}...{{/unless}}` | Negated conditional.
+| `{{^cond}}...{{else}}...{{/cond}}` | Inverted section: renders when `cond` is falsy (same as `unless`).
+| `{{#each coll}}...{{else}}...{{/each}}` | Iteration with optional empty branch.
+| `{{#each coll as \|value key\|}}` | Iteration with block params bound to the item (or entry value for maps) and the index (or entry key).
+| `{{#with value}}...{{else}}...{{/with}}` | Changes the current data, else when null.
+| `{{#with value as \|v\|}}` | Binds the value to a block param.
+| `{{#varName}}...{{/varName}}` | Keyword-less block: when `varName` is truthy it renders the block with the value as the new context, else the `{{else}}` branch (like handlebars.js `blockHelperMissing`).
+| `{{#helperName args}}...{{/helperName}}` | Custom block helper.
+| `{{#helperName args as \|a b\|}}` | Custom block helper with block params.
+| `{{#each people limit=2 offset=1}}` | Hash arguments on sections.
+| `{{helper args}}` | Inline helper (output is HTML-escaped).
+| `{{helper a b key="value"}}` | Multiple positional + hash arguments.
+| `{{helper}}` | Helper receiving the current data as its single arg.
+| `(helper args)` | Sub-expression usable in any argument position.
+| `{{> partial}}` | Renders a partial with the current data.
+| `{{> partial key=value}}` | Renders a partial with remapped data.
+| `{{! comment}}` / `{{!-- comment --}}` | Comments, the trailing EOL is consumed.
+| `{{{{name}}}}...{{{{/name}}}}` | Raw block: the body is rendered verbatim (no interpolation).
+|===
+
+Sub-expressions can nest: `{{#if (and (eq a 1) (gt b 0))}}yes{{else}}no{{/if}}`.
+
+== Escaping
+
+Double-brace interpolation (`{{name}}` and inline helper results) HTML-escapes `& < > " ' \` =` plus the standard
+HTML named entities (Latin-1, Greek, punctuation, arrows, math symbols).
+Triple-brace interpolation (`{{{name}}}` and `{{{helper args}}}` calls) and block helper results are rendered raw.
+
+== Data access
+
+Data is resolved through an `Accessor` (defaults to `io.yupiik.fusion.framework.handlebars.compiler.accessor.MapAccessor`):
+maps, nested maps, list index paths (`{{people.0.name}}`) and `Supplier` values are supported.
+Inside `{{#each}}`, a missing variable is looked up in the parent data first, then in the current item.
+A custom `Accessor` (or a `RoutingAccessor` routing by data type) can be passed to the `HandlebarsCompiler` constructor
+to support records or any other data shape.
+
+== Truthiness
+
+A value is falsy when it is `null`, `Boolean#FALSE`, a blank string, a number equal to zero or an empty collection.
+`if`, `unless` (fixed: `false` is now falsy like in handlebars.js), `and`, `or`, `not`, `default` and the
+`{{#varName}}` blocks all follow this rule.
+
+== Data variables
 
 `{{#each xxx}}` supports the following data-variables:
 
-* `@first` (boolean): is the current element the first one,
-* `@last` (boolean): is the current element the last one,
-* `@index` (integer): 0-based index of current element.
+[opts="header",cols="2,6"]
+|===
+| Variable | Description
+| `@first` | boolean, is the current element the first one.
+| `@last` | boolean, is the current element the last one.
+| `@index` | integer, 0-based index of current element.
+|===
 
-If the `xxx` variable is not a `Collection` but a `Map`, the additional `@key` and `@value` data-variables are available.
+If the `xxx` variable is a `Map`, the additional `@key` and `@value` data-variables are available,
+and plain names resolve against the entry value (like handlebars.js object iteration).
+Note that `@index`/`@first`/`@last` reflect the true positions: with `limit=`/`offset=` the index
+keeps counting from the beginning of the collection.
 
+== Built-in helpers
+
+The following helpers are registered by default and can be overridden by the user helpers
+(`Settings.helpers()` wins over the built-in by name).
+
+[opts="header",cols="2,6"]
+|===
+| Helper | Description
+| `eq a b` | Equality, numbers compare by value (`1` equals `1L`).
+| `ne a b` | Not equal.
+| `gt` / `gte` / `lt` / `lte` | Numeric comparison (numbers or numeric strings).
+| `and args...` | All arguments truthy.
+| `or args...` | At least one argument truthy.
+| `not a` | Negates the truthiness.
+| `default value fallback` | `value` when truthy, else `fallback`.
+| `lookup object key` | Map key or list index access.
+| `time` | Now, formatted with `yyyy-MM-dd HH:mm:ss`.
+| `time value` | Formats the value (Date, Instant, epoch millis, LocalDate/Time/DateTime, Offset/ZonedDateTime).
+| `time pattern="yyyy"` | Now with an explicit `DateTimeFormatter` pattern (hash argument).
+| `time value pattern="..."` | Value with an explicit pattern.
+|===
+
+All of them are block-aware: `{{#eq a b}}equal{{else}}different{{/eq}}`, `{{#gt age 18}}adult{{else}}minor{{/gt}}`
+render the block or its else branch, and used inline or in a sub-expression they return a boolean.
+`time`, `default` and `lookup` used as blocks render the block with their result as the current data.
+
+== Custom helpers
+
+A helper is a `Function<HelperContext, Object>` where `HelperContext` (record) carries:
+
+[opts="header",cols="2,6"]
+|===
+| Component | Description
+| `args` | the evaluated positional arguments (empty when none).
+| `hash` | the evaluated `key=value` arguments (never null).
+| `blockRenderer` | renders the block body with the passed data (null for inline/sub-expression calls).
+| `inverseRenderer` | renders the `{{else}}` body with the passed data (null when there is no else).
+|===
+
+Arguments accept string literals with single or double quotes (`'abc'`, `"a b"`, backslash escapes),
+integer, decimal (`-1.2`) and boolean (`true`/`false`) literals, variable paths (`a.b`, `this.path` where
+`this` is the current data), parent paths (`../name`) and sub-expressions `(helper args)`.
+
+A helper may return a `io.yupiik.fusion.framework.handlebars.helper.SafeString` to bypass HTML escaping
+in a double-brace call (like handlebars.js `SafeString`).
+
+[source,java]
+----
+helpers(Map.of(
+        "uppercase", ctx -> ctx.args().isEmpty() ? null : ctx.args().get(0).toString().toUpperCase(ROOT),
+        "list", ctx -> {
+            final var items = ctx.args().get(0);
+            if (!(items instanceof Collection<?> list)) {
+                return "failed, not a list";
+            }
+            if (list.isEmpty()) {
+                return ctx.inverseRenderer() == null ? "" : ctx.inverseRenderer().apply(items);
+            }
+            return list.stream()
+                    .map(ctx.blockRenderer())
+                    .map(it -> "<li>" + it + "</li>")
+                    .collect(joining("\n", "<ul>\n", "\n</ul>"));
+        },
+        "print_person", ctx -> ...)) // {{print_person}} -> the current data is args.get(0)
+----
+
+Inline and sub-expression helper results are HTML-escaped, block helper results are rendered raw.
+
+== Partials
+
+Partials are registered with `Settings.partials()` and rendered with `{{> name}}` using the current data
+(`{{#each people}}...{{>person person=.}}...{{/each}}` remaps the current item to the `person` variable).
+Parameters can be literals, variables or sub-expressions: `{{>person name="Nils" age=20}}` makes the partial
+use these values instead of its own data lookups; `{{>person person=.}}` maps the current data to `person`
+(so `{{person.name}}` inside the partial reads the current item). The remapping applies to the whole partial
+body, including nested sections and else branches. Set `Settings.cachePartials(true)` to compile partials once
+and reuse them across `compile()` calls (default is to compile them per template).
+
+== Limitations
+
+The engine implements a carefully chosen subset of handlebars.js:
+
+* No `[dotted.keys]` literal-key access.
+* No whitespace-control mustaches (`{{~ ~}}`).
+* No dynamic partials (`{{> (whichPartial)}}`), no context lambdas (functions as data values; only `Supplier`s).
+* `{{else if}}` chains are supported; `{{else unless}}` and `{{else <custom-helper>}}` are supported too
+  (the latter must be a registered helper).

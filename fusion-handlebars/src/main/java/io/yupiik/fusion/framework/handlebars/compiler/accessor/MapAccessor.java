@@ -23,6 +23,9 @@ import java.util.function.Supplier;
 
 public class MapAccessor implements Accessor {
     public Object find(final Object data, final String name) {
+        if (data == null) {
+            return null;
+        }
         if (data instanceof List<?> list) {
             return handleList(list, name);
         }
@@ -44,9 +47,9 @@ public class MapAccessor implements Accessor {
         }
     }
 
-    private Object handleMap(Object data, String name) {
+    private Object handleMap(final Object data, final String name) {
         if (!(data instanceof Map<?, ?> map)) {
-            throw new IllegalArgumentException("Unsupported type '" + data + "'");
+            return null; // like an undefined property in handlebars.js
         }
         var value = map.get(name); // optimistic case, avoid to browse the string is useless
         if (value == null) {

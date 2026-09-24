@@ -15,12 +15,19 @@
  */
 package io.yupiik.fusion.framework.handlebars.compiler.part;
 
+import io.yupiik.fusion.framework.handlebars.helper.SafeString;
 import io.yupiik.fusion.framework.handlebars.spi.Accessor;
 
-public record UnescapedVariablePart(String name, Accessor accessor) implements Part {
+/**
+ * A raw variable path {@code {{{name}}}}: renders the resolved value without escaping.
+ */
+public record UnescapedVariablePart(ArgEvaluator name, Accessor accessor) implements Part {
     @Override
     public String apply(final RenderContext context, final Object currentData) {
-        final var value = accessor.find(currentData, name);
-        return value == null ? "" : String.valueOf(value);
+        final var value = name.eval(accessor, currentData, context);
+        if (value == null) {
+            return "";
+        }
+        return value instanceof SafeString s ? s.value() : String.valueOf(value);
     }
 }
