@@ -188,6 +188,51 @@ use these values instead of its own data lookups; `{{>person person=.}}` maps th
 body, including nested sections and else branches. Set `Settings.cachePartials(true)` to compile partials once
 and reuse them across `compile()` calls (default is to compile them per template).
 
+== Breaking changes
+
+Version 1.2.0 aligns the engine with handlebars.js and changes the custom helper API and a few template behaviors compared to previous releases.
+
+=== Helper signature
+
+Helpers are now `Function<HelperContext, Object>` (previously `Function<Object, String>`).
+The old contract passed a single argument directly, several arguments as a `List`, and block helpers received a `BlockHelperContext(data, blockRenderer)` which was removed.
+`HelperContext` is created by the engine for each call and exposes `args()` (evaluated positional arguments), `hash()` (evaluated `key=value` arguments) and, for block helpers, `blockRenderer()` and `inverseRenderer()` to render the block and its `{{else}}` body.
+A helper result can now be any object (it is stringified at render time) instead of only a `String`.
+
+[opts="header",cols="3,4,4"]
+|===
+| Case | Before | After
+| Inline helper, one argument | the value directly | `ctx.args().get(0)`
+| Inline helper, several arguments | a `List` of values | `ctx.args()`
+| Bare call `{{h}}` | the current data | `ctx.args().get(0)` (the current data)
+| Block helper | `BlockHelperContext(value, renderer)` | `HelperContext(args, hash, blockRenderer, inverseRenderer)`
+| `{{else}}` body | not renderable | `ctx.inverseRenderer()`
+|===
+
+[source,java]
+----
+// before
+"uppercase", o -> o.toString().toUpperCase(ROOT)
+
+// after
+"uppercase", ctx -> ((String) ctx.args().get(0)).toUpperCase(ROOT)
+----
+
+=== Inline helper output is now escaped
+
+Inline helper results in double braces (`{{helper ...}}`) are now HTML-escaped like variables; they used to be inserted as-is.
+Use `{{{helper ...}}}` or return a `io.yupiik.fusion.framework.handlebars.helper.SafeString` to render raw.
+Block helper output remains unescaped.
+
+=== Template behaviors
+
+* `false` is now falsy in `if`/`unless`/`and`/`or`/`not`/`default` and `{{#varName}}` blocks (see <<_truthiness>>); it used to be truthy.
+* Accessing a property on non-map data no longer throws and resolves to `null` (rendered as empty), like an undefined variable.
+* Keyword-less blocks `{{#varName}}` now render their block with the value as the new context (handlebars.js `blockHelperMissing`); they used to render with the enclosing data.
+* `{{#each}}` now renders its `{{else}}` branch when the source is null or empty, and supports `limit=`/`offset=` and `as |value key|`.
+* `{{else}}`, `{{else if}}` and inverted sections (`{{^foo}}`) are now supported.
+* Comments and block boundaries consume the surrounding end-of-line, which can slightly change the rendered whitespace.
+
 == Limitations
 
 The engine implements a carefully chosen subset of handlebars.js:
