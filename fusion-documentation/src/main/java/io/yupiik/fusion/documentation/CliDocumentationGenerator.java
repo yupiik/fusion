@@ -187,12 +187,30 @@ public class CliDocumentationGenerator implements Runnable {
 
 private String displayType(final String type) {
         final var printable = type.replace('$', '.');
-        // collapse the package for well-known JDK types (java.lang, java.util, ...) to keep the doc readable
-        if (printable.startsWith("java.") || printable.startsWith("javax.")) {
-            final var dot = printable.lastIndexOf('.');
-            return dot > 0 ? printable.substring(dot + 1) : printable;
+        // collapse the package for well-known JDK types (java.lang, java.util, ...) to keep the doc readable,
+        // including generic arguments (e.g. java.util.List<java.lang.String> -> List<String>)
+        if (!printable.startsWith("java.") && !printable.startsWith("javax.")) {
+            return printable;
         }
-        return printable;
+        final var out = new StringBuilder();
+        var from = 0;
+        for (var i = 0; i < printable.length(); i++) {
+            final var c = printable.charAt(i);
+            if (c == '<' || c == '>' || c == ',') {
+                out.append(simpleTypeName(printable.substring(from, i))).append(c);
+                from = i + 1;
+            }
+        }
+        return out.append(simpleTypeName(printable.substring(from))).toString();
+    }
+
+    private static String simpleTypeName(final String part) {
+        final var value = part.strip();
+        if (!value.startsWith("java.") && !value.startsWith("javax.")) {
+            return part;
+        }
+        // keep the leading whitespace (e.g. right after a comma in a generic signature) and collapse the package
+        return part.substring(0, part.length() - value.length()) + value.substring(value.lastIndexOf('.') + 1);
     }
 
     private static String displayName(final String cmdPrefix, final String cliName) {
