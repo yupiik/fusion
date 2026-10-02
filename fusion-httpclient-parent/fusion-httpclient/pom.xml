@@ -56,4 +56,39 @@
       </plugin>
     </plugins>
   </build>
+
+  <profiles>
+    <!-- compiles the Java 21 HttpClientCloser override into META-INF/versions/21 (multi-release jar) -->
+    <profile>
+      <id>jdk21-multirelease</id>
+      <activation>
+        <jdk>[21,)</jdk>
+      </activation>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>compile-java21</id>
+                <phase>compile</phase>
+                <goals>
+                  <goal>compile</goal>
+                </goals>
+                <configuration>
+                  <release>21</release>
+                  <multiReleaseOutput>true</multiReleaseOutput>
+                  <compileSourceRoots>
+                    <compileSourceRoot>${project.basedir}/src/main/java21</compileSourceRoot>
+                  </compileSourceRoots>
+                  <proc>none</proc>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>

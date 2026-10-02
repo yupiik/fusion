@@ -15,6 +15,7 @@
  */
 package io.yupiik.fusion.httpclient.core;
 
+import io.yupiik.fusion.httpclient.core.internal.HttpClientCloser;
 import io.yupiik.fusion.httpclient.core.listener.RequestListener;
 
 import java.io.IOException;
@@ -23,6 +24,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.Iterator;
@@ -38,10 +40,14 @@ public class ExtendedHttpClient extends DelegatingHttpClient implements AutoClos
     private final List<RequestListener<?>> listeners = new ArrayList<>();
     private final List<Consumer<ExtendedHttpClient>> onClose = new CopyOnWriteArrayList<>();
     private final boolean isChild;
+    private final boolean ownDelegate;
+    private final Duration closeTimeout;
 
     public ExtendedHttpClient(final ExtendedHttpClientConfiguration clientConfiguration) {
         super(ofNullable(clientConfiguration.getDelegate()).orElseGet(HttpClient::newHttpClient));
         this.isChild = false;
+        this.ownDelegate = clientConfiguration.getDelegate() == null;
+        this.closeTimeout = clientConfiguration.getCloseTimeout();
         this.requestCounter = new AtomicLong();
         if (clientConfiguration.getRequestListeners() != null) {
             this.listeners.addAll(clientConfiguration.getRequestListeners());
@@ -51,6 +57,8 @@ public class ExtendedHttpClient extends DelegatingHttpClient implements AutoClos
     public ExtendedHttpClient(final ExtendedHttpClient extendedHttpClient) {
         super(extendedHttpClient.delegate);
         this.isChild = true;
+        this.ownDelegate = false;
+        this.closeTimeout = null;
         this.requestCounter = extendedHttpClient.requestCounter;
         this.listeners.addAll(extendedHttpClient.listeners);
     }
@@ -80,6 +88,10 @@ public class ExtendedHttpClient extends DelegatingHttpClient implements AutoClos
                         throw new IllegalStateException(e);
                     }
                 });
+        // when the delegate is provided by the caller, the transport lifecycle is left to the caller
+        if (ownDelegate) {
+            HttpClientCloser.close(delegate, closeTimeout);
+        }
     }
 
     private RequestListener.State<List<Object>> prepare(final HttpRequest request) {
