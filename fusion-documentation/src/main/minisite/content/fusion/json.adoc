@@ -169,7 +169,7 @@ logger.info("Error on field '" + error.field() + "' " + error.message());
 
 The JSON schemas emitted by the annotation processor use a lightweight Draft-07/OpenAPI hybrid format: they rely on a
 `nullable` keyword and reference shared models with `#/schemas/<fqn>` pointers.
-When you need a <https://json-schema.org/draft/2020-12/schema[Draft 2020-12]> document, use
+When you need a link:https://json-schema.org/draft/2020-12/schema[Draft 2020-12] document, use
 `io.yupiik.fusion.json.schema.JsonSchemaService` to convert them in a purely structural and reflectionless way.
 
 The conversion is applied on the generic JSON tree ({`Map`}/{`List`}/scalar values as produced by `JsonMapper`) and rewrites the schema keywords only, never the payload values:
