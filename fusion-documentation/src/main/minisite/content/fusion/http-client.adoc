@@ -107,6 +107,37 @@ conf.setListeners(List.of(
 
 These decorators are combined by wrapping the client: `new ThrottledHttpClient(new RoutingHttpClient(delegate))`.
 
+== Closing
+
+By default (no `closeTimeout` set) `ExtendedHttpClient.close()` only closes the registered hooks and listeners:
+the underlying transport is left as-is, whatever the JDK version.
+This preserves the historical behavior and keeps the caller in control of the transport lifecycle.
+
+Set a positive `closeTimeout` (a `java.time.Duration`) on the configuration to also close the transport
+when the `ExtendedHttpClient` created it itself (no delegate was provided):
+
+[source,java]
+----
+final var conf = new ExtendedHttpClientConfiguration().setCloseTimeout(Duration.ofSeconds(2));
+----
+
+`close()` then waits at most `closeTimeout` for the client to terminate:
+
+* on Java 21+, it calls `HttpClient.shutdown()`, then `HttpClient.awaitTermination(closeTimeout)`; if the
+  timeout elapses without termination, `HttpClient.shutdownNow()` force-closes the remaining operations,
+* on Java 17, the JDK client exposes no shutdown/termination API, so the close is attempted on the common
+  pool and the wait is abandoned (cancelled) when the timeout elapses. This is a best effort: the JDK
+  selector threads are daemons and stop once the client becomes unreachable.
+
+A `null`, zero or negative `closeTimeout` leaves the transport untouched.
+
+When a delegate is provided through `setDelegate`, `ExtendedHttpClient.close()` never closes it:
+the transport lifecycle belongs to the caller (this applies with or without `closeTimeout`).
+
+TIP: the underlying `java.net.http.HttpClient` (Java 21+) can still be closed manually through
+`close()` even when no `closeTimeout` is set - but a naive `close()` can block forever on an idle
+keep-alive connection, which is exactly what the bounded `closeTimeout` wait prevents.
+
 == Tracing
 
 See xref:tracing.adoc[the tracing page] for the `TracingListener` enabling Zipkin/OpenTelemetry propagation on outgoing requests.

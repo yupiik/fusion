@@ -26,15 +26,19 @@ import org.junit.jupiter.api.TestInstance;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 @TestInstance(PER_CLASS)
@@ -88,6 +92,38 @@ class ExtendedHttpClientTest {
         }
     }
 
+    @Test
+    void closeWithProvidedDelegateKeepsTheTransportAlive() throws Exception {
+        // when a delegate is provided by the caller, close() must not touch the transport,
+        // regardless of the closeTimeout (the caller owns the lifecycle)
+        final var transportClosed = new AtomicBoolean(false);
+        final var tracked = new TrackedCloseHttpClient(() -> transportClosed.set(true));
+        final var client = new ExtendedHttpClient(new ExtendedHttpClientConfiguration()
+                .setDelegate(tracked)
+                .setCloseTimeout(Duration.ofMillis(100)));
+        client.close();
+        assertFalse(transportClosed.get(), "a caller-provided delegate must not be closed by ExtendedHttpClient.close()");
+    }
+
+    @Test
+    void closeWithoutTimeoutDoesNotCloseAnOwnedTransport() throws Exception {
+        assumeTrue(Runtime.version().feature() >= 21, "requires Java 21+");
+        try (
+                final var server = new Server(ex -> {
+                    final var body = "{\"ok\":true}".getBytes(StandardCharsets.UTF_8);
+                    ex.sendResponseHeaders(200, body.length);
+                    ex.getResponseBody().write(body);
+                    ex.close();
+                });
+                final var client = new ExtendedHttpClient(new ExtendedHttpClientConfiguration())) {
+            assertEquals("{\"ok\":true}", client.send(server.GET().build()).body());
+            client.close(); // no closeTimeout: the owned transport must stay alive
+            // observable proofs: the transport still serves requests and is not terminated
+            assertEquals("{\"ok\":true}", client.send(server.GET().build()).body());
+            assertFalse((boolean) HttpClient.class.getMethod("isTerminated").invoke(client.delegate()));
+        }
+    }
+
     private ExtendedHttpClient newClient(final RequestListener<?>... listeners) {
         return new ExtendedHttpClient(new ExtendedHttpClientConfiguration()
                 .setRequestListeners(List.of(listeners)));
@@ -117,6 +153,86 @@ class ExtendedHttpClientTest {
         @Override
         public void close() {
             server.stop(0);
+        }
+    }
+
+    private static class TrackedCloseHttpClient extends HttpClient implements AutoCloseable {
+        private final Runnable onClose;
+
+        private TrackedCloseHttpClient(final Runnable onClose) {
+            this.onClose = onClose;
+        }
+
+        @Override
+        public void close() {
+            onClose.run();
+        }
+
+        // stubs for the abstract methods, never used by these tests
+        @Override
+        public java.util.Optional<java.net.CookieHandler> cookieHandler() {
+            return java.util.Optional.empty();
+        }
+
+        @Override
+        public java.util.Optional<Duration> connectTimeout() {
+            return java.util.Optional.empty();
+        }
+
+        @Override
+        public Redirect followRedirects() {
+            return Redirect.NEVER;
+        }
+
+        @Override
+        public java.util.Optional<java.net.ProxySelector> proxy() {
+            return java.util.Optional.empty();
+        }
+
+        @Override
+        public javax.net.ssl.SSLContext sslContext() {
+            return null;
+        }
+
+        @Override
+        public javax.net.ssl.SSLParameters sslParameters() {
+            return null;
+        }
+
+        @Override
+        public java.util.Optional<java.net.Authenticator> authenticator() {
+            return java.util.Optional.empty();
+        }
+
+        @Override
+        public Version version() {
+            return Version.HTTP_1_1;
+        }
+
+        @Override
+        public java.util.Optional<java.util.concurrent.Executor> executor() {
+            return java.util.Optional.empty();
+        }
+
+        @Override
+        public <T> java.net.http.HttpResponse<T> send(final java.net.http.HttpRequest request,
+                                                      final java.net.http.HttpResponse.BodyHandler<T> responseBodyHandler) {
+            return null;
+        }
+
+        @Override
+        public <T> java.util.concurrent.CompletableFuture<java.net.http.HttpResponse<T>> sendAsync(
+                final java.net.http.HttpRequest request,
+                final java.net.http.HttpResponse.BodyHandler<T> responseBodyHandler) {
+            return null;
+        }
+
+        @Override
+        public <T> java.util.concurrent.CompletableFuture<java.net.http.HttpResponse<T>> sendAsync(
+                final java.net.http.HttpRequest request,
+                final java.net.http.HttpResponse.BodyHandler<T> responseBodyHandler,
+                final java.net.http.HttpResponse.PushPromiseHandler<T> pushPromiseHandler) {
+            return null;
         }
     }
 }
