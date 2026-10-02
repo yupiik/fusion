@@ -90,4 +90,22 @@ class CliDocumentationGeneratorTest {
         assertFalse(result.contains("Default:"), "Null default must not be rendered, got:\n" + result);
         assertTrue(result.contains("Type: `String`."), "Should document the type, got:\n" + result);
     }
+
+    @Test
+    void genericJdkTypeCollapsesEveryPackage() {
+        final var gen = new CliDocumentationGenerator(Path.of("."), Map.of());
+        final var result = gen.generateDetail("my-app",
+                new CliDocumentationGenerator.Command("my-command", new String[]{"my-command"}, "A test command.",
+                        List.of(new CliCommand.Parameter("my-command.names", "--my-command-names", "The names option.",
+                                        "java.util.List<java.lang.String>", "java.util.List.of()"),
+                                new CliCommand.Parameter("my-command.props", "--my-command-props", "The props option.",
+                                        "java.util.Map<java.lang.String, java.util.List<java.lang.Integer>>", null))),
+                "index.html").toString();
+
+        assertTrue(result.contains("--names ..."), "Generic list keeps the ellipsis placeholder, got:\n" + result);
+        assertTrue(result.contains("Type: `List<String>`."), "Should collapse each generic package, got:\n" + result);
+        assertTrue(result.contains("Type: `Map<String, List<Integer>>`."), "Should collapse nested generic packages, got:\n" + result);
+        assertTrue(result.contains("Default: `java.util.List.of()`."), "Should document the default, got:\n" + result);
+        assertFalse(result.contains("Type: `String>`."), "Should not leak the mangled generic type, got:\n" + result);
+    }
 }
