@@ -19,6 +19,7 @@ import io.yupiik.fusion.cli.internal.CliCommand;
 import io.yupiik.fusion.cli.internal.CliCommandResolver;
 import io.yupiik.fusion.framework.api.configuration.Configuration;
 import io.yupiik.fusion.framework.api.main.Args;
+import io.yupiik.fusion.framework.api.main.ArgsConfigSource;
 import io.yupiik.fusion.framework.api.main.Awaiter;
 import io.yupiik.fusion.framework.api.scope.DefaultScoped;
 
@@ -103,16 +104,26 @@ public class CliAwaiter implements Awaiter {
     }
 
     private Optional<String> doFindConf(final CliCommand<? extends Runnable> command, final List<String> commandArgs, final String key) {
-        final var idx = commandArgs.indexOf(key);
-        if (idx >= 0 && commandArgs.size() > idx + 1) {
-            return Optional.of(commandArgs.get(idx + 1));
+        final var direct = doFindInArgs(commandArgs, key);
+        if (direct.isPresent()) {
+            return direct;
+        }
+        final var value = configuration.get(key)
+                .or(() -> key.startsWith("--") ? configuration.get(key.substring("--".length())) : empty());
+        if (value.isPresent()) {
+            return value;
         }
         // try short name
         if (key.startsWith(command.cliPrefix()) && key.length() > command.cliPrefix().length()) {
             return doFindConf(command, commandArgs, "--" + key.substring(command.cliPrefix().length()));
         }
-        return configuration.get(key)
-                .or(() -> key.startsWith("--") ? configuration.get(key.substring("--".length())) : empty());
+        return Optional.empty();
+    }
+
+    private static Optional<String> doFindInArgs(final List<String> commandArgs, final String key) {
+        final var idx = commandArgs.indexOf(key);
+        return idx >= 0 && commandArgs.size() > idx + 1 && !ArgsConfigSource.isOptionLike(commandArgs.get(idx + 1)) ?
+                Optional.of(commandArgs.get(idx + 1)) : Optional.empty();
     }
 
     public String usage() {

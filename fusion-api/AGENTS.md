@@ -17,7 +17,9 @@ Runtime side of the framework: the IoC container consumers embed in their applic
 - `io.yupiik.fusion.framework.api.event`: event bus (`Emitter`), container lifecycle events `Start`/`Stop`.
 - `io.yupiik.fusion.framework.api.configuration.Configuration`: runtime configuration lookup abstraction.
 - `io.yupiik.fusion.framework.api.main.Launcher`: default `main` entry point for applications
-  (`CliLauncher` variant for CLI applications - it skips the command name argument, prefer it with `fusion-cli`).
+  (`CliLauncher` variant for CLI applications, prefer it with `fusion-cli`; the args source binds only
+  dash-led options requiring a value - `--no-x` and `--help` excepted - bare command path segments are
+  ignored).
 - `io.yupiik.fusion.framework.api.spi.FusionModule`: SPI the generated code implements to register beans/listeners.
 
 ## Declaring and consuming beans

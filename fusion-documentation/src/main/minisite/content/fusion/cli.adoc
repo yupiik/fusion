@@ -80,6 +80,10 @@ Parents are implicit dispatchers and need no `@Command` class:
 
 `fusion-cli` provides an integration with `Launcher` main, if you don't use it, you will have to call yourself `CLIAwaiter` and register an instance of `Args`.
 
+The launcher args source only binds dash-led options: bare tokens (the command path segments) never become configuration entries, so `my-app client list --url x` maps `url=x` regardless of the command depth.
+Every dash-led option requires a value: `--url x` or `--url=x`; a bare option (`--url` alone or followed by another option) is rejected, except the exact `--help` token which is skipped.
+`--no-xxx` (e.g. `--no-my-command-force`) is the only implicit-value form and binds `false`; use `--my-command-force=true` for an explicit value.
+
 == Shell completion
 
 Every Fusion CLI application exposes completion commands generating shell completion scripts (subcommands `completion/bash`, `completion/powershell` and `completion/zsh`): they register as regular `CliCommand` beans, so they appear in the app usage, documentation and their own completion.

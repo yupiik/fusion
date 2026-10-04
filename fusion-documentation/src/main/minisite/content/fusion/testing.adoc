@@ -66,7 +66,9 @@ void run(final Stdout stdout) {
 ----
 
 
-TIP: `args` are made available to `Configuration` thanks a dedicated `ConfigurationSource` which supports these style of arguments (all leading to `foo=bar` mapping):  `--foo bar`,  `-foo bar`, `foo bar`, `--foo=bar`,  `-foo=bar`,  `foo=bar`.
+TIP: `args` are made available to `Configuration` thanks a dedicated `ConfigurationSource` which supports these style of arguments (all leading to `foo=bar` mapping):  `--foo bar`,  `-foo bar`, `--foo=bar`,  `-foo=bar`.
+Bare positional arguments (the command path segments of a CLI application for example) are ignored; an option value which looks like an option is never consumed (`--foo --bar` is rejected).
+Every dash-led option requires a value - except the exact `--help` token which is skipped, and the `--no-foo` form which implicitly binds `no.foo=false` and `foo=false` (use an explicit `--no-foo=value` to only bind `no.foo`).
 A particular arg starting by `fusion-properties` will be replaced by loading its value (as `Properties`, it can be inline or a file path - preferred).
 
 == Utilities
