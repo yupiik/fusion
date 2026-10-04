@@ -16,19 +16,17 @@
 package io.yupiik.fusion.framework.api.main;
 
 import java.util.List;
-import java.util.stream.Stream;
 
 /**
- * Same as launcher but skips first parameter for args source so parameters of the CLI command can be configuration entries.
+ * Same as launcher but dedicated to CLI applications: bare arguments - the command path segments -
+ * are not configuration entries anyway now that the args source only binds dash-led options, so the
+ * full arguments can reach the global configuration source from the leading position while the CLI
+ * awaiter keeps resolving the command and its options (see {@link ArgsConfigSource} for the exact
+ * binding rules).
  */
 public class CliLauncher extends Launcher {
     public CliLauncher(final String... args) {
         super(args);
-    }
-
-    @Override
-    protected List<String> prepareArgs(final String[] args) {
-        return args.length > 0 ? Stream.of(args).skip(1).toList() : List.of();
     }
 
     public static void main(final String... args) {

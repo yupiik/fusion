@@ -46,9 +46,11 @@ Key points:
 ## Arg binding and invocation
 
 Args bind to config record members with a `--` prefix token then value: `install --scope global --name foo`.
-Boolean members are flags taking a value token. The framework resolves the first token as the command name,
-matches it against the discovered `@Command` beans, constructs the config from the remaining tokens, and runs
-the `Runnable`.
+Bare tokens (the command path segments) are ignored, and an option value which looks like an option is
+never consumed. Every dash-led option requires a value (`--help` is skipped); `--no-install-force` is
+the only implicit-value form and binds `false` (`no.install.force=false` too); use
+`--install-force=false` for an explicit value. The framework resolves the leading tokens as the command
+name (longest match wins), constructs the config from the remaining options, and runs the `Runnable`.
 
 ## Booting
 

@@ -65,9 +65,12 @@ public class DeployRunCommand implements Runnable {
 
 ## Launching
 
-- `io.yupiik.fusion.framework.api.main.CliLauncher` (in `fusion-api`) is the PREFERRED main: unlike plain
-  `Launcher` it skips the first argument (the command name), so `my-app my-command --my-command-name foo`
-  maps the remaining args to the command configuration.
+- `io.yupiik.fusion.framework.api.main.CliLauncher` (in `fusion-api`) is the PREFERRED main: the args
+  source binds only dash-led options (`--key value`, `--key=value`) so the bare command path segments
+  are ignored and `my-app my-command --my-command-name foo` maps the remaining args to the command
+  configuration at any command depth (no need to skip the command name).
+- Every option requires a value: `--no-my-command-force` is the only implicit-value form and binds
+  `false`; `--help` is skipped; a bare valueless option is an error.
 - Without the launcher integration, call `io.yupiik.fusion.cli.CliAwaiter` yourself and register an
   `Args` instance in the container.
 

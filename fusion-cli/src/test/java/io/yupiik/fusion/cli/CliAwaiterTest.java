@@ -20,12 +20,15 @@ import io.yupiik.fusion.cli.internal.CliCommand;
 import io.yupiik.fusion.framework.api.Instance;
 import io.yupiik.fusion.framework.api.configuration.Configuration;
 import io.yupiik.fusion.framework.api.container.DefaultInstance;
+import io.yupiik.fusion.framework.api.container.configuration.ConfigurationImpl;
 import io.yupiik.fusion.framework.api.main.Args;
+import io.yupiik.fusion.framework.api.main.ArgsConfigSource;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -217,6 +220,63 @@ class CliAwaiterTest {
                 new CliAwaiter(new Args(List.of("deploy", "run", "--deploy-run-value")), NO_CONFIG,
                         cmds(capturing(capture, "deploy", "run"))).await());
         assertEquals("missing", capture.get());
+    }
+
+    @Test
+    void negatedFlagBindsFalse() {
+        final var capture = new AtomicReference<String>();
+        final var configuration = argsConfiguration(List.of("deploy", "run", "--no-deploy-run-force"));
+        new CliAwaiter(new Args(List.of("deploy", "run")), configuration,
+                cmds(booleanCapturing(capture, "deploy", "run"))).await();
+        assertEquals("false", capture.get()); // get("force") resolved through the no-force negation
+    }
+
+    @Test
+    void negatedFlagWithPlainNameBindsFalse() {
+        final var capture = new AtomicReference<String>();
+        final var configuration = argsConfiguration(List.of("--no-force"));
+        new CliAwaiter(new Args(List.of("deploy", "run")), configuration,
+                cmds(plainBooleanCapturing(capture, "deploy", "run"))).await();
+        assertEquals("false", capture.get()); // @RootConfiguration("-") style: --no-force negates force
+    }
+
+    @Test
+    void optionFollowedByOptionIsNotMispaird() {
+        final var capture = new AtomicReference<String>();
+        assertDoesNotThrow(() ->
+                new CliAwaiter(new Args(List.of("deploy", "run", "--deploy-run-value", "--deploy-run-force")),
+                        Configuration.of(java.util.Map.of("deploy-run-value", "x")),
+                        cmds(capturing(capture, "deploy", "run"))).await());
+        // the raw scan must not pair "--deploy-run-force" as the value of "--deploy-run-value":
+        // the value comes from the configuration fallback instead
+        assertEquals("x", capture.get());
+    }
+
+    private static Configuration argsConfiguration(final List<String> args) {
+        return new ConfigurationImpl(List.of(new ArgsConfigSource(args)));
+    }
+
+    private static CliCommand<? extends Runnable> booleanCapturing(final AtomicReference<String> capture, final String... path) {
+        final var key = "--" + String.join("-", path) + "-force";
+        return new BaseCliCommand<Configuration, Runnable>(path, "desc", c -> c,
+                (c, deps) -> () -> capture.set(c.get("force").orElse("missing")),
+                List.of(new CliCommand.Parameter("force", key, "Force.", "boolean", "false"))) {
+            @Override
+            public Function<String, String> keyMapper() {
+                return k -> "force".equals(k) ? key : k;
+            }
+        };
+    }
+
+    private static CliCommand<? extends Runnable> plainBooleanCapturing(final AtomicReference<String> capture, final String... path) {
+        return new BaseCliCommand<Configuration, Runnable>(path, "desc", c -> c,
+                (c, deps) -> () -> capture.set(c.get("force").orElse("missing")),
+                List.of(new CliCommand.Parameter("force", "--force", "Force.", "boolean", "false"))) {
+            @Override
+            public Function<String, String> keyMapper() {
+                return k -> "force".equals(k) ? "--force" : k;
+            }
+        };
     }
 
     private static CliCommand<? extends Runnable> capturing(final AtomicReference<String> capture, final String... path) {
