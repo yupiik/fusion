@@ -21,6 +21,7 @@ import io.yupiik.fusion.framework.api.container.FusionBean;
 import io.yupiik.fusion.framework.api.container.bean.BaseBean;
 import io.yupiik.fusion.framework.api.scope.DefaultScoped;
 import io.yupiik.fusion.framework.build.api.configuration.Property;
+import io.yupiik.fusion.framework.build.api.json.JsonIgnore;
 import io.yupiik.fusion.framework.build.api.json.JsonModel;
 import io.yupiik.fusion.framework.build.api.json.JsonOthers;
 import io.yupiik.fusion.framework.build.api.json.JsonProperty;
@@ -108,6 +109,7 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
                                     typeMirror,
                                     typeOf(typeMirror.toString(), typeMirror),
                                     it.getAnnotation(JsonOthers.class) != null,
+                                    it.getAnnotation(JsonIgnore.class) != null,
                                     ofNullable(it.getAnnotation(Property.class))
                                             .map(i -> i.documentation() + (i.required() ? " This attribute is required." : ""))
                                             .orElse(null),
@@ -156,6 +158,9 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
         if (fallbacks.size() > 1) {
             throw new IllegalArgumentException("You can only get a single @JsonOthers per @JsonModel record");
         }
+        if (params.stream().anyMatch(p -> p.ignored() && p.others())) {
+            throw new IllegalArgumentException("A @JsonModel attribute cannot be both @JsonIgnore and @JsonOthers");
+        }
 
         final var pckPrefix = packageName.isBlank() ? "" : packageName + '.';
         final var out = new StringBuilder();
@@ -175,7 +180,7 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
         // see Parser.matchString(char[][], IntUnaryOperator) contract (stable sort keeps the declaration
         // order for equal lengths)
         final var namedParams = params.stream()
-                .filter(p -> !p.others())
+                .filter(p -> !p.others() && !p.ignored())
                 .sorted(Comparator.comparingInt(p -> p.jsonName().length()))
                 .toList();
 
@@ -197,7 +202,10 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
         }
         out.append("    default -> -1;\n  };\n\n");
 
-        // FIELDS__ array (KEYS__ order, @JsonOthers appended at the end)
+        // FIELDS__ array (KEYS__ order, @JsonOthers then @JsonIgnore params appended at the end so the slot
+        // array built in readObject is sized for every record component and defaults are preinitialized)
+        final var ignoredParams = params.stream().filter(Param::ignored).toList();
+        final boolean hasIgnored = !ignoredParams.isEmpty();
         out.append("  @SuppressWarnings({\"unchecked\", \"rawtypes\"})\n")
                 .append("  private static final ").append(BaseJsonCodec.class.getName()).append(".FieldMeta<").append(modelClass).append(">[] FIELDS__ = new ")
                 .append(BaseJsonCodec.class.getName()).append(".FieldMeta[] {\n");
@@ -215,7 +223,7 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
                     .append(p.order()).append(", ")
                     .append("(\"\\\"\" + ").append("\"").append(p.stringEscapedJsonName()).append("\"").append(" + \"\\\":\").toCharArray()")
                     .append(")");
-            if (i < namedParams.size() - 1 || !fallbacks.isEmpty()) {
+            if (i < namedParams.size() - 1 || !fallbacks.isEmpty() || hasIgnored) {
                 out.append(',');
             }
             out.append('\n');
@@ -235,6 +243,29 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
                     .append(othersParam.order()).append(", ")
                     .append("null")
                     .append(")");
+            if (hasIgnored) {
+                out.append(',');
+            }
+            out.append('\n');
+        }
+        // append @JsonIgnore params (still addressable in the slot array, but never matched nor serialized)
+        for (int i = 0; i < ignoredParams.size(); i++) {
+            final var p = ignoredParams.get(i);
+            out.append("    new ").append(BaseJsonCodec.class.getName()).append(".FieldMeta<>(\n")
+                    .append("      \"").append(p.stringEscapedJsonName()).append("\".toCharArray(), ")
+                    .append(params.indexOf(p)).append(", ")
+                    .append(BaseJsonCodec.class.getName()).append(".ContainerKind.").append(containerKind(p.types().paramType())).append(", ")
+                    .append(BaseJsonCodec.class.getName()).append(".ValueKind.").append(valueKind(p.types().paramTypeDef())).append(", ")
+                    .append(isJavaLangWrapper(p.type())).append(", ")
+                    .append("false, ")
+                    .append(delegateTypeExpr(p)).append(", ")
+                    .append("m -> ((").append(modelClass).append(") m).").append(p.javaName()).append("(), ")
+                    .append(p.order()).append(", ")
+                    .append("null")
+                    .append(")");
+            if (i < ignoredParams.size() - 1) {
+                out.append(',');
+            }
             out.append('\n');
         }
         out.append("  };\n\n");
@@ -242,6 +273,7 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
         // FIELDS_WRITE__ array (write order = @JsonProperty.order then javaName)
         final var othersIndex = fallbacks.isEmpty() ? -1 : params.indexOf(fallbacks.get(0));
         final var writeOrdered = params.stream()
+                .filter(p -> !p.ignored())
                 .sorted(Comparator.<Param, Integer>comparing(p -> p.order() != Integer.MIN_VALUE ?
                                 p.order() :
                                 (p.others() ? Integer.MIN_VALUE + 2 : Integer.MIN_VALUE + 1))
@@ -463,11 +495,11 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
     }
 
     private record Param(String javaName, String jsonName, TypeMirror type,
-                         ParamTypes types, boolean others, String doc, int order,
+                         ParamTypes types, boolean others, boolean ignored, String doc, int order,
                          String stringEscapedJsonName) {
         private Param(final String javaName, final String jsonName, final TypeMirror type,
-                      final ParamTypes types, final boolean others, final String doc, final int order) {
-            this(javaName, jsonName, type, types, others, doc, order, escapeJsonName(jsonName));
+                      final ParamTypes types, final boolean others, final boolean ignored, final String doc, final int order) {
+            this(javaName, jsonName, type, types, others, ignored, doc, order, escapeJsonName(jsonName));
         }
 
         // computed once, it is used by most generation branches

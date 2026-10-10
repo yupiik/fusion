@@ -1741,6 +1741,143 @@ class FusionProcessorTest {
     }
 
     @Test
+    void jsonIgnorePrimitives(@TempDir final Path work) throws IOException {
+        new Compiler(work, "JsonIgnoreModel").compileAndJsonAsserts((loader, mapper) -> {
+            final var model = loader.apply("test.p.JsonIgnoreModel$AllPrimitives");
+            // deserialization: @JsonIgnore primitives fall back to their default even when the key is present
+            Object instance;
+            try (final var reader = new StringReader("""
+                    {"visibleBoolean":true,"hiddenBoolean":true,"visibleInt":5,"hiddenInt":6,
+                     "visibleLong":7,"hiddenLong":8,"visibleDouble":1.5,"hiddenDouble":2.5}""")) {
+                instance = mapper.read(model, reader);
+            }
+            assertEquals("AllPrimitives[visibleBoolean=true, hiddenBoolean=false, visibleInt=5, hiddenInt=0, " +
+                    "visibleLong=7, hiddenLong=0, visibleDouble=1.5, hiddenDouble=0.0]", instance.toString());
+
+            // empty payload -> ignored primitives keep factory defaults
+            try (final var reader = new StringReader("{}")) {
+                instance = mapper.read(model, reader);
+            }
+            assertEquals("AllPrimitives[visibleBoolean=false, hiddenBoolean=false, visibleInt=0, hiddenInt=0, " +
+                    "visibleLong=0, hiddenLong=0, visibleDouble=0.0, hiddenDouble=0.0]", instance.toString());
+
+            // serialization: @JsonIgnore fields are omitted while the visible ones are kept
+            try (final var reader = new StringReader("""
+                    {"visibleBoolean":true,"hiddenBoolean":true,"visibleInt":5,"hiddenInt":99,
+                     "visibleLong":7,"hiddenLong":88,"visibleDouble":1.5,"hiddenDouble":77.5}""")) {
+                instance = mapper.read(model, reader);
+            }
+            final var writer = new StringWriter();
+            try (writer) {
+                mapper.write(instance, writer);
+            } catch (final IOException e) {
+                fail(e);
+            }
+            final var json = writer.toString();
+            assertTrue(json.contains("visibleBoolean"), json);
+            assertTrue(json.contains("visibleInt"), json);
+            assertTrue(json.contains("visibleLong"), json);
+            assertTrue(json.contains("visibleDouble"), json);
+            assertFalse(json.contains("hidden"), json);
+        });
+    }
+
+    @Test
+    void jsonIgnoreObjects(@TempDir final Path work) throws IOException {
+        new Compiler(work, "JsonIgnoreModel").compileAndJsonAsserts((loader, mapper) -> {
+            final var model = loader.apply("test.p.JsonIgnoreModel$AllObjects");
+            // deserialization: @JsonIgnore object fields are set to null even when the key is present
+            Object instance;
+            try (final var reader = new StringReader("""
+                    {"visibleString":"v","hiddenString":"h","visibleInteger":5,"hiddenInteger":6,
+                     "visibleList":["a"],"hiddenList":["b"],"visibleMap":{"k":1},"hiddenMap":{"g":2},
+                     "visibleNested":{"name":"shown"},"hiddenNested":{"name":"hidden"},"hiddenObject":{"x":1}}""")) {
+                instance = mapper.read(model, reader);
+            }
+            assertEquals("AllObjects[visibleString=v, hiddenString=null, visibleInteger=5, hiddenInteger=null, " +
+                    "visibleList=[a], hiddenList=null, visibleMap={k=1}, hiddenMap=null, " +
+                    "visibleNested=StringHolder[name=shown], hiddenNested=null, hiddenObject=null]", instance.toString());
+
+            // empty payload -> non-ignored strings/objects are null too, ignored stay null
+            try (final var reader = new StringReader("{}")) {
+                instance = mapper.read(model, reader);
+            }
+            assertEquals("AllObjects[visibleString=null, hiddenString=null, visibleInteger=null, hiddenInteger=null, " +
+                    "visibleList=null, hiddenList=null, visibleMap=null, hiddenMap=null, " +
+                    "visibleNested=null, hiddenNested=null, hiddenObject=null]", instance.toString());
+
+            // serialization: @JsonIgnore fields are omitted while the visible ones are kept
+            try (final var reader = new StringReader("""
+                    {"visibleString":"v","hiddenString":"h","visibleInteger":5,"hiddenInteger":6,
+                     "visibleList":["a"],"hiddenList":["b"],"visibleMap":{"k":1},"hiddenMap":{"g":2},
+                     "visibleNested":{"name":"shown"},"hiddenNested":{"name":"hidden"},"hiddenObject":{"x":1}}""")) {
+                instance = mapper.read(model, reader);
+            }
+            final var writer = new StringWriter();
+            try (writer) {
+                mapper.write(instance, writer);
+            } catch (final IOException e) {
+                fail(e);
+            }
+            final var json = writer.toString();
+            assertTrue(json.contains("visibleString"), json);
+            assertTrue(json.contains("visibleInteger"), json);
+            assertTrue(json.contains("visibleList"), json);
+            assertTrue(json.contains("visibleMap"), json);
+            assertTrue(json.contains("visibleNested"), json);
+            assertFalse(json.contains("hidden"), json);
+        });
+    }
+
+    @Test
+    void jsonIgnoreCodegen(@TempDir final Path work) throws IOException {
+        final var compiler = new Compiler(work, "JsonIgnoreModel");
+        compiler.compileAndJsonAsserts((loader, mapper) -> { /* compilation must succeed */ });
+        final var generated = compiler.readGeneratedSource("JsonIgnoreModel$AllPrimitives$FusionJsonCodec");
+        // KEYS__ (used to match incoming JSON) must not contain the ignored parameter names
+        final var keys = between(generated, "char[][] KEYS__ =", "KEYS_OFFSETS__");
+        for (final var hidden : List.of("hiddenBoolean", "hiddenInt", "hiddenLong", "hiddenDouble")) {
+            assertFalse(keys.contains("\"" + hidden + "\""), hidden);
+        }
+        // FIELDS__ addresses every record component (8) so the slot array covers the ignored slots with defaults
+        assertEquals(8, countFieldMeta(between(generated, "[] FIELDS__ =", "};")), generated);
+        // FIELDS_WRITE__ (used to serialize) only references the 4 visible fields
+        assertEquals(4, countToken(between(generated, "[] FIELDS_WRITE__ =", "};"), "FIELDS__["), generated);
+        // the factory still constructs the record with all components, populating the ignored slots
+        for (final var slot : List.of("args[1]", "args[3]", "args[5]", "args[7]")) {
+            assertTrue(generated.contains(slot), slot);
+        }
+    }
+
+    private static int countToken(final String block, final String token) {
+        int count = 0;
+        int idx = 0;
+        while ((idx = block.indexOf(token, idx)) >= 0) {
+            count++;
+            idx += token.length();
+        }
+        return count;
+    }
+
+    private static int countFieldMeta(final String block) {
+        return countToken(block, ".FieldMeta<>(");
+    }
+
+    private static String between(final String source, final String marker, final String end) {
+        final var from = source.indexOf(marker);
+        assertTrue(from >= 0, () -> "marker not found: " + marker);
+        final var to = source.indexOf(end, from);
+        assertTrue(to >= 0, () -> "end not found after: " + marker);
+        return source.substring(from, to);
+    }
+
+    @Test
+    void jsonIgnoreAndOthersInvalid(@TempDir final Path work) {
+        // a member cannot be both @JsonIgnore and @JsonOthers: validation must fail at build time
+        new Compiler(work, "InvalidJsonIgnoreOthers").assertCompiles(1);
+    }
+
+    @Test
     void jsonEnum(@TempDir final Path work) throws IOException {
         new Compiler(work, "JsonEnumCustomMapping")
                 .jsonRoundTripAsserts(
