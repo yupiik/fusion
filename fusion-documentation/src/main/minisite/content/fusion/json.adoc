@@ -77,6 +77,22 @@ public class MyService extends HttpServlet {
 
 TIP: for byte oriented sources/sinks prefer the `InputStream`/`OutputStream` flavors (`mapper.read(MyModel.class, inputStream)`, `mapper.write(instance, outputStream)`, both UTF-8): the mapper does the UTF-8 conversion itself with a decoder optimized for JSON payloads which is faster than an `InputStreamReader`/`OutputStreamWriter` bridge.
 
+== Ignoring attributes
+
+To tell the generated codec to totally ignore a record attribute, mark it with `@JsonIgnore`:
+
+[source,java]
+----
+@JsonModel
+public record MyModel(
+    String name,
+    @JsonIgnore String internalSecret) {  <1>
+}
+----
+<.> `internalSecret` is a pure build metadata attribute: it is never written to the JSON payload and, if an incoming payload happens to carry the `internalSecret` key, it is skipped so the attribute ends up with its default value (primitive default for primitives such as `0`/`false`/`0.0`, `null` for anything else).
+
+`@JsonIgnore` is entirely handled at build time: it only drives the generated keysets, no reflection is involved at runtime.
+
 == Enums
 
 Enumerations (de)serialization behavior can be customized by using some specific methods:

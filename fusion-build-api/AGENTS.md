@@ -18,7 +18,7 @@ translates the annotations into generated code.
 - `container`: `@DetectableContext`, `@LazyContext`
 - `event`: `@OnEvent`
 - `http`: `@HttpJavaMatcher`, `@HttpMatcher`
-- `json`: `@JsonModel`, `@JsonOthers`, `@JsonProperty`
+- `json`: `@JsonIgnore`, `@JsonModel`, `@JsonOthers`, `@JsonProperty`
 - `jsonrpc`: `@JsonRpc`, `@JsonRpcError`, `@JsonRpcParam`
 - `kubernetes.crd`: `@CustomResourceDefinition`
 - `lifecycle`: `@Destroy`, `@Init`
