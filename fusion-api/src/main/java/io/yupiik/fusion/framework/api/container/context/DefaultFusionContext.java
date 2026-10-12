@@ -20,12 +20,14 @@ import io.yupiik.fusion.framework.api.RuntimeContainer;
 import io.yupiik.fusion.framework.api.container.DefaultInstance;
 import io.yupiik.fusion.framework.api.container.FusionBean;
 import io.yupiik.fusion.framework.api.scope.DefaultScoped;
-import io.yupiik.fusion.framework.api.spi.FusionContext;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 
-public class DefaultFusionContext implements FusionContext {
+import static java.util.stream.Collectors.toCollection;
+
+public class DefaultFusionContext extends BaseContext {
     @Override
     public Class<?> marker() {
         return DefaultScoped.class;
@@ -33,9 +35,38 @@ public class DefaultFusionContext implements FusionContext {
 
     @Override
     public <T> Instance<T> getOrCreate(final RuntimeContainer container, final FusionBean<T> bean) {
-        final var dependents = new ArrayList<Instance<?>>();
+        final var dependents = new Dependents();
         final var instance = bean.create(container, dependents);
-        Collections.reverse(dependents); // destroy in reverse order
-        return new DefaultInstance<>(bean, container, instance, dependents);
+        Collections.reverse(dependents); // destroy in reverse order (LIFO) unless a destroy priority overrides it
+        // only order when a prioritized dependency exists: the common (no priority) case keeps the reversed list
+        // untouched, avoiding any extra iteration/allocations; DefaultInstance requires a mutable list so the
+        // ordered stream is collected into an ArrayList
+        final var ordered = dependents.anyPrioritized ?
+                // Dependents being an ArrayList its stream() is order-stable so priority=0 are kept reversed as expected
+                sortByDestroyOrder(dependents.stream()).collect(toCollection(ArrayList::new)) :
+                dependents;
+        return new DefaultInstance<>(bean, container, instance, ordered);
+    }
+
+    /**
+     * Tracks whether a prioritized (destroyPriority != 0) dependency was added while the bean was created,
+     * so the destroy ordering can be skipped when not needed without re-iterating the whole list.
+     */
+    private static final class Dependents extends ArrayList<Instance<?>> {
+        private boolean anyPrioritized;
+
+        @Override
+        public boolean add(final Instance<?> instance) {
+            if (!anyPrioritized && instance.bean() != null && instance.bean().destroyPriority() != 0) {
+                anyPrioritized = true;
+            }
+            return super.add(instance);
+        }
+
+        @Override
+        public boolean addAll(final Collection<? extends Instance<?>> c) {
+            c.forEach(this::add);
+            return !c.isEmpty();
+        }
     }
 }

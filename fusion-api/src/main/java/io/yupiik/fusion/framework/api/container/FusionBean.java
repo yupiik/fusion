@@ -69,6 +69,13 @@ public interface FusionBean<T> {
     }
 
     /**
+     * @return the priority of the bean destruction: lower values are destroyed first.
+     */
+    default int destroyPriority() {
+        return 0;
+    }
+
+    /**
      * Bean metadata.
      * <p>
      * Strictly speaking it is an open storage about the bean, can really be anything.
