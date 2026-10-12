@@ -64,7 +64,7 @@ in `provided` scope (compile time only) and `fusion-api` in `compile` scope (run
 
 ## Documentation workflow
 
-- The site is AsciiDoc, sources in `fusion-documentation/src/main/minisite/content/fusion/*.adoc`.
+- The site is AsciiDoc, sources in `fusion-documentation/src/main/minisite/content/*.adoc`.
 - `fusion-documentation/src/main/minisite/content/_partials/generated/**` is GENERATED from the
   annotation metadata - never edit by hand.
 - User-facing feature changes need a matching `.adoc` update.

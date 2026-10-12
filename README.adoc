@@ -165,20 +165,20 @@ https://github.com/yupiik/fusion-examples
 
 Fusion provide useful extensions:
 
-- https://www.yupiik.io/fusion/fusion/json.html[JSON]
-- https://www.yupiik.io/fusion/fusion/jwt.html[JWT validation]
-- https://www.yupiik.io/fusion/fusion/http-server.html[HTTP Server]
-- https://www.yupiik.io/fusion/fusion/http-client.html[HTTP Client]
-- https://www.yupiik.io/fusion/fusion/observability.html[Observability]
-- https://www.yupiik.io/fusion/fusion/handlebars.html[Handlebars]
-- https://www.yupiik.io/fusion/fusion/persistence.html[Persistence]
-- https://www.yupiik.io/fusion/fusion/kubernetes-operator.html[Kubernetes Operator Base]
+- https://www.yupiik.io/fusion/json.html[JSON]
+- https://www.yupiik.io/fusion/jwt.html[JWT validation]
+- https://www.yupiik.io/fusion/http-server.html[HTTP Server]
+- https://www.yupiik.io/fusion/http-client.html[HTTP Client]
+- https://www.yupiik.io/fusion/tracing.html[Observability]
+- https://www.yupiik.io/fusion/handlebars.html[Handlebars]
+- https://www.yupiik.io/fusion/persistence.html[Persistence]
+- https://www.yupiik.io/fusion/kubernetes-operator.html[Kubernetes Operator Base]
 
 == 📖 Documentation
 
 Comprehensive documentation is available at:
 
-🌐 https://yupiik.github.io/fusion/
+🌐 https://www.yupiik.io/fusion/
 
 == 🖥️ Contributing
 

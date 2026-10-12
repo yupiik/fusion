@@ -92,5 +92,5 @@ Per-module skills (generated from the module guides so they stay in sync):
 
 == CLI reference
 
-The install command is documented in detail at xref:cli/index.adoc[] (per-command pages under `cli/`).
+The install command is documented in detail at xref:cli-ai-skills/index.adoc[] (per-command pages under `cli-ai-skills/`).
 These pages are generated at build time from the `@Command` metadata by the `CliDocumentationGenerator` pre-action of `yupiik-tools-maven-plugin` (see xref:documentation.adoc[documentation generation]) and committed - they are not written by hand.
