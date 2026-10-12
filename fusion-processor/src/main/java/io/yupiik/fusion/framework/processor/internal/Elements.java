@@ -36,6 +36,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.joining;
@@ -97,10 +98,29 @@ public class Elements {
      * @return the annotated methods bucketed per requested marker, most derived declaration first.
      */
     public AnnotatedMethods findAnnotatedMethods(final TypeElement element, final TypeMirror... markers) {
+        return findAnnotatedMethods(element, m -> true, markers);
+    }
+
+    /**
+     * Resolves the callback methods carrying marker annotations across the type hierarchy in a single pass,
+     * skipping any candidate method rejected by {@code filter} (e.g. a {@code @Bean} producer method that carries
+     * the callback marker for its <em>produced</em> bean, not for the enclosing class).
+     * The most derived declaration of each signature decides whether the callback exists at all: an override
+     * which does not carry the marker shadows and drops the inherited annotated callback.
+     *
+     * @return the annotated methods bucketed per requested marker, most derived declaration first.
+     */
+    public AnnotatedMethods findAnnotatedMethods(final TypeElement element, final Predicate<ExecutableElement> filter,
+                                                 final TypeMirror... markers) {
         final var types = processingEnvironment.getTypeUtils();
         final var buckets = Stream.of(markers).map(m -> new ArrayList<ExecutableElement>()).toList();
         final var decidedSignatures = new HashSet<String>();
         for (final var method : markers.length == 0 ? List.<ExecutableElement>of() : hierarchyMethods(element).toList()) {
+            // a rejected method (producer) is not a lifecycle callback: it neither fills a bucket
+            // nor decides its signature, so an inherited callback with the same signature survives
+            if (!filter.test(method)) {
+                continue;
+            }
             // hierarchyMethods() is ordered most derived first so the first declaration seen for a
             // signature is the one deciding whether the callback exists at all
             if (!decidedSignatures.add(signature(method))) {
