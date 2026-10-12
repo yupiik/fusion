@@ -492,11 +492,13 @@ class FusionProcessorTest {
     }
 
     @Test
+    @ResourceLock("fusion-test.destroy-recording")
     void destroyOrdering(@TempDir final Path work) throws IOException {
         final var recordingClass = new AtomicReference<Class<?>>();
         new Compiler(work, "OrderedDestroyLast", "OrderedDestroyMiddle", "OrderedDestroyFirst", "DestroyRecording")
                 .compileAndAsserts((loader, container) -> {
                     recordingClass.set(loader.apply("test.p.DestroyRecording"));
+                    resetDestroyRecording(recordingClass.get());
                     try (final var last = container.lookup(loader.apply("test.p.OrderedDestroyLast"));
                          final var middle = container.lookup(loader.apply("test.p.OrderedDestroyMiddle"));
                          final var first = container.lookup(loader.apply("test.p.OrderedDestroyFirst"))) {
@@ -520,12 +522,38 @@ class FusionProcessorTest {
     }
 
     @Test
+    @ResourceLock("fusion-test.destroy-recording")
     void methodFactoryDestroyOrder(@TempDir final Path work) throws IOException {
         new Compiler(work, "MethodDestroyProducer", "DestroyRecording").compileAndAsserts((loader, container) -> {
+            resetDestroyRecording(loader.apply("test.p.DestroyRecording"));
             final var resource = container.lookup(loader.apply("test.p.MethodDestroyProducer$Resource"));
             assertEquals(-3, resource.bean().destroyPriority());
             assertNotNull(resource.instance()); // force creation
         });
+    }
+
+    @Test
+    @ResourceLock("fusion-test.destroy-recording")
+    void parameterizedMethodFactoryDestroyOrderDoesNotLeakIntoClassBean(@TempDir final Path work) throws IOException {
+        // Before the fix the @Destroy on the producer method leaked into the enclosing class bean: its
+        // generated destroy() invoked the producer method ("instance.create()") without arguments, which
+        // fails to compile for a parameterized producer (here create(String)). Compiling at all proves the
+        // producer @Destroy stays on the produced bean and the class bean lifecycle stays empty.
+        new Compiler(work, "MethodDestroyProducerWithInjections", "DestroyRecording").compileAndAsserts((loader, container) -> {
+            resetDestroyRecording(loader.apply("test.p.DestroyRecording"));
+            final var wrapper = container.lookup(loader.apply("test.p.MethodDestroyProducerWithInjections$Wrapper"));
+            assertEquals(-7, wrapper.bean().destroyPriority());
+            assertNotNull(wrapper.instance()); // force creation so the produced Wrapper is scanned
+        });
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void resetDestroyRecording(final Class<?> recordingClass) {
+        try {
+            ((List<String>) recordingClass.getField("ORDER").get(null)).clear();
+        } catch (final ReflectiveOperationException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     @SuppressWarnings("unchecked")

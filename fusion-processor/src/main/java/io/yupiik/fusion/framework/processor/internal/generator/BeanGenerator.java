@@ -70,7 +70,11 @@ public class BeanGenerator extends BaseGenerator implements Supplier<BaseGenerat
         final var scope = findScope(element);
         final int priority = findPriority(element);
         final var lifecycle = element instanceof TypeElement te ?
-                elements.findAnnotatedMethods(te, init, destroy) : null;
+                elements.findAnnotatedMethods(
+                        te,
+                        m -> m.getAnnotation(io.yupiik.fusion.framework.build.api.scanning.Bean.class) == null,
+                        init,
+                        destroy) : null;
         final var postConstruct = lifecycle == null ? "" : callMethodsWithMarker(lifecycle.get(init));
         final var preDestroy = lifecycle == null ? "" : callMethodsWithMarker(lifecycle.get(destroy));
         final var destroyOrder = lifecycle == null || lifecycle.get(destroy).isEmpty() ?
