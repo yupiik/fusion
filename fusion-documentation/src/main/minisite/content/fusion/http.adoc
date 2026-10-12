@@ -3,6 +3,10 @@
 :minisite-index-title: HTTP and APIs
 :minisite-index-description: HTTP server, client, JSON-RPC and tracing.
 :minisite-index-icon: globe
+:minisite-nav-prev-link: jwt.html
+:minisite-nav-prev-label: JWT
+:minisite-nav-next-link: jsonrpc.html
+:minisite-nav-next-label: JSON-RPC
 
 [abstract]
 Serve and call HTTP APIs, expose JSON-RPC methods and trace the whole stack.

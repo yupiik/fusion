@@ -3,6 +3,10 @@
 :minisite-index-title: Getting Started
 :minisite-index-description: Set up a project and learn the core concepts.
 :minisite-index-icon: rocket
+:minisite-nav-prev-link: index.html
+:minisite-nav-prev-label: Fusion
+:minisite-nav-next-link: setup.html
+:minisite-nav-next-label: Setup your project
 
 [abstract]
 How to set up a project, configure the runtime and write your first Fusion applications.

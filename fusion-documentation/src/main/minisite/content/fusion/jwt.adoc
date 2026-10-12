@@ -1,4 +1,8 @@
 = JWT
+:minisite-nav-prev-link: json.html
+:minisite-nav-prev-label: JSON
+:minisite-nav-next-link: http.html
+:minisite-nav-next-label: HTTP and APIs
 
 [abstract]
 This page details JWT.

@@ -1,4 +1,8 @@
 = GraalVM native image
+:minisite-nav-prev-link: configuration.html
+:minisite-nav-prev-label: Configuration
+:minisite-nav-next-link: data.html
+:minisite-nav-next-label: Data and JSON
 
 [abstract]
 This page details GraalVM native image.

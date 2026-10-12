@@ -1,4 +1,8 @@
 = JSON
+:minisite-nav-prev-link: persistence.html
+:minisite-nav-prev-label: Persistence
+:minisite-nav-next-link: jwt.html
+:minisite-nav-next-label: JWT
 
 [abstract]
 This page details JSON.

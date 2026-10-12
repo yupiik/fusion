@@ -1,4 +1,8 @@
 = CLI
+:minisite-nav-prev-link: tooling.html
+:minisite-nav-prev-label: Tooling and extras
+:minisite-nav-next-link: testing.html
+:minisite-nav-next-label: Testing
 
 [abstract]
 This page details CLI.

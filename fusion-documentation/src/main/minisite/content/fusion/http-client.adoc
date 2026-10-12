@@ -1,4 +1,8 @@
 = HTTP client
+:minisite-nav-prev-link: http-server.html
+:minisite-nav-prev-label: HTTP server
+:minisite-nav-next-link: tracing.html
+:minisite-nav-next-label: Tracing
 
 [abstract]
 This page details HTTP client.

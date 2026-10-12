@@ -1,4 +1,8 @@
 = Common examples
+:minisite-nav-prev-link: setup.html
+:minisite-nav-prev-label: Setup your project
+:minisite-nav-next-link: configuration.html
+:minisite-nav-next-label: Configuration
 
 [abstract]
 This page details Common examples.

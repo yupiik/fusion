@@ -3,6 +3,10 @@
 :minisite-index-title: Tooling and extras
 :minisite-index-description: CLI, testing, documentation, templating and AI skills.
 :minisite-index-icon: wrench
+:minisite-nav-prev-link: kubernetes-operator.html
+:minisite-nav-prev-label: Kubernetes operator base
+:minisite-nav-next-link: cli.html
+:minisite-nav-next-label: CLI
 
 [abstract]
 Command line applications, testing helpers, documentation generation, templating and AI coding skills.

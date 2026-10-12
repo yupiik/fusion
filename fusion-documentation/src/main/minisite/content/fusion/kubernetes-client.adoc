@@ -1,4 +1,8 @@
 = Kubernetes client
+:minisite-nav-prev-link: integration.html
+:minisite-nav-prev-label: Cloud and Kubernetes
+:minisite-nav-next-link: kubernetes-operator.html
+:minisite-nav-next-label: Kubernetes operator base
 
 [abstract]
 This page details Kubernetes client.

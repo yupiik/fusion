@@ -3,6 +3,10 @@
 :minisite-index-title: Cloud and Kubernetes
 :minisite-index-description: Kubernetes client and operators.
 :minisite-index-icon: cloud
+:minisite-nav-prev-link: tracing.html
+:minisite-nav-prev-label: Tracing
+:minisite-nav-next-link: kubernetes-client.html
+:minisite-nav-next-label: Kubernetes client
 
 [abstract]
 Talk to the Kubernetes API and build operators on top of it.

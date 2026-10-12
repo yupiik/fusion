@@ -1,4 +1,8 @@
 = Tracing
+:minisite-nav-prev-link: http-client.html
+:minisite-nav-prev-label: HTTP client
+:minisite-nav-next-link: integration.html
+:minisite-nav-next-label: Cloud and Kubernetes
 
 [abstract]
 This page details Tracing.

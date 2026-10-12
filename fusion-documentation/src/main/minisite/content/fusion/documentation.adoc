@@ -1,4 +1,8 @@
 = Documentation generation
+:minisite-nav-prev-link: testing.html
+:minisite-nav-prev-label: Testing
+:minisite-nav-next-link: handlebars.html
+:minisite-nav-next-label: Handlebars templating
 
 [abstract]
 This page details Documentation generation.

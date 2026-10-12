@@ -1,4 +1,6 @@
 = AI skills
+:minisite-nav-prev-link: handlebars.html
+:minisite-nav-prev-label: Handlebars templating
 
 [abstract]
 This page details AI skills.

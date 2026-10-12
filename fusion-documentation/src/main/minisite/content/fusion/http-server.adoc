@@ -1,4 +1,8 @@
 = HTTP server
+:minisite-nav-prev-link: jsonrpc.html
+:minisite-nav-prev-label: JSON-RPC
+:minisite-nav-next-link: http-client.html
+:minisite-nav-next-label: HTTP client
 
 [abstract]
 This page details HTTP server.
