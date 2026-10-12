@@ -29,4 +29,8 @@ import static java.lang.annotation.RetentionPolicy.SOURCE;
 @Target(METHOD)
 @Retention(SOURCE)
 public @interface Destroy {
+    /**
+     * @return order of the bean destruction: lower values are destroyed first.
+     */
+    int order() default 0;
 }

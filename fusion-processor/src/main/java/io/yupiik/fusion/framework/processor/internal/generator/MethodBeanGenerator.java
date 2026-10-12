@@ -17,8 +17,8 @@ package io.yupiik.fusion.framework.processor.internal.generator;
 
 import io.yupiik.fusion.framework.api.Instance;
 import io.yupiik.fusion.framework.api.RuntimeContainer;
-import io.yupiik.fusion.framework.api.container.Types;
 import io.yupiik.fusion.framework.api.container.bean.BaseBean;
+import io.yupiik.fusion.framework.build.api.lifecycle.Destroy;
 import io.yupiik.fusion.framework.processor.internal.Elements;
 import io.yupiik.fusion.framework.processor.internal.ParsedType;
 import io.yupiik.fusion.framework.processor.internal.metadata.MetadataContributorRegistry;
@@ -27,12 +27,12 @@ import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.ExecutableElement;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
 
 import static java.util.stream.Collectors.joining;
 import static javax.lang.model.element.Modifier.STATIC;
+import static javax.tools.Diagnostic.Kind.ERROR;
 
 public class MethodBeanGenerator extends BaseGenerator implements Supplier<BaseGenerator.GeneratedClass> {
     private final String enclosingClass;
@@ -57,6 +57,13 @@ public class MethodBeanGenerator extends BaseGenerator implements Supplier<BaseG
         final boolean isStatic = element.getModifiers().contains(STATIC);
         final var scope = findScope(element);
         final int priority = findPriority(element);
+        final var destroyAnnotation = element.getAnnotation(Destroy.class);
+        final var destroyPriority = destroyAnnotation == null ? 0 : destroyAnnotation.order();
+        if (destroyAnnotation != null && !isAutocloseable(element.getReturnType())) {
+            processingEnv.getMessager().printMessage(ERROR,
+                    "@Destroy on a @Bean producer method requires the produced value to implement AutoCloseable to be closeable",
+                    element);
+        }
         final var parsedType = ParsedType.of(element.getReturnType());
         final var injections = element.getParameters().isEmpty() ? null : createExecutableInjections(element);
 
@@ -112,6 +119,7 @@ public class MethodBeanGenerator extends BaseGenerator implements Supplier<BaseG
         out.append(", ")
                 .append(scope).append(".class, ")
                 .append(priority).append(", ")
+                .append(destroyPriority).append(", ")
                 .append(metadata(element)).append(");\n");
         out.append("  }\n");
         out.append("\n");

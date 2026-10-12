@@ -32,13 +32,20 @@ public abstract class BaseBean<A> extends BaseLookup implements FusionBean<A> {
     private final Type type;
     private final Class<?> scope;
     private final int priority;
+    private final int destroyPriority;
     private final Map<String, Object> data;
     private final Lock lock = new ReentrantLock();
 
     protected BaseBean(final Type type, final Class<?> scope, final int priority, final Map<String, Object> data) {
+        this(type, scope, priority, 0, data);
+    }
+
+    protected BaseBean(final Type type, final Class<?> scope, final int priority, final int destroyPriority,
+                       final Map<String, Object> data) {
         this.type = type;
         this.scope = scope;
         this.priority = priority;
+        this.destroyPriority = destroyPriority;
         this.data = data;
     }
 
@@ -59,6 +66,11 @@ public abstract class BaseBean<A> extends BaseLookup implements FusionBean<A> {
     @Override
     public int priority() {
         return priority;
+    }
+
+    @Override
+    public int destroyPriority() {
+        return destroyPriority;
     }
 
     @Override

@@ -267,7 +267,7 @@ class FusionProcessorTest {
                         @io.yupiik.fusion.framework.api.container.Generation(version = 1)
                         public class Bean1$FusionBean extends io.yupiik.fusion.framework.api.container.bean.BaseBean<Bean1> {
                           public Bean1$FusionBean() {
-                            super(Bean1.class, io.yupiik.fusion.framework.api.scope.ApplicationScoped.class, 1000, java.util.Map.of("fusion.framework.subclasses.delegate", (java.util.function.Function<io.yupiik.fusion.framework.api.container.context.subclass.DelegatingContext<Bean1>, Bean1>) context -> new test.p.Bean1$FusionSubclass(context)));
+                            super(Bean1.class, io.yupiik.fusion.framework.api.scope.ApplicationScoped.class, 1000, 0, java.util.Map.of("fusion.framework.subclasses.delegate", (java.util.function.Function<io.yupiik.fusion.framework.api.container.context.subclass.DelegatingContext<Bean1>, Bean1>) context -> new test.p.Bean1$FusionSubclass(context)));
                           }
                         
                           @Override
@@ -489,6 +489,58 @@ class FusionProcessorTest {
         });
         // both declarations carry @Destroy but only the most derived one must be invoked, exactly once
         assertEquals("destroyed=1, by=ChildOverridingAnnotatedDestroy", ref.get().instance().toString());
+    }
+
+    @Test
+    void destroyOrdering(@TempDir final Path work) throws IOException {
+        final var recordingClass = new AtomicReference<Class<?>>();
+        new Compiler(work, "OrderedDestroyLast", "OrderedDestroyMiddle", "OrderedDestroyFirst", "DestroyRecording")
+                .compileAndAsserts((loader, container) -> {
+                    recordingClass.set(loader.apply("test.p.DestroyRecording"));
+                    try (final var last = container.lookup(loader.apply("test.p.OrderedDestroyLast"));
+                         final var middle = container.lookup(loader.apply("test.p.OrderedDestroyMiddle"));
+                         final var first = container.lookup(loader.apply("test.p.OrderedDestroyFirst"))) {
+                        // invoke a method on each app-scoped proxy to force the real instance creation,
+                        // otherwise it stays lazy and is not part of the context destruction
+                        invokeLabel(last);
+                        invokeLabel(middle);
+                        invokeLabel(first);
+                        // the generated beans carry the destroy order from the @Destroy annotation
+                        assertEquals(-1, last.bean().destroyPriority());
+                        assertEquals(0, middle.bean().destroyPriority());
+                        assertEquals(2, first.bean().destroyPriority());
+                    }
+                });
+        // the container is closed once compileAndAsserts returns, recording the destruction order
+        try {
+            assertEquals(List.of("last", "middle", "first"), destroyOrder(recordingClass.get()));
+        } catch (final ReflectiveOperationException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    @Test
+    void methodFactoryDestroyOrder(@TempDir final Path work) throws IOException {
+        new Compiler(work, "MethodDestroyProducer", "DestroyRecording").compileAndAsserts((loader, container) -> {
+            final var resource = container.lookup(loader.apply("test.p.MethodDestroyProducer$Resource"));
+            assertEquals(-3, resource.bean().destroyPriority());
+            assertNotNull(resource.instance()); // force creation
+        });
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<String> destroyOrder(final Class<?> recordingClass) throws ReflectiveOperationException {
+        return (List<String>) recordingClass.getField("ORDER").get(null);
+    }
+
+    private static void invokeLabel(final Instance<?> instance) {
+        try {
+            final var method = instance.instance().getClass().getMethod("label");
+            method.trySetAccessible();
+            method.invoke(instance.instance());
+        } catch (final ReflectiveOperationException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     @Test

@@ -20,6 +20,7 @@ import io.yupiik.fusion.framework.api.RuntimeContainer;
 import io.yupiik.fusion.framework.api.container.FusionBean;
 import io.yupiik.fusion.framework.api.container.Types;
 import io.yupiik.fusion.framework.api.container.bean.BaseBean;
+import io.yupiik.fusion.framework.build.api.lifecycle.Destroy;
 import io.yupiik.fusion.framework.processor.internal.Bean;
 import io.yupiik.fusion.framework.processor.internal.Elements;
 import io.yupiik.fusion.framework.processor.internal.ParsedType;
@@ -35,6 +36,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
 
+import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.joining;
 import static javax.lang.model.element.Modifier.PRIVATE;
 import static javax.tools.Diagnostic.Kind.ERROR;
@@ -71,6 +73,8 @@ public class BeanGenerator extends BaseGenerator implements Supplier<BaseGenerat
                 elements.findAnnotatedMethods(te, init, destroy) : null;
         final var postConstruct = lifecycle == null ? "" : callMethodsWithMarker(lifecycle.get(init));
         final var preDestroy = lifecycle == null ? "" : callMethodsWithMarker(lifecycle.get(destroy));
+        final var destroyOrder = lifecycle == null || lifecycle.get(destroy).isEmpty() ?
+                0 : optionalDestroyOrder(lifecycle.get(destroy).get(0));
         final var constructorInjections = constructorInjectionsFor(element);
 
         final var out = new StringBuilder(2048);
@@ -92,6 +96,7 @@ public class BeanGenerator extends BaseGenerator implements Supplier<BaseGenerat
                 .append(className.replace('$', '.')).append(".class, ")
                 .append(scope).append(".class, ")
                 .append(priority).append(", ")
+                .append(destroyOrder).append(", ")
                 .append(metadata(element, data)).append(");\n");
         out.append("  }\n");
         out.append("\n");
@@ -171,5 +176,9 @@ public class BeanGenerator extends BaseGenerator implements Supplier<BaseGenerat
             return "";
         }
         return calls + '\n';
+    }
+
+    private int optionalDestroyOrder(final ExecutableElement method) {
+        return ofNullable(method.getAnnotation(Destroy.class)).map(Destroy::order).orElse(0);
     }
 }

@@ -34,6 +34,7 @@ import java.util.function.Supplier;
 
 public class ApplicationFusionContext extends DefaultFusionContext implements FusionContext, AutoCloseable {
     private final Map<FusionBean<?>, ApplicationInstance<?>> instances = new ConcurrentHashMap<>();
+    private volatile boolean hasDestroyPriority;
 
     @Override
     public Class<?> marker() {
@@ -78,6 +79,9 @@ public class ApplicationFusionContext extends DefaultFusionContext implements Fu
         }
 
         // don't create the instance directly, ensure it is created lazily at need
+        if (bean.destroyPriority() != 0) {
+            hasDestroyPriority = true;
+        }
         final var subclass = (Function<DelegatingContext<T>, T>) bean.data().get("fusion.framework.subclasses.delegate");
         final var created = new ApplicationInstance<>(subclass, () -> super.getOrCreate(container, bean), bean);
         instances.put(bean, created);
@@ -87,16 +91,21 @@ public class ApplicationFusionContext extends DefaultFusionContext implements Fu
     @Override
     public void close() {
         final var error = new IllegalStateException("Can't release all singletons, see suppressed exceptions for details");
-        instances.values().stream().map(i -> i.real).filter(Objects::nonNull).forEach(i -> {
-            try {
-                i.close();
-            } catch (final RuntimeException re) {
-                error.addSuppressed(re);
-            }
-        });
-        instances.clear();
+        final var realInstances = this.instances.values().stream().<Instance<?>>map(i -> i.real).filter(Objects::nonNull);
+        // realInstances is a concurrent hashmap valueview so order is not stable but there is no guarantee
+        // for instances to be sorted (depend access order) so all good, explicit orders are indeed respected so we are safe
+        (hasDestroyPriority ? sortByDestroyOrder(realInstances) : realInstances).forEach(i -> close(error, i));
+        this.instances.clear();
         if (error.getSuppressed().length > 0) {
             throw error;
+        }
+    }
+
+    private void close(final IllegalStateException error, final Instance<?> instance) {
+        try {
+            instance.close();
+        } catch (final RuntimeException re) {
+            error.addSuppressed(re);
         }
     }
 
