@@ -28,8 +28,10 @@ import io.yupiik.fusion.json.JsonMapper;
 import io.yupiik.fusion.jsonrpc.JsonRpcHandler;
 import io.yupiik.fusion.persistence.api.Entity;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.net.MalformedURLException;
@@ -204,26 +206,42 @@ public class Compiler {
                                         "-implicit:class",
                                         "-Werror",
                                         "-Xlint:unchecked",
+                                        // "-XprintRounds", // for debugging
+                                        // "-XprintProcessorInfo", // for debugging
                                         "-Afusion.skipNotes=false",
                                         workdir == null ? "-Afusion.workdir=false" : "-Afusion.workdir=" + workdir,
                                         // "-verbose",
                                         "-processor", "io.yupiik.fusion.framework.processor.FusionProcessor"),
                                 Stream.of(processorArgs)),
-                        Stream.of(classNames).map(it -> "test.p." + it))
+                        // only on incremental compiles pass explicit source files: a previous round already wrote
+                        // classes (first on the classpath) and javac would prefer a classfile with mtime >= the
+                        // source one (-Xprefer:newer default), hiding @Retention(SOURCE) annotations
+                        Stream.of(classNames).map(it -> incrementalCp.equals(cp) /* no stale classes */ ?
+                                "test.p." + it :
+                                src.resolve("test/p/" + it.replace('.', '/') + ".java").toString()))
                 .toArray(String[]::new);
         try {
-            final var compiled = classpathFilter == null ?
-                    // run embedded, easier to debug, run and avoids to leak anyway
-                    ToolProvider
-                            .findFirst("javac")
-                            .orElseThrow()
-                            .run(System.out, System.err, cmd) :
-                    // else run forked otherwise base classloader can fake the test
-                    new ProcessBuilder(Stream.concat(Stream.of(findJavac()), Stream.of(cmd)).toArray(String[]::new))
-                            .inheritIO()
-                            .start()
-                            .waitFor();
-            assertEquals(exitCode, compiled, () -> "Compiled Status=" + compiled + "\n" + list(generatedSources));
+            final int compiled;
+            // capture javac diagnostics so a compilation failure reveals the actual error instead of a bare status
+            final var errors = new ByteArrayOutputStream();
+            if (classpathFilter == null) {
+                // run embedded, easier to debug, run and avoids to leak anyway
+                compiled = ToolProvider
+                        .findFirst("javac")
+                        .orElseThrow()
+                        .run(System.out, new PrintStream(errors, true), cmd);
+            } else {
+                // else run forked otherwise base classloader can fake the test
+                compiled = new ProcessBuilder(Stream.concat(Stream.of(findJavac()), Stream.of(cmd)).toArray(String[]::new))
+                        .inheritIO()
+                        .start()
+                        .waitFor();
+            }
+            assertEquals(exitCode, compiled, () -> "Compiled Status=" + compiled +
+                    (errors.toString(java.nio.charset.StandardCharsets.UTF_8).isBlank() ?
+                            "" :
+                            "\n--- javac ---\n" + errors.toString(java.nio.charset.StandardCharsets.UTF_8) + "--- /javac ---") +
+                    "\n" + list(generatedSources));
             return classes;
         } catch (final IOException e) {
             return fail(e);
@@ -262,6 +280,17 @@ public class Compiler {
                 final var out = src.resolve(rel);
                 Files.createDirectories(out.getParent());
                 Files.copy(requireNonNull(in, () -> "Missing '" + clazz + ".java'"), out, StandardCopyOption.REPLACE_EXISTING);
+                // incremental compiles keep the previously compiled classes on the classpath and javac
+                // prefers a classfile with mtime >= the source one; source-only annotations would then be
+                // invisible, so ensure the source is always strictly newer than the stale classfile
+                final var staleClass = work.resolve("classes").resolve("test/p/" + res + ".class");
+                if (Files.exists(staleClass)) {
+                    final var staleTime = Files.getLastModifiedTime(staleClass);
+                    final var sourceTime = Files.getLastModifiedTime(out);
+                    if (staleTime.compareTo(sourceTime) >= 0) {
+                        Files.setLastModifiedTime(out, java.nio.file.attribute.FileTime.fromMillis(staleTime.toMillis() + 1_000));
+                    }
+                }
             } catch (final IOException e) {
                 fail(e);
             }
