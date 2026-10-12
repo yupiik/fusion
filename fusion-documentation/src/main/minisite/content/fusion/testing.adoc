@@ -1,4 +1,8 @@
 = Testing
+:minisite-nav-prev-link: cli.html
+:minisite-nav-prev-label: CLI
+:minisite-nav-next-link: documentation.html
+:minisite-nav-next-label: Documentation generation
 
 [abstract]
 This page details Testing.

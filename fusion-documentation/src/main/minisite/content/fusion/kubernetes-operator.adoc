@@ -1,4 +1,8 @@
 = Kubernetes operator base
+:minisite-nav-prev-link: kubernetes-client.html
+:minisite-nav-prev-label: Kubernetes client
+:minisite-nav-next-link: tooling.html
+:minisite-nav-next-label: Tooling and extras
 
 [abstract]
 This page details Kubernetes operator base.

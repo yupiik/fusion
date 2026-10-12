@@ -1,4 +1,8 @@
 = Configuration
+:minisite-nav-prev-link: examples.html
+:minisite-nav-prev-label: Common examples
+:minisite-nav-next-link: graalvm.html
+:minisite-nav-next-label: GraalVM native image
 
 [abstract]
 This page details Configuration.

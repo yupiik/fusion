@@ -1,4 +1,8 @@
 = Setup your project
+:minisite-nav-prev-link: getting-started.html
+:minisite-nav-prev-label: Getting Started
+:minisite-nav-next-link: examples.html
+:minisite-nav-next-label: Common examples
 
 [abstract]
 This page details Setup your project.

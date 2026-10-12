@@ -1,4 +1,8 @@
 = Persistence
+:minisite-nav-prev-link: data.html
+:minisite-nav-prev-label: Data and JSON
+:minisite-nav-next-link: json.html
+:minisite-nav-next-label: JSON
 
 [abstract]
 This page details Persistence.

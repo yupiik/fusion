@@ -1,4 +1,8 @@
 = Handlebars templating
+:minisite-nav-prev-link: documentation.html
+:minisite-nav-prev-label: Documentation generation
+:minisite-nav-next-link: ai-skills.html
+:minisite-nav-next-label: AI skills
 
 [abstract]
 This page details Handlebars templating.

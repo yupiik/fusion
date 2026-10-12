@@ -1,4 +1,8 @@
 = JSON-RPC
+:minisite-nav-prev-link: http.html
+:minisite-nav-prev-label: HTTP and APIs
+:minisite-nav-next-link: http-server.html
+:minisite-nav-next-label: HTTP server
 
 [abstract]
 This page details JSON-RPC.
