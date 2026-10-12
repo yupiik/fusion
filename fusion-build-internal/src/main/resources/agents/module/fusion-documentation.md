@@ -7,7 +7,7 @@ generators run as `yupiik-tools-maven-plugin` pre-actions.
 
 ## Layout and entry points
 
-- `src/main/minisite/content/fusion/*.adoc`: hand-written documentation pages (one per feature/module).
+- `src/main/minisite/content/*.adoc`: hand-written documentation pages (one per feature/module).
 - `src/main/minisite/content/_partials/generated/`: GENERATED configuration docs - never edit by hand.
 - `io.yupiik.fusion.documentation.ConfigurationDocumentationGenerator` (and legacy `DocumentationGenerator`):
   renders `META-INF/fusion/configuration/documentation.json` metadata to AsciiDoc.

@@ -158,6 +158,7 @@
               <type>io.yupiik.fusion.documentation.CliDocumentationGenerator</type>
               <configuration>
                 <package>io.yupiik.fusion.ai.skill.install</package>
+                <outputBase>content/cli-ai-skills</outputBase>
                 <application>java -jar fusion-ai-skills-fatjar.jar</application>
                 <indexHeader>== Fusion AI Skills CLI</indexHeader>
               </configuration>

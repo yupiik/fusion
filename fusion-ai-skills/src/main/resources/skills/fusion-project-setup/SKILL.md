@@ -61,7 +61,7 @@ Opt-in modules are added as needed at runtime: `fusion-json`, `fusion-http-serve
 
 ## Documentation
 
-The site is AsciiDoc in `fusion-documentation/src/main/minisite/content/fusion/*.adoc`.
+The site is AsciiDoc in `fusion-documentation/src/main/minisite/content/*.adoc`.
 User-facing feature changes need a matching `.adoc` update. All `AGENTS.md`/`CLAUDE.md` are GENERATED
 by `fusion-build-internal` - edit templates in `fusion-build-internal/src/main/resources/agents/` and
 run `mvn install -pl fusion-build-internal`.<!-- generated from fusion-build-internal src/main/resources/agents/skills/fusion-project-setup/SKILL.md - do not edit -->
