@@ -1,0 +1,88 @@
+{
+  "reflection": [
+    {
+      "type": "org.apache.coyote.AbstractProtocol",
+      "allPublicMethods": true
+    },
+    {
+      "condition": {
+        "typeReached": "org.apache.tomcat.websocket.server.WsHttpUpgradeHandler"
+      },
+      "type": "org.apache.tomcat.websocket.server.WsHttpUpgradeHandler",
+      "allPublicConstructors": true
+    },
+    {
+      "condition": {
+        "typeReached": "org.apache.tomcat.jdbc.pool.DataSource"
+      },
+      "type": {
+        "proxy": [
+          "java.sql.Connection",
+          "javax.sql.PooledConnection"
+        ]
+      }
+    },
+    {
+      "condition": {
+        "typeReached": "org.apache.tomcat.jdbc.pool.DataSource"
+      },
+      "type": {
+        "proxy": [
+          "java.sql.Connection",
+          "javax.sql.PooledConnection",
+          "javax.sql.XAConnection"
+        ]
+      }
+    },
+    {
+      "condition": {
+        "typeReached": "org.apache.tomcat.jdbc.pool.DataSource"
+      },
+      "type": {
+        "proxy": [
+          "java.sql.Statement"
+        ]
+      }
+    },
+    {
+      "condition": {
+        "typeReached": "org.apache.tomcat.jdbc.pool.DataSource"
+      },
+      "type": {
+        "proxy": [
+          "java.sql.PreparedStatement"
+        ]
+      }
+    },
+    {
+      "condition": {
+        "typeReached": "org.apache.tomcat.jdbc.pool.DataSource"
+      },
+      "type": {
+        "proxy": [
+          "java.sql.CallableStatement"
+        ]
+      }
+    }
+  ],
+  "resources": [
+    {
+      "glob": "**/LocalStrings.properties"
+    },
+    {
+      "glob": "org/apache/catalina/core/RestrictedServlets.properties"
+    },
+    {
+      "glob": "org/apache/catalina/core/RestrictedFilters.properties"
+    },
+    {
+      "glob": "org/apache/catalina/core/RestrictedListeners.properties"
+    },
+    {
+      "glob": "org/apache/catalina/util/ServerInfo.properties"
+    },
+    {
+      "glob": "org/apache/catalina/startup/MimeTypeMappings.properties"
+    }
+  ]
+}
