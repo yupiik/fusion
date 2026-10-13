@@ -17,6 +17,8 @@ package io.yupiik.fusion.http.server.api;
 
 import java.util.ServiceLoader;
 
+import static java.util.Comparator.comparing;
+
 /**
  * SPI providing the concrete server and cookie implementations behind the
  * {@link WebServer} and {@link Cookie} static factories.
@@ -49,6 +51,13 @@ public interface WebServerProvider {
     Cookie.Builder createCookie();
 
     /**
+     * @return highest priority is used to select the provider if more than one are available.
+     */
+    default int priority() {
+        return 1_000;
+    }
+
+    /**
      * @return the current provider, resolved lazily through {@link ServiceLoader} and cached.
      * @throws IllegalStateException if no provider is available (neither registered on the classpath
      *                               nor set with {@link #setProvider(WebServerProvider)}).
@@ -69,10 +78,6 @@ public interface WebServerProvider {
      * @param provider the provider to use; {@code null} restores the {@link ServiceLoader} resolution.
      */
     static void setProvider(final WebServerProvider provider) {
-        if (provider == null) {
-            Holder.INSTANCE = null;
-            return;
-        }
         Holder.INSTANCE = provider;
     }
 
@@ -87,7 +92,7 @@ public interface WebServerProvider {
             return ServiceLoader.load(WebServerProvider.class)
                     .stream()
                     .map(ServiceLoader.Provider::get)
-                    .findFirst()
+                    .max(comparing(WebServerProvider::priority))
                     .orElse(null);
         }
     }
