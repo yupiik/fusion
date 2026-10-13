@@ -67,7 +67,19 @@
   ],
   "resources": [
     {
-      "glob": "**/LocalStrings.properties"
+      "glob": "org/apache/catalina/**/LocalStrings.properties"
+    },
+    {
+      "glob": "org/apache/naming/**/LocalStrings.properties"
+    },
+    {
+      "glob": "org/apache/coyote/**/LocalStrings.properties"
+    },
+    {
+      "glob": "org/apache/tomcat/**/LocalStrings.properties"
+    },
+    {
+      "glob": "jakarta/servlet/**/LocalStrings.properties"
     },
     {
       "glob": "org/apache/catalina/core/RestrictedServlets.properties"
