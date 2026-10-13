@@ -23,6 +23,22 @@ IMPORTANT: annotations - design API - are in `fusion-build-api` and only useful 
 
 TIP: set tomcat-catalina in scope runtime to avoid to show the internal API if you don't need them, it will also avoid letting your IDE complete `jakarta.*` transitive dependencies of tomcat.
 
+=== Module split
+
+`fusion-http-server` now aggregates three finer-grained artifacts, so you can pick the level of detail you need
+(they share the same `api`):
+
+* `fusion-http-server-api` - the contracts (`Request`/`Response`/`WebServer`/`Endpoint`) and the server-agnostic
+  helpers, without any engine. A `WebServerProvider` (ServiceLoader-backed, statically cached and overridable with
+  `WebServerProvider.setProvider(...)`) is what binds `WebServer.of()` / `Cookie.of()` to a server implementation.
+* `fusion-http-server-observability` - the health/metrics API and the default `/health` and `/metrics` endpoints.
+* `fusion-http-server-tomcat` - the Apache Tomcat implementation (servlet adapter, server wiring and beans), the
+  actual provider used when this artifact is on the classpath.
+* `fusion-http-server-jre` - a Tomcat-free adapter running the same `Endpoint` API on the JDK
+  `com.sun.net.httpserver.HttpServer`, depending only on `fusion-http-server-api`.
+
+For most users, depending on `fusion-http-server` (the aggregator below) keeps working unchanged.
+
 == Usage
 
 By default, if you use Fusion IoC, the webservice will be started.

@@ -59,7 +59,7 @@
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>fusion-http-server</artifactId>
+      <artifactId>fusion-http-server-api</artifactId>
       <version>${project.version}</version>
       <scope>provided</scope> <!-- for reactor ordering -->
       <exclusions>

@@ -1,73 +1,34 @@
 ---
 name: fusion-http-server
-description: Fusion `fusion-http-server` - HTTP server based on Apache Tomcat with a light request/response API and endpoint matchers. Use when working on or integrating this module, or
+description: Fusion `fusion-http-server` - HTTP server based on Apache Tomcat with a light request/response API and endpoint matchers (aggregates api, observability and tomcat modules). Use when working on or integrating this module, or
   when a task touches its annotations, entry points or configuration.
 ---
 
 # fusion-http-server
 
-HTTP server based on Apache Tomcat with a light request/response API and endpoint matchers.
+HTTP server based on Apache Tomcat with a light request/response API and endpoint matchers (aggregates api, observability and tomcat modules).
 
-# Fusion :: Http Server (`fusion-http-server`)
+# Fusion :: HTTP Server (`fusion-http-server`)
 
-HTTP server based on Apache Tomcat with a light request/response API and endpoint matchers.
+HTTP server based on Apache Tomcat with a light request/response API and endpoint matchers (aggregates api, observability and tomcat modules).
 
-Embeds Apache Tomcat behind a small reactive-friendly `Request`/`Response` API; endpoints are declared with
-`@HttpMatcher` (compiled to `Endpoint` beans by the processor) or implemented as `Endpoint` beans directly.
+Backward-compatible aggregator of the HTTP server modules. It pulls `fusion-http-server-api`,
+`fusion-http-server-observability` and `fusion-http-server-tomcat` together so existing consumers keeping
+only `io.yupiik.fusion:fusion-http-server` on the classpath get the full Tomcat-based server.
 
-```java
-// preferred: declarative matcher on a bean method (Request parameter and CompletionStage are optional)
-@HttpMatcher(method = "GET", pathMatching = EXACT, path = "/greet")
-public CompletionStage<Response> greet(final Request request) {
-    return completedFuture(Response.of()
-            .status(200)
-            .header("content-type", "application/json")
-            .body("{\"hello\":true}")
-            .build());
-}
+For lighter setups, depend on the fine-grained modules instead:
 
-// alternative: implement Endpoint directly as a bean
-@Bean
-public class Greeting implements Endpoint {
-    @Override
-    public boolean matches(final Request request) {
-        return "GET".equals(request.method());
-    }
-
-    @Override
-    public CompletionStage<Response> handle(final Request request) {
-        return completedFuture(Response.of().body("{\"hello\":true}").build());
-    }
-}
-```
-
-## Entry points
-
-- `io.yupiik.fusion.http.server.api.WebServer`: server bootstrap/configuration (`WebServer.Configuration` bean).
-- `io.yupiik.fusion.http.server.api.Request` / `Response` / `Cookie` / `Body`: HTTP abstraction.
-- `io.yupiik.fusion.http.server.spi.Endpoint` / `BaseEndpoint`: endpoint SPI the generated matchers implement.
-- `io.yupiik.fusion.http.server.spi.MonitoringEndpoint`: endpoints served by the monitoring server (a separate
-  Tomcat connector/port) for health checks and metrics.
-- `io.yupiik.fusion.http.server.observability`: public health/metrics API (`HealthCheck`/`HealthRegistry`,
-  `MetricsRegistry`/`OpenMetricsFormatter`); default `/health` and `/metrics` endpoints live in
-  `io.yupiik.fusion.http.server.impl.observability` and are wired manually in
-  `io.yupiik.fusion.http.server.impl.bean.ObservabilityBeans` (this module cannot use the processor due to the
-  dependency cycle).
-- `io.yupiik.fusion.http.server.impl.tomcat`: Tomcat wiring (internal).
-
-## Module rules
-
-- Tomcat (`tomcat-*` artifacts) is the ONLY third party runtime dependency family here; keep it that way.
-- Response bodies use `java.util.concurrent.Flow` publishers: never block Tomcat threads in helpers.
-- Tests run in parallel: always bind test servers to port `0` (random port), never a fixed port.
+- `fusion-http-server-api`: contracts and helpers only (no server engine).
+- `fusion-http-server-tomcat`: the Tomcat implementation.
+- `fusion-http-server-jre`: a Tomcat-free JDK `com.sun.net.httpserver` adapter (api only).
+- `fusion-http-server-observability`: health/metrics API and endpoints.
 
 
 
 ## Working in this module
 
-- Build it: `mvn install -pl fusion-http-server -am` (from the repository root).
+- Build it: `mvn install -pl fusion-http-server-parent/fusion-http-server -am` (from the repository root).
 - The root [AGENTS.md](/AGENTS.md) holds the global rules: reflectionless design, license headers, parallel JUnit 5 tests, ASCII-only.
-
 
 
 ## Skill relationship

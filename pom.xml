@@ -43,7 +43,7 @@
     <module>fusion-processor</module>
     <module>fusion-build-api</module>
     <module>fusion-json</module>
-    <module>fusion-http-server</module>
+    <module>fusion-http-server-parent</module>
     <module>fusion-testing</module>
     <module>fusion-jsonrpc</module>
     <module>fusion-cli</module>

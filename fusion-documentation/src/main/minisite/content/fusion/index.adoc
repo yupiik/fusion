@@ -90,7 +90,7 @@ NOTE: pages not linked here are the reference documentation for a specific modul
 |===
 | Module | Dependency | What it brings
 | `fusion-json` | xref:json.adoc[JSON] | Reflectionless records mapping, JSON-Pointer/Patch/diff, JSON Schema validation.
-| `fusion-http-server` | xref:http-server.adoc[HTTP Server] | Apache Tomcat abstraction, endpoints, health/metrics monitoring.
+| `fusion-http-server` | xref:http-server.adoc[HTTP Server] | Apache Tomcat abstraction, endpoints, health/metrics monitoring. Aggregates `fusion-http-server-api`, `fusion-http-server-observability` and `fusion-http-server-tomcat`; a Tomcat-free `fusion-http-server-jre` (JDK `HttpServer`) is also available.
 | `fusion-httpclient` | xref:http-client.adoc[HTTP Client] | Extended `java.net.http` client with listeners, routing, throttling, capture/replay.
 | `fusion-jsonrpc` | xref:jsonrpc.adoc[JSON-RPC] | JSON-RPC 2.0 server with OpenRPC support.
 | `fusion-kubernetes-client` | xref:kubernetes-client.adoc[Kubernetes Client] | Lightweight in-cluster Kubernetes client.

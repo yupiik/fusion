@@ -36,7 +36,12 @@ Each module has its own `AGENTS.md` with entry points and module specific rules.
 | [fusion-processor](fusion-processor/AGENTS.md) | Fusion annotation processor generating beans, JSON codecs, configuration binding and persistence models at build time. |
 | [fusion-build-api](fusion-build-api/AGENTS.md) | API which is used by the annotation processor but not the runtime. |
 | [fusion-json](fusion-json/AGENTS.md) | Reflectionless JSON mapping with compile time generated codecs, JSON-Patch/Pointer/diff utilities. |
-| [fusion-http-server](fusion-http-server/AGENTS.md) | HTTP server based on Apache Tomcat with a light request/response API and endpoint matchers. |
+| [fusion-http-server-parent](fusion-http-server-parent/AGENTS.md) | Parent of the HTTP server modules (api, observability, tomcat, jre and the backward-compatible aggregator). |
+| [fusion-http-server-api](fusion-http-server-parent/fusion-http-server-api/AGENTS.md) | HTTP server contracts (Request/Response/WebServer/Endpoint) and server-agnostic helpers, without any server engine. |
+| [fusion-http-server-observability](fusion-http-server-parent/fusion-http-server-observability/AGENTS.md) | Health check and metrics APIs plus the default /health and /metrics endpoint implementations for the Fusion HTTP server. |
+| [fusion-http-server-tomcat](fusion-http-server-parent/fusion-http-server-tomcat/AGENTS.md) | Apache Tomcat based implementation of the Fusion HTTP server (servlet adapter, server wiring and beans). |
+| [fusion-http-server](fusion-http-server-parent/fusion-http-server/AGENTS.md) | HTTP server based on Apache Tomcat with a light request/response API and endpoint matchers (aggregates api, observability and tomcat modules). |
+| [fusion-http-server-jre](fusion-http-server-parent/fusion-http-server-jre/AGENTS.md) | Tomcat-free adapter running the Fusion HTTP server endpoints on top of the JDK com.sun.net.httpserver.HttpServer, depending only on fusion-http-server-api. |
 | [fusion-testing](fusion-testing/AGENTS.md) | JUnit 5 integration to test Fusion applications (container lifecycle, injection, CLI launcher). |
 | [fusion-jsonrpc](fusion-jsonrpc/AGENTS.md) | JSON-RPC 2.0 server on top of the Fusion HTTP server with OpenRPC support. |
 | [fusion-cli](fusion-cli/AGENTS.md) | Command line application support with compile time generated commands. |
