@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+
+<head>
+    <title>CLI</title>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Fusion framework aims at providing a very light java framework and graal native.">
+    <meta name="author" content="Yupiik Minisite Generator">
+    <meta name="generator" content="Yupiik Minisite Generator">
+    
+    <link rel="shortcut icon" href="//www.yupiik.io/fusion/images/favicon.png">
+    <meta name="theme-color" content="#191b20" media="(prefers-color-scheme: dark)">
+    <meta name="theme-color" content="#191b20" media="(prefers-color-scheme: light)">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css" integrity="sha512-+4zCK9k+qNFUR5X+cKL9EIR+ZOhtIloNl9GIKS57V1MyNsYpYcUrUeQc9vNfzsWfV28IaLL3i96P9sdNyeRssA==" crossorigin="anonymous" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/styles/atom-one-dark.min.css" integrity="sha512-Fcqyubi5qOvl+yCwSJ+r7lli+CO1eHXMaugsZrnxuU4DVpLYWXTVoHy55+mCb4VZpMgy7PBhV7IiymC0yu9tkQ==" crossorigin="anonymous" />
+    <link id="theme-style" rel="stylesheet" href="//www.yupiik.io/fusion/css/theme.css?v=1.2.1-SNAPSHOT">
+    <link rel="stylesheet" href="//www.yupiik.io/fusion/css/llm-chat.css?v=1.2.1-SNAPSHOT">
+    
+<script>/* inline to avoid flicker */try{var t=localStorage.getItem('yupiik-theme');if(t==='light'||t==='dark'){document.documentElement.setAttribute('data-theme',t);}}catch(e){}</script>
+</head>
+<body>
+<header class="site-header">
+        <div class="header-inner">
+            <div class="brand">
+                <a class="brand-link" title="Home" href="//www.yupiik.io/fusion/index.html">
+                    <img class="brand-logo" src="//www.yupiik.io/fusion/images/logo.svg" alt="logo">
+                    <span class="brand-text">Fusion<span class="brand-side">Documentation</span></span>
+                </a>
+            </div>
+            <div class="header-actions">
+                
+                <button class="icon-btn" id="search-button" type="button" title="Search" aria-label="Search">
+        <i class="fas fa-search" aria-hidden="true"></i>
+    </button>
+                
+				<ul class="social-list">
+				<li class="list-inline-item"><a title="LinkedIn" target="_blank" href="https://www.linkedin.com/company/yupiik/"><i class="fab fa-linkedin fa-fw"></i></a></li>
+              <li class="list-inline-item"><a title="Twitter" target="_blank" href="https://twitter.com/Yupiik/"><i class="fab fa-twitter fa-fw"></i></a></li>
+              <li class="list-inline-item"><a title="Github" target="_blank" href="https://www.github.com/yupiik/fusion"><i class="fab fa-github fa-fw"></i></a></li>
+				</ul>
+				<button class="icon-btn" id="theme-toggle" type="button" title="Toggle theme" aria-label="Toggle theme">
+					<svg class="icon-sun" viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10zm0 2a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm0-16a1 1 0 1 1 0 2 1 1 0 0 1 0-2zM6.34 4.93a1 1 0 1 1 1.41 1.41 1 1 0 0 1-1.41-1.41zm11.32 12.73a1 1 0 1 1 1.41 1.41 1 1 0 0 1-1.41-1.41zM4 11a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm16 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2zM4.93 17.66a1 1 0 1 1 1.41-1.41 1 1 0 0 1-1.41 1.41zm12.73-11.32a1 1 0 1 1 1.41-1.41 1 1 0 0 1-1.41 1.41z"/></svg>
+					<svg class="icon-moon" viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.39 5.39 0 0 1-4.4 2.26 5.4 5.4 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg>
+				</button>
+            </div>
+        </div>
+    </header>
+	<div class="page">
+<div class="page-navigation-left">
+    <h3 class="menu-label">Menu</h3>
+    <ul>
+<li>
+    <a title="Fusion Stack" href="//www.yupiik.io/fusion/index.html">
+        <i class="fas fa-play"></i>Fusion
+    </a>
+</li><li>
+    <a title="Getting Started" href="//www.yupiik.io/fusion/getting-started.html">
+        <i class="fas fa-rocket"></i>Getting Started
+    </a>
+</li><li>
+    <a title="Data and JSON" href="//www.yupiik.io/fusion/data.html">
+        <i class="fas fa-database"></i>Data and JSON
+    </a>
+</li><li>
+    <a title="HTTP and APIs" href="//www.yupiik.io/fusion/http.html">
+        <i class="fas fa-globe"></i>HTTP and APIs
+    </a>
+</li><li>
+    <a title="Cloud and Kubernetes" href="//www.yupiik.io/fusion/integration.html">
+        <i class="fas fa-cloud"></i>Cloud and Kubernetes
+    </a>
+</li><li>
+    <a title="Tooling and extras" href="//www.yupiik.io/fusion/tooling.html">
+        <i class="fas fa-wrench"></i>Tooling and extras
+    </a>
+</li>
+    </ul>
+</div>
+<div id="cli-html-container" class="container page-content cli-html ">
+            <div class="page-header">
+                <h1>CLI</h1>
+            </div>
+            <div class="page-content-body">
+                <div id="preamble">
+ <div class="sectionbody">
+ <p> <div class="quoteblock abstract">
+  <blockquote>
+This page details CLI.  </blockquote>
+ </div></p>
+ </div>
+ </div>
+ <div class="sect1">
+  <h2 id="_sample">Sample</h2>
+ <div class="sectionbody">
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@Command(name = &quot;my-commands&quot;, description = &quot;A super command.&quot;) <b class="conum">(1)</b>
+public class MyCommand implements Runnable { <b class="conum">(2)</b>
+    private final Conf conf;
+
+    public MyCommand(final Conf conf) { <b class="conum">(3)</b>
+        this.conf = conf;
+    }
+
+    @Override
+    public void run() { <b class="conum">(4)</b>
+        // impl what you want
+    }
+
+    @RootConfiguration(&quot;my-commands&quot;) <b class="conum">(5)</b>
+    public record Conf(String name) {}
+}
+</code></pre>
+ </div>
+ </div>
+ <div class="colist arabic">
+  <ol>
+   <li>
+ <span>
+Mark a bean with 
+ </span>
+<code>@Command</code> <span>
+ to make it a command. You can customize the command name (first command line value to call the command) and its description (usage/help on error),
+ </span>
+   </li>
+   <li>
+ <span>
+Ensure to make the command a 
+ </span>
+<code>Runnable</code> <span>
+,
+ </span>
+   </li>
+   <li>
+ <span>
+Ensure to have a constructor with the first parameter (required) being the configuration class (as in 
+ </span>
+ <a href="examples.html#configuration_model">configuration</a>
+ <span>
+),
+ </span>
+   </li>
+   <li>
+ <span>
+Implement your command in 
+ </span>
+<code>run</code> <span>
+ callback,
+ </span>
+   </li>
+   <li>
+ <span>
+The configuration of the command is a standard one, you can customize the prefix thanks 
+ </span>
+<code>@RootConfiguration</code> <span>
+ annotation (so here all options will use 
+ </span>
+<code>--my-command-xxxx</code> <span>
+ instead of default 
+ </span>
+<code>--Conf-xxx</code> <span>
+).
+ </span>
+   </li>
+  </ol>
+ </div>
+ <div class="admonitionblock tip">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">TIP</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p>if you don't want to set any prefix for the configuration, set the prefix in <code>@RootConfiguration</code> to <code>-</code>: the generated factory then reads the plain <code>xxx</code> keys (so <code>--xxx</code> on the command line) instead of <code>&lt;prefix&gt;.xxx</code>.</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ <div class="admonitionblock note">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">NOTE</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p>since the keys of a <code>-</code> configuration are plain keys, the record also resolves naturally when injected as a plain bean: command line arguments (<code>--xxx</code>), system properties (<code>xxx</code>) and environment variables (<code>XXX</code>) are all usable without any custom configuration source bridge.</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ </div>
+ </div>
+ <div class="sect1">
+  <h2 id="_injections">Injections</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>You can inject any <strong>simple type</strong> (classes, not lists) beans in your command through the constructor (&gt; first parameter).</p>
+ </div>
+ <div class="admonitionblock tip">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">TIP</div>
+       </td>
+      <td class="content">
+if you need to inject a list, you can always create a bean which holds the list and inject this wrapper in your command.    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ </div>
+ </div>
+ <div class="sect1">
+  <h2 id="_subcommands">Subcommands</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>The command name is a path of segments: <code>@Command(name = {&quot;deploy&quot;, &quot;run&quot;})</code> declares the <code>deploy run</code> subcommand while <code>@Command(name = &quot;deploy/run&quot;)</code> is a single literal <code>deploy/run</code> segment. The single-value shorthand is accepted for one segment. Segments are matched against the leading CLI arguments and the longest match wins, so <code>deploy</code> and <code>deploy run</code> can coexist.</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@Command(name = {&quot;deploy&quot;, &quot;run&quot;}, description = &quot;Run a deployment.&quot;) <b class="conum">(1)</b>
+public class DeployRunCommand implements Runnable {
+    private final Conf conf;
+
+    public DeployRunCommand(final Conf conf) {
+        this.conf = conf;
+    }
+
+    @Override
+    public void run() {
+        // impl what you want
+    }
+
+    @RootConfiguration(&quot;deploy.run&quot;) <b class="conum">(2)</b>
+    public record Conf(String name) {}
+}
+</code></pre>
+ </div>
+ </div>
+ <div class="colist arabic">
+  <ol>
+   <li>
+ <span>
+Use an array to declare a subcommand path, a single value is a single segment (literal 
+ </span>
+<code>/</code> <span>
+ are kept),
+ </span>
+   </li>
+   <li>
+ <span>
+Options then use the 
+ </span>
+<code>--deploy-run-xxx</code> <span>
+ form.
+ </span>
+   </li>
+  </ol>
+ </div>
+ <div class="paragraph">
+ <p>Parents are implicit dispatchers and need no <code>@Command</code> class:</p>
+ </div>
+ <div class="ulist">
+ <ul>
+  <li>
+ <div class="paragraph">
+ <p><code>my-app deploy</code> or <code>my-app deploy --help</code> prints the group usage filtered to the direct subcommands of <code>deploy</code> (implicit intermediate groups are marked <code>(group)</code>),</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p><code>my-app deploy foo</code> where <code>foo</code> is not a subcommand reports a missing command error scoped to the <code>deploy</code> group,</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p><code>my-app --help</code>, <code>my-app help</code> and <code>my-app help &lt;path&gt;</code> print the global, command or group usage,</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p><code>my-app deploy run --help</code> prints the options of the <code>deploy run</code> command.</p>
+ </div>
+  </li>
+ </ul>
+ </div>
+ </div>
+ </div>
+ <div class="sect1">
+  <h2 id="_launching">Launching</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p><code>fusion-cli</code> provides an integration with <code>Launcher</code> main, if you don't use it, you will have to call yourself <code>CLIAwaiter</code> and register an instance of <code>Args</code>.</p>
+ </div>
+ <div class="paragraph">
+ <p>The launcher args source only binds dash-led options: bare tokens (the command path segments) never become configuration entries, so <code>my-app client list --url x</code> maps <code>url=x</code> regardless of the command depth. Every dash-led option requires a value: <code>--url x</code> or <code>--url=x</code>; a bare option (<code>--url</code> alone or followed by another option) is rejected, except the exact <code>--help</code> token which is skipped. <code>--no-xxx</code> (e.g. <code>--no-my-command-force</code>) is the only implicit-value form and binds <code>false</code>; use <code>--my-command-force=true</code> for an explicit value.</p>
+ </div>
+ </div>
+ </div>
+ <div class="sect1">
+  <h2 id="_shell_completion">Shell completion</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>Every Fusion CLI application exposes completion commands generating shell completion scripts (subcommands <code>completion/bash</code>, <code>completion/powershell</code> and <code>completion/zsh</code>): they register as regular <code>CliCommand</code> beans, so they appear in the app usage, documentation and their own completion.</p>
+ </div>
+ <div class="paragraph">
+ <p>Only the completion command matching the current shell is registered by default: the shell is detected from <code>$SHELL</code> (bash/zsh) or the OS (powershell on Windows), defaulting to <code>bash</code>. You can force the set with the <code>fusion.cli.shell</code> configuration key (<code>fusion.cli.shell</code> or <code>FUSION_CLI_SHELL</code>): <code>bash</code>, <code>zsh</code>, <code>powershell</code> to keep a single one, <code>all</code> to register every shell, or <code>none</code> to register none.</p>
+ </div>
+ <div class="ulist">
+ <ul>
+  <li>
+ <div class="paragraph">
+ <p>bash: <code>my-app completion bash &gt; /etc/bash_completion.d/my-app</code> then source it, or <code>eval &quot;$(my-app completion bash)&quot;</code>.</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p>zsh: <code>my-app completion zsh &gt; ~/.zfunc/_my-app</code> and add <code>fpath+autoload -Uz compinit &amp;&amp; compinit</code>.</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p>powershell: <code>my-app completion powershell | Out-String | Invoke-Expression</code> or paste the output into your <code>$PROFILE</code>.</p>
+ </div>
+  </li>
+ </ul>
+ </div>
+ <div class="paragraph">
+ <p>The application name used in the scripts defaults to <code>app</code> and can be overridden with the <code>fusion.cli.app.name</code> configuration key. Completion proposes subcommand segments while the command path is incomplete, then the <code>--options</code> of the resolved leaf command. For testing, <code>completion/bash</code> also reads the <code>comp.line</code> and <code>comp.point</code> configuration keys (the <code>COMP_LINE</code>/<code>COMP_POINT</code> environment variables set by the shell completer) to report the candidates for an arbitrary cursor position instead of printing the script.</p>
+ </div>
+ </div>
+ </div>
+                
+                <nav class="page-footer-nav" aria-label="Docs pages">
+    <a href="tooling.html" class="page-footer-nav-link-prev">
+    <div>Previous</div>
+    <div>Tooling and extras</div>
+</a>
+    <a href="testing.html" class="page-footer-nav-link-next">
+    <div>Next</div>
+    <div>Testing</div>
+</a>
+</nav>
+            </div>
+        </div>
+<div class="page-navigation-right">
+        <h3>Navigation</h3>
+        <nav class="generated-nav-menu"></nav>
+    </div>
+    </div>
+<footer class="site-footer">
+        <div class="footer-inner">
+            <div class="footer-social">
+                <ul class="social-list">
+                <li class="list-inline-item"><a title="LinkedIn" target="_blank" href="https://www.linkedin.com/company/yupiik/"><i class="fab fa-linkedin fa-fw"></i></a></li>
+              <li class="list-inline-item"><a title="Twitter" target="_blank" href="https://twitter.com/Yupiik/"><i class="fab fa-twitter fa-fw"></i></a></li>
+              <li class="list-inline-item"><a title="Github" target="_blank" href="https://www.github.com/yupiik/fusion"><i class="fab fa-github fa-fw"></i></a></li>
+                </ul>
+            </div>
+            <nav class="footer-bar"><small class="copyright">© 2026 <strong><a href="https://www.yupiik.com">Yupiik</a></strong>. All Rights Reserved</small><a class="legal-link" href="https://www.yupiik.com/terms-of-use/">Terms of use</a><a class="legal-link" href="https://www.yupiik.com/privacy-policy/">Privacy policy</a></nav>
+        </div>
+    </footer>
+
+    <div class="modal" id="searchModal" role="dialog" aria-label="Search site">
+    <div class="modal-overlay" data-close-modal></div>
+    <div class="modal-dialog" role="document">
+        <div class="modal-header">
+            <h5 class="modal-title">Search</h5>
+            <button type="button" class="modal-close" data-close-modal aria-label="Close">&times;</button>
+        </div>
+        <div class="modal-body">
+            <input class="form-control" id="searchInput" placeholder="Search the docs..." autocomplete="off">
+            <div class="search-hits"></div>
+        </div>
+    </div>
+</div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/highlight.min.js" integrity="sha512-d00ajEME7cZhepRqSIVsQVGDJBdZlfHyQLNC6tZXYKTG7iwcF8nhlFuppanz8hYgXr8VvlfKh4gLC25ud3c90A==" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/languages/bash.min.js" integrity="sha512-Hg0ufGEvn0AuzKMU0psJ1iH238iUN6THh7EI0CfA0n1sd3yu6PYet4SaDMpgzN9L1yQHxfB3yc5ezw3PwolIfA==" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/languages/bash.min.js" integrity="sha512-Hg0ufGEvn0AuzKMU0psJ1iH238iUN6THh7EI0CfA0n1sd3yu6PYet4SaDMpgzN9L1yQHxfB3yc5ezw3PwolIfA==" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/languages/json.min.js" integrity="sha512-37sW1XqaJmseHAGNg4N4Y01u6g2do6LZL8tsziiL5CMXGy04Th65OXROw2jeDeXLo5+4Fsx7pmhEJJw77htBFg==" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/languages/dockerfile.min.js" integrity="sha512-eRNl3ty7GOJPBN53nxLgtSSj2rkYj5/W0Vg0MFQBw8xAoILeT6byOogENHHCRRvHil4pKQ/HbgeJ5DOwQK3SJA==" crossorigin="anonymous"></script>
+    <script>if (!(window.minisite || {}).skipHighlightJs) {
+        hljs.highlightAll();
+        function addCopyButtons(clipboard) {
+          document.querySelectorAll('pre > code').forEach(function (codeBlock) {
+          var button = document.createElement('button');
+          button.className = 'copy-code-button';
+          button.type = 'button';
+          button.innerText = 'Copy';
+          button.addEventListener('click', function () {
+           clipboard.writeText(codeBlock.innerText).then(function () {
+           button.blur();
+           button.innerText = 'Copied!';
+           setTimeout(function () { button.innerText = 'Copy'; }, 2000); }, function (error) { button.innerText = 'Error'; });
+          });
+          var pre = codeBlock.parentNode;
+          if (pre.parentNode.classList.contains('highlight')) {
+          var highlight = pre.parentNode; highlight.parentNode.insertBefore(button, highlight);
+          } else { pre.parentNode.insertBefore(button, pre); }
+         });
+        }
+        if (navigator && navigator.clipboard) {
+         addCopyButtons(navigator.clipboard);
+        } else {
+         var script = document.createElement('script');
+         script.src = '//cdnjs.cloudflare.com/ajax/libs/clipboard-polyfill/2.7.0/clipboard-polyfill.promise.js';
+         script.integrity = 'sha256-waClS2re9NUbXRsryKoof+F9qc1gjjIhc2eT7ZbIv94=';
+         script.crossOrigin = 'anonymous';
+         script.onload = function() {addCopyButtons(clipboard);};
+         document.body.appendChild(script);
+        }
+    }</script>
+    <script src="//www.yupiik.io/fusion/js/minisite.js?v=1.2.1-SNAPSHOT"></script>
+    <script>$('.page-content-body').generatedNavMenu();</script>
+    <div id="llm-chat-root" style="display:none"
+     data-model-id="Llama-3.2-3B-Instruct-q4f16_1-MLC"
+     data-base="//www.yupiik.io/fusion"></div>
+<script src="//www.yupiik.io/fusion/js/llm-chat.js?v=1.2.1-SNAPSHOT"></script>
+    
+
+<script>
+    (function () {
+        // theme toggle
+        var root = document.documentElement;
+        var toggle = document.getElementById('theme-toggle');
+        if (toggle) {
+            toggle.addEventListener('click', function () {
+                var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+                root.setAttribute('data-theme', next);
+                try { localStorage.setItem('yupiik-theme', next); } catch (e) {}
+            });
+        }
+        // search modal
+        var modal = document.getElementById('searchModal');
+        function openModal() { if (modal) modal.classList.add('open'); }
+        function closeModal() { if (modal) modal.classList.remove('open'); }
+        var sb = document.getElementById('search-button');
+        if (sb) sb.addEventListener('click', function (e) { e.preventDefault(); openModal(); });
+        if (modal) {
+            modal.addEventListener('click', function (e) { if (e.target.closest('[data-close-modal]')) closeModal(); });
+            document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeModal(); });
+        }
+    })();
+</script>
+</body>
+</html>

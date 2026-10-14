@@ -1,0 +1,1426 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+
+<head>
+    <title>Common examples</title>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Fusion framework aims at providing a very light java framework and graal native.">
+    <meta name="author" content="Yupiik Minisite Generator">
+    <meta name="generator" content="Yupiik Minisite Generator">
+    
+    <link rel="shortcut icon" href="//www.yupiik.io/fusion/images/favicon.png">
+    <meta name="theme-color" content="#191b20" media="(prefers-color-scheme: dark)">
+    <meta name="theme-color" content="#191b20" media="(prefers-color-scheme: light)">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css" integrity="sha512-+4zCK9k+qNFUR5X+cKL9EIR+ZOhtIloNl9GIKS57V1MyNsYpYcUrUeQc9vNfzsWfV28IaLL3i96P9sdNyeRssA==" crossorigin="anonymous" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/styles/atom-one-dark.min.css" integrity="sha512-Fcqyubi5qOvl+yCwSJ+r7lli+CO1eHXMaugsZrnxuU4DVpLYWXTVoHy55+mCb4VZpMgy7PBhV7IiymC0yu9tkQ==" crossorigin="anonymous" />
+    <link id="theme-style" rel="stylesheet" href="//www.yupiik.io/fusion/css/theme.css?v=1.2.1-SNAPSHOT">
+    <link rel="stylesheet" href="//www.yupiik.io/fusion/css/llm-chat.css?v=1.2.1-SNAPSHOT">
+    
+<script>/* inline to avoid flicker */try{var t=localStorage.getItem('yupiik-theme');if(t==='light'||t==='dark'){document.documentElement.setAttribute('data-theme',t);}}catch(e){}</script>
+</head>
+<body>
+<header class="site-header">
+        <div class="header-inner">
+            <div class="brand">
+                <a class="brand-link" title="Home" href="//www.yupiik.io/fusion/index.html">
+                    <img class="brand-logo" src="//www.yupiik.io/fusion/images/logo.svg" alt="logo">
+                    <span class="brand-text">Fusion<span class="brand-side">Documentation</span></span>
+                </a>
+            </div>
+            <div class="header-actions">
+                
+                <button class="icon-btn" id="search-button" type="button" title="Search" aria-label="Search">
+        <i class="fas fa-search" aria-hidden="true"></i>
+    </button>
+                
+				<ul class="social-list">
+				<li class="list-inline-item"><a title="LinkedIn" target="_blank" href="https://www.linkedin.com/company/yupiik/"><i class="fab fa-linkedin fa-fw"></i></a></li>
+              <li class="list-inline-item"><a title="Twitter" target="_blank" href="https://twitter.com/Yupiik/"><i class="fab fa-twitter fa-fw"></i></a></li>
+              <li class="list-inline-item"><a title="Github" target="_blank" href="https://www.github.com/yupiik/fusion"><i class="fab fa-github fa-fw"></i></a></li>
+				</ul>
+				<button class="icon-btn" id="theme-toggle" type="button" title="Toggle theme" aria-label="Toggle theme">
+					<svg class="icon-sun" viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10zm0 2a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm0-16a1 1 0 1 1 0 2 1 1 0 0 1 0-2zM6.34 4.93a1 1 0 1 1 1.41 1.41 1 1 0 0 1-1.41-1.41zm11.32 12.73a1 1 0 1 1 1.41 1.41 1 1 0 0 1-1.41-1.41zM4 11a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm16 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2zM4.93 17.66a1 1 0 1 1 1.41-1.41 1 1 0 0 1-1.41 1.41zm12.73-11.32a1 1 0 1 1 1.41-1.41 1 1 0 0 1-1.41 1.41z"/></svg>
+					<svg class="icon-moon" viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.39 5.39 0 0 1-4.4 2.26 5.4 5.4 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg>
+				</button>
+            </div>
+        </div>
+    </header>
+	<div class="page">
+<div class="page-navigation-left">
+    <h3 class="menu-label">Menu</h3>
+    <ul>
+<li>
+    <a title="Fusion Stack" href="//www.yupiik.io/fusion/index.html">
+        <i class="fas fa-play"></i>Fusion
+    </a>
+</li><li>
+    <a title="Getting Started" href="//www.yupiik.io/fusion/getting-started.html">
+        <i class="fas fa-rocket"></i>Getting Started
+    </a>
+</li><li>
+    <a title="Data and JSON" href="//www.yupiik.io/fusion/data.html">
+        <i class="fas fa-database"></i>Data and JSON
+    </a>
+</li><li>
+    <a title="HTTP and APIs" href="//www.yupiik.io/fusion/http.html">
+        <i class="fas fa-globe"></i>HTTP and APIs
+    </a>
+</li><li>
+    <a title="Cloud and Kubernetes" href="//www.yupiik.io/fusion/integration.html">
+        <i class="fas fa-cloud"></i>Cloud and Kubernetes
+    </a>
+</li><li>
+    <a title="Tooling and extras" href="//www.yupiik.io/fusion/tooling.html">
+        <i class="fas fa-wrench"></i>Tooling and extras
+    </a>
+</li>
+    </ul>
+</div>
+<div id="examples-html-container" class="container page-content examples-html ">
+            <div class="page-header">
+                <h1>Common examples</h1>
+            </div>
+            <div class="page-content-body">
+                <div id="preamble">
+ <div class="sectionbody">
+ <p> <div class="quoteblock abstract">
+  <blockquote>
+This page details Common examples.  </blockquote>
+ </div></p>
+ </div>
+ </div>
+ <div class="sect1">
+  <h2 id="_defining_a_bean_without_injections">Defining a Bean <em>without</em> injections</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>If a bean has an injection or an event listener it will be automatically defined as a bean, but in some cases, you want to define a bean on a plain class without any injection nor event listener. For such a case, you can mark the class with <code>@ApplicationScoped</code>:</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@ApplicationScoped
+public class MyService {
+    public int magicNumber() {
+        return 42;
+    }
+}
+</code></pre>
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>
+This simple definition enables you to inject this bean in other beans.
+ </p>
+ </div>
+ </div>
+ </div>
+ <div class="sect1">
+  <h2 id="_defining_a_bean_with_injections">Defining a Bean with injection(s)</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>
+The common use case of a framework is to get injected some bean without exactly knowing how it was created or initialized. Here is how to get an injection with Fusion framework:
+ </p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public class MyService {
+    @Injection
+    ConfigService config;
+
+    // ...
+}
+</code></pre>
+ </div>
+ </div>
+ <div class="admonitionblock important">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">IMPORTANT</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p>do <strong>NOT</strong> use <code>private</code> fields, it is not yet supported.</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ <div class="paragraph">
+ <p>
+Alternatively, you can use constructor injections:
+ </p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@ApplicationScoped // any marker making it a bean, can be another scope
+public class MyService {
+    private final ConfigService config; <b class="conum">(1)</b>
+
+    public MyService(final ConfigService service) { <b class="conum">(2)</b>
+        this.config = service;
+    }
+
+    protected MyService() { <b class="conum">(3)</b>
+        this.config = null;
+    }
+}
+</code></pre>
+ </div>
+ </div>
+ <div class="colist arabic">
+  <ol>
+   <li>
+ <span>
+The injected values can be defined normally since injections happen with the constructor, you can even precompute the data you need in the bean and not store the injection itself,
+ </span>
+   </li>
+   <li>
+ <span>
+The constructor injection (the selected one is the most public one - 
+ </span>
+<code>public</code> <span>
+ wins over 
+ </span>
+<code>protected</code> <span>
+) and with the most parameters,
+ </span>
+   </li>
+   <li>
+ <span>
+The no-arg constructor - only needed for scopes using subclassing like 
+ </span>
+<code>@ApplicationScoped</code> <span>
+.
+ </span>
+   </li>
+  </ol>
+ </div>
+ </div>
+ </div>
+ <div class="sect1">
+  <h2 id="_create_a_bean_in_a_custom_fashion_without_a_class">Create a bean in a custom fashion without a class</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>It can happen you need to reuse some custom factory and code the initialization of a bean. For such a case you can mark a method with <code>@Bean</code>. Injections can be done in the enclosing bean if needed:</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@DefaultScoped // enclosing class is a bean
+public class MyProducer {
+    @Injection
+    ConfigService conf;
+
+    @Bean
+    public DataSource dataSource() {
+        return new DataSourceFactory(conf).create();
+    }
+}
+</code></pre>
+ </div>
+ </div>
+ <div class="admonitionblock important">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">IMPORTANT</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p>as of today, you can mark the producer method with a scope but lazy scopes (like <code>@ApplicationScoped</code> are not really lazy until you implement yourself the lazyness - but scope is respected, i.e. if it is <code>@ApplicationScoped</code> it will be a singleton).</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ <div class="admonitionblock tip">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">TIP</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p>if the returned type implements <code>AutoCloseable</code>, <code>close()</code> will be called to destroy the bean instance(s).</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ </div>
+ </div>
+ <div class="sect1">
+  <h2 id="_injection_of_a_listset">Injection of a list/set</h2>
+ <div class="sectionbody">
+ <div class="admonitionblock important">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">IMPORTANT</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p>injections of <code>List</code> or <code>Set</code> are done by resolving the parameter type of the injection.</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public class MyService {
+    @Injection
+    List&lt;MySpi&gt; implementations;
+}
+</code></pre>
+ </div>
+ </div>
+ <div class="admonitionblock tip">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">TIP</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p>you can put on the implementations (or beans) the annotation <code>@Order</code> to sort their position in the <code>List</code> (lower values first) - ignored for <code>Set</code>.</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ </div>
+ </div>
+ <div class="sect1">
+  <h2 id="_override_a_single_injection">Override a single injection</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>When several beans match a single injection (i.e. not a <code>List</code>/<code>Set</code> injection), the injection is ambiguous and the container throws <code>AmbiguousBeanException</code>. You can mark one of the candidate beans with <code>@Order</code> to elect it: when its <code>@Order</code> value is strictly greater than the ones of all the other matching beans, it is the injected one.</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@DefaultScoped
+public class MyServiceImpl implements MyService { // default @Order value is 1000
+}
+</code></pre>
+ </div>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@DefaultScoped
+@Order(1001) // &gt; 1000 so this implementation overrides MyServiceImpl for MyService injections
+public class MyServiceOverride implements MyService {
+}
+</code></pre>
+ </div>
+ </div>
+ <div class="admonitionblock important">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">IMPORTANT</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p>if several matching beans share the greatest <code>@Order</code> value, the injection stays ambiguous and <code>AmbiguousBeanException</code> is thrown.</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ <div class="admonitionblock tip">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">TIP</div>
+       </td>
+      <td class="content">
+this also applies to assignable lookups so it is a common way to replace a bean provided by a module/library by your own implementation.    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ </div>
+ </div>
+ <div class="sect1">
+  <h2 id="_optional_injection">Optional injection</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>A <code>Optional&lt;T&gt;</code> injection is always satisfied: if no bean matches <code>T</code>, an empty <code>Optional</code> is injected instead of failing:</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public class MyService {
+    @Injection
+    Optional&lt;ConfigService&gt; config; // empty if no ConfigService bean
+}
+</code></pre>
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>The same behavior applies to a <code>RuntimeContainer.lookup</code> on <code>Optional&lt;T&gt;</code>.</p>
+ </div>
+ </div>
+ </div>
+ <div class="sect1">
+  <h2 id="_list_sorting">List sorting</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>Injected <code>List&lt;T&gt;</code> are sorted by <code>@Order</code> (lower values first) and then by type name. If the injected element type implements <code>Comparable</code>, natural ordering wins over <code>@Order</code>:</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public class MyService {
+    @Injection
+    List&lt;MySpi&gt; implementations; // sorted naturally if MySpi extends Comparable&lt;MySpi&gt;
+}
+</code></pre>
+ </div>
+ </div>
+ </div>
+ </div>
+ <div class="sect1">
+  <h2 id="_replace_beans_with_a_module">Replace beans with a module</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p><code>FusionModule</code> SPI (discovered via <code>ServiceLoader</code>) exposes <code>beanFilter()</code>, <code>beanMapper()</code>, <code>contextMapper()</code>, <code>listenerMapper()</code> and friends to replace any bean/context/listener before integration. This is what <code>fusion-testing</code> uses to swap application beans with test doubles - see  <a href="tooling.html">testing</a>
+.</p>
+ </div>
+ </div>
+ </div>
+ <div class="sect1">
+  <h2 id="_manual_interception_with_wraps">Manual interception with <code>Wraps</code></h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>Since there is no declarative interceptor support, <code>io.yupiik.fusion.framework.api.composable.Wraps</code> composes interceptors manually as functions:</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">final var result = Wraps.wrap(
+    () -&gt; { /* business code */ return value; },
+    interceptor1,
+    interceptor2);
+</code></pre>
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>Each interceptor is a function turning a <code>Supplier</code> into another <code>Supplier</code>, enabling a functional composition of cross-cutting concerns without reflection.</p>
+ </div>
+ </div>
+ </div>
+ <div class="sect1">
+  <h2 id="_listen_to_an_event">Listen to an event</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>Beans can communicate loosely between them thanks to events. The bus is synchronous and sorted using <code>@Order</code> annotation.</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public class MyListener {
+    public void onStart(@OnEvent final Start start) {
+        System.out.println(&quot;Application started&quot;);
+    }
+
+    public void onStop(@OnEvent final Stop stop) {
+        System.out.println(&quot;Application stopped&quot;);
+    }
+}
+</code></pre>
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>Example of ordered event listener (default being <code>1000</code>):</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public void onStart(@OnEvent @Order(990) final Start start);
+</code></pre>
+ </div>
+ </div>
+ <div class="admonitionblock tip">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">TIP</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p>listening to <code>Start</code> event can enable a lazy instance (<code>@ApplicationScoped</code>) to be forced to be initialized.</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ <div class="admonitionblock tip">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">TIP</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p>an event can have more parameters, other parameters will be considered as injections (but the lookup will be destroyed after the method call if it is not <code>@ApplicationScoped</code>)</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ <div class="admonitionblock tip">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">TIP</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p>When using the Launcher provided by the Fusion, you can use the shutdown hook to call the <code>container.close()</code> method and send the <code>Stop</code> event by settings the Fusion configuration property <code>fusion.launcher.useHook</code> to <code>true</code>. The JVM catches signals to implement shutdown hooks for unexpected termination. The JVM uses <code>SIGHUP</code>, <code>SIGINT</code>, and <code>SIGTERM</code> to initiate the running of shutdown hooks (see  <a href="https://github.com/openjdk/jdk/blob/master/src/java.base/share/man/java.md?plain=1#L817">https://github.com/openjdk/jdk/blob/master/src/java.base/share/man/java.md?plain=1#L817</a>
+)</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ </div>
+ </div>
+ <div class="sect1">
+  <h2 id="_emit_an_event">Emit an event</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>To emit an event simply inject the <code>Emitter</code> and send the needed event:</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public class CustomerService {
+    @Injection
+    Emitter emitter;
+
+    public void createCustomer(final Customer customer) {
+        emitter.emit(customer);
+    }
+}
+</code></pre>
+ </div>
+ </div>
+ </div>
+ </div>
+ <div class="sect1">
+  <h2 id="_create_a_configuration_model"> <p id="configuration_model">
+Create a configuration model
+ </p>
+</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>A configuration model is a record marked with <code>@RootConfiguration</code>:</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@RootConfiguration(&quot;server&quot;)
+public record ServerConfiguration(int port, String accessLogPattern) {}
+</code></pre>
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>This simple configuration will read the system properties <code>server.port</code>, <code>server.accessLogPattern</code> (or environment variables <code>SERVER_PORT</code>, <code>SERVER_ACCESSLOGPATTERN</code>) to fill the values. The instance of <code>ServerConfiguration</code> can be injected in any bean:</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@ApplicationScoped
+public class MyServer {
+    private final ServerConfiguration conf;
+
+    public MyServer(final ServerConfiguration conf) {
+        this.conf = conf;
+    }
+
+    // ...
+}
+</code></pre>
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>If you want to customize the name of the property you can use <code>@Property</code>.</p>
+ </div>
+ <div class="paragraph">
+ <p>Finally, you can register you own source of values creating a bean of type <code>ConfigurationSource</code>.</p>
+ </div>
+ <div class="admonitionblock important">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">IMPORTANT</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p><code>List&lt;OtherConfig&gt;</code> are supported, but you must set in the configuration <code>&lt;prefix for this list&gt;.length</code> to the length value of the list then the nested instances are configured using <code>&lt;prefix&gt;.&lt;index&gt;</code> starting at index 0. Ex: <code>myconf.mylist.0.name=foo</code>. Similarly, <code>Map&lt;String,X&gt;</code> are supported. For primitives, it uses properties syntax and when X is another configuration model you must use an index based notation with <code>length</code> property and <code>key</code>, <code>value</code> suffixes.</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ <div class="admonitionblock tip">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">TIP</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p>if you do use a nested model coming from another jar, ensure it is flagged <code>@ConfigurationModel</code> and annotation processing is enabled on this other module otherwise you'll loose default values, custom names and documentation.</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ <div class="sect2">
+  <h3 id="_example">Example</h3>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>Here is an example of a simple configuration model using both <code>List</code> and <code>Map</code> of properties.</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@RootConfiguration(&quot;app&quot;) // will be the prefix of the system properties filtered to bind on the instance
+public record AppConfig(
+        @Property(value=&quot;name&quot;, documentation = &quot;Name of the application.&quot;)
+        String appName,
+
+        @Property(value=&quot;host&quot;, documentation = &quot;Host.&quot;, defaultValue = &quot;\&quot;localhost\&quot;&quot;)
+        String host,
+
+        //When no @Property annotation is added, the name of the property is the name of the field (port)
+        int port,
+
+        @Property(value=&quot;frequency&quot;)
+        Frequency objectConfig,
+
+        @Property(value=&quot;sources&quot;, documentation = &quot;Some source to be processed.&quot;)
+        List&lt;Source&gt; sources,
+
+        @Property(value=&quot;stamps&quot;, documentation = &quot;Some documentation about stamps.&quot;)
+        List&lt;String&gt; stamps,
+
+        @Property(value=&quot;tags&quot;, documentation = &quot;Some documentation about tags.&quot;)
+        Map&lt;String, String&gt; tags
+){
+    public record Frequency(
+        @Property(value = &quot;interval&quot;, documentation = &quot;Interval - How often to do something.&quot;, defaultValue = &quot;60000L&quot;)
+        long interval
+    ) {}
+
+    public record Source(
+        String host,
+        int port
+    ) {}
+}
+</code></pre>
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>
+Environment variables (shell script):
+ </p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">export APP_NAME=&quot;app1&quot;
+export APP_HOST=&quot;app-1&quot;
+export APP_PORT=&quot;8380&quot;
+export APP_FREQUENCY_INTERVAL=&quot;20000L&quot;
+export APP_SOURCES_LENGTH=&quot;2&quot;
+export APP_SOURCES_0_HOST=&quot;external-host-1&quot;
+export APP_SOURCES_0_PORT=&quot;8080&quot;
+export APP_SOURCES_1_HOST=&quot;external-host-2&quot;
+export APP_SOURCES_1_PORT=&quot;8080&quot;
+export APP_STAMPS=&quot;application,server,integration&quot;
+export APP_TAGS=&quot;
+                       application = app1
+                       env = local
+                       phase = tests
+                       &quot;
+</code></pre>
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>
+Environment variables (yaml):
+ </p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-yaml hljs" data-lang="yaml">APP_NAME: &quot;app1&quot;
+APP_HOST: &quot;app-1&quot;
+APP_PORT: &quot;8380&quot;
+APP_FREQUENCY_INTERVAL: &quot;20000L&quot;
+APP_SOURCES_LENGTH: &quot;2&quot;
+APP_SOURCES_0_HOST: &quot;external-host-1&quot;
+APP_SOURCES_0_PORT: &quot;8080&quot;
+APP_SOURCES_1_HOST: &quot;external-host-2&quot;
+APP_SOURCES_1_PORT: &quot;8080&quot;
+APP_STAMPS: &quot;application,server,integration&quot;
+APP_TAGS: |
+    application = app1
+    env = local
+    phase = tests
+
+</code></pre>
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>
+Setting system properties in java:
+ </p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public class App{
+    static {
+        System.setProperty(&quot;app.name&quot;, &quot;app1&quot;);
+        System.setProperty(&quot;app.host&quot;, &quot;app-1&quot;);
+        System.setProperty(&quot;app.port&quot;, &quot;8380&quot;);
+        System.setProperty(&quot;app.frequency.interval&quot;, &quot;20000l&quot;);
+        System.setProperty(&quot;app.sources.length&quot;, &quot;2&quot;);
+        System.setProperty(&quot;app.sources.0.host&quot;, &quot;ext&quot;);
+        System.setProperty(&quot;app.sources.0.port&quot;, &quot;808&quot;);
+        System.setProperty(&quot;app.sources.1.host&quot;, &quot;ext&quot;);
+        System.setProperty(&quot;app.sources.1.port&quot;, &quot;808&quot;);
+        System.setProperty(&quot;app.stamps&quot;, &quot;application,server,integration&quot;);
+        System.setProperty(&quot;app.tags&quot;,&quot; \napplication = app1 \nenv = local \nphase = tests&quot; );
+    }
+}
+
+</code></pre>
+ </div>
+ </div>
+ </div>
+ </div>
+ </div>
+ </div>
+ <div class="sect1">
+  <h2 id="_create_a_json_model"> <p id="json_model">
+Create a JSON model
+ </p>
+</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>A JSON model is a record marked with <code>@JsonModel</code>:</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@JsonModel
+public record ServerConfiguration(int port, String accessLogPattern) {}
+</code></pre>
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>Then simply inject the <code>JsonMapper</code> in any bean to read/write such a model:</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@ApplicationScoped
+public class MyServer {
+    private final JsonMapper mapper;
+
+    public MyServer(final JsonMapper mapper) {
+        this.mapper = mapper;
+    }
+
+    // ... mapper.toString(serverconf) / mapper.fromString(ServerConfiguration.class, &quot;{}&quot;);
+}
+</code></pre>
+ </div>
+ </div>
+ </div>
+ </div>
+ <div class="sect1">
+  <h2 id="_handle_unknown_json_attributes">Handle unknown JSON attributes</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>A JSON model is a record marked with <code>@JsonModel</code>:</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@JsonModel
+public record MyModel(
+        // known attribute
+        String name,
+        // unknown attributes/extensions
+        @JsonOthers Map&lt;String, Object&gt; extensions) {}
+</code></pre>
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>
+This will match this JSON:
+ </p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-json hljs" data-lang="json">{
+  &quot;name&quot;: &quot;fusion&quot;,
+  &quot;x-foo&quot;: true,
+  &quot;boney&quot;: &quot;M&quot;
+}
+</code></pre>
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>And convert it to the following record mapping: <code>MyModel[name=fusion, extensions={x-foo=true,boney=M}]</code>.</p>
+ </div>
+ </div>
+ </div>
+ <div class="sect1">
+  <h2 id="_define_a_custom_http_endpoint">Define a custom HTTP endpoint</h2>
+ <div class="sectionbody">
+ <div class="sect2">
+  <h3 id="_implement_a_custom_explicit_endpoint_bean">Implement a custom explicit Endpoint bean</h3>
+ <div class="sectionbody">
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@ApplicationScoped
+public class MyEndpoint implements Endpoint {
+    ....
+}
+</code></pre>
+ </div>
+ </div>
+ </div>
+ </div>
+ <div class="sect2">
+  <h3 id="_implement_a_custom_implicit_endpoint">Implement a custom implicit Endpoint</h3>
+ <div class="sectionbody">
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@HttpMatcher(...)
+public CompletionStage&lt;Response&gt; myEndpoint(final Request request) {
+    ....
+}
+
+// or
+
+
+@HttpMatcher(...)
+public Response myEndpoint(final Request request) {
+    ....
+}
+</code></pre>
+ </div>
+ </div>
+ </div>
+ </div>
+ </div>
+ </div>
+ <div class="sect1">
+  <h2 id="_define_a_json_rpc_endpoint">Define a JSON-RPC endpoint</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>Mark a method with <code>@JsonRpc</code> to expose it as a JSON-RPC method. Input and output are <code>@JsonModel</code> records mapped by name:</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public class Endpoints {
+    @JsonRpc(&quot;copy&quot;)
+    public MyResult result(final MyInput input) {
+        return new MyResult(input.name());
+    }
+
+    @JsonModel
+    public record MyResult(String name) {
+    }
+
+    @JsonModel
+    public record MyInput(String name) {
+    }
+}
+</code></pre>
+ </div>
+ </div>
+ <div class="admonitionblock tip">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">TIP</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p>you can use the configuration entry <code>fusion.jsonrpc.binding</code> to change the <code>/jsonrpc</code> default binding. You can also set <code>fusion.jsonrpc.forceInputStreamUsage</code> to <code>true</code> to force the input to be reactive instead of using default request <code>Reader</code>.</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ <div class="paragraph">
+ <p>See  <a href="http.html">json-rpc</a>
+ for reactive endpoints, pre-request hooks and OpenRPC registration.</p>
+ </div>
+ </div>
+ </div>
+ <div class="sect1">
+  <h2 id="_start_the_container">Start the container</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>
+To launch the application you need to start the container. It is done in two phases:
+ </p>
+ </div>
+ <div class="ulist">
+ <ul>
+  <li>
+ <p>
+Configure the runtime
+ </p>
+  </li>
+  <li>
+ <p>
+Launch the runtime.
+ </p>
+  </li>
+ </ul>
+ </div>
+ <div class="paragraph">
+ <p>
+Here is how to do it:
+ </p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">try (
+    final var container = ConfiguringContainer
+        .of() <b class="conum">(1)</b>
+        .start() <b class="conum">(2)</b>
+) {
+    // use the container or just await for the end of the application
+}
+</code></pre>
+ </div>
+ </div>
+ <div class="colist arabic">
+  <ol>
+   <li>
+ <span>
+Get a 
+ </span>
+<code>ConfiguringContainer</code> <span>
+ which enables you to disable bean autodiscovery, to replace beans etc...
+ </span>
+   </li>
+   <li>
+ <span>
+Launch the runtime container (you can look up beans there).
+ </span>
+   </li>
+  </ol>
+ </div>
+ <div class="admonitionblock tip">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">TIP</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p>you can also just reuse <code>io.yupiik.fusion.framework.api.main.Launcher</code> (or <code>io.yupiik.fusion.framework.api.main.CliLauncher</code> for CLI applications) main which will start the default container. Launcher arguments are bound to <code>Configuration</code> as dash-led options (<code>--key value</code>, <code>--key=value</code>); bare arguments are ignored, so CLI command paths of any depth work seamlessly. Every option requires a value (<code>--help</code> is skipped, <code>--no-key</code> implicitly binds <code>false</code>), a valueless option is an error. You can implement a custom <code>Awaiter</code> to not let the container shutdown immediately if you need - webserver does it by default. Finally you can also, using this launcher, inject <code>Args</code> to read the main arguments.</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ </div>
+ </div>
+ <div class="sect1">
+  <h2 id="_test_with_junit_5">Test with JUnit 5</h2>
+ <div class="sectionbody">
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@FusionSupport <b class="conum">(1)</b>
+class FusionSupportTest {
+    @Test
+    void run(@Fusion final Emitter emitter) { <b class="conum">(2)</b>
+        assertNotNull(emitter);
+    }
+}
+</code></pre>
+ </div>
+ </div>
+ <div class="colist arabic">
+  <ol>
+   <li>
+ <span>
+Mark the class to run tests under a container context (it is started/stopped automatically),
+ </span>
+   </li>
+   <li>
+ <span>
+Inject container beans in test parameters (mark them with 
+ </span>
+<code>@Fusion</code> <span>
+).
+ </span>
+   </li>
+  </ol>
+ </div>
+ <div class="paragraph">
+ <p>
+Alternatively you can run a single container for all tests:
+ </p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@MonoFusionSupport
+class FusionSupportTest {
+    // same as before
+}
+</code></pre>
+ </div>
+ </div>
+ </div>
+ </div>
+ <div class="sect1">
+  <h2 id="_do_a_fat_jar_with_maven_shade_plugin">Do a fat jar with maven shade plugin</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>
+Fatjar are not recommended in general but can be convenient for demo or CLI applications. Here is how to do it very easily with Apache Maven shade plugin:
+ </p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-xml hljs" data-lang="xml">&lt;plugin&gt;
+  &lt;groupId&gt;org.apache.maven.plugins&lt;/groupId&gt;
+  &lt;artifactId&gt;maven-shade-plugin&lt;/artifactId&gt;
+  &lt;version&gt;3.5.2&lt;/version&gt;
+  &lt;dependencies&gt;
+    &lt;dependency&gt;
+      &lt;groupId&gt;io.yupiik.maven&lt;/groupId&gt;
+      &lt;artifactId&gt;maven-shade-transformers&lt;/artifactId&gt;
+      &lt;version&gt;0.0.5&lt;/version&gt;
+    &lt;/dependency&gt;
+  &lt;/dependencies&gt;
+  &lt;executions&gt;
+    &lt;execution&gt;
+      &lt;goals&gt;
+        &lt;goal&gt;shade&lt;/goal&gt;
+      &lt;/goals&gt;
+      &lt;configuration&gt;
+        &lt;shadedArtifactAttached&gt;true&lt;/shadedArtifactAttached&gt;
+        &lt;shadedClassifierName&gt;fat&lt;/shadedClassifierName&gt;
+        &lt;createDependencyReducedPom&gt;false&lt;/createDependencyReducedPom&gt;
+        &lt;dependencyReducedPomLocation&gt;${project.build.directory}/reduced-pom.xml&lt;/dependencyReducedPomLocation&gt;
+        &lt;transformers&gt;
+          &lt;transformer implementation=&quot;org.apache.maven.plugins.shade.resource.ManifestResourceTransformer&quot;&gt;
+            &lt;mainClass&gt;io.yupiik.fusion.framework.api.main.Launcher&lt;/mainClass&gt;
+          &lt;/transformer&gt;
+          &lt;transformer implementation=&quot;org.apache.maven.plugins.shade.resource.ServicesResourceTransformer&quot; /&gt;
+          &lt;transformer implementation=&quot;io.yupiik.maven.shade.transformer.FusionDocumentationTransformer&quot; /&gt;
+          &lt;transformer implementation=&quot;io.yupiik.maven.shade.transformer.FusionJsonSchemaTransformer&quot; /&gt;
+          &lt;transformer implementation=&quot;io.yupiik.maven.shade.transformer.FusionOpenRPCTransformer&quot; /&gt;
+        &lt;/transformers&gt;
+        &lt;filters&gt;
+          &lt;filter&gt; &lt;!-- optional but generally saner --&gt;
+            &lt;artifact&gt;*:*&lt;/artifact&gt;
+            &lt;excludes&gt;
+              &lt;exclude&gt;module-info.class&lt;/exclude&gt;
+              &lt;exclude&gt;META-INF/*.SF&lt;/exclude&gt;
+              &lt;exclude&gt;META-INF/*.DSA&lt;/exclude&gt;
+              &lt;exclude&gt;META-INF/*.RSA&lt;/exclude&gt;
+              &lt;exclude&gt;META-INF/LICENSE.txt&lt;/exclude&gt;
+              &lt;exclude&gt;META-INF/LICENSE&lt;/exclude&gt;
+              &lt;exclude&gt;META-INF/NOTICE.txt&lt;/exclude&gt;
+              &lt;exclude&gt;META-INF/NOTICE&lt;/exclude&gt;
+              &lt;exclude&gt;META-INF/MANIFEST.MF&lt;/exclude&gt;
+              &lt;exclude&gt;META-INF/DEPENDENCIES&lt;/exclude&gt;
+            &lt;/excludes&gt;
+          &lt;/filter&gt;
+        &lt;/filters&gt;
+      &lt;/configuration&gt;
+    &lt;/execution&gt;
+  &lt;/executions&gt;
+&lt;/plugin&gt;
+</code></pre>
+ </div>
+ </div>
+ </div>
+ </div>
+ <div class="sect1">
+  <h2 id="_design_notes">Design notes</h2>
+ <div class="sectionbody">
+ <div class="sect3">
+  <h4 id="_no_interceptor_support">No interceptor support</h4>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>
+Since some years we got used to see declarative interceptors (annotations) like in this snippet:
+ </p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public class MyBean {
+    @Traced
+    public void doSomething() {
+        // ...
+    }
+}
+</code></pre>
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>
+These are great and the container is actually linking the annotation to an implementation (a bean in general) which intercepts the call. This is not bad but has some design pitfalls:
+ </p>
+ </div>
+ <div class="ulist">
+ <ul>
+  <li>
+ <div class="paragraph">
+ <p>Most interceptors will use parameters and for such a generic approach to work, it needs an <code>Object[]</code> (or <code>List</code>) of parameters. This is really not fast (it requires to allocate an array for that purpose).</p>
+ </div>
+  </li>
+  <li>
+ <p>
+It requires to know and understand the rules between class interceptors, method interceptors, appending/overriding when relevant plus the same with parent classes. All that can quickly become complex.
+ </p>
+  </li>
+  <li>
+ <p>
+It is often static: once put on a method disabling an interceptor requires the underlying library to be able to do that or to use some advanced customization at startup to do it.
+ </p>
+  </li>
+ </ul>
+ </div>
+ <div class="paragraph">
+ <p>
+For these reasons, we think that we don't need an interceptor solution in Fusion framework but we don't say the underlying feature is pointless, not at all. However, thanks to a more modern programming style, we can use a more functional approach to solve the same problem. Therefore, previous example would rather become:
+ </p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public class MyBean {
+    public void doSomething() {
+        tracing(() -&gt; {
+            // ...
+        });
+    }
+}
+</code></pre>
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>
+The big advantage is you can use some static utility if you want but also rely on beans and even combine more efficiently interceptions in a custom and configurable fashion:
+ </p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public class MyBean {
+    public void doSomething() {
+        tracing(() -&gt; timed(() -&gt; logged(() -&gt; {
+            // ...
+        })));
+    }
+}
+</code></pre>
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>
+can become:
+ </p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public class MyBean {
+    @Injection
+    MyObservabilityService obs;
+
+    public void doSomething() {
+        obs.instrumented(() -&gt; {
+            // ...
+        });
+    }
+}
+</code></pre>
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>
+If you compare the case with parameters it is way more efficient in general since you just do a standard parameter passing call:
+ </p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public class MyBean {
+    @Injection
+    EntityManager em; // assume the application used JPA - not required
+
+    @Injection
+    JpaService jpa; // custom bean to handle transactions for ex
+
+    public void store(final Transaction tx) {
+        tracing(
+          // no Object[] created for an interceptor
+          // and no reflection to extract the id
+          tx.id(),
+          () -&gt; jpa.tx(() -&gt; em.persist(tx)));
+    }
+}
+</code></pre>
+ </div>
+ </div>
+ <div class="admonitionblock tip">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">TIP</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <div class="paragraph">
+ <p>Going with this solution can, however, get the <em>chaining lambda</em> pitfall (a.k.a. <em>callback hell</em> in JavaScript). To solve this one we encourage you to ensure your &quot;interceptor&quot; can be chained properly using the same kind of callback.</p>
+ </div>
+ <div class="paragraph">
+ <p>Here is an example (the important part is more the signature than the fact it is a <code>static</code> method or a bean method):</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public static &lt;T&gt; Supplier&lt;T&gt; interceptor1(String marker, Map&lt;String, String&gt; data, Supplier&lt;T&gt; nested) {
+    return () -&gt; {
+        logger.info(message(marker, data)); // interceptor role
+        return task.get();  // intercepted business, &quot;ic.proceed()&quot; in jakarta interceptor API
+    };
+}
+
+
+public static &lt;T&gt; Supplier&lt;T&gt; interceptor12(Params params, Supplier&lt;T&gt; nested) {
+    // same kind of logic for the impl
+}
+</code></pre>
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>Thanks this definition which commonly agreed to use <code>Supplier&lt;T&gt;</code> as the intercepted call and the fact interceptor methods return a call and not execute it directly, you can chain them more easily:</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public void storeCustomer(final Customer customer) {
+    interceptor2(
+            Params.of(customer),
+            interceptor1(
+                &quot;incoming-customer&quot;, Map.of(&quot;id&quot;, customer.id()),
+                () -&gt; {
+                    // business code
+                }))
+    .get(); // trigger the actual execution, it is the terminal operation for the chain
+}
+</code></pre>
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>If you want to go further you can use a <code>Stream</code> to represent that. Now an interceptor is a <code>Function&lt;Supplier&lt;T&gt;, Supplier&lt;T&gt;&gt;</code> so if you define the list of interceptors in a <code>Stream</code>, then you can just reduce  them using the business function/logic as identity to have the actual invocation and execute it. Only detail to take care: ensure to reverse the stream to call the interceptor in order:</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public void storeCustomer(final Customer customer) {
+    Stream.&lt;Function&lt;Supplier&lt;Void&gt;, Supplier&lt;Void&gt;&gt;&gt;of(
+                // reversed chain of interceptor (i1 will be executed before i2)
+                delegate -&gt; interceptor2(Params.of(customer), delegate),
+                delegate -&gt; interceptor1(&quot;incoming-customer&quot;, Map.of(&quot;id&quot;, customer.id()), delegate)
+        )
+        // merge the stream of interceptors as one execution wrapper
+        .reduce(identity(), Function::andThen)
+        .apply(() -&gt; { // apply to the actual business logic
+            System.out.println(&quot;&gt;Business&quot;);
+            return null;
+        })
+        .get(); // execute it
+}
+</code></pre>
+ </div>
+ </div>
+Indeed in practise you can extract that kind of code in an utility and use something like: <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">// utility
+public static &lt;T&gt; T intercepted(final Supplier&lt;T&gt; execution, final Function&lt;Supplier&lt;T&gt;, Supplier&lt;T&gt;&gt;... interceptors) {
+    return Stream.of(interceptors)
+            .reduce(identity(), Function::andThen)
+            .apply(execution)
+            .get();
+}
+
+// usage
+intercepted(
+    () -&gt; { // business logic
+        System.out.println(&quot;&gt;Business&quot;);
+        return null;
+    },
+    // interceptors
+    delegate -&gt; interceptor2(Params.of(customer), delegate),
+    delegate -&gt; interceptor1(&quot;incoming-customer&quot;, Map.of(&quot;id&quot;, customer.id()), delegate)
+);
+</code></pre>
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>This is what the class <code>io.yupiik.fusion.framework.api.composable.Wraps</code> does.</p>
+ </div>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ <div class="paragraph">
+ <p>Last tip: you interceptor can work with <code>CompletionStage</code> to add some behavior before/after the call even if the result is not computed synchronously ;).</p>
+ </div>
+ </div>
+ </div>
+ </div>
+ </div>
+                
+                <nav class="page-footer-nav" aria-label="Docs pages">
+    <a href="setup.html" class="page-footer-nav-link-prev">
+    <div>Previous</div>
+    <div>Setup your project</div>
+</a>
+    <a href="configuration.html" class="page-footer-nav-link-next">
+    <div>Next</div>
+    <div>Configuration</div>
+</a>
+</nav>
+            </div>
+        </div>
+<div class="page-navigation-right">
+        <h3>Navigation</h3>
+        <nav class="generated-nav-menu"></nav>
+    </div>
+    </div>
+<footer class="site-footer">
+        <div class="footer-inner">
+            <div class="footer-social">
+                <ul class="social-list">
+                <li class="list-inline-item"><a title="LinkedIn" target="_blank" href="https://www.linkedin.com/company/yupiik/"><i class="fab fa-linkedin fa-fw"></i></a></li>
+              <li class="list-inline-item"><a title="Twitter" target="_blank" href="https://twitter.com/Yupiik/"><i class="fab fa-twitter fa-fw"></i></a></li>
+              <li class="list-inline-item"><a title="Github" target="_blank" href="https://www.github.com/yupiik/fusion"><i class="fab fa-github fa-fw"></i></a></li>
+                </ul>
+            </div>
+            <nav class="footer-bar"><small class="copyright">© 2026 <strong><a href="https://www.yupiik.com">Yupiik</a></strong>. All Rights Reserved</small><a class="legal-link" href="https://www.yupiik.com/terms-of-use/">Terms of use</a><a class="legal-link" href="https://www.yupiik.com/privacy-policy/">Privacy policy</a></nav>
+        </div>
+    </footer>
+
+    <div class="modal" id="searchModal" role="dialog" aria-label="Search site">
+    <div class="modal-overlay" data-close-modal></div>
+    <div class="modal-dialog" role="document">
+        <div class="modal-header">
+            <h5 class="modal-title">Search</h5>
+            <button type="button" class="modal-close" data-close-modal aria-label="Close">&times;</button>
+        </div>
+        <div class="modal-body">
+            <input class="form-control" id="searchInput" placeholder="Search the docs..." autocomplete="off">
+            <div class="search-hits"></div>
+        </div>
+    </div>
+</div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/highlight.min.js" integrity="sha512-d00ajEME7cZhepRqSIVsQVGDJBdZlfHyQLNC6tZXYKTG7iwcF8nhlFuppanz8hYgXr8VvlfKh4gLC25ud3c90A==" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/languages/bash.min.js" integrity="sha512-Hg0ufGEvn0AuzKMU0psJ1iH238iUN6THh7EI0CfA0n1sd3yu6PYet4SaDMpgzN9L1yQHxfB3yc5ezw3PwolIfA==" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/languages/bash.min.js" integrity="sha512-Hg0ufGEvn0AuzKMU0psJ1iH238iUN6THh7EI0CfA0n1sd3yu6PYet4SaDMpgzN9L1yQHxfB3yc5ezw3PwolIfA==" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/languages/json.min.js" integrity="sha512-37sW1XqaJmseHAGNg4N4Y01u6g2do6LZL8tsziiL5CMXGy04Th65OXROw2jeDeXLo5+4Fsx7pmhEJJw77htBFg==" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/languages/dockerfile.min.js" integrity="sha512-eRNl3ty7GOJPBN53nxLgtSSj2rkYj5/W0Vg0MFQBw8xAoILeT6byOogENHHCRRvHil4pKQ/HbgeJ5DOwQK3SJA==" crossorigin="anonymous"></script>
+    <script>if (!(window.minisite || {}).skipHighlightJs) {
+        hljs.highlightAll();
+        function addCopyButtons(clipboard) {
+          document.querySelectorAll('pre > code').forEach(function (codeBlock) {
+          var button = document.createElement('button');
+          button.className = 'copy-code-button';
+          button.type = 'button';
+          button.innerText = 'Copy';
+          button.addEventListener('click', function () {
+           clipboard.writeText(codeBlock.innerText).then(function () {
+           button.blur();
+           button.innerText = 'Copied!';
+           setTimeout(function () { button.innerText = 'Copy'; }, 2000); }, function (error) { button.innerText = 'Error'; });
+          });
+          var pre = codeBlock.parentNode;
+          if (pre.parentNode.classList.contains('highlight')) {
+          var highlight = pre.parentNode; highlight.parentNode.insertBefore(button, highlight);
+          } else { pre.parentNode.insertBefore(button, pre); }
+         });
+        }
+        if (navigator && navigator.clipboard) {
+         addCopyButtons(navigator.clipboard);
+        } else {
+         var script = document.createElement('script');
+         script.src = '//cdnjs.cloudflare.com/ajax/libs/clipboard-polyfill/2.7.0/clipboard-polyfill.promise.js';
+         script.integrity = 'sha256-waClS2re9NUbXRsryKoof+F9qc1gjjIhc2eT7ZbIv94=';
+         script.crossOrigin = 'anonymous';
+         script.onload = function() {addCopyButtons(clipboard);};
+         document.body.appendChild(script);
+        }
+    }</script>
+    <script src="//www.yupiik.io/fusion/js/minisite.js?v=1.2.1-SNAPSHOT"></script>
+    <script>$('.page-content-body').generatedNavMenu();</script>
+    <div id="llm-chat-root" style="display:none"
+     data-model-id="Llama-3.2-3B-Instruct-q4f16_1-MLC"
+     data-base="//www.yupiik.io/fusion"></div>
+<script src="//www.yupiik.io/fusion/js/llm-chat.js?v=1.2.1-SNAPSHOT"></script>
+    
+
+<script>
+    (function () {
+        // theme toggle
+        var root = document.documentElement;
+        var toggle = document.getElementById('theme-toggle');
+        if (toggle) {
+            toggle.addEventListener('click', function () {
+                var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+                root.setAttribute('data-theme', next);
+                try { localStorage.setItem('yupiik-theme', next); } catch (e) {}
+            });
+        }
+        // search modal
+        var modal = document.getElementById('searchModal');
+        function openModal() { if (modal) modal.classList.add('open'); }
+        function closeModal() { if (modal) modal.classList.remove('open'); }
+        var sb = document.getElementById('search-button');
+        if (sb) sb.addEventListener('click', function (e) { e.preventDefault(); openModal(); });
+        if (modal) {
+            modal.addEventListener('click', function (e) { if (e.target.closest('[data-close-modal]')) closeModal(); });
+            document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeModal(); });
+        }
+    })();
+</script>
+</body>
+</html>

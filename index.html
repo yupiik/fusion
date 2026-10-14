@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 
 <head>
     <title>Fusion documentation</title>
@@ -12,215 +12,141 @@
     <meta name="keywords" content="Fusion documentation">
 
     <link rel="shortcut icon" href="//www.yupiik.io/fusion/images/favicon.png">
+    <meta name="theme-color" content="#191b20" media="(prefers-color-scheme: dark)">
+    <meta name="theme-color" content="#191b20" media="(prefers-color-scheme: light)">
 
-    <link href="//fonts.googleapis.com/css?family=Open+Sans:300,300i,400,400i,700,700i|Montserrat:300,400,500,700" rel="stylesheet">
-    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css" integrity="sha512-+4zCK9k+qNFUR5X+cKL9EIR+ZOhtIloNl9GIKS57V1MyNsYpYcUrUeQc9vNfzsWfV28IaLL3i96P9sdNyeRssA==" crossorigin="anonymous" />
-    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/asciidoctor.js/1.5.5-5/css/asciidoctor.min.css" integrity="sha512-kI7tn5cuEg16kMeXnYmg8rEJPxbxzEM7Gsr191iQdLDevFBLXPCSU9aZWSVuP61tMZWU3nBAR1cJ7SmXnOGLZw==" crossorigin="anonymous" />
-    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.3/css/bootstrap.min.css" integrity="sha512-oc9+XSs1H243/FRN9Rw62Fn8EtxjEYWHXRvjS43YtueEewbS6ObfXcJNyohjHqVKFPoXXUxwc+q1K7Dee6vv9g==" crossorigin="anonymous" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css" integrity="sha512-+4zCK9k+qNFUR5X+cKL9EIR+ZOhtIloNl9GIKS57V1MyNsYpYcUrUeQc9vNfzsWfV28IaLL3i96P9sdNyeRssA==" crossorigin="anonymous" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/styles/atom-one-dark.min.css" integrity="sha512-Fcqyubi5qOvl+yCwSJ+r7lli+CO1eHXMaugsZrnxuU4DVpLYWXTVoHy55+mCb4VZpMgy7PBhV7IiymC0yu9tkQ==" crossorigin="anonymous" />
-    <style>
-        :root {
-            /* YUPIIK colors (from dark to light) */
-            --yupiik-site-green: #46F72F;
-            --yupiik-site-purple: #D858FF;
-            --yupiik-site-blue-light: #02ABEA;
-            --yupiik-site-blue-dark: #056EBB;
-            --yupiik-site-grey-light: #F4F4F4;
-            --yupiik-site-grey-dark: #212121;
-
-            --yupiik-blue1: var(--yupiik-site-blue-dark);
-            --yupiik-blue2: var(--yupiik-site-blue-dark);
-            --yupiik-blue3: var(--yupiik-site-blue-dark);
-
-            --yupiik-color-white: #fff;
-            --yupiik-color-black: #000;
-
-            --yupiik-color-gray-0: var(--yupiik-color-white);
-            --yupiik-color-gray-100: #f5f6f7;
-            --yupiik-color-gray-200: #ebedf0;
-            --yupiik-color-gray-300: #dadde1;
-            --yupiik-color-gray-400: #ccd0d5;
-            --yupiik-color-gray-500: #bec3c9;
-            --yupiik-color-gray-600: #8d949e;
-            --yupiik-color-gray-700: #606770;
-            --yupiik-color-gray-800: #444950;
-            --yupiik-color-gray-900: #1c1e21;
-            --yupiik-color-gray-1000: var(--yupiik-color-black);
-
-            --yupiik-color-emphasis-0: var(--yupiik-color-gray-0);
-            --yupiik-color-emphasis-100: var(--yupiik-color-gray-100);
-            --yupiik-color-emphasis-200: var(--yupiik-color-gray-200);
-            --yupiik-color-emphasis-300: var(--yupiik-color-gray-300);
-            --yupiik-color-emphasis-400: var(--yupiik-color-gray-400);
-            --yupiik-color-emphasis-500: var(--yupiik-color-gray-500);
-            --yupiik-color-emphasis-600: var(--yupiik-color-gray-600);
-            --yupiik-color-emphasis-700: var(--yupiik-color-gray-700);
-            --yupiik-color-emphasis-800: var(--yupiik-color-gray-800);
-            --yupiik-color-emphasis-900: var(--yupiik-color-gray-900);
-            --yupiik-color-emphasis-1000: var(--yupiik-color-gray-1000);
-            --yupiik-color-content: var(--yupiik-color-emphasis-900);
-
-            --yupiik-font-family-base: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol';
-            --yupiik-font-family-monospace: SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
-            --yupiik-font-size-base: 100%;
-
-            --yupiik-font-weight-light: 300;
-            --yupiik-font-weight-normal: 400;
-            --yupiik-font-weight-semibold: 500;
-            --yupiik-font-weight-bold: 700;
-
-            --yupiik-font-weight-base: var(--yupiik-font-weight-normal);
-            --yupiik-line-height-base: 1.65;
-            --yupiik-font-weight-light: 300;
-            --yupiik-font-weight-normal: 400;
-            --yupiik-font-weight-semibold: 500;
-            --yupiik-font-weight-bold: 700;
-
-            --yupiik-font-weight-base: var(--yupiik-font-weight-normal);
-            --yupiik-line-height-base: 1.65;
-
-            --yupiik-global-spacing: 1rem;
-            --yupiik-spacing-vertical: var(--yupiik-global-spacing);
-            --yupiik-spacing-horizontal: var(--yupiik-global-spacing);
-
-            --yupiik-h1-font-size: 2rem;
-            --yupiik-h2-font-size: 1.5rem;
-            --yupiik-h3-font-size: 1.25rem;
-            --yupiik-h4-font-size: 1rem;
-            --yupiik-h5-font-size: 0.875rem;
-            --yupiik-h6-font-size: 0.85rem;
-
-            --yupiik-heading-color: var(--yupiik-blue1);
-            --yupiik-heading-margin-top: 0;
-            --yupiik-heading-margin-bottom: var(--yupiik-spacing-vertical);
-            --yupiik-heading-font-family: var(--yupiik-font-family-base);
-            --yupiik-heading-font-weight: var(--yupiik-font-weight-bold);
-            --yupiik-heading-line-height: 1.25;
-        }
-    </style>
+    <link id="theme-style" rel="stylesheet" href="//www.yupiik.io/fusion/css/theme.css?v=1.2.1-SNAPSHOT">
+    <link rel="stylesheet" href="//www.yupiik.io/fusion/css/llm-chat.css?v=1.2.1-SNAPSHOT">
     
-    <link id="theme-style" rel="stylesheet" href="//www.yupiik.io/fusion/css/theme.css?v=1.1.1-SNAPSHOT">
-<link rel="stylesheet" href="//www.yupiik.io/fusion/css/llm-chat.css?v=1.1.1-SNAPSHOT">
+<script>/* inline to avoid flicker */try{var t=localStorage.getItem('yupiik-theme');if(t==='light'||t==='dark'){document.documentElement.setAttribute('data-theme',t);}}catch(e){}</script>
 </head>
 <body>
-    <header class="header fixed-top">
-        <div class="branding docs-branding">
-            <div class="container-fluid position-relative py-2">
-                <div class="docs-logo-wrapper">
-	                <div class="site-logo"><a title="Home" class="navbar-brand" href="//www.yupiik.io/fusion/index.html">
-	                <img class="logo-icon mr-2" src="//www.yupiik.io/fusion/images/logo.svg" alt="logo">
-	                <span class="logo-text">Fusion <span class="text-alt">Documentation</span></span></a></div>
-                </div>
-	            <div class="docs-top-utilities d-flex justify-content-end align-items-center">
-					
-					<li class="list-inline-item"><a title="Search" id="search-button" href="#" data-toggle="modal" data-target="#searchModal"><i data-toggle="tooltip" data-placement="top" title="Search" class="fas fa-search"></i></a></li>
-
-					<ul class="social-list list-inline mx-md-3 mx-lg-5 mb-0 d-none d-lg-flex">
-						
-						<li class="list-inline-item"><a title="LinkedIn" target="_blank" href="https://www.linkedin.com/company/yupiik/"><i class="fab fa-linkedin fa-fw"></i></a></li>
+<header class="site-header">
+        <div class="header-inner">
+            <div class="brand">
+                <a class="brand-link" title="Home" href="//www.yupiik.io/fusion/index.html">
+                    <img class="brand-logo" src="//www.yupiik.io/fusion/images/logo.svg" alt="logo">
+                    <span class="brand-text">Fusion<span class="brand-side">Documentation</span></span>
+                </a>
+            </div>
+            <div class="header-actions">
+                
+                <button class="icon-btn" id="search-button" type="button" title="Search" aria-label="Search">
+        <i class="fas fa-search" aria-hidden="true"></i>
+    </button>
+                
+				<ul class="social-list">
+				<li class="list-inline-item"><a title="LinkedIn" target="_blank" href="https://www.linkedin.com/company/yupiik/"><i class="fab fa-linkedin fa-fw"></i></a></li>
               <li class="list-inline-item"><a title="Twitter" target="_blank" href="https://twitter.com/Yupiik/"><i class="fab fa-twitter fa-fw"></i></a></li>
               <li class="list-inline-item"><a title="Github" target="_blank" href="https://www.github.com/yupiik/fusion"><i class="fab fa-github fa-fw"></i></a></li>
-		            </ul>
-	            </div>
+				</ul>
+				<button class="icon-btn" id="theme-toggle" type="button" title="Toggle theme" aria-label="Toggle theme">
+					<svg class="icon-sun" viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10zm0 2a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm0-16a1 1 0 1 1 0 2 1 1 0 0 1 0-2zM6.34 4.93a1 1 0 1 1 1.41 1.41 1 1 0 0 1-1.41-1.41zm11.32 12.73a1 1 0 1 1 1.41 1.41 1 1 0 0 1-1.41-1.41zM4 11a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm16 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2zM4.93 17.66a1 1 0 1 1 1.41-1.41 1 1 0 0 1-1.41 1.41zm12.73-11.32a1 1 0 1 1 1.41-1.41 1 1 0 0 1-1.41 1.41z"/></svg>
+					<svg class="icon-moon" viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.39 5.39 0 0 1-4.4 2.26 5.4 5.4 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg>
+				</button>
             </div>
         </div>
     </header>
 	<div class="page">
-
-    <div class="page-content">
+<div class="page-content">
         <div class="container">
             <h1 class="page-heading mx-auto">Fusion documentation</h1>
             <div class="page-intro mx-auto">Fusion framework aims at providing a very light java framework and graal native.</div>
             <div class="docs-overview py-5">
                 <div class="row justify-content-center">
-                                        <div class="col-12 col-lg-4 py-3">
+                    <div class="col-12 col-lg-4 py-3">
                         <div class="card shadow-sm">
                             <div class="card-body">
                                 <h4 class="card-title mb-3">
                                     <span class="theme-icon-holder card-icon-holder mr-2 category-default">
                                         <i class="fas fa-play"></i>
                                     </span>
+                                    <span class="card-title-text">Fusion</span>
+                                </h4>
+                                <div class="card-text">
+                                    A light, build-time oriented, native-friendly Java framework.
+                                </div>
+                                <a title="Fusion Stack" class="card-link-mask" href="//www.yupiik.io/fusion/index.html"></a>
+                            </div>
+                        </div>
+                    </div><div class="col-12 col-lg-4 py-3">
+                        <div class="card shadow-sm">
+                            <div class="card-body">
+                                <h4 class="card-title mb-3">
+                                    <span class="theme-icon-holder card-icon-holder mr-2 category-default">
+                                        <i class="fas fa-rocket"></i>
+                                    </span>
                                     <span class="card-title-text">Getting Started</span>
                                 </h4>
                                 <div class="card-text">
-                                    Entry point.
+                                    Set up a project and learn the core concepts.
                                 </div>
-                                <a title="Fusion Stack" class="card-link-mask" href="//www.yupiik.io/fusion/fusion/index.html"></a>
+                                <a title="Getting Started" class="card-link-mask" href="//www.yupiik.io/fusion/getting-started.html"></a>
                             </div>
                         </div>
-                    </div>                    <div class="col-12 col-lg-4 py-3">
+                    </div><div class="col-12 col-lg-4 py-3">
                         <div class="card shadow-sm">
                             <div class="card-body">
                                 <h4 class="card-title mb-3">
                                     <span class="theme-icon-holder card-icon-holder mr-2 category-default">
-                                        <i class="fas fa-vial"></i>
+                                        <i class="fas fa-database"></i>
                                     </span>
-                                    <span class="card-title-text">Example</span>
+                                    <span class="card-title-text">Data and JSON</span>
                                 </h4>
                                 <div class="card-text">
-                                    Example gallery.
+                                    Persistence, JSON and JWT.
                                 </div>
-                                <a title="Fusion framework Examples" class="card-link-mask" href="//www.yupiik.io/fusion/fusion/examples.html"></a>
+                                <a title="Data and JSON" class="card-link-mask" href="//www.yupiik.io/fusion/data.html"></a>
                             </div>
                         </div>
-                    </div>                    <div class="col-12 col-lg-4 py-3">
+                    </div><div class="col-12 col-lg-4 py-3">
                         <div class="card shadow-sm">
                             <div class="card-body">
                                 <h4 class="card-title mb-3">
                                     <span class="theme-icon-holder card-icon-holder mr-2 category-default">
-                                        <i class="fas fa-building"></i>
+                                        <i class="fas fa-globe"></i>
                                     </span>
-                                    <span class="card-title-text">Setup</span>
+                                    <span class="card-title-text">HTTP and APIs</span>
                                 </h4>
                                 <div class="card-text">
-                                    Set up a new project.
+                                    HTTP server, client, JSON-RPC and tracing.
                                 </div>
-                                <a title="Fusion framework Setup" class="card-link-mask" href="//www.yupiik.io/fusion/fusion/setup.html"></a>
+                                <a title="HTTP and APIs" class="card-link-mask" href="//www.yupiik.io/fusion/http.html"></a>
                             </div>
                         </div>
-                    </div>                    <div class="col-12 col-lg-4 py-3">
+                    </div><div class="col-12 col-lg-4 py-3">
                         <div class="card shadow-sm">
                             <div class="card-body">
                                 <h4 class="card-title mb-3">
                                     <span class="theme-icon-holder card-icon-holder mr-2 category-default">
-                                        <i class="fas fa-terminal"></i>
+                                        <i class="fas fa-cloud"></i>
                                     </span>
-                                    <span class="card-title-text">CLI</span>
+                                    <span class="card-title-text">Cloud and Kubernetes</span>
                                 </h4>
                                 <div class="card-text">
-                                    Write CLI applications.
+                                    Kubernetes client and operators.
                                 </div>
-                                <a title="Fusion CLI" class="card-link-mask" href="//www.yupiik.io/fusion/fusion/cli.html"></a>
+                                <a title="Cloud and Kubernetes" class="card-link-mask" href="//www.yupiik.io/fusion/integration.html"></a>
                             </div>
                         </div>
-                    </div>                    <div class="col-12 col-lg-4 py-3">
+                    </div><div class="col-12 col-lg-4 py-3">
                         <div class="card shadow-sm">
                             <div class="card-body">
                                 <h4 class="card-title mb-3">
                                     <span class="theme-icon-holder card-icon-holder mr-2 category-default">
-                                        <i class="fas fa-wifi"></i>
+                                        <i class="fas fa-wrench"></i>
                                     </span>
-                                    <span class="card-title-text">JSON</span>
+                                    <span class="card-title-text">Tooling and extras</span>
                                 </h4>
                                 <div class="card-text">
-                                    Json Mapper.
+                                    CLI, testing, documentation, templating and AI skills.
                                 </div>
-                                <a title="Fusion JSON support" class="card-link-mask" href="//www.yupiik.io/fusion/fusion/json.html"></a>
-                            </div>
-                        </div>
-                    </div>                    <div class="col-12 col-lg-4 py-3">
-                        <div class="card shadow-sm">
-                            <div class="card-body">
-                                <h4 class="card-title mb-3">
-                                    <span class="theme-icon-holder card-icon-holder mr-2 category-default">
-                                        <i class="fas fa-server"></i>
-                                    </span>
-                                    <span class="card-title-text">GraalVM</span>
-                                </h4>
-                                <div class="card-text">
-                                    GraalVM support.
-                                </div>
-                                <a title="framework and GraalVM (native-image)" class="card-link-mask" href="//www.yupiik.io/fusion/fusion/graalvm.html"></a>
+                                <a title="Tooling and extras" class="card-link-mask" href="//www.yupiik.io/fusion/tooling.html"></a>
                             </div>
                         </div>
                     </div>
@@ -228,69 +154,103 @@
             </div>
         </div>
     </div>
-    
+
     </div>
-    <footer class="footer pb-5">
-	    <div class="text-center">
-		    <ul class="social-list list-unstyled">
+<footer class="site-footer">
+        <div class="footer-inner">
+            <div class="footer-social">
+                <ul class="social-list">
                 <li class="list-inline-item"><a title="LinkedIn" target="_blank" href="https://www.linkedin.com/company/yupiik/"><i class="fab fa-linkedin fa-fw"></i></a></li>
               <li class="list-inline-item"><a title="Twitter" target="_blank" href="https://twitter.com/Yupiik/"><i class="fab fa-twitter fa-fw"></i></a></li>
               <li class="list-inline-item"><a title="Github" target="_blank" href="https://www.github.com/yupiik/fusion"><i class="fab fa-github fa-fw"></i></a></li>
-	        </ul>
-            <small class="copyright">© 2026 <strong><a href="https://www.yupiik.com">Yupiik</a></strong>. All Rights Reserved</small> | <a href="https://www.yupiik.com/terms-of-use/">Terms of use</a> | <a href="https://www.yupiik.com/privacy-policy/">Privacy policy</a>
-	    </div>
+                </ul>
+            </div>
+            <nav class="footer-bar"><small class="copyright">© 2026 <strong><a href="https://www.yupiik.com">Yupiik</a></strong>. All Rights Reserved</small><a class="legal-link" href="https://www.yupiik.com/terms-of-use/">Terms of use</a><a class="legal-link" href="https://www.yupiik.com/privacy-policy/">Privacy policy</a></nav>
+        </div>
     </footer>
 
-    <div class="modal fade" id="searchModal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered" role="document">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="searchModalLabel">Search</h5>
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-          <span aria-hidden="true">&times;</span>
-        </button>
-      </div>
-      <div class="modal-body">
-        <form onsubmit="return false;" class="form-inline">
-          <div class="form-group">
-            <label for="searchInput"><b>Search: </b></label>
-            <input class="form-control" id="searchInput" placeholder="Enter search text and hit enter...">
-          </div>
-        </form>
-        <div class="search-hits"></div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-primary" data-dismiss="modal">Close</button>
-      </div>
+    <div class="modal" id="searchModal" role="dialog" aria-label="Search site">
+    <div class="modal-overlay" data-close-modal></div>
+    <div class="modal-dialog" role="document">
+        <div class="modal-header">
+            <h5 class="modal-title">Search</h5>
+            <button type="button" class="modal-close" data-close-modal aria-label="Close">&times;</button>
+        </div>
+        <div class="modal-body">
+            <input class="form-control" id="searchInput" placeholder="Search the docs..." autocomplete="off">
+            <div class="search-hits"></div>
+        </div>
     </div>
-  </div>
 </div>
 
-    <script src="//cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js" ></script>
-    <script src="//cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
-    <script src="//cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.3/js/bootstrap.min.js" integrity="sha512-8qmis31OQi6hIRgvkht0s6mCOittjMa9GMqtK9hes5iEQBQE/Ca6yGE5FsW36vyipGoWQswBj/QBm2JR086Rkw==" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/highlight.min.js" integrity="sha512-d00ajEME7cZhepRqSIVsQVGDJBdZlfHyQLNC6tZXYKTG7iwcF8nhlFuppanz8hYgXr8VvlfKh4gLC25ud3c90A==" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/languages/bash.min.js" integrity="sha512-Hg0ufGEvn0AuzKMU0psJ1iH238iUN6THh7EI0CfA0n1sd3yu6PYet4SaDMpgzN9L1yQHxfB3yc5ezw3PwolIfA==" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/languages/bash.min.js" integrity="sha512-Hg0ufGEvn0AuzKMU0psJ1iH238iUN6THh7EI0CfA0n1sd3yu6PYet4SaDMpgzN9L1yQHxfB3yc5ezw3PwolIfA==" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/languages/json.min.js" integrity="sha512-37sW1XqaJmseHAGNg4N4Y01u6g2do6LZL8tsziiL5CMXGy04Th65OXROw2jeDeXLo5+4Fsx7pmhEJJw77htBFg==" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/languages/dockerfile.min.js" integrity="sha512-eRNl3ty7GOJPBN53nxLgtSSj2rkYj5/W0Vg0MFQBw8xAoILeT6byOogENHHCRRvHil4pKQ/HbgeJ5DOwQK3SJA==" crossorigin="anonymous"></script>
-    <script>if (!(window.minisite || {}).skipHighlightJs) { hljs.highlightAll();
-function addCopyButtons(clipboard) {
-  document.querySelectorAll('pre > code').forEach(function (codeBlock) {
-  var button = document.createElement('button');  button.className = 'copy-code-button';  button.type = 'button';  button.innerText = 'Copy';  button.addEventListener('click', function () {   clipboard.writeText(codeBlock.innerText).then(function () {   button.blur();   button.innerText = 'Copied!';   setTimeout(function () { button.innerText = 'Copy'; }, 2000); }, function (error) { button.innerText = 'Error'; });  });  var pre = codeBlock.parentNode;  if (pre.parentNode.classList.contains('highlight')) {   var highlight = pre.parentNode; highlight.parentNode.insertBefore(button, highlight);  } else { pre.parentNode.insertBefore(button, pre); } });}
-if (navigator && navigator.clipboard) { addCopyButtons(navigator.clipboard);} else { var script = document.createElement('script'); script.src = '//cdnjs.cloudflare.com/ajax/libs/clipboard-polyfill/2.7.0/clipboard-polyfill.promise.js'; script.integrity = 'sha256-waClS2re9NUbXRsryKoof+F9qc1gjjIhc2eT7ZbIv94='; script.crossOrigin = 'anonymous'; script.onload = function() {addCopyButtons(clipboard);}; document.body.appendChild(script);} }</script>
-    <script src="//www.yupiik.io/fusion/js/minisite.js?v=1.1.1-SNAPSHOT"></script>
+    <script>if (!(window.minisite || {}).skipHighlightJs) {
+        hljs.highlightAll();
+        function addCopyButtons(clipboard) {
+          document.querySelectorAll('pre > code').forEach(function (codeBlock) {
+          var button = document.createElement('button');
+          button.className = 'copy-code-button';
+          button.type = 'button';
+          button.innerText = 'Copy';
+          button.addEventListener('click', function () {
+           clipboard.writeText(codeBlock.innerText).then(function () {
+           button.blur();
+           button.innerText = 'Copied!';
+           setTimeout(function () { button.innerText = 'Copy'; }, 2000); }, function (error) { button.innerText = 'Error'; });
+          });
+          var pre = codeBlock.parentNode;
+          if (pre.parentNode.classList.contains('highlight')) {
+          var highlight = pre.parentNode; highlight.parentNode.insertBefore(button, highlight);
+          } else { pre.parentNode.insertBefore(button, pre); }
+         });
+        }
+        if (navigator && navigator.clipboard) {
+         addCopyButtons(navigator.clipboard);
+        } else {
+         var script = document.createElement('script');
+         script.src = '//cdnjs.cloudflare.com/ajax/libs/clipboard-polyfill/2.7.0/clipboard-polyfill.promise.js';
+         script.integrity = 'sha256-waClS2re9NUbXRsryKoof+F9qc1gjjIhc2eT7ZbIv94=';
+         script.crossOrigin = 'anonymous';
+         script.onload = function() {addCopyButtons(clipboard);};
+         document.body.appendChild(script);
+        }
+    }</script>
+    <script src="//www.yupiik.io/fusion/js/minisite.js?v=1.2.1-SNAPSHOT"></script>
     <script>$('.page-content-body').generatedNavMenu();</script>
-    
-
-<div id="llm-chat-root" style="display:none"
+    <div id="llm-chat-root" style="display:none"
      data-model-id="Llama-3.2-3B-Instruct-q4f16_1-MLC"
      data-base="//www.yupiik.io/fusion"></div>
+<script src="//www.yupiik.io/fusion/js/llm-chat.js?v=1.2.1-SNAPSHOT"></script>
+    
+
 <script>
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('//www.yupiik.io/fusion/llm-chat-sw.js', {scope: '/'});
-}
+    (function () {
+        // theme toggle
+        var root = document.documentElement;
+        var toggle = document.getElementById('theme-toggle');
+        if (toggle) {
+            toggle.addEventListener('click', function () {
+                var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+                root.setAttribute('data-theme', next);
+                try { localStorage.setItem('yupiik-theme', next); } catch (e) {}
+            });
+        }
+        // search modal
+        var modal = document.getElementById('searchModal');
+        function openModal() { if (modal) modal.classList.add('open'); }
+        function closeModal() { if (modal) modal.classList.remove('open'); }
+        var sb = document.getElementById('search-button');
+        if (sb) sb.addEventListener('click', function (e) { e.preventDefault(); openModal(); });
+        if (modal) {
+            modal.addEventListener('click', function (e) { if (e.target.closest('[data-close-modal]')) closeModal(); });
+            document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeModal(); });
+        }
+    })();
 </script>
-<script src="//www.yupiik.io/fusion/js/llm-chat.js?v=1.1.1-SNAPSHOT"></script>
 </body>
 </html>

@@ -20,12 +20,9 @@ if (typeof Object.create !== 'function') {
       self.opt = $.extend({}, this.opt, options);
 
       self.headers = self.$elem.find(self.opt.headers);
-      self.previous = 0;
+      self.headingStack = [];
 
-      // Fix bug #1
-      if (self.headers.length !== 0) {
-        self.first = parseInt(self.headers.prop('nodeName').substring(1), null);
-      } else {
+      if (self.headers.length === 0) {
         $('.page-navigation-right').children().hide();
       }
 
@@ -46,7 +43,7 @@ if (typeof Object.create !== 'function') {
       top: '.top', // back to top button or link class
       spy: true, // scroll spy
       position: 'append', // position of anchor text
-      spyOffset: !0, // specify heading offset for spy scrolling
+      spyOffset: null, // defaults to the CSS scroll padding / sticky header offset
       navElements: [], // if there are other elements that should act as navigation, add classes here
     },
 
@@ -56,8 +53,8 @@ if (typeof Object.create !== 'function') {
         navigations = function () {};
       // when navigation configuration is set
       if (self.opt.navigation) {
-        $(self.opt.navigation).append('<ul />');
-        self.previous = $(self.opt.navigation).find('ul').last();
+        self.navRoot = $('<ul class="nav-bullets nav-tree" />');
+        $(self.opt.navigation).append(self.navRoot);
         navigations = function (obj) {
           return self.navigations(obj);
         };
@@ -92,29 +89,26 @@ if (typeof Object.create !== 'function') {
       list.attr('data-tag', which);
 
       self.subheadings(which, list);
-
-      self.first = which;
     },
 
-    subheadings: function (which, a) {
-      var self = this,
-        ul = $(self.opt.navigation).find('ul'),
-        li = $(self.opt.navigation).find('li');
-
-      if (which === self.first) {
-        self.previous.append(a);
-      } else if (which > self.first) {
-        li.last().append('<ul />');
-        // can't use cache ul; need to find ul once more
-        $(self.opt.navigation).find('ul').last().append(a);
-        self.previous = a.parent();
-      } else {
-        $('li[data-tag=' + which + ']')
-          .last()
-          .parent()
-          .append(a);
-        self.previous = a.parent();
+    subheadings: function (level, item) {
+      var self = this;
+      // A heading belongs to the nearest preceding heading of a lower level.
+      // This also handles skipped levels (h2 -> h4 -> h3) without losing entries.
+      while (self.headingStack.length &&
+             self.headingStack[self.headingStack.length - 1].level >= level) {
+        self.headingStack.pop();
       }
+      var parent = self.headingStack[self.headingStack.length - 1];
+      var list = self.navRoot;
+      if (parent) {
+        list = parent.item.children('ul');
+        if (!list.length) {
+          list = $('<ul />').appendTo(parent.item);
+        }
+      }
+      list.append(item);
+      self.headingStack.push({ level: level, item: item });
     },
 
     name: function (obj) {
@@ -180,40 +174,84 @@ if (typeof Object.create !== 'function') {
 
     spy: function () {
       var self = this,
-        previous,
-        current,
-        list,
-        top,
-        prev;
+        nav = $(self.opt.navigation),
+        anchorTarget = null,
+        anchorReached = false;
 
-      $(window).scroll(function (e) {
-        // show links back to top
-        self.top(this);
-        // get all the header on top of the viewport
-        current = self.headers.map(function (e) {
-          if (
-            $(this).offset().top - $(window).scrollTop() <
-            self.opt.spyOffset
-          ) {
-            return this;
+      function scrollOffset() {
+        if (typeof self.opt.spyOffset === 'number') return self.opt.spyOffset;
+        var padding = parseFloat(window.getComputedStyle(document.documentElement).scrollPaddingTop) || 0;
+        var header = document.querySelector('.site-header');
+        return Math.max(padding, header ? header.getBoundingClientRect().bottom : 0);
+      }
+
+      function activate(heading) {
+        var id = heading && heading.id;
+        nav.find('li').removeClass('active');
+        nav.find('li > a').removeAttr('aria-current').each(function () {
+          if (id && this.getAttribute('href') === '#' + id) {
+            $(this).parent().addClass('active');
+            this.setAttribute('aria-current', 'location');
           }
         });
-        // get only the latest header on the viewport
-        current = $(current).eq(current.length - 1);
+      }
 
-        if (current && current.length) {
-          // get all li tag that contains href of # ( all the parents )
-          list = $('li:has(a[href="#' + current.attr('id') + '"])');
-
-          if (prev !== undefined) {
-            prev.removeClass('active');
-          }
-
-          list.addClass('active');
-          prev = list;
+      function headingForHash(hash) {
+        try {
+          var heading = document.getElementById(decodeURIComponent(hash.substring(1)));
+          return self.headers.toArray().indexOf(heading) >= 0 ? heading : null;
+        } catch (e) {
+          return null;
         }
+      }
+
+      function update() {
+        self.top(window);
+        if (!self.headers.length) return;
+        var offset = scrollOffset();
+        if (anchorTarget) {
+          var margin = parseFloat(window.getComputedStyle(anchorTarget).scrollMarginTop) || 0;
+          var maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+          var destination = Math.min(maxScroll, Math.max(0,
+            window.scrollY + anchorTarget.getBoundingClientRect().top - offset - margin));
+          var arrived = Math.abs(window.scrollY - destination) <= 2;
+          // Keep the clicked heading active during smooth scrolling, including a
+          // heading near the page end whose ideal anchor position is unreachable.
+          if (!anchorReached || arrived) {
+            anchorReached = arrived;
+            activate(anchorTarget);
+            return;
+          }
+          anchorTarget = null;
+        }
+        var current = self.headers[0];
+        self.headers.each(function () {
+          var margin = parseFloat(window.getComputedStyle(this).scrollMarginTop) || 0;
+          if (this.getBoundingClientRect().top <= offset + margin + 2) current = this;
+        });
+        activate(current);
+      }
+
+      function followHash(hash) {
+        anchorTarget = headingForHash(hash);
+        anchorReached = false;
+        update();
+      }
+
+      nav.on('click', 'a', function () {
+        followHash(this.getAttribute('href'));
       });
+      $(window).on('hashchange', function () { followHash(window.location.hash); });
+      $(window).on('scroll resize load', update);
+      // Manual scrolling takes precedence over an anchor animation.
+      $(window).on('wheel touchstart keydown', function (event) {
+        if (event.type === 'keydown' &&
+            ['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].indexOf(event.key) < 0) return;
+        anchorTarget = null;
+      });
+      followHash(window.location.hash);
     },
+
   };
 
   $.fn.generatedNavMenu = function (options) {

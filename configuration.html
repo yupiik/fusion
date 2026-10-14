@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+
+<head>
+    <title>Configuration</title>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Fusion framework aims at providing a very light java framework and graal native.">
+    <meta name="author" content="Yupiik Minisite Generator">
+    <meta name="generator" content="Yupiik Minisite Generator">
+    
+    <link rel="shortcut icon" href="//www.yupiik.io/fusion/images/favicon.png">
+    <meta name="theme-color" content="#191b20" media="(prefers-color-scheme: dark)">
+    <meta name="theme-color" content="#191b20" media="(prefers-color-scheme: light)">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css" integrity="sha512-+4zCK9k+qNFUR5X+cKL9EIR+ZOhtIloNl9GIKS57V1MyNsYpYcUrUeQc9vNfzsWfV28IaLL3i96P9sdNyeRssA==" crossorigin="anonymous" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/styles/atom-one-dark.min.css" integrity="sha512-Fcqyubi5qOvl+yCwSJ+r7lli+CO1eHXMaugsZrnxuU4DVpLYWXTVoHy55+mCb4VZpMgy7PBhV7IiymC0yu9tkQ==" crossorigin="anonymous" />
+    <link id="theme-style" rel="stylesheet" href="//www.yupiik.io/fusion/css/theme.css?v=1.2.1-SNAPSHOT">
+    <link rel="stylesheet" href="//www.yupiik.io/fusion/css/llm-chat.css?v=1.2.1-SNAPSHOT">
+    
+<script>/* inline to avoid flicker */try{var t=localStorage.getItem('yupiik-theme');if(t==='light'||t==='dark'){document.documentElement.setAttribute('data-theme',t);}}catch(e){}</script>
+</head>
+<body>
+<header class="site-header">
+        <div class="header-inner">
+            <div class="brand">
+                <a class="brand-link" title="Home" href="//www.yupiik.io/fusion/index.html">
+                    <img class="brand-logo" src="//www.yupiik.io/fusion/images/logo.svg" alt="logo">
+                    <span class="brand-text">Fusion<span class="brand-side">Documentation</span></span>
+                </a>
+            </div>
+            <div class="header-actions">
+                
+                <button class="icon-btn" id="search-button" type="button" title="Search" aria-label="Search">
+        <i class="fas fa-search" aria-hidden="true"></i>
+    </button>
+                
+				<ul class="social-list">
+				<li class="list-inline-item"><a title="LinkedIn" target="_blank" href="https://www.linkedin.com/company/yupiik/"><i class="fab fa-linkedin fa-fw"></i></a></li>
+              <li class="list-inline-item"><a title="Twitter" target="_blank" href="https://twitter.com/Yupiik/"><i class="fab fa-twitter fa-fw"></i></a></li>
+              <li class="list-inline-item"><a title="Github" target="_blank" href="https://www.github.com/yupiik/fusion"><i class="fab fa-github fa-fw"></i></a></li>
+				</ul>
+				<button class="icon-btn" id="theme-toggle" type="button" title="Toggle theme" aria-label="Toggle theme">
+					<svg class="icon-sun" viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10zm0 2a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm0-16a1 1 0 1 1 0 2 1 1 0 0 1 0-2zM6.34 4.93a1 1 0 1 1 1.41 1.41 1 1 0 0 1-1.41-1.41zm11.32 12.73a1 1 0 1 1 1.41 1.41 1 1 0 0 1-1.41-1.41zM4 11a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm16 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2zM4.93 17.66a1 1 0 1 1 1.41-1.41 1 1 0 0 1-1.41 1.41zm12.73-11.32a1 1 0 1 1 1.41-1.41 1 1 0 0 1-1.41 1.41z"/></svg>
+					<svg class="icon-moon" viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.39 5.39 0 0 1-4.4 2.26 5.4 5.4 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg>
+				</button>
+            </div>
+        </div>
+    </header>
+	<div class="page">
+<div class="page-navigation-left">
+    <h3 class="menu-label">Menu</h3>
+    <ul>
+<li>
+    <a title="Fusion Stack" href="//www.yupiik.io/fusion/index.html">
+        <i class="fas fa-play"></i>Fusion
+    </a>
+</li><li>
+    <a title="Getting Started" href="//www.yupiik.io/fusion/getting-started.html">
+        <i class="fas fa-rocket"></i>Getting Started
+    </a>
+</li><li>
+    <a title="Data and JSON" href="//www.yupiik.io/fusion/data.html">
+        <i class="fas fa-database"></i>Data and JSON
+    </a>
+</li><li>
+    <a title="HTTP and APIs" href="//www.yupiik.io/fusion/http.html">
+        <i class="fas fa-globe"></i>HTTP and APIs
+    </a>
+</li><li>
+    <a title="Cloud and Kubernetes" href="//www.yupiik.io/fusion/integration.html">
+        <i class="fas fa-cloud"></i>Cloud and Kubernetes
+    </a>
+</li><li>
+    <a title="Tooling and extras" href="//www.yupiik.io/fusion/tooling.html">
+        <i class="fas fa-wrench"></i>Tooling and extras
+    </a>
+</li>
+    </ul>
+</div>
+<div id="configuration-html-container" class="container page-content configuration-html ">
+            <div class="page-header">
+                <h1>Configuration</h1>
+            </div>
+            <div class="page-content-body">
+                <div id="preamble">
+ <div class="sectionbody">
+ <p> <div class="quoteblock abstract">
+  <blockquote>
+This page details Configuration.  </blockquote>
+ </div></p>
+ </div>
+ </div>
+ <div class="sect1">
+  <h2 id="_basics">Basics</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>The runtime entry point is <code>io.yupiik.fusion.framework.api.configuration.Configuration</code>, an injectable bean with a single operation:</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">Optional&lt;String&gt; get(String key);
+</code></pre>
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>A typical way to use it is to declare a configuration model - a record marked with <code>@RootConfiguration</code> - and inject the generated instance directly:</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@RootConfiguration(&quot;server&quot;)
+public record ServerConfiguration(int port, String accessLogPattern) {}
+</code></pre>
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>This reads <code>server.port</code>, <code>server.accessLogPattern</code> (or their environment variables <code>SERVER_PORT</code>, <code>SERVER_ACCESSLOGPATTERN</code>) at injection time. See the  <a href="examples.html#configuration_model">configuration model</a>
+ example for <code>@Property</code>, <code>List</code>, <code>Map</code> and nested models.</p>
+ </div>
+ <div class="admonitionblock tip">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">TIP</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p>if you do use a nested configuration model coming from another jar, ensure it is flagged <code>@ConfigurationModel</code> and annotation processing is enabled on this other module otherwise you will lose default values, custom names and documentation.</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ </div>
+ </div>
+ <div class="sect1">
+  <h2 id="_sources">Sources</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>
+Sources are ordered: keys found in the first matching source win. Fusion ships these sources out of the box, in increasing priority:
+ </p>
+ </div>
+ <div class="ulist">
+ <ul>
+  <li>
+ <div class="paragraph">
+ <p>system properties (<code>System.getProperty</code>),</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p>environment variables (<code>System.getenv</code>) - POSIX-normalized and uppercased (<code>my.key</code> -&gt; <code>MY_KEY</code>),</p>
+ </div>
+  </li>
+  <li>
+ <p>
+secret directories (see below),
+ </p>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p>any additional <code>ConfigurationSource</code> bean you register.</p>
+ </div>
+  </li>
+ </ul>
+ </div>
+ <div class="paragraph">
+ <p>You can plug your own values by defining a bean of type <code>io.yupiik.fusion.framework.api.configuration.ConfigurationSource</code>. It can be a class bean or a producer method:</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@Bean
+public ConfigurationSource mySource() {
+    return new ConfigurationSource() {
+        @Override
+        public String get(final String key) {
+            return &quot;my-value&quot;.equals(key) ? &quot;value&quot; : null;
+        }
+    };
+}
+</code></pre>
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>When several <code>ConfigurationSource</code> beans exist, they are sorted using <code>@Order</code> (lower values first) in the default <code>Configuration</code> implementation.</p>
+ </div>
+ <div class="admonitionblock tip">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">TIP</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p><code>fusion-json</code> provides a <code>JsonConfigurationSource</code> which reads a JSON document and flattens it into keys - see  <a href="json.html#_jsonconfigurationsource">the JSON page</a>
+ for the flattening rules and the <code>ConfigurationRegistration</code> event to register it before the <code>Configuration</code> is first used.</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ </div>
+ </div>
+ <div class="sect1">
+  <h2 id="_secrets">Secrets</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>
+Beyond system properties and environment variables, Fusion can read values from directories holding one file per secret.
+ </p>
+ </div>
+ <div class="ulist">
+ <ul>
+  <li>
+ <div class="paragraph">
+ <p>Set the directories (comma separated) with <code>fusion.configuration.sources.secrets</code> (or the <code>FUSION_CONFIGURATION_SOURCES_SECRETS</code> environment variable).</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p>If you mount them at <code>/var/run/secrets</code>, they are picked up automatically when the <code>KUBERNETES_SERVICE_HOST</code> environment variable is set.</p>
+ </div>
+  </li>
+  <li>
+ <p>
+Each file name becomes the configuration key.
+ </p>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p>If you use <code>/var/run/secrets</code>, bind the secrets in a directory named as your configuration prefix - for example <code>/var/run/secrets/app</code> if you use <code>app.*</code> keys - to make the autodiscovery work automatically.</p>
+ </div>
+  </li>
+ </ul>
+ </div>
+ <div class="paragraph">
+ <p>You can bind a <code>_fusion.secrets.configuration.properties</code> file in the same directory to refine how the directory name and children files recompose the key name. It accepts a <code>folder.name.mode</code> entry:</p>
+ </div>
+ <div class="ulist">
+ <ul>
+  <li>
+ <div class="paragraph">
+ <p><code>default</code> (or empty): do nothing, take the file name as configuration key,</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p><code>concat</code>: concatenate the directory name and file name separated by a dot (<code>app/xxxx</code> leads to <code>app.xxxx</code> key),</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p><code>strip</code>: if the file name starts with the directory name, remove the directory name (with a dot suffix; for example <code>app/app.xxxx</code> leads to <code>xxxx</code> key).</p>
+ </div>
+  </li>
+ </ul>
+ </div>
+ <div class="admonitionblock tip">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">TIP</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p>configuration keys emitted before the &quot;no prefix&quot; root support used a leading <code>-.</code> - Fusion still strips such a leading <code>-.</code> for backward compatibility.</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ </div>
+ </div>
+ <div class="sect1">
+  <h2 id="_lifecycle_hook">Lifecycle hook</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>Sources registered after the <code>Configuration</code> singleton was already used are ignored until the <code>Configuration</code> singleton cache is invalidated. To register a source lazily and reliably, listen for the <code>io.yupiik.fusion.framework.api.container.configuration.ConfigurationRegistration</code> event:</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">public class MyListener {
+    public void onStart(@OnEvent final ConfigurationRegistration event) {
+        event.addSource().accept(new ConfigurationSource() {
+            // ...
+        });
+    }
+}
+</code></pre>
+ </div>
+ </div>
+ </div>
+ </div>
+ <div class="sect1">
+  <h2 id="_well_known_keys">Well-known keys</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>The following implicit keys are read directly from <code>Configuration</code> by the runtime modules (they are not declared through a configuration model):</p>
+ </div>
+ <table class="tableblock frame-all grid-all stretch">
+  <colgroup>
+   <col style="width: 25%;">
+   <col style="width: 25%;">
+   <col style="width: 25%;">
+   <col style="width: 25%;">
+  </colgroup>
+  <thead>
+   <tr>
+    <th class="tableblock halign-left">
+Key    </th>
+    <th class="tableblock halign-left">
+Module    </th>
+    <th class="tableblock halign-left">
+Default    </th>
+    <th class="tableblock halign-left">
+Purpose    </th>
+   </tr>
+  </thead>
+  <tbody>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>fusion.launcher.useHook</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+fusion-api</p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>false</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+Register a JVM shutdown hook closing the container.</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>fusion.configuration.sources.secrets</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+fusion-api</p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+set</p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+Comma separated secret directories (see above).</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>fusion.http-server.start</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+http-server</p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>true</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+Set <code>false</code> to not auto-start the server.</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>fusion.http-server.monitoring.enabled</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+http-server</p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>false</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+Deploy a separate monitoring server.</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>fusion.http-server.monitoring.port</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+http-server</p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>8081</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+Port of the monitoring server.</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>fusion.jsonrpc.binding</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+jsonrpc</p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>/jsonrpc</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+JSON-RPC endpoint path.</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>fusion.jsonrpc.forceInputStreamUsage</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+jsonrpc</p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>false</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+Read the input reactively instead of using the request <code>Reader</code>.</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>fusion.jsonrpc.voidStatus</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+jsonrpc</p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>202</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+HTTP status for void/notification responses.</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>fusion.jsonrpc.responseContentType</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+jsonrpc</p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>application/json;charset=utf-8</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+JSON-RPC response content type.</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>fusion.json.maxStringLength</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+json</p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+-</p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+Mapper string buffer tuning.</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>fusion.json.maxBuffers</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+json</p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+-</p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+Mapper buffer tuning.</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>fusion.json.bufferAutoAdjust</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+json</p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+-</p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+Mapper buffer tuning.</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>fusion.persistence.contextLess</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+persistence</p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>false</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+Inject a <code>ContextLessDatabase</code> instead of the thread-local <code>Database</code>.</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>fusion.cli.usage.parameters</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+cli</p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>true</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+Show options in usage.</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>fusion.cli.app.name</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+cli</p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>app</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+Application name in shell completion scripts.</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>fusion.cli.shell</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+cli</p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+auto</p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+Which completion commands are registered (<code>bash</code>/<code>zsh</code>/<code>powershell</code>/<code>all</code>/<code>none</code>).</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>comp.line</code>, <code>comp.point</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+cli</p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+-</p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+Bash completion candidate-mode inputs.</p>
+    </td>
+   </tr>
+  </tbody>
+ </table>
+ <div class="paragraph">
+ <p>Module specific keys (<code>fusion.http-server.*</code>, <code>fusion.persistence.datasource.*</code>, the JWT and operator keys) are documented in their own pages.</p>
+ </div>
+ </div>
+ </div>
+                
+                <nav class="page-footer-nav" aria-label="Docs pages">
+    <a href="examples.html" class="page-footer-nav-link-prev">
+    <div>Previous</div>
+    <div>Common examples</div>
+</a>
+    <a href="graalvm.html" class="page-footer-nav-link-next">
+    <div>Next</div>
+    <div>GraalVM native image</div>
+</a>
+</nav>
+            </div>
+        </div>
+<div class="page-navigation-right">
+        <h3>Navigation</h3>
+        <nav class="generated-nav-menu"></nav>
+    </div>
+    </div>
+<footer class="site-footer">
+        <div class="footer-inner">
+            <div class="footer-social">
+                <ul class="social-list">
+                <li class="list-inline-item"><a title="LinkedIn" target="_blank" href="https://www.linkedin.com/company/yupiik/"><i class="fab fa-linkedin fa-fw"></i></a></li>
+              <li class="list-inline-item"><a title="Twitter" target="_blank" href="https://twitter.com/Yupiik/"><i class="fab fa-twitter fa-fw"></i></a></li>
+              <li class="list-inline-item"><a title="Github" target="_blank" href="https://www.github.com/yupiik/fusion"><i class="fab fa-github fa-fw"></i></a></li>
+                </ul>
+            </div>
+            <nav class="footer-bar"><small class="copyright">© 2026 <strong><a href="https://www.yupiik.com">Yupiik</a></strong>. All Rights Reserved</small><a class="legal-link" href="https://www.yupiik.com/terms-of-use/">Terms of use</a><a class="legal-link" href="https://www.yupiik.com/privacy-policy/">Privacy policy</a></nav>
+        </div>
+    </footer>
+
+    <div class="modal" id="searchModal" role="dialog" aria-label="Search site">
+    <div class="modal-overlay" data-close-modal></div>
+    <div class="modal-dialog" role="document">
+        <div class="modal-header">
+            <h5 class="modal-title">Search</h5>
+            <button type="button" class="modal-close" data-close-modal aria-label="Close">&times;</button>
+        </div>
+        <div class="modal-body">
+            <input class="form-control" id="searchInput" placeholder="Search the docs..." autocomplete="off">
+            <div class="search-hits"></div>
+        </div>
+    </div>
+</div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/highlight.min.js" integrity="sha512-d00ajEME7cZhepRqSIVsQVGDJBdZlfHyQLNC6tZXYKTG7iwcF8nhlFuppanz8hYgXr8VvlfKh4gLC25ud3c90A==" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/languages/bash.min.js" integrity="sha512-Hg0ufGEvn0AuzKMU0psJ1iH238iUN6THh7EI0CfA0n1sd3yu6PYet4SaDMpgzN9L1yQHxfB3yc5ezw3PwolIfA==" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/languages/bash.min.js" integrity="sha512-Hg0ufGEvn0AuzKMU0psJ1iH238iUN6THh7EI0CfA0n1sd3yu6PYet4SaDMpgzN9L1yQHxfB3yc5ezw3PwolIfA==" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/languages/json.min.js" integrity="sha512-37sW1XqaJmseHAGNg4N4Y01u6g2do6LZL8tsziiL5CMXGy04Th65OXROw2jeDeXLo5+4Fsx7pmhEJJw77htBFg==" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/languages/dockerfile.min.js" integrity="sha512-eRNl3ty7GOJPBN53nxLgtSSj2rkYj5/W0Vg0MFQBw8xAoILeT6byOogENHHCRRvHil4pKQ/HbgeJ5DOwQK3SJA==" crossorigin="anonymous"></script>
+    <script>if (!(window.minisite || {}).skipHighlightJs) {
+        hljs.highlightAll();
+        function addCopyButtons(clipboard) {
+          document.querySelectorAll('pre > code').forEach(function (codeBlock) {
+          var button = document.createElement('button');
+          button.className = 'copy-code-button';
+          button.type = 'button';
+          button.innerText = 'Copy';
+          button.addEventListener('click', function () {
+           clipboard.writeText(codeBlock.innerText).then(function () {
+           button.blur();
+           button.innerText = 'Copied!';
+           setTimeout(function () { button.innerText = 'Copy'; }, 2000); }, function (error) { button.innerText = 'Error'; });
+          });
+          var pre = codeBlock.parentNode;
+          if (pre.parentNode.classList.contains('highlight')) {
+          var highlight = pre.parentNode; highlight.parentNode.insertBefore(button, highlight);
+          } else { pre.parentNode.insertBefore(button, pre); }
+         });
+        }
+        if (navigator && navigator.clipboard) {
+         addCopyButtons(navigator.clipboard);
+        } else {
+         var script = document.createElement('script');
+         script.src = '//cdnjs.cloudflare.com/ajax/libs/clipboard-polyfill/2.7.0/clipboard-polyfill.promise.js';
+         script.integrity = 'sha256-waClS2re9NUbXRsryKoof+F9qc1gjjIhc2eT7ZbIv94=';
+         script.crossOrigin = 'anonymous';
+         script.onload = function() {addCopyButtons(clipboard);};
+         document.body.appendChild(script);
+        }
+    }</script>
+    <script src="//www.yupiik.io/fusion/js/minisite.js?v=1.2.1-SNAPSHOT"></script>
+    <script>$('.page-content-body').generatedNavMenu();</script>
+    <div id="llm-chat-root" style="display:none"
+     data-model-id="Llama-3.2-3B-Instruct-q4f16_1-MLC"
+     data-base="//www.yupiik.io/fusion"></div>
+<script src="//www.yupiik.io/fusion/js/llm-chat.js?v=1.2.1-SNAPSHOT"></script>
+    
+
+<script>
+    (function () {
+        // theme toggle
+        var root = document.documentElement;
+        var toggle = document.getElementById('theme-toggle');
+        if (toggle) {
+            toggle.addEventListener('click', function () {
+                var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+                root.setAttribute('data-theme', next);
+                try { localStorage.setItem('yupiik-theme', next); } catch (e) {}
+            });
+        }
+        // search modal
+        var modal = document.getElementById('searchModal');
+        function openModal() { if (modal) modal.classList.add('open'); }
+        function closeModal() { if (modal) modal.classList.remove('open'); }
+        var sb = document.getElementById('search-button');
+        if (sb) sb.addEventListener('click', function (e) { e.preventDefault(); openModal(); });
+        if (modal) {
+            modal.addEventListener('click', function (e) { if (e.target.closest('[data-close-modal]')) closeModal(); });
+            document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeModal(); });
+        }
+    })();
+</script>
+</body>
+</html>

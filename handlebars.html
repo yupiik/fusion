@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+
+<head>
+    <title>Handlebars templating</title>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Fusion framework aims at providing a very light java framework and graal native.">
+    <meta name="author" content="Yupiik Minisite Generator">
+    <meta name="generator" content="Yupiik Minisite Generator">
+    
+    <link rel="shortcut icon" href="//www.yupiik.io/fusion/images/favicon.png">
+    <meta name="theme-color" content="#191b20" media="(prefers-color-scheme: dark)">
+    <meta name="theme-color" content="#191b20" media="(prefers-color-scheme: light)">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css" integrity="sha512-+4zCK9k+qNFUR5X+cKL9EIR+ZOhtIloNl9GIKS57V1MyNsYpYcUrUeQc9vNfzsWfV28IaLL3i96P9sdNyeRssA==" crossorigin="anonymous" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/styles/atom-one-dark.min.css" integrity="sha512-Fcqyubi5qOvl+yCwSJ+r7lli+CO1eHXMaugsZrnxuU4DVpLYWXTVoHy55+mCb4VZpMgy7PBhV7IiymC0yu9tkQ==" crossorigin="anonymous" />
+    <link id="theme-style" rel="stylesheet" href="//www.yupiik.io/fusion/css/theme.css?v=1.2.1-SNAPSHOT">
+    <link rel="stylesheet" href="//www.yupiik.io/fusion/css/llm-chat.css?v=1.2.1-SNAPSHOT">
+    
+<script>/* inline to avoid flicker */try{var t=localStorage.getItem('yupiik-theme');if(t==='light'||t==='dark'){document.documentElement.setAttribute('data-theme',t);}}catch(e){}</script>
+</head>
+<body>
+<header class="site-header">
+        <div class="header-inner">
+            <div class="brand">
+                <a class="brand-link" title="Home" href="//www.yupiik.io/fusion/index.html">
+                    <img class="brand-logo" src="//www.yupiik.io/fusion/images/logo.svg" alt="logo">
+                    <span class="brand-text">Fusion<span class="brand-side">Documentation</span></span>
+                </a>
+            </div>
+            <div class="header-actions">
+                
+                <button class="icon-btn" id="search-button" type="button" title="Search" aria-label="Search">
+        <i class="fas fa-search" aria-hidden="true"></i>
+    </button>
+                
+				<ul class="social-list">
+				<li class="list-inline-item"><a title="LinkedIn" target="_blank" href="https://www.linkedin.com/company/yupiik/"><i class="fab fa-linkedin fa-fw"></i></a></li>
+              <li class="list-inline-item"><a title="Twitter" target="_blank" href="https://twitter.com/Yupiik/"><i class="fab fa-twitter fa-fw"></i></a></li>
+              <li class="list-inline-item"><a title="Github" target="_blank" href="https://www.github.com/yupiik/fusion"><i class="fab fa-github fa-fw"></i></a></li>
+				</ul>
+				<button class="icon-btn" id="theme-toggle" type="button" title="Toggle theme" aria-label="Toggle theme">
+					<svg class="icon-sun" viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10zm0 2a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm0-16a1 1 0 1 1 0 2 1 1 0 0 1 0-2zM6.34 4.93a1 1 0 1 1 1.41 1.41 1 1 0 0 1-1.41-1.41zm11.32 12.73a1 1 0 1 1 1.41 1.41 1 1 0 0 1-1.41-1.41zM4 11a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm16 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2zM4.93 17.66a1 1 0 1 1 1.41-1.41 1 1 0 0 1-1.41 1.41zm12.73-11.32a1 1 0 1 1 1.41-1.41 1 1 0 0 1-1.41 1.41z"/></svg>
+					<svg class="icon-moon" viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.39 5.39 0 0 1-4.4 2.26 5.4 5.4 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg>
+				</button>
+            </div>
+        </div>
+    </header>
+	<div class="page">
+<div class="page-navigation-left">
+    <h3 class="menu-label">Menu</h3>
+    <ul>
+<li>
+    <a title="Fusion Stack" href="//www.yupiik.io/fusion/index.html">
+        <i class="fas fa-play"></i>Fusion
+    </a>
+</li><li>
+    <a title="Getting Started" href="//www.yupiik.io/fusion/getting-started.html">
+        <i class="fas fa-rocket"></i>Getting Started
+    </a>
+</li><li>
+    <a title="Data and JSON" href="//www.yupiik.io/fusion/data.html">
+        <i class="fas fa-database"></i>Data and JSON
+    </a>
+</li><li>
+    <a title="HTTP and APIs" href="//www.yupiik.io/fusion/http.html">
+        <i class="fas fa-globe"></i>HTTP and APIs
+    </a>
+</li><li>
+    <a title="Cloud and Kubernetes" href="//www.yupiik.io/fusion/integration.html">
+        <i class="fas fa-cloud"></i>Cloud and Kubernetes
+    </a>
+</li><li>
+    <a title="Tooling and extras" href="//www.yupiik.io/fusion/tooling.html">
+        <i class="fas fa-wrench"></i>Tooling and extras
+    </a>
+</li>
+    </ul>
+</div>
+<div id="handlebars-html-container" class="container page-content handlebars-html ">
+            <div class="page-header">
+                <h1>Handlebars templating</h1>
+            </div>
+            <div class="page-content-body">
+                <div id="preamble">
+ <div class="sectionbody">
+ <p> <div class="quoteblock abstract">
+  <blockquote>
+This page details Handlebars templating.  </blockquote>
+ </div></p>
+ </div>
+ </div>
+ <div class="sect1">
+  <h2 id="_dependency">Dependency</h2>
+ <div class="sectionbody">
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-xml hljs" data-lang="xml">&lt;dependency&gt;
+  &lt;groupId&gt;io.yupiik.fusion&lt;/groupId&gt;
+  &lt;artifactId&gt;fusion-handlebars&lt;/artifactId&gt;
+  &lt;version&gt;${fusion.version}&lt;/version&gt;
+&lt;/dependency&gt;
+</code></pre>
+ </div>
+ </div>
+ </div>
+ </div>
+ <div class="sect1">
+  <h2 id="_usage">Usage</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>It starts from <code>HandlebarsCompiler</code> (available as a fusion bean) which compiles a template + its helpers and partials as a <code>Template</code> which supports to render the template. The template is parsed once into a precomputed part tree: nothing is parsed, tokenized or looked up at render time.</p>
+ </div>
+ <div class="paragraph">
+ <p>Data can be map of primitives (or data which have a <code>toString()</code>) or lists for now. It tolerates that you pass a <code>Supplier</code> too as map value for a lazy evaluation.</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">// once per app
+final var compiler = new HandlebarsCompiler();
+final var tpl = compiler.compile(new HandlebarsCompiler.CompilationContext(
+        new HandlebarsCompiler.Settings()
+                .helpers(Map.of( // some helpers - can be Map.of() if you don't use them
+                        &quot;uppercase&quot;, ctx -&gt; ((String) ctx.args().get(0)).toUpperCase(ROOT)))
+                .partials(Map.of(
+                        &quot;person&quot;, &quot;{{person.name}} is {{person.age}} years old.&quot;)),
+        &quot;{{firstname}} {{uppercase lastname}}&quot;));
+
+// at runtime
+final var rendering = tpl.render(Map.of(...));
+</code></pre>
+ </div>
+ </div>
+ </div>
+ </div>
+ <div class="sect1">
+  <h2 id="_syntax_reference">Syntax reference</h2>
+ <div class="sectionbody">
+ <table class="tableblock frame-all grid-all stretch">
+  <colgroup>
+   <col style="width: 30%;">
+   <col style="width: 70%;">
+  </colgroup>
+  <thead>
+   <tr>
+    <th class="tableblock halign-left">
+Syntax    </th>
+    <th class="tableblock halign-left">
+Description    </th>
+   </tr>
+  </thead>
+  <tbody>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>{{name}}</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+Outputs <code>name</code>, HTML-escaped.</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>{{{name}}}</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+Outputs <code>name</code> raw.</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>{{this}}</code> / <code>{{.}}</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+Outputs the current data.</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>{{a.b.c}}</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+Nested path resolution.</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>{{../name}}</code> / <code>{{@../index}}</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+Resolves a path (or data variable) against the parent context frame.</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>{{#if cond}}...{{else}}...{{/if}}</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+Conditional block with optional else.</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>{{#if a}}A{{else if b}}B{{else}}C{{/if}}</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>else if</code> chains.</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>{{#unless cond}}...{{else}}...{{/unless}}</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+Negated conditional.</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>{{^cond}}...{{else}}...{{/cond}}</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+Inverted section: renders when <code>cond</code> is falsy (same as <code>unless</code>).</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>{{#each coll}}...{{else}}...{{/each}}</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+Iteration with optional empty branch.</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>{{#each coll as |value key|}}</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+Iteration with block params bound to the item (or entry value for maps) and the index (or entry key).</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>{{#with value}}...{{else}}...{{/with}}</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+Changes the current data, else when null.</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>{{#with value as |v|}}</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+Binds the value to a block param.</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>{{#varName}}...{{/varName}}</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+Keyword-less block: when <code>varName</code> is truthy it renders the block with the value as the new context, else the <code>{{else}}</code> branch (like handlebars.js <code>blockHelperMissing</code>).</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>{{#helperName args}}...{{/helperName}}</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+Custom block helper.</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>{{#helperName args as |a b|}}</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+Custom block helper with block params.</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>{{#each people limit=2 offset=1}}</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+Hash arguments on sections.</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>{{helper args}}</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+Inline helper (output is HTML-escaped).</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>{{helper a b key=&quot;value&quot;}}</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+Multiple positional + hash arguments.</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>{{helper}}</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+Helper receiving the current data as its single arg.</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>(helper args)</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+Sub-expression usable in any argument position.</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>{{&gt; partial}}</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+Renders a partial with the current data.</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>{{&gt; partial key=value}}</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+Renders a partial with remapped data.</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>{{! comment}}</code> / <code>{{!-- comment --}}</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+Comments, the trailing EOL is consumed.</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>{{{{name}}}}...{{{{/name}}}}</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+Raw block: the body is rendered verbatim (no interpolation).</p>
+    </td>
+   </tr>
+  </tbody>
+ </table>
+ <div class="paragraph">
+ <p>Sub-expressions can nest: <code>{{#if (and (eq a 1) (gt b 0))}}yes{{else}}no{{/if}}</code>.</p>
+ </div>
+ </div>
+ </div>
+ <div class="sect1">
+  <h2 id="_escaping">Escaping</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>Double-brace interpolation (<code>{{name}}</code> and inline helper results) HTML-escapes <code>&amp; &lt; &gt; &quot; ' \</code> =` plus the standard HTML named entities (Latin-1, Greek, punctuation, arrows, math symbols). Triple-brace interpolation (<code>{{{name}}}</code> and <code>{{{helper args}}}</code> calls) and block helper results are rendered raw.</p>
+ </div>
+ </div>
+ </div>
+ <div class="sect1">
+  <h2 id="_data_access">Data access</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>Data is resolved through an <code>Accessor</code> (defaults to <code>io.yupiik.fusion.framework.handlebars.compiler.accessor.MapAccessor</code>): maps, nested maps, list index paths (<code>{{people.0.name}}</code>) and <code>Supplier</code> values are supported. Inside <code>{{#each}}</code>, a missing variable is looked up in the parent data first, then in the current item. A custom <code>Accessor</code> (or a <code>RoutingAccessor</code> routing by data type) can be passed to the <code>HandlebarsCompiler</code> constructor to support records or any other data shape.</p>
+ </div>
+ </div>
+ </div>
+ <div class="sect1">
+  <h2 id="_truthiness">Truthiness</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>A value is falsy when it is <code>null</code>, <code>Boolean#FALSE</code>, a blank string, a number equal to zero or an empty collection. <code>if</code>, <code>unless</code> (fixed: <code>false</code> is now falsy like in handlebars.js), <code>and</code>, <code>or</code>, <code>not</code>, <code>default</code> and the <code>{{#varName}}</code> blocks all follow this rule.</p>
+ </div>
+ </div>
+ </div>
+ <div class="sect1">
+  <h2 id="_data_variables">Data variables</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p><code>{{#each xxx}}</code> supports the following data-variables:</p>
+ </div>
+ <table class="tableblock frame-all grid-all stretch">
+  <colgroup>
+   <col style="width: 24%;">
+   <col style="width: 72%;">
+  </colgroup>
+  <thead>
+   <tr>
+    <th class="tableblock halign-left">
+Variable    </th>
+    <th class="tableblock halign-left">
+Description    </th>
+   </tr>
+  </thead>
+  <tbody>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>@first</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+boolean, is the current element the first one.</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>@last</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+boolean, is the current element the last one.</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>@index</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+integer, 0-based index of current element.</p>
+    </td>
+   </tr>
+  </tbody>
+ </table>
+ <div class="paragraph">
+ <p>If the <code>xxx</code> variable is a <code>Map</code>, the additional <code>@key</code> and <code>@value</code> data-variables are available, and plain names resolve against the entry value (like handlebars.js object iteration). Note that <code>@index</code>/<code>@first</code>/<code>@last</code> reflect the true positions: with <code>limit=</code>/<code>offset=</code> the index keeps counting from the beginning of the collection.</p>
+ </div>
+ </div>
+ </div>
+ <div class="sect1">
+  <h2 id="_built_in_helpers">Built-in helpers</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>The following helpers are registered by default and can be overridden by the user helpers (<code>Settings.helpers()</code> wins over the built-in by name).</p>
+ </div>
+ <table class="tableblock frame-all grid-all stretch">
+  <colgroup>
+   <col style="width: 24%;">
+   <col style="width: 72%;">
+  </colgroup>
+  <thead>
+   <tr>
+    <th class="tableblock halign-left">
+Helper    </th>
+    <th class="tableblock halign-left">
+Description    </th>
+   </tr>
+  </thead>
+  <tbody>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>eq a b</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+Equality, numbers compare by value (<code>1</code> equals <code>1L</code>).</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>ne a b</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+Not equal.</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>gt</code> / <code>gte</code> / <code>lt</code> / <code>lte</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+Numeric comparison (numbers or numeric strings).</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>and args...</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+All arguments truthy.</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>or args...</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+At least one argument truthy.</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>not a</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+Negates the truthiness.</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>default value fallback</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>value</code> when truthy, else <code>fallback</code>.</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>lookup object key</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+Map key or list index access.</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>time</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+Now, formatted with <code>yyyy-MM-dd HH:mm:ss</code>.</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>time value</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+Formats the value (Date, Instant, epoch millis, LocalDate/Time/DateTime, Offset/ZonedDateTime).</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>time pattern=&quot;yyyy&quot;</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+Now with an explicit <code>DateTimeFormatter</code> pattern (hash argument).</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>time value pattern=&quot;...&quot;</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+Value with an explicit pattern.</p>
+    </td>
+   </tr>
+  </tbody>
+ </table>
+ <div class="paragraph">
+ <p>All of them are block-aware: <code>{{#eq a b}}equal{{else}}different{{/eq}}</code>, <code>{{#gt age 18}}adult{{else}}minor{{/gt}}</code> render the block or its else branch, and used inline or in a sub-expression they return a boolean. <code>time</code>, <code>default</code> and <code>lookup</code> used as blocks render the block with their result as the current data.</p>
+ </div>
+ </div>
+ </div>
+ <div class="sect1">
+  <h2 id="_custom_helpers">Custom helpers</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>A helper is a <code>Function&lt;HelperContext, Object&gt;</code> where <code>HelperContext</code> (record) carries:</p>
+ </div>
+ <table class="tableblock frame-all grid-all stretch">
+  <colgroup>
+   <col style="width: 24%;">
+   <col style="width: 72%;">
+  </colgroup>
+  <thead>
+   <tr>
+    <th class="tableblock halign-left">
+Component    </th>
+    <th class="tableblock halign-left">
+Description    </th>
+   </tr>
+  </thead>
+  <tbody>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>args</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+the evaluated positional arguments (empty when none).</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>hash</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+the evaluated <code>key=value</code> arguments (never null).</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>blockRenderer</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+renders the block body with the passed data (null for inline/sub-expression calls).</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>inverseRenderer</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+renders the <code>{{else}}</code> body with the passed data (null when there is no else).</p>
+    </td>
+   </tr>
+  </tbody>
+ </table>
+ <div class="paragraph">
+ <p>Arguments accept string literals with single or double quotes (<code>'abc'</code>, <code>&quot;a b&quot;</code>, backslash escapes), integer, decimal (<code>-1.2</code>) and boolean (<code>true</code>/<code>false</code>) literals, variable paths (<code>a.b</code>, <code>this.path</code> where <code>this</code> is the current data), parent paths (<code>../name</code>) and sub-expressions <code>(helper args)</code>.</p>
+ </div>
+ <div class="paragraph">
+ <p>A helper may return a <code>io.yupiik.fusion.framework.handlebars.helper.SafeString</code> to bypass HTML escaping in a double-brace call (like handlebars.js <code>SafeString</code>).</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">helpers(Map.of(
+        &quot;uppercase&quot;, ctx -&gt; ctx.args().isEmpty() ? null : ctx.args().get(0).toString().toUpperCase(ROOT),
+        &quot;list&quot;, ctx -&gt; {
+            final var items = ctx.args().get(0);
+            if (!(items instanceof Collection&lt;?&gt; list)) {
+                return &quot;failed, not a list&quot;;
+            }
+            if (list.isEmpty()) {
+                return ctx.inverseRenderer() == null ? &quot;&quot; : ctx.inverseRenderer().apply(items);
+            }
+            return list.stream()
+                    .map(ctx.blockRenderer())
+                    .map(it -&gt; &quot;&lt;li&gt;&quot; + it + &quot;&lt;/li&gt;&quot;)
+                    .collect(joining(&quot;\n&quot;, &quot;&lt;ul&gt;\n&quot;, &quot;\n&lt;/ul&gt;&quot;));
+        },
+        &quot;print_person&quot;, ctx -&gt; ...)) // {{print_person}} -&gt; the current data is args.get(0)
+</code></pre>
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>
+Inline and sub-expression helper results are HTML-escaped, block helper results are rendered raw.
+ </p>
+ </div>
+ </div>
+ </div>
+ <div class="sect1">
+  <h2 id="_partials">Partials</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>Partials are registered with <code>Settings.partials()</code> and rendered with <code>{{&gt; name}}</code> using the current data (<code>{{#each people}}...{{&gt;person person=.}}...{{/each}}</code> remaps the current item to the <code>person</code> variable). Parameters can be literals, variables or sub-expressions: <code>{{&gt;person name=&quot;Nils&quot; age=20}}</code> makes the partial use these values instead of its own data lookups; <code>{{&gt;person person=.}}</code> maps the current data to <code>person</code> (so <code>{{person.name}}</code> inside the partial reads the current item). The remapping applies to the whole partial body, including nested sections and else branches. Set <code>Settings.cachePartials(true)</code> to compile partials once and reuse them across <code>compile()</code> calls (default is to compile them per template).</p>
+ </div>
+ </div>
+ </div>
+ <div class="sect1">
+  <h2 id="_breaking_changes">Breaking changes</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>
+Version 1.2.0 aligns the engine with handlebars.js and changes the custom helper API and a few template behaviors compared to previous releases.
+ </p>
+ </div>
+ <div class="sect2">
+  <h3 id="_helper_signature">Helper signature</h3>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>Helpers are now <code>Function&lt;HelperContext, Object&gt;</code> (previously <code>Function&lt;Object, String&gt;</code>). The old contract passed a single argument directly, several arguments as a <code>List</code>, and block helpers received a <code>BlockHelperContext(data, blockRenderer)</code> which was removed. <code>HelperContext</code> is created by the engine for each call and exposes <code>args()</code> (evaluated positional arguments), <code>hash()</code> (evaluated <code>key=value</code> arguments) and, for block helpers, <code>blockRenderer()</code> and <code>inverseRenderer()</code> to render the block and its <code>{{else}}</code> body. A helper result can now be any object (it is stringified at render time) instead of only a <code>String</code>.</p>
+ </div>
+ <table class="tableblock frame-all grid-all stretch">
+  <colgroup>
+   <col style="width: 27%;">
+   <col style="width: 36%;">
+   <col style="width: 36%;">
+  </colgroup>
+  <thead>
+   <tr>
+    <th class="tableblock halign-left">
+Case    </th>
+    <th class="tableblock halign-left">
+Before    </th>
+    <th class="tableblock halign-left">
+After    </th>
+   </tr>
+  </thead>
+  <tbody>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+Inline helper, one argument</p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+the value directly</p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>ctx.args().get(0)</code></p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+Inline helper, several arguments</p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+a <code>List</code> of values</p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>ctx.args()</code></p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+Bare call <code>{{h}}</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+the current data</p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>ctx.args().get(0)</code> (the current data)</p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+Block helper</p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>BlockHelperContext(value, renderer)</code></p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>HelperContext(args, hash, blockRenderer, inverseRenderer)</code></p>
+    </td>
+   </tr>
+   <tr>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>{{else}}</code> body</p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+not renderable</p>
+    </td>
+    <td class="tableblock halign-left">
+<p class="tableblock">
+<code>ctx.inverseRenderer()</code></p>
+    </td>
+   </tr>
+  </tbody>
+ </table>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">// before
+&quot;uppercase&quot;, o -&gt; o.toString().toUpperCase(ROOT)
+
+// after
+&quot;uppercase&quot;, ctx -&gt; ((String) ctx.args().get(0)).toUpperCase(ROOT)
+</code></pre>
+ </div>
+ </div>
+ </div>
+ </div>
+ <div class="sect2">
+  <h3 id="_inline_helper_output_is_now_escaped">Inline helper output is now escaped</h3>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>Inline helper results in double braces (<code>{{helper ...}}</code>) are now HTML-escaped like variables; they used to be inserted as-is. Use <code>{{{helper ...}}}</code> or return a <code>io.yupiik.fusion.framework.handlebars.helper.SafeString</code> to render raw. Block helper output remains unescaped.</p>
+ </div>
+ </div>
+ </div>
+ <div class="sect2">
+  <h3 id="_template_behaviors">Template behaviors</h3>
+ <div class="sectionbody">
+ <div class="ulist">
+ <ul>
+  <li>
+ <div class="paragraph">
+ <p><code>false</code> is now falsy in <code>if</code>/<code>unless</code>/<code>and</code>/<code>or</code>/<code>not</code>/<code>default</code> and <code>{{#varName}}</code> blocks (see  <a href="#_truthiness">Truthiness</a>
+); it used to be truthy.</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p>Accessing a property on non-map data no longer throws and resolves to <code>null</code> (rendered as empty), like an undefined variable.</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p>Keyword-less blocks <code>{{#varName}}</code> now render their block with the value as the new context (handlebars.js <code>blockHelperMissing</code>); they used to render with the enclosing data.</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p><code>{{#each}}</code> now renders its <code>{{else}}</code> branch when the source is null or empty, and supports <code>limit=</code>/<code>offset=</code> and <code>as |value key|</code>.</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p><code>{{else}}</code>, <code>{{else if}}</code> and inverted sections (<code>{{^foo}}</code>) are now supported.</p>
+ </div>
+  </li>
+  <li>
+ <p>
+Comments and block boundaries consume the surrounding end-of-line, which can slightly change the rendered whitespace.
+ </p>
+  </li>
+ </ul>
+ </div>
+ </div>
+ </div>
+ </div>
+ </div>
+ <div class="sect1">
+  <h2 id="_limitations">Limitations</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>
+The engine implements a carefully chosen subset of handlebars.js:
+ </p>
+ </div>
+ <div class="ulist">
+ <ul>
+  <li>
+ <div class="paragraph">
+ <p>No <code>[dotted.keys]</code> literal-key access.</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p>No whitespace-control mustaches (<code>{{~ ~}}</code>).</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p>No dynamic partials (<code>{{&gt; (whichPartial)}}</code>), no context lambdas (functions as data values; only <code>Supplier</code>s).</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p><code>{{else if}}</code> chains are supported; <code>{{else unless}}</code> and <code>{{else &lt;custom-helper&gt;}}</code> are supported too (the latter must be a registered helper).</p>
+ </div>
+  </li>
+ </ul>
+ </div>
+ </div>
+ </div>
+                
+                <nav class="page-footer-nav" aria-label="Docs pages">
+    <a href="documentation.html" class="page-footer-nav-link-prev">
+    <div>Previous</div>
+    <div>Documentation generation</div>
+</a>
+    <a href="ai-skills.html" class="page-footer-nav-link-next">
+    <div>Next</div>
+    <div>AI skills</div>
+</a>
+</nav>
+            </div>
+        </div>
+<div class="page-navigation-right">
+        <h3>Navigation</h3>
+        <nav class="generated-nav-menu"></nav>
+    </div>
+    </div>
+<footer class="site-footer">
+        <div class="footer-inner">
+            <div class="footer-social">
+                <ul class="social-list">
+                <li class="list-inline-item"><a title="LinkedIn" target="_blank" href="https://www.linkedin.com/company/yupiik/"><i class="fab fa-linkedin fa-fw"></i></a></li>
+              <li class="list-inline-item"><a title="Twitter" target="_blank" href="https://twitter.com/Yupiik/"><i class="fab fa-twitter fa-fw"></i></a></li>
+              <li class="list-inline-item"><a title="Github" target="_blank" href="https://www.github.com/yupiik/fusion"><i class="fab fa-github fa-fw"></i></a></li>
+                </ul>
+            </div>
+            <nav class="footer-bar"><small class="copyright">© 2026 <strong><a href="https://www.yupiik.com">Yupiik</a></strong>. All Rights Reserved</small><a class="legal-link" href="https://www.yupiik.com/terms-of-use/">Terms of use</a><a class="legal-link" href="https://www.yupiik.com/privacy-policy/">Privacy policy</a></nav>
+        </div>
+    </footer>
+
+    <div class="modal" id="searchModal" role="dialog" aria-label="Search site">
+    <div class="modal-overlay" data-close-modal></div>
+    <div class="modal-dialog" role="document">
+        <div class="modal-header">
+            <h5 class="modal-title">Search</h5>
+            <button type="button" class="modal-close" data-close-modal aria-label="Close">&times;</button>
+        </div>
+        <div class="modal-body">
+            <input class="form-control" id="searchInput" placeholder="Search the docs..." autocomplete="off">
+            <div class="search-hits"></div>
+        </div>
+    </div>
+</div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/highlight.min.js" integrity="sha512-d00ajEME7cZhepRqSIVsQVGDJBdZlfHyQLNC6tZXYKTG7iwcF8nhlFuppanz8hYgXr8VvlfKh4gLC25ud3c90A==" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/languages/bash.min.js" integrity="sha512-Hg0ufGEvn0AuzKMU0psJ1iH238iUN6THh7EI0CfA0n1sd3yu6PYet4SaDMpgzN9L1yQHxfB3yc5ezw3PwolIfA==" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/languages/bash.min.js" integrity="sha512-Hg0ufGEvn0AuzKMU0psJ1iH238iUN6THh7EI0CfA0n1sd3yu6PYet4SaDMpgzN9L1yQHxfB3yc5ezw3PwolIfA==" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/languages/json.min.js" integrity="sha512-37sW1XqaJmseHAGNg4N4Y01u6g2do6LZL8tsziiL5CMXGy04Th65OXROw2jeDeXLo5+4Fsx7pmhEJJw77htBFg==" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/languages/dockerfile.min.js" integrity="sha512-eRNl3ty7GOJPBN53nxLgtSSj2rkYj5/W0Vg0MFQBw8xAoILeT6byOogENHHCRRvHil4pKQ/HbgeJ5DOwQK3SJA==" crossorigin="anonymous"></script>
+    <script>if (!(window.minisite || {}).skipHighlightJs) {
+        hljs.highlightAll();
+        function addCopyButtons(clipboard) {
+          document.querySelectorAll('pre > code').forEach(function (codeBlock) {
+          var button = document.createElement('button');
+          button.className = 'copy-code-button';
+          button.type = 'button';
+          button.innerText = 'Copy';
+          button.addEventListener('click', function () {
+           clipboard.writeText(codeBlock.innerText).then(function () {
+           button.blur();
+           button.innerText = 'Copied!';
+           setTimeout(function () { button.innerText = 'Copy'; }, 2000); }, function (error) { button.innerText = 'Error'; });
+          });
+          var pre = codeBlock.parentNode;
+          if (pre.parentNode.classList.contains('highlight')) {
+          var highlight = pre.parentNode; highlight.parentNode.insertBefore(button, highlight);
+          } else { pre.parentNode.insertBefore(button, pre); }
+         });
+        }
+        if (navigator && navigator.clipboard) {
+         addCopyButtons(navigator.clipboard);
+        } else {
+         var script = document.createElement('script');
+         script.src = '//cdnjs.cloudflare.com/ajax/libs/clipboard-polyfill/2.7.0/clipboard-polyfill.promise.js';
+         script.integrity = 'sha256-waClS2re9NUbXRsryKoof+F9qc1gjjIhc2eT7ZbIv94=';
+         script.crossOrigin = 'anonymous';
+         script.onload = function() {addCopyButtons(clipboard);};
+         document.body.appendChild(script);
+        }
+    }</script>
+    <script src="//www.yupiik.io/fusion/js/minisite.js?v=1.2.1-SNAPSHOT"></script>
+    <script>$('.page-content-body').generatedNavMenu();</script>
+    <div id="llm-chat-root" style="display:none"
+     data-model-id="Llama-3.2-3B-Instruct-q4f16_1-MLC"
+     data-base="//www.yupiik.io/fusion"></div>
+<script src="//www.yupiik.io/fusion/js/llm-chat.js?v=1.2.1-SNAPSHOT"></script>
+    
+
+<script>
+    (function () {
+        // theme toggle
+        var root = document.documentElement;
+        var toggle = document.getElementById('theme-toggle');
+        if (toggle) {
+            toggle.addEventListener('click', function () {
+                var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+                root.setAttribute('data-theme', next);
+                try { localStorage.setItem('yupiik-theme', next); } catch (e) {}
+            });
+        }
+        // search modal
+        var modal = document.getElementById('searchModal');
+        function openModal() { if (modal) modal.classList.add('open'); }
+        function closeModal() { if (modal) modal.classList.remove('open'); }
+        var sb = document.getElementById('search-button');
+        if (sb) sb.addEventListener('click', function (e) { e.preventDefault(); openModal(); });
+        if (modal) {
+            modal.addEventListener('click', function (e) { if (e.target.closest('[data-close-modal]')) closeModal(); });
+            document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeModal(); });
+        }
+    })();
+</script>
+</body>
+</html>

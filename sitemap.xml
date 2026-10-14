@@ -1,59 +1,111 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
     <url>
-        <loc>//www.yupiik.io/fusion/fusion/documentation.html</loc>
-        <lastmod>2026-08-31</lastmod>
+        <loc>//www.yupiik.io/fusion/cli-ai-skills/index.html</loc>
+        <lastmod>2026-10-14</lastmod>
     </url>
     <url>
-        <loc>//www.yupiik.io/fusion/fusion/cli.html</loc>
-        <lastmod>2026-08-31</lastmod>
+        <loc>//www.yupiik.io/fusion/ai-skills.html</loc>
+        <lastmod>2026-10-14</lastmod>
     </url>
     <url>
-        <loc>//www.yupiik.io/fusion/fusion/handlebars.html</loc>
-        <lastmod>2026-08-31</lastmod>
+        <loc>//www.yupiik.io/fusion/cli.html</loc>
+        <lastmod>2026-10-14</lastmod>
     </url>
     <url>
-        <loc>//www.yupiik.io/fusion/fusion/json.html</loc>
-        <lastmod>2026-08-31</lastmod>
+        <loc>//www.yupiik.io/fusion/integration.html</loc>
+        <lastmod>2026-10-14</lastmod>
     </url>
     <url>
-        <loc>//www.yupiik.io/fusion/fusion/kubernetes-operator.html</loc>
-        <lastmod>2026-08-31</lastmod>
+        <loc>//www.yupiik.io/fusion/examples.html</loc>
+        <lastmod>2026-10-14</lastmod>
     </url>
     <url>
-        <loc>//www.yupiik.io/fusion/fusion/index.html</loc>
-        <lastmod>2026-08-31</lastmod>
+        <loc>//www.yupiik.io/fusion/configuration.html</loc>
+        <lastmod>2026-10-14</lastmod>
     </url>
     <url>
-        <loc>//www.yupiik.io/fusion/fusion/testing.html</loc>
-        <lastmod>2026-08-31</lastmod>
+        <loc>//www.yupiik.io/fusion/data.html</loc>
+        <lastmod>2026-10-14</lastmod>
     </url>
     <url>
-        <loc>//www.yupiik.io/fusion/fusion/examples.html</loc>
-        <lastmod>2026-08-31</lastmod>
+        <loc>//www.yupiik.io/fusion/documentation.html</loc>
+        <lastmod>2026-10-14</lastmod>
     </url>
     <url>
-        <loc>//www.yupiik.io/fusion/fusion/setup.html</loc>
-        <lastmod>2026-08-31</lastmod>
+        <loc>//www.yupiik.io/fusion/index.html</loc>
+        <lastmod>2026-10-14</lastmod>
     </url>
     <url>
-        <loc>//www.yupiik.io/fusion/fusion/http-client.html</loc>
-        <lastmod>2026-08-31</lastmod>
+        <loc>//www.yupiik.io/fusion/getting-started.html</loc>
+        <lastmod>2026-10-14</lastmod>
     </url>
     <url>
-        <loc>//www.yupiik.io/fusion/fusion/http-server.html</loc>
-        <lastmod>2026-08-31</lastmod>
+        <loc>//www.yupiik.io/fusion/graalvm.html</loc>
+        <lastmod>2026-10-14</lastmod>
     </url>
     <url>
-        <loc>//www.yupiik.io/fusion/fusion/jwt.html</loc>
-        <lastmod>2026-08-31</lastmod>
+        <loc>//www.yupiik.io/fusion/http.html</loc>
+        <lastmod>2026-10-14</lastmod>
     </url>
     <url>
-        <loc>//www.yupiik.io/fusion/fusion/persistence.html</loc>
-        <lastmod>2026-08-31</lastmod>
+        <loc>//www.yupiik.io/fusion/http-client.html</loc>
+        <lastmod>2026-10-14</lastmod>
     </url>
     <url>
-        <loc>//www.yupiik.io/fusion/fusion/graalvm.html</loc>
-        <lastmod>2026-08-31</lastmod>
+        <loc>//www.yupiik.io/fusion/http-server.html</loc>
+        <lastmod>2026-10-14</lastmod>
+    </url>
+    <url>
+        <loc>//www.yupiik.io/fusion/handlebars.html</loc>
+        <lastmod>2026-10-14</lastmod>
+    </url>
+    <url>
+        <loc>//www.yupiik.io/fusion/json.html</loc>
+        <lastmod>2026-10-14</lastmod>
+    </url>
+    <url>
+        <loc>//www.yupiik.io/fusion/jsonrpc.html</loc>
+        <lastmod>2026-10-14</lastmod>
+    </url>
+    <url>
+        <loc>//www.yupiik.io/fusion/jwt.html</loc>
+        <lastmod>2026-10-14</lastmod>
+    </url>
+    <url>
+        <loc>//www.yupiik.io/fusion/kubernetes-client.html</loc>
+        <lastmod>2026-10-14</lastmod>
+    </url>
+    <url>
+        <loc>//www.yupiik.io/fusion/kubernetes-operator.html</loc>
+        <lastmod>2026-10-14</lastmod>
+    </url>
+    <url>
+        <loc>//www.yupiik.io/fusion/persistence.html</loc>
+        <lastmod>2026-10-14</lastmod>
+    </url>
+    <url>
+        <loc>//www.yupiik.io/fusion/setup.html</loc>
+        <lastmod>2026-10-14</lastmod>
+    </url>
+    <url>
+        <loc>//www.yupiik.io/fusion/testing.html</loc>
+        <lastmod>2026-10-14</lastmod>
+    </url>
+    <url>
+        <loc>//www.yupiik.io/fusion/tooling.html</loc>
+        <lastmod>2026-10-14</lastmod>
+    </url>
+    <url>
+        <loc>//www.yupiik.io/fusion/tracing.html</loc>
+        <lastmod>2026-10-14</lastmod>
+    </url>
+    <url>
+        <loc>//www.yupiik.io/fusion/cli-ai-skills/delete.html</loc>
+        <lastmod>2026-10-14</lastmod>
+    </url>
+    <url>
+        <loc>//www.yupiik.io/fusion/cli-ai-skills/install.html</loc>
+        <lastmod>2026-10-14</lastmod>
     </url>
 </urlset>

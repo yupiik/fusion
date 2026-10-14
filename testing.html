@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+
+<head>
+    <title>Testing</title>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Fusion framework aims at providing a very light java framework and graal native.">
+    <meta name="author" content="Yupiik Minisite Generator">
+    <meta name="generator" content="Yupiik Minisite Generator">
+    
+    <link rel="shortcut icon" href="//www.yupiik.io/fusion/images/favicon.png">
+    <meta name="theme-color" content="#191b20" media="(prefers-color-scheme: dark)">
+    <meta name="theme-color" content="#191b20" media="(prefers-color-scheme: light)">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css" integrity="sha512-+4zCK9k+qNFUR5X+cKL9EIR+ZOhtIloNl9GIKS57V1MyNsYpYcUrUeQc9vNfzsWfV28IaLL3i96P9sdNyeRssA==" crossorigin="anonymous" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/styles/atom-one-dark.min.css" integrity="sha512-Fcqyubi5qOvl+yCwSJ+r7lli+CO1eHXMaugsZrnxuU4DVpLYWXTVoHy55+mCb4VZpMgy7PBhV7IiymC0yu9tkQ==" crossorigin="anonymous" />
+    <link id="theme-style" rel="stylesheet" href="//www.yupiik.io/fusion/css/theme.css?v=1.2.1-SNAPSHOT">
+    <link rel="stylesheet" href="//www.yupiik.io/fusion/css/llm-chat.css?v=1.2.1-SNAPSHOT">
+    
+<script>/* inline to avoid flicker */try{var t=localStorage.getItem('yupiik-theme');if(t==='light'||t==='dark'){document.documentElement.setAttribute('data-theme',t);}}catch(e){}</script>
+</head>
+<body>
+<header class="site-header">
+        <div class="header-inner">
+            <div class="brand">
+                <a class="brand-link" title="Home" href="//www.yupiik.io/fusion/index.html">
+                    <img class="brand-logo" src="//www.yupiik.io/fusion/images/logo.svg" alt="logo">
+                    <span class="brand-text">Fusion<span class="brand-side">Documentation</span></span>
+                </a>
+            </div>
+            <div class="header-actions">
+                
+                <button class="icon-btn" id="search-button" type="button" title="Search" aria-label="Search">
+        <i class="fas fa-search" aria-hidden="true"></i>
+    </button>
+                
+				<ul class="social-list">
+				<li class="list-inline-item"><a title="LinkedIn" target="_blank" href="https://www.linkedin.com/company/yupiik/"><i class="fab fa-linkedin fa-fw"></i></a></li>
+              <li class="list-inline-item"><a title="Twitter" target="_blank" href="https://twitter.com/Yupiik/"><i class="fab fa-twitter fa-fw"></i></a></li>
+              <li class="list-inline-item"><a title="Github" target="_blank" href="https://www.github.com/yupiik/fusion"><i class="fab fa-github fa-fw"></i></a></li>
+				</ul>
+				<button class="icon-btn" id="theme-toggle" type="button" title="Toggle theme" aria-label="Toggle theme">
+					<svg class="icon-sun" viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10zm0 2a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm0-16a1 1 0 1 1 0 2 1 1 0 0 1 0-2zM6.34 4.93a1 1 0 1 1 1.41 1.41 1 1 0 0 1-1.41-1.41zm11.32 12.73a1 1 0 1 1 1.41 1.41 1 1 0 0 1-1.41-1.41zM4 11a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm16 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2zM4.93 17.66a1 1 0 1 1 1.41-1.41 1 1 0 0 1-1.41 1.41zm12.73-11.32a1 1 0 1 1 1.41-1.41 1 1 0 0 1-1.41 1.41z"/></svg>
+					<svg class="icon-moon" viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.39 5.39 0 0 1-4.4 2.26 5.4 5.4 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg>
+				</button>
+            </div>
+        </div>
+    </header>
+	<div class="page">
+<div class="page-navigation-left">
+    <h3 class="menu-label">Menu</h3>
+    <ul>
+<li>
+    <a title="Fusion Stack" href="//www.yupiik.io/fusion/index.html">
+        <i class="fas fa-play"></i>Fusion
+    </a>
+</li><li>
+    <a title="Getting Started" href="//www.yupiik.io/fusion/getting-started.html">
+        <i class="fas fa-rocket"></i>Getting Started
+    </a>
+</li><li>
+    <a title="Data and JSON" href="//www.yupiik.io/fusion/data.html">
+        <i class="fas fa-database"></i>Data and JSON
+    </a>
+</li><li>
+    <a title="HTTP and APIs" href="//www.yupiik.io/fusion/http.html">
+        <i class="fas fa-globe"></i>HTTP and APIs
+    </a>
+</li><li>
+    <a title="Cloud and Kubernetes" href="//www.yupiik.io/fusion/integration.html">
+        <i class="fas fa-cloud"></i>Cloud and Kubernetes
+    </a>
+</li><li>
+    <a title="Tooling and extras" href="//www.yupiik.io/fusion/tooling.html">
+        <i class="fas fa-wrench"></i>Tooling and extras
+    </a>
+</li>
+    </ul>
+</div>
+<div id="testing-html-container" class="container page-content testing-html ">
+            <div class="page-header">
+                <h1>Testing</h1>
+            </div>
+            <div class="page-content-body">
+                <div id="preamble">
+ <div class="sectionbody">
+ <p> <div class="quoteblock abstract">
+  <blockquote>
+This page details Testing.  </blockquote>
+ </div></p>
+ </div>
+ </div>
+ <div class="sect1">
+  <h2 id="_example">Example</h2>
+ <div class="sectionbody">
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@FusionSupport
+class MyTest {
+    @Test
+    void run(@Fusion final MyService service) {
+        // ...
+    }
+}
+</code></pre>
+ </div>
+ </div>
+ </div>
+ </div>
+ <div class="sect1">
+  <h2 id="_runner_flavors">Runner flavors</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>
+There are two runner flavors:
+ </p>
+ </div>
+ <div class="ulist">
+ <ul>
+  <li>
+ <div class="paragraph">
+ <p><code>FusionSupport</code> which starts and stops the container per test class,</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p><code>MonoFusionSupport</code> which starts and stops the container per JVM - faster but does not isolate all classes.</p>
+ </div>
+  </li>
+ </ul>
+ </div>
+ <div class="admonitionblock tip">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">TIP</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <div class="paragraph">
+ <p>using a custom JUnit 5 <code>Extension</code> where you set system properties in a static block, you can configure the container before it starts. It is recommended to combine it in a custom annotation to control the ordering and ease the usage:</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@Target(TYPE)
+@Retention(RUNTIME)
+@MonoFusionSupport
+@ExtendWith(MyAppSupport.MyConf.class)
+public @interface MyAppSupport {
+    class MyConf implements Extension {
+        static {
+            // do the configuration
+            System.setProperty(&quot;....&quot;, &quot;....&quot;);
+        }
+    }
+}
+</code></pre>
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>Then simply replace fusion annotation by <code>MyAppSupport</code>.</p>
+ </div>
+ <div class="paragraph">
+ <p>Alternatively you can register a test <code>ConfigurationSource</code> bean if you prefer but this extension option enables to also start global services like dependencies mock or a database.</p>
+ </div>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ <div class="paragraph">
+ <p>Note that if you need to exclude some module from the discovery (which uses <code>ServiceLoader</code>), mono extension reads<code>yupiik.fusion.mono.modules.discovery.excluded</code> system property which takes a comma separated list of fully qualified names.</p>
+ </div>
+ </div>
+ </div>
+ <div class="sect1">
+  <h2 id="_testing_a_launcher_application">Testing a Launcher application</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>Particularly for CLI applications (using an <code>Launcher</code> and an <code>Awaiter</code> getting <code>Args</code> injected for example), you can use <code>@FusionCLITest</code> as a replacement of <code>@Test</code>. It will enable you to get an automatic execution of <code>Launcher</code> based on the annotation <code>args</code> value and to get injected <code>Stdout</code> and <code>Stderr</code> to validate the outputs.</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@FusionCLITest(args = {&quot;test&quot;, &quot;run&quot;})
+void run(final Stdout stdout) {
+    assertEquals(&quot;...&quot;, stdout.content().strip());
+}
+</code></pre>
+ </div>
+ </div>
+ <div class="admonitionblock tip">
+  <table>
+    <tbody>
+     <tr>
+      <td class="icon">
+     <div class="title">TIP</div>
+       </td>
+      <td class="content">
+ <div class="paragraph">
+ <p><code>args</code> are made available to <code>Configuration</code> thanks a dedicated <code>ConfigurationSource</code> which supports these style of arguments (all leading to <code>foo=bar</code> mapping):  <code>--foo bar</code>,  <code>-foo bar</code>, <code>--foo=bar</code>,  <code>-foo=bar</code>. Bare positional arguments (the command path segments of a CLI application for example) are ignored; an option value which looks like an option is never consumed (<code>--foo --bar</code> is rejected). Every dash-led option requires a value - except the exact <code>--help</code> token which is skipped, and the <code>--no-foo</code> form which implicitly binds <code>no.foo=false</code> and <code>foo=false</code> (use an explicit <code>--no-foo=value</code> to only bind <code>no.foo</code>). A particular arg starting by <code>fusion-properties</code> will be replaced by loading its value (as <code>Properties</code>, it can be inline or a file path - preferred).</p>
+ </div>
+    </td>
+   </tr>
+      </tbody>
+  </table>
+ </div>
+ </div>
+ </div>
+ <div class="sect1">
+  <h2 id="_utilities">Utilities</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>Additionally to the main container friendly extensions, <code>fusion-testing</code> also provides a few utilities to ease writing tests.</p>
+ </div>
+ <div class="sect2">
+  <h3 id="_testclient">TestClient</h3>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p><code>TestClient</code> is a bean which is active when you use <code>fusion-json</code>  at least and likely <code>fusion-http-server</code>.</p>
+ </div>
+ <div class="paragraph">
+ <p>It autoconfigures the base URI of the server - even when port is set to <code>0</code> (random) and enables to use <code>HttpClient</code> like API with:</p>
+ </div>
+ <div class="ulist">
+ <ul>
+  <li>
+ <div class="paragraph">
+ <p>Logging of the request/response (uses <code>fusion-httpclient</code> is present),</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p>Hides exception handling (synchronous API, aka <code>send</code>) to simplify code writing in tests,</p>
+ </div>
+  </li>
+  <li>
+ <div class="paragraph">
+ <p>Provide <code>jsonRpc</code> JUnit5 integration to ease JSON-RPC tests.</p>
+ </div>
+  </li>
+ </ul>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@Test
+void myTest(@Fusion final TestClient client) { <b class="conum">(1)</b>
+    final var res = client.jsonRpcRequest( <b class="conum">(2)</b>
+            &quot;my.jsonrpc.method&quot;, <b class="conum">(3)</b>
+            Map.of(&quot;id&quot;, id.value())); <b class="conum">(4)</b>
+
+    final var order = res
+        .asJsonRpc() <b class="conum">(5)</b>
+        .success() <b class="conum">(6)</b>
+        .as(Order.class); <b class="conum">(7)</b>
+    assertAll(
+            () -&gt; assertEquals(200, res.statusCode()),
+            () -&gt; assertInsertedOrder(order, id, res::body));
+}
+</code></pre>
+ </div>
+ </div>
+ <div class="colist arabic">
+  <ol>
+   <li>
+ <span>
+Inject the 
+ </span>
+<code>TestClient</code> <span>
+ as a standard fusion bean - requires a fusion support annotation,
+ </span>
+   </li>
+   <li>
+ <span>
+Call a JSON-RPC method just providing its method name and parameters,
+ </span>
+   </li>
+   <li>
+ <span>
+The JSON-RPC method name,
+ </span>
+   </li>
+   <li>
+ <span>
+The JSON-RPC method params,
+ </span>
+   </li>
+   <li>
+ <span>
+Convert the 
+ </span>
+<code>HttpResponse</code> <span>
+ to a JSON-RPC response helper,
+ </span>
+   </li>
+   <li>
+ <span>
+Asserts the JSON-RPC response has no 
+ </span>
+<code>error</code> <span>
+,
+ </span>
+   </li>
+   <li>
+ <span>
+Maps the 
+ </span>
+<code>result</code> <span>
+ as an object - compatible with 
+ </span>
+<code>fusion-json</code> <span>
+.
+ </span>
+   </li>
+  </ol>
+ </div>
+ </div>
+ </div>
+ <div class="sect2">
+  <h3 id="_beforeafter_method_task">Before/After method task</h3>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p>JUnit5 has <code>@BeforeEach</code>/<code>@AfterEach</code> callbacks but they are not per methods and related to the class - state - more then the test itself. It is also not directly related to fusion IoC beans.</p>
+ </div>
+ <div class="paragraph">
+ <p>To solve that pitfall, <code>@Task</code> enables to reference some code - <em>task</em> - which can be a fusion bean or not and call it before or after a test method execution.</p>
+ </div>
+ <div class="paragraph">
+ <p>
+Here is how it can look like:
+ </p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@Test
+@Task(phase = BEFORE, value = InsertMyData.class) <b class="conum">(1)</b>
+@Task(phase = AFTER, value = CleanMyData.class) <b class="conum">(2)</b>
+void run(@TaskResult(InsertMyData.class) final MyData data) { <b class="conum">(3)</b>
+    // ...
+}
+</code></pre>
+ </div>
+ </div>
+ <div class="colist arabic">
+  <ol>
+   <li>
+ <span>
+Before the test run the bean 
+ </span>
+<code>InsertMyData</code> <span>
+,
+ </span>
+   </li>
+   <li>
+ <span>
+After the test run the bean 
+ </span>
+<code>CleanMyData</code> <span>
+,
+ </span>
+   </li>
+   <li>
+ <span>
+Inject the result of 
+ </span>
+<code>InsertMyData</code> <span>
+ as first parameter.
+ </span>
+   </li>
+  </ol>
+ </div>
+ <div class="paragraph">
+ <p><code>@Task(value)</code> must implement <code>Task.Supplier</code>, which can be a java <code>Supplier&lt;T&gt;</code> - which, for <code>BEFORE</code> tasks, will enable to inject some state as parameter referencing the bean class. It can also be a <code>Runnable</code> - mainly for <code>AFTER</code> tasks.</p>
+ </div>
+ <div class="paragraph">
+ <p>Here is a sample <code>BEFORE</code> task:</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@DefaultScoped
+public class BeforeTask implements Task.Supplier&lt;MyData&gt; {
+    private final MyService service;
+
+    // constructor...
+
+    @Override
+    public MyData get() {
+        return service.createData();
+    }
+}
+</code></pre>
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>
+An after task will often be like:
+ </p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">@DefaultScoped
+public class AfterTask implements Task.Supplier&lt;String&gt; {
+    private final MyService service;
+
+    // constructor...
+
+    @Override
+    public void run() {
+        service.clean();
+    }
+}
+</code></pre>
+ </div>
+ </div>
+ <div class="paragraph">
+ <p>What is interesting is that, since tasks are beans, you can use an <code>@ApplicationScoped</code> bean to link both before/after tasks and for example store the before identifiers to delete in the after phase.</p>
+ </div>
+ </div>
+ </div>
+ </div>
+ </div>
+ <div class="sect1">
+  <h2 id="_replacing_beans_in_tests">Replacing beans in tests</h2>
+ <div class="sectionbody">
+ <div class="paragraph">
+ <p><code>fusion-testing</code> ships <code>TestingModule</code> and <code>ListingPredicateModule</code> which let you replace application beans with test doubles. <code>TestingModule</code> scans the generated <code>$FusionBean</code> classes of the current project (from <code>target/classes</code> and <code>target/test-classes</code>) and swaps the matched bean for your replacement, so you can override any <code>@ApplicationScoped</code>/<code>@DefaultScoped</code> bean without reflection.</p>
+ </div>
+ <div class="listingblock">
+ <div class="content">
+ <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">final var container = ConfiguringContainer.of()
+    .disableModule(/**/ TestingModule.class) <b class="conum">(1)</b>
+    .start();
+</code></pre>
+ </div>
+ </div>
+ <div class="colist arabic">
+  <ol>
+   <li>
+ <span>
+Register your own 
+ </span>
+<code>TestingModule</code> <span>
+ instance (or a 
+ </span>
+<code>ListingPredicateModule</code> <span>
+) to replace the matching beans before the container starts.
+ </span>
+   </li>
+  </ol>
+ </div>
+ </div>
+ </div>
+                
+                <nav class="page-footer-nav" aria-label="Docs pages">
+    <a href="cli.html" class="page-footer-nav-link-prev">
+    <div>Previous</div>
+    <div>CLI</div>
+</a>
+    <a href="documentation.html" class="page-footer-nav-link-next">
+    <div>Next</div>
+    <div>Documentation generation</div>
+</a>
+</nav>
+            </div>
+        </div>
+<div class="page-navigation-right">
+        <h3>Navigation</h3>
+        <nav class="generated-nav-menu"></nav>
+    </div>
+    </div>
+<footer class="site-footer">
+        <div class="footer-inner">
+            <div class="footer-social">
+                <ul class="social-list">
+                <li class="list-inline-item"><a title="LinkedIn" target="_blank" href="https://www.linkedin.com/company/yupiik/"><i class="fab fa-linkedin fa-fw"></i></a></li>
+              <li class="list-inline-item"><a title="Twitter" target="_blank" href="https://twitter.com/Yupiik/"><i class="fab fa-twitter fa-fw"></i></a></li>
+              <li class="list-inline-item"><a title="Github" target="_blank" href="https://www.github.com/yupiik/fusion"><i class="fab fa-github fa-fw"></i></a></li>
+                </ul>
+            </div>
+            <nav class="footer-bar"><small class="copyright">© 2026 <strong><a href="https://www.yupiik.com">Yupiik</a></strong>. All Rights Reserved</small><a class="legal-link" href="https://www.yupiik.com/terms-of-use/">Terms of use</a><a class="legal-link" href="https://www.yupiik.com/privacy-policy/">Privacy policy</a></nav>
+        </div>
+    </footer>
+
+    <div class="modal" id="searchModal" role="dialog" aria-label="Search site">
+    <div class="modal-overlay" data-close-modal></div>
+    <div class="modal-dialog" role="document">
+        <div class="modal-header">
+            <h5 class="modal-title">Search</h5>
+            <button type="button" class="modal-close" data-close-modal aria-label="Close">&times;</button>
+        </div>
+        <div class="modal-body">
+            <input class="form-control" id="searchInput" placeholder="Search the docs..." autocomplete="off">
+            <div class="search-hits"></div>
+        </div>
+    </div>
+</div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/highlight.min.js" integrity="sha512-d00ajEME7cZhepRqSIVsQVGDJBdZlfHyQLNC6tZXYKTG7iwcF8nhlFuppanz8hYgXr8VvlfKh4gLC25ud3c90A==" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/languages/bash.min.js" integrity="sha512-Hg0ufGEvn0AuzKMU0psJ1iH238iUN6THh7EI0CfA0n1sd3yu6PYet4SaDMpgzN9L1yQHxfB3yc5ezw3PwolIfA==" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/languages/bash.min.js" integrity="sha512-Hg0ufGEvn0AuzKMU0psJ1iH238iUN6THh7EI0CfA0n1sd3yu6PYet4SaDMpgzN9L1yQHxfB3yc5ezw3PwolIfA==" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/languages/json.min.js" integrity="sha512-37sW1XqaJmseHAGNg4N4Y01u6g2do6LZL8tsziiL5CMXGy04Th65OXROw2jeDeXLo5+4Fsx7pmhEJJw77htBFg==" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.7.1/languages/dockerfile.min.js" integrity="sha512-eRNl3ty7GOJPBN53nxLgtSSj2rkYj5/W0Vg0MFQBw8xAoILeT6byOogENHHCRRvHil4pKQ/HbgeJ5DOwQK3SJA==" crossorigin="anonymous"></script>
+    <script>if (!(window.minisite || {}).skipHighlightJs) {
+        hljs.highlightAll();
+        function addCopyButtons(clipboard) {
+          document.querySelectorAll('pre > code').forEach(function (codeBlock) {
+          var button = document.createElement('button');
+          button.className = 'copy-code-button';
+          button.type = 'button';
+          button.innerText = 'Copy';
+          button.addEventListener('click', function () {
+           clipboard.writeText(codeBlock.innerText).then(function () {
+           button.blur();
+           button.innerText = 'Copied!';
+           setTimeout(function () { button.innerText = 'Copy'; }, 2000); }, function (error) { button.innerText = 'Error'; });
+          });
+          var pre = codeBlock.parentNode;
+          if (pre.parentNode.classList.contains('highlight')) {
+          var highlight = pre.parentNode; highlight.parentNode.insertBefore(button, highlight);
+          } else { pre.parentNode.insertBefore(button, pre); }
+         });
+        }
+        if (navigator && navigator.clipboard) {
+         addCopyButtons(navigator.clipboard);
+        } else {
+         var script = document.createElement('script');
+         script.src = '//cdnjs.cloudflare.com/ajax/libs/clipboard-polyfill/2.7.0/clipboard-polyfill.promise.js';
+         script.integrity = 'sha256-waClS2re9NUbXRsryKoof+F9qc1gjjIhc2eT7ZbIv94=';
+         script.crossOrigin = 'anonymous';
+         script.onload = function() {addCopyButtons(clipboard);};
+         document.body.appendChild(script);
+        }
+    }</script>
+    <script src="//www.yupiik.io/fusion/js/minisite.js?v=1.2.1-SNAPSHOT"></script>
+    <script>$('.page-content-body').generatedNavMenu();</script>
+    <div id="llm-chat-root" style="display:none"
+     data-model-id="Llama-3.2-3B-Instruct-q4f16_1-MLC"
+     data-base="//www.yupiik.io/fusion"></div>
+<script src="//www.yupiik.io/fusion/js/llm-chat.js?v=1.2.1-SNAPSHOT"></script>
+    
+
+<script>
+    (function () {
+        // theme toggle
+        var root = document.documentElement;
+        var toggle = document.getElementById('theme-toggle');
+        if (toggle) {
+            toggle.addEventListener('click', function () {
+                var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+                root.setAttribute('data-theme', next);
+                try { localStorage.setItem('yupiik-theme', next); } catch (e) {}
+            });
+        }
+        // search modal
+        var modal = document.getElementById('searchModal');
+        function openModal() { if (modal) modal.classList.add('open'); }
+        function closeModal() { if (modal) modal.classList.remove('open'); }
+        var sb = document.getElementById('search-button');
+        if (sb) sb.addEventListener('click', function (e) { e.preventDefault(); openModal(); });
+        if (modal) {
+            modal.addEventListener('click', function (e) { if (e.target.closest('[data-close-modal]')) closeModal(); });
+            document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeModal(); });
+        }
+    })();
+</script>
+</body>
+</html>
