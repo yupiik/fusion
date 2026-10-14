@@ -81,9 +81,7 @@ public class CliDocumentationGenerator implements Runnable {
             return; // todo: fail?
         }
         try {
-            final var base = ofNullable(configuration.get("outputBase"))
-                    .map(Path::of)
-                    .orElseGet(() -> source.resolve("content/cli"));
+            final var base = outputBase();
             Files.createDirectories(base);
 
             final var index = base.resolve(configuration.getOrDefault("indexName", "index.adoc")).normalize();
@@ -104,6 +102,18 @@ public class CliDocumentationGenerator implements Runnable {
         } catch (final IOException e) {
             throw new IllegalStateException(e);
         }
+    }
+
+    // Where to write the generated CLI documentation.
+    // A relative outputBase (or the default) is resolved against the minisite source root (`source`),
+    // an absolute one is used as-is.
+    Path outputBase() {
+        return ofNullable(configuration.get("outputBase"))
+                .map(p -> {
+                    final var path = Path.of(p);
+                    return path.isAbsolute() ? path : source.resolve(p);
+                })
+                .orElseGet(() -> source.resolve("content/cli"));
     }
 
     CharSequence generateDetail(final String app, final Command command, final String relativePathToIndex) {
