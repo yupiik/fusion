@@ -29,7 +29,6 @@ import java.nio.ByteBuffer;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -60,7 +59,8 @@ public class JreHttpServer implements AutoCloseable {
     private final CountDownLatch closed = new CountDownLatch(1);
     private final AtomicBoolean started = new AtomicBoolean();
 
-    public JreHttpServer(final JreHttpServerConfiguration configuration, final List<Endpoint> endpoints) {
+    public JreHttpServer(final JreHttpServerConfiguration configuration,
+                         final List<Endpoint> endpoints) {
         this.configuration = configuration;
         this.endpoints = endpoints.stream()
                 .sorted(Comparator.comparingInt(Endpoint::priority).reversed())
@@ -107,7 +107,9 @@ public class JreHttpServer implements AutoCloseable {
         // forever on an SSE stream that never completes (a parked Flow.Subscriber waiting for a frame).
         // Use a short grace so genuine exchanges finish, then force-abort any stuck one.
         server.stop(SHUTDOWN_GRACE_SECONDS);
-        if (executor == configuration.executor()) {
+        // shut down only the executor we created (configuration.executor() == null); a caller-provided
+        // one stays under the caller's control (== configuration.executor()) - ownership convention.
+        if (executor != configuration.executor()) {
             executor.shutdownNow();
         }
         closed.countDown();
@@ -120,7 +122,7 @@ public class JreHttpServer implements AutoCloseable {
      * @param virtualThreads whether virtual threads are preferred.
      * @return the executor to use.
      */
-    private static ExecutorService customExecutor(final boolean virtualThreads) {
+    protected ExecutorService customExecutor(final boolean virtualThreads) {
         if (virtualThreads) {
             try {
                 final var method = Executors.class.getMethod("newVirtualThreadPerTaskExecutor");
@@ -133,20 +135,17 @@ public class JreHttpServer implements AutoCloseable {
             }
         }
         final var counter = new AtomicInteger();
-        return Executors.newCachedThreadPool(new ThreadFactory() {
-            @Override
-            public Thread newThread(final Runnable runnable) {
-                final var thread = new Thread(runnable, "jre-http-" + counter.getAndIncrement());
-                thread.setDaemon(true);
-                return thread;
-            }
+        return Executors.newCachedThreadPool(runnable -> {
+            final var thread = new Thread(runnable, "jre-http-" + counter.getAndIncrement());
+            thread.setDaemon(true);
+            return thread;
         });
     }
 
     /** Grace period (seconds) given to in-flight exchanges to complete before {@code stop()} aborts them. */
     private static final int SHUTDOWN_GRACE_SECONDS = 2;
 
-    private void dispatch(final HttpExchange exchange) {
+    protected void dispatch(final HttpExchange exchange) {
         final var request = new JreRequest(exchange);
         final Endpoint matched;
         try {
@@ -183,30 +182,32 @@ public class JreHttpServer implements AutoCloseable {
                             .body("internal error: " + error.getMessage())
                             .build()
                     : response == null ? Response.of().status(204).build() : response;
-            // A streaming (SSE) response must stay open: its body publisher pushes frames
-            // asynchronously after this handler returns, so the exchange is closed by the
-            // stream's completion/error callbacks instead of here. Closing it right away (as the
-            // previous unconditional finally did) tore the stream down after the first frame,
-            // which surfaced in the browser as an SSE connection that never delivers any later
-            // event ("not connected").
-            final var streaming = error == null && isStreaming(resolved);
-            try {
-                write(exchange, resolved, request);
-            } finally {
-                if (!streaming) {
-                    exchange.close();
-                }
+            // A body publisher (buffered or streaming) owns the exchange lifecycle once handed off:
+            // the response is committed and the exchange closed from the subscriber's terminal
+            // callback (success or failure) - the body can be pushed asynchronously after this
+            // handler returns. Closing the exchange right here (as the removed join() used to
+            // guarantee was impossible) would tear the response down before its payload is written.
+            // Only the synchronously-committed paths (HEAD, no body, 404/error) close it here.
+            if (write(exchange, resolved, request)) {
+                exchange.close();
             }
         };
     }
 
-    private void write(final HttpExchange exchange, final Response response, final Request request) {
+    /**
+     * Writes {@code response} to {@code exchange}.
+     *
+     * @return {@code true} when the exchange is fully committed and {@link #acceptor} must close it;
+     *         {@code false} when a body subscriber took ownership and will commit + close it later.
+     */
+    protected boolean write(final HttpExchange exchange, final Response response, final Request request) {
         final var headers = exchange.getResponseHeaders();
         response.headers().forEach((name, values) -> {
-            if (values != null) {
-                for (final var value : values) {
-                    headers.add(name, value);
-                }
+            if (values == null) {
+                return;
+            }
+            for (final var value : values) {
+                headers.add(name, value);
             }
         });
         for (final var cookie : response.cookies()) {
@@ -220,39 +221,58 @@ public class JreHttpServer implements AutoCloseable {
         if (head) {
             try {
                 exchange.sendResponseHeaders(response.status(), -1);
+                onResponseEnd(request, response, 0, null);
             } catch (final IOException e) {
                 throw new IllegalStateException(e);
             }
-            return;
+            return true;
         }
 
         final var body = response.body();
         if (body == null) {
             try {
                 exchange.sendResponseHeaders(response.status(), -1);
+                onResponseEnd(request, response, 0, null);
             } catch (final IOException e) {
                 throw new IllegalStateException(e);
             }
-            return;
+            return true;
         }
         // SSE streams unbounded and must flush per event; any other body is aggregated
         // first so the Content-Length is known (the JRE server then sends it in one shot).
-        final var sse = isStreaming(response);
-        if (sse) {
+        if (isStreaming(response)) {
             writeStreaming(exchange, response, request);
-            return;
+            return false;
         }
+
+        // aggregate to have the size,
+        // this is not great for prod but simple and good enough
+        // for current use case of this server over tomcat module
+        subscribeAggregated(exchange, response.body(), request, response);
+        return false;
+    }
+
+    private void subscribeAggregated(
+            final HttpExchange exchange, final Flow.Publisher<ByteBuffer> body,
+            final Request request, final Response response) {
         final var aggregated = new ByteArrayOutputStream();
-        final var subscriptionFail = new Throwable[1];
-        final var completed = new CompletableFuture<Void>();
         body.subscribe(new Flow.Subscriber<>() {
+            private final AtomicBoolean terminated = new AtomicBoolean();
+
             @Override
             public void onSubscribe(final Flow.Subscription subscription) {
+                if (terminated.get()) {
+                    subscription.cancel();
+                    return;
+                }
                 subscription.request(Long.MAX_VALUE);
             }
 
             @Override
             public void onNext(final ByteBuffer item) {
+                if (terminated.get() || item == null) {
+                    return;
+                }
                 final var bytes = new byte[item.remaining()];
                 item.get(bytes);
                 aggregated.writeBytes(bytes);
@@ -260,30 +280,46 @@ public class JreHttpServer implements AutoCloseable {
 
             @Override
             public void onError(final Throwable throwable) {
-                subscriptionFail[0] = throwable;
-                completed.complete(null);
+                if (!terminated.compareAndSet(false, true)) {
+                    return;
+                }
+                // no body is emitted; commit a 500 without a body and terminate the exchange
+                try {
+                    exchange.sendResponseHeaders(500, -1);
+                } catch (final IOException e) {
+                    // the exchange may already be broken - just abort it below
+                } finally {
+                    onResponseEnd(request, response, 0, null);
+                    exchange.close();
+                }
             }
 
             @Override
             public void onComplete() {
-                completed.complete(null);
+                if (!terminated.compareAndSet(false, true)) {
+                    return;
+                }
+                try {
+                    final var payload = aggregated.toByteArray();
+                    exchange.sendResponseHeaders(response.status(), payload.length);
+                    final var out = exchange.getResponseBody();
+                    if (payload.length > 0) {
+                        out.write(payload);
+                    }
+                    out.close();
+                    onResponseEnd(request, response, payload.length, null);
+                } catch (final IOException e) {
+                    // swallow: the response is best-effort here; the exchange is closed below either way
+                    onResponseEnd(request, response, 0, e);
+                    exchange.close();
+                }
             }
         });
-        completed.join();
-        try {
-            if (subscriptionFail[0] != null) {
-                exchange.sendResponseHeaders(500, -1);
-                return;
-            }
-            final var payload = aggregated.toByteArray();
-            exchange.sendResponseHeaders(response.status(), payload.length);
-            if (payload.length > 0 && !"HEAD".equalsIgnoreCase(request.method())) {
-                exchange.getResponseBody().write(payload);
-                exchange.getResponseBody().close();
-            }
-        } catch (final IOException e) {
-            throw new IllegalStateException(e);
-        }
+    }
+
+    protected void onResponseEnd(final Request request, final Response response,
+                                 final long size, final Throwable error) {
+        // no-op
     }
 
     private void writeStreaming(final HttpExchange exchange, final Response response, final Request request) {
@@ -291,32 +327,46 @@ public class JreHttpServer implements AutoCloseable {
             exchange.sendResponseHeaders(response.status(), 0);
             final var output = exchange.getResponseBody();
             final var subscriptionRef = new Flow.Subscription[1];
-            bodySubscribe(exchange, response.body(), subscriptionRef, output, new AtomicBoolean());
+            bodySubscribe(exchange, subscriptionRef, output, new AtomicBoolean(), request, response);
         } catch (final IOException e) {
             throw new IllegalStateException(e);
         }
     }
 
-    private static void bodySubscribe(
+    private void bodySubscribe(
             final HttpExchange exchange,
-            final Flow.Publisher<ByteBuffer> body,
             final Flow.Subscription[] subscriptionRef,
             final OutputStream output,
-            final AtomicBoolean errored) {
-        body.subscribe(new Flow.Subscriber<>() {
+            final AtomicBoolean terminated,
+            final Request request,
+            final Response response) {
+        response.body().subscribe(new Flow.Subscriber<>() {
+            private long size = 0;
+
             @Override
             public void onSubscribe(final Flow.Subscription subscription) {
                 subscriptionRef[0] = subscription;
+                if (terminated.get()) {
+                    subscription.cancel();
+                    return;
+                }
                 subscription.request(1);
             }
 
             @Override
             public void onNext(final ByteBuffer item) {
+                if (terminated.get() || item == null) {
+                    return;
+                }
                 try {
-                    final var bytes = new byte[item.remaining()];
-                    item.get(bytes);
-                    output.write(bytes);
-                    output.flush();
+                    final var remaining = item.remaining();
+                    if (remaining > 0) {
+                        final var bytes = new byte[remaining];
+                        item.get(bytes);
+                        output.write(bytes);
+                        output.flush();
+                        size += bytes.length;
+                    }
                 } catch (final IOException e) {
                     onError(e);
                     return;
@@ -326,23 +376,32 @@ public class JreHttpServer implements AutoCloseable {
 
             @Override
             public void onError(final Throwable throwable) {
-                errored.set(true);
-                if (subscriptionRef[0] != null) {
-                    subscriptionRef[0].cancel();
+                if (!terminated.compareAndSet(false, true)) {
+                    return;
                 }
+                cancel(subscriptionRef[0]);
                 closeOutput(output);
                 exchange.close();
+                onResponseEnd(request, response, size, throwable);
             }
 
             @Override
             public void onComplete() {
-                if (subscriptionRef[0] != null) {
-                    subscriptionRef[0].cancel();
+                if (!terminated.compareAndSet(false, true)) {
+                    return;
                 }
+                cancel(subscriptionRef[0]);
                 closeOutput(output);
                 exchange.close();
+                onResponseEnd(request, response, size, null);
             }
         });
+    }
+
+    private static void cancel(final Flow.Subscription subscription) {
+        if (subscription != null) {
+            subscription.cancel();
+        }
     }
 
     private static void closeOutput(final OutputStream output) {
@@ -353,7 +412,7 @@ public class JreHttpServer implements AutoCloseable {
         }
     }
 
-    private static boolean isStreaming(final Response response) {
+    protected boolean isStreaming(final Response response) {
         final var contentTypes = response.headers().get("content-type");
         if (contentTypes == null) {
             return false;
