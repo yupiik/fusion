@@ -22,6 +22,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -107,5 +108,32 @@ class CliDocumentationGeneratorTest {
         assertTrue(result.contains("Type: `Map<String, List<Integer>>`."), "Should collapse nested generic packages, got:\n" + result);
         assertTrue(result.contains("Default: `java.util.List.of()`."), "Should document the default, got:\n" + result);
         assertFalse(result.contains("Type: `String>`."), "Should not leak the mangled generic type, got:\n" + result);
+    }
+
+    @Test
+    void relativeOutputBaseIsResolvedAgainstSourceRoot() {
+        final var source = Path.of("/some/minisite-source");
+        final var gen = new CliDocumentationGenerator(source, Map.of("outputBase", "content/cli-ai-skills"));
+
+        assertEquals(source.resolve("content/cli-ai-skills"), gen.outputBase(),
+                "A relative outputBase must be resolved against the minisite source root, not the working dir");
+    }
+
+    @Test
+    void absoluteOutputBaseIsUsedAsIs() {
+        final var source = Path.of("/some/minisite-source");
+        final var absolute = Path.of("/absolute/out").toAbsolutePath();
+        final var gen = new CliDocumentationGenerator(source, Map.of("outputBase", absolute.toString()));
+
+        assertEquals(absolute, gen.outputBase(), "An absolute outputBase must be used as-is");
+    }
+
+    @Test
+    void defaultOutputBaseIsSourceRelative() {
+        final var source = Path.of("/some/minisite-source");
+        final var gen = new CliDocumentationGenerator(source, Map.of());
+
+        assertEquals(source.resolve("content/cli"), gen.outputBase(),
+                "The default outputBase must stay relative to the minisite source root");
     }
 }
