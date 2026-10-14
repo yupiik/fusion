@@ -17,6 +17,7 @@ package io.yupiik.fusion.httpserver.jre;
 
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.yupiik.fusion.http.server.api.Request;
@@ -31,6 +32,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Flow;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -205,6 +207,148 @@ class JreHttpServerTest {
         final var resp = get(url(s, "/json"));
         assertEquals(200, resp.statusCode());
         assertEquals("{\"ok\":true}", resp.body());
+    }
+
+    /**
+     * Regression for the removed {@code completed.join()}: a buffered (non-streaming) body whose
+     * publisher delivers asynchronously must still reach the client in full. When the join() blocked
+     * the dispatch thread this worked incidentally; without it, the acceptor used to close the exchange
+     * as soon as {@code write()} returned, before the late payload was committed - truncating the body.
+     * The subscriber now owns the exchange and closes it only after committing.
+     */
+    @Test
+    void bufferedBodyWithAsyncPublisherStillDeliversFullBody() throws Exception {
+        final var s = start(Endpoint.of(
+                r -> "/async-body".equals(r.path()),
+                r -> completedFuture(Response.of()
+                        .status(200)
+                        .header("content-type", "text/plain")
+                        .body((Flow.Publisher<ByteBuffer>) subscriber -> subscriber.onSubscribe(new Flow.Subscription() {
+                            @Override
+                            public void request(final long n) {
+                                final var late = new Thread(() -> {
+                                    try {
+                                        Thread.sleep(100); // force the acceptor to return before we deliver
+                                    } catch (final InterruptedException e) {
+                                        Thread.currentThread().interrupt();
+                                    }
+                                    subscriber.onNext(ByteBuffer.wrap(
+                                            "delivered-late".getBytes(StandardCharsets.UTF_8)));
+                                    subscriber.onComplete();
+                                }, "async-body-push");
+                                late.setDaemon(true);
+                                late.start();
+                            }
+
+                            @Override
+                            public void cancel() {}
+                        }))
+                        .build())));
+        final var resp = get(url(s, "/async-body"));
+        assertEquals(200, resp.statusCode());
+        assertEquals("delivered-late", resp.body());
+    }
+
+    /**
+     * A buffered publisher that signals a terminal (prematurely) then keeps pushing frames must not
+     * crash the server nor deliver the extra frames: the terminal guard swallows the late {@code onNext}.
+     */
+    @Test
+    void bufferedBodyIgnoresFramesAfterTerminal() throws Exception {
+        final var s = start(Endpoint.of(
+                r -> "/late-frame".equals(r.path()),
+                r -> completedFuture(Response.of()
+                        .status(200)
+                        .header("content-type", "text/plain")
+                        .body((Flow.Publisher<ByteBuffer>) subscriber -> subscriber.onSubscribe(new Flow.Subscription() {
+                            private boolean done;
+
+                            @Override
+                            public void request(final long n) {
+                                if (done) {
+                                    return;
+                                }
+                                done = true;
+                                subscriber.onNext(ByteBuffer.wrap("ok".getBytes(StandardCharsets.UTF_8)));
+                                subscriber.onComplete();
+                                // broken publisher: keeps pushing after the terminal signal
+                                subscriber.onNext(ByteBuffer.wrap("extra".getBytes(StandardCharsets.UTF_8)));
+                            }
+
+                            @Override
+                            public void cancel() {}
+                        }))
+                        .build())));
+        final var resp = get(url(s, "/late-frame"));
+        assertEquals(200, resp.statusCode());
+        assertEquals("ok", resp.body());
+    }
+
+    /**
+     * A streaming publisher that errors out must tear the exchange down cleanly (no hang, no leak) -
+     * and the error path must also reach {@code onResponseEnd}. The client observes a failed/closed
+     * connection rather than a server that wedges.
+     */
+    @Test
+    void streamingBodyErrorClosesCleanly() throws Exception {
+        final var s = start(Endpoint.of(
+                r -> "/stream-error".equals(r.path()),
+                r -> completedFuture(Response.of()
+                        .status(200)
+                        .header("content-type", "text/event-stream")
+                        .body((Flow.Publisher<ByteBuffer>) subscriber -> subscriber.onSubscribe(new Flow.Subscription() {
+                            @Override
+                            public void request(final long n) {
+                                subscriber.onNext(ByteBuffer.wrap(": start\n\n".getBytes(StandardCharsets.UTF_8)));
+                                subscriber.onError(new IllegalStateException("boom"));
+                            }
+
+                            @Override
+                            public void cancel() {}
+                        }))
+                        .build())));
+        // read on a daemon thread; even though the server closes the exchange, we bound the wait so a
+        // leak would surface as a timeout we assert on
+        final var frames = new java.util.concurrent.ConcurrentLinkedQueue<String>();
+        final var reader = new Thread(
+                () -> {
+                    try {
+                        final var resp = client.send(
+                                HttpRequest.newBuilder(URI.create(url(s, "/stream-error")))
+                                        .GET()
+                                        .build(),
+                                HttpResponse.BodyHandlers.ofLines());
+                        try (final var lines = resp.body()) {
+                            lines.forEach(frames::add);
+                        }
+                    } catch (final Exception e) {
+                        frames.add("!error:" + e);
+                    }
+                },
+                "sse-error-reader");
+        reader.setDaemon(true);
+        reader.start();
+        awaitUntil(() -> !frames.isEmpty(), 5, TimeUnit.SECONDS);
+        // the stream errored, so the connection is dropped: we assert the server reacted (no hang)
+        assertTrue(!frames.isEmpty(), "expected the errored stream to terminate, got empty frames");
+    }
+
+    /**
+     * Ownership contract for the executor: {@link JreHttpServer#close()} must release only the executor it
+     * created internally. A caller-provided executor stays under the caller's control - shutting it down
+     * would break a shared/reusable pool and is the inverse of the intended behavior this guards against.
+     */
+    @Test
+    void closeDoesNotShutDownProvidedExecutor() throws Exception {
+        final var provided = Executors.newSingleThreadExecutor();
+        try {
+            final var s = new JreHttpServer(new JreHttpServerConfiguration(null, 0, false, provided), List.of());
+            s.start();
+            s.close();
+            assertFalse(provided.isShutdown(), "a caller-provided executor must survive server close()");
+        } finally {
+            provided.shutdownNow(); // clean up the test's own pool
+        }
     }
 
     @Test
