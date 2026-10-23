@@ -263,7 +263,7 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
                     case "long", "java.lang.Long" ->
                             new JsonSchema(null, null, "integer", !(required != null && required) && !"long".equals(type.className()), "int64", null, null, null, null);
                     case "double", "float", "java.lang.Double", "java.lang.Float" ->
-                            new JsonSchema(null, null, "number", !(required != null && required) && !Character.isLowerCase(type.className().charAt(0)), null, null, null, null, null);
+                            new JsonSchema(null, null, "number", !(required != null && required) && !Character.isLowerCase(type.className().charAt(0)), "double", null, null, null, null);
                     case "java.time.OffsetDateTime", "java.time.ZoneOffset" ->
                             new JsonSchema(null, null, "string", !(required != null && required), "date-time", null, null, null, null);
                     case "java.time.LocalDate" ->
@@ -305,7 +305,7 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
                                     case "long", "java.lang.Long" ->
                                             new JsonSchema(null, null, "integer", !(required != null && required) && !"long".equals(type.args().get(0)), "int64", null, null, null, null);
                                     case "double", "float", "java.lang.Double", "java.lang.Float" ->
-                                            new JsonSchema(null, null, "number", !(required != null && required) && !Character.isLowerCase(type.args().get(0).charAt(0)), null, null, null, null, null);
+                                            new JsonSchema(null, null, "number", !(required != null && required) && !Character.isLowerCase(type.args().get(0).charAt(0)), "double", null, null, null, null);
                                     case "java.lang.String" ->
                                             new JsonSchema(null, null, "string", !(required != null && required), null, null, null, null, null);
                                     default -> {
@@ -334,7 +334,7 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
                                     case "long", "java.lang.Long" ->
                                             new JsonSchema(null, null, "integer", !(required != null && required) && !"long".equals(type.args().get(1)), "int64", null, null, null, null);
                                     case "double", "float", "java.lang.Double", "java.lang.Float" ->
-                                            new JsonSchema(null, null, "number", !(required != null && required) && !Character.isLowerCase(type.args().get(1).charAt(0)), null, null, null, null, null);
+                                            new JsonSchema(null, null, "number", !(required != null && required) && !Character.isLowerCase(type.args().get(1).charAt(0)), "double", null, null, null, null);
                                     case "java.lang.String" ->
                                             new JsonSchema(null, null, "string", true, null, null, null, null, null);
                                     default -> {
@@ -364,7 +364,7 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
                                     case "long", "java.lang.Long" ->
                                             new JsonSchema(null, null, "integer", !(required != null && required) && !"long".equals(type.args().get(0)), "int64", null, null, null, null);
                                     case "double", "float", "java.lang.Double", "java.lang.Float" ->
-                                            new JsonSchema(null, null, "number", !(required != null && required) && !Character.isLowerCase(type.args().get(0).charAt(0)), null, null, null, null, null);
+                                            new JsonSchema(null, null, "number", !(required != null && required) && !Character.isLowerCase(type.args().get(0).charAt(0)), "double", null, null, null, null);
                                     case "java.lang.String" ->
                                             new JsonSchema(null, null, "string", !(required != null && required), null, null, null, null, null);
                                     default -> {

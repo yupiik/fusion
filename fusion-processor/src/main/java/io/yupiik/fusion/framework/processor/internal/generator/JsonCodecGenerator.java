@@ -562,9 +562,9 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
                 case INTEGER ->
                         new JsonSchema(null, null, "integer", !"int".equals(testedType), "int32", null, null, null, null, null, description(), null);
                 case LONG ->
-                        new JsonSchema(null, "number", "integer", !"long".equals(testedType), "int64", null, null, null, null, null, description(), null);
+                        new JsonSchema(null, null, "integer", !"long".equals(testedType), "int64", null, null, null, null, null, description(), null);
                 case DOUBLE ->
-                        new JsonSchema(null, "number", "integer", !"double".equals(testedType), null, null, null, null, null, null, description(), null);
+                        new JsonSchema(null, null, "number", !"double".equals(testedType), "double", null, null, null, null, null, description(), null);
                 // there is not yet a "decimal" format but number is not safe enough for big_decimal
                 case BIG_DECIMAL ->
                         new JsonSchema(null, null, "string", true, null, null, null, null, null, null, description(), null);
