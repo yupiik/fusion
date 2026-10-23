@@ -1130,8 +1130,8 @@ class FusionProcessorTest {
                                                           "type": "array",
                                                           "items": {
                                                             "nullable": true,
-                                                            "type": "integer",
-                                                            "$id": "number"
+                                                            "format": "double",
+                                                            "type": "number"
                                                           }
                                                         },
                                                         "generic": {
@@ -1163,16 +1163,14 @@ class FusionProcessorTest {
                                                         "lg": {
                                                           "nullable": false,
                                                           "format": "int64",
-                                                          "type": "integer",
-                                                          "$id": "number"
+                                                          "type": "integer"
                                                         },
                                                         "longList": {
                                                           "type": "array",
                                                           "items": {
                                                             "nullable": true,
                                                             "format": "int64",
-                                                            "type": "integer",
-                                                            "$id": "number"
+                                                            "type": "integer"
                                                           }
                                                         },
                                                         "mapNested": {
@@ -1202,8 +1200,8 @@ class FusionProcessorTest {
                                                         },
                                                         "more": {
                                                           "nullable": false,
-                                                          "type": "integer",
-                                                          "$id": "number"
+                                                          "format": "double",
+                                                          "type": "number"
                                                         },
                                                         "nested": {
                                                           "nullable": true,
@@ -1353,8 +1351,8 @@ class FusionProcessorTest {
                                                           "type": "array",
                                                           "items": {
                                                             "nullable": true,
-                                                            "type": "integer",
-                                                            "$id": "number"
+                                                            "format": "double",
+                                                            "type": "number"
                                                           }
                                                         },
                                                         "generic": {
@@ -1386,16 +1384,14 @@ class FusionProcessorTest {
                                                         "lg": {
                                                           "nullable": false,
                                                           "format": "int64",
-                                                          "type": "integer",
-                                                          "$id": "number"
+                                                          "type": "integer"
                                                         },
                                                         "longList": {
                                                           "type": "array",
                                                           "items": {
                                                             "nullable": true,
                                                             "format": "int64",
-                                                            "type": "integer",
-                                                            "$id": "number"
+                                                            "type": "integer"
                                                           }
                                                         },
                                                         "mapNested": {
@@ -1425,8 +1421,8 @@ class FusionProcessorTest {
                                                         },
                                                         "more": {
                                                           "nullable": false,
-                                                          "type": "integer",
-                                                          "$id": "number"
+                                                          "format": "double",
+                                                          "type": "number"
                                                         },
                                                         "nested": {
                                                           "nullable": true,
