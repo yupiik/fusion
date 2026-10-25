@@ -36,5 +36,6 @@ final String json = jsonMapper.toString(model);
 
 - Reflectionless: no reflection-based (de)serialization fallback, unsupported types must fail clearly.
 - Codec generation lives in `fusion-processor` (`internal/json`), only the runtime belongs here.
+- Numbers are parsed into `BigDecimal` through `JsonParser#getBigDecimal()`, which enforces a configurable max scale magnitude (`fusion.json.maxBigDecimalScale`, default 1000, negative disables) to mitigate the CVE-2023-33008-style DoS; huge-scale decimal literals such as `1e20000000` are rejected with `ArithmeticException` at parse time.
 
 {{{footer}}}

@@ -510,6 +510,12 @@ public class JsonMapperImpl implements JsonMapper {
                 .orElse(-1);
     }
 
+    private static int maxBigDecimalScale(final Configuration configuration) {
+        return configuration.get("fusion.json.maxBigDecimalScale")
+                .map(Integer::parseInt)
+                .orElse(JsonParser.DEFAULT_MAX_BIG_DECIMAL_SCALE);
+    }
+
     private static BufferProvider createBufferProvider(final Configuration configuration) {
         return new BufferProvider(maxStringLength(configuration), maxBuffers(configuration));
     }
@@ -520,7 +526,8 @@ public class JsonMapperImpl implements JsonMapper {
                 .map(Boolean::parseBoolean)
                 .orElse(true);
         final var bufferFactory = createBufferProvider(configuration);
-        return reader -> new JsonParser(reader, maxStringLength, bufferFactory, autoAdjust);
+        final int maxBigDecimalScale = maxBigDecimalScale(configuration);
+        return reader -> new JsonParser(reader, maxStringLength, bufferFactory, autoAdjust, maxBigDecimalScale);
     }
 
     private static class ConfiguringImpl implements Configuring {

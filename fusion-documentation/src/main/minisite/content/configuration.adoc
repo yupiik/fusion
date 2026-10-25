@@ -108,6 +108,7 @@ The following implicit keys are read directly from `Configuration` by the runtim
 | `fusion.json.maxStringLength` | json | - | Mapper string buffer tuning.
 | `fusion.json.maxBuffers` | json | - | Mapper buffer tuning.
 | `fusion.json.bufferAutoAdjust` | json | - | Mapper buffer tuning.
+| `fusion.json.maxBigDecimalScale` | json | `1000` | Maximum magnitude of a `BigDecimal` scale accepted when parsing numbers (rejecting large scales prevents the CVE-2023-33008 style denial of service); a negative value disables the check.
 | `fusion.persistence.contextLess` | persistence | `false` | Inject a `ContextLessDatabase` instead of the thread-local `Database`.
 | `fusion.cli.usage.parameters` | cli | `true` | Show options in usage.
 | `fusion.cli.app.name` | cli | `app` | Application name in shell completion scripts.

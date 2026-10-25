@@ -82,10 +82,28 @@ public class JsonParser implements Parser {
     // for wrappers mainly
     private Event rewindedEvent;
 
+    /**
+     * Maximum magnitude of a {@link BigDecimal} scale accepted when a number is read as decimal.
+     * Guards against the CVE-2023-33008 class of denial of service where a tiny number literal with an
+     * absurd exponent (e.g. {@code 1e20000000}) yields a huge-scale {@link BigDecimal} making conversions
+     * (and {@code toString}) quadratically slow. Default {@value #DEFAULT_MAX_BIG_DECIMAL_SCALE}.
+     */
+    public static final int DEFAULT_MAX_BIG_DECIMAL_SCALE = 1_000;
+
+    private final int maxBigDecimalScale;
+
     public JsonParser(final Reader reader, final int maxStringLength,
                       final BufferProvider bufferProvider,
                       final boolean autoAdjust) {
+        this(reader, maxStringLength, bufferProvider, autoAdjust, DEFAULT_MAX_BIG_DECIMAL_SCALE);
+    }
+
+    public JsonParser(final Reader reader, final int maxStringLength,
+                      final BufferProvider bufferProvider,
+                      final boolean autoAdjust,
+                      final int maxBigDecimalScale) {
         this.autoAdjust = autoAdjust;
+        this.maxBigDecimalScale = maxBigDecimalScale;
         this.bufferProvider = bufferProvider;
         this.in = reader;
         if (reader instanceof AvailableCharArrayReader ar) {
@@ -794,16 +812,39 @@ public class JsonParser implements Parser {
         if (previousEvent != VALUE_NUMBER.ordinal()) {
             throw new IllegalStateException(EVT_MAP[previousEvent] + " doesn't support getBigDecimal()");
         }
+        final BigDecimal decimal;
         if (isCurrentNumberIntegral && currentIntegralNumber != Integer.MIN_VALUE) {
-            return new BigDecimal(currentIntegralNumber);
-        }
-        if (buffers == null) {
-            return (fallBackCopyBufferLength > 0 ?
+            decimal = new BigDecimal(currentIntegralNumber);
+        } else if (buffers == null) {
+            decimal = fallBackCopyBufferLength > 0 ?
                     new BigDecimal(fallBackCopyBuffer, 0, fallBackCopyBufferLength, MathContext.UNLIMITED) :
-                    new BigDecimal(buffer, startOfValueInBuffer, endOfValueInBuffer - startOfValueInBuffer, MathContext.UNLIMITED));
+                    new BigDecimal(buffer, startOfValueInBuffer, endOfValueInBuffer - startOfValueInBuffer, MathContext.UNLIMITED);
+        } else {
+            // unlikely
+            decimal = new BigDecimal(getInternalString());
         }
-        // unlikely
-        return new BigDecimal(getInternalString());
+        return checkBigDecimalScale(decimal);
+    }
+
+    /**
+     * Rejects {@link BigDecimal}s whose scale magnitude exceeds the configured limit.
+     * <p>
+     * This mirrors the mitigation of CVE-2023-33008 (Apache Johnzon JOHNZON-397): a number literal with a
+     * huge exponent (e.g. {@code 1e20000000}) produces a {@link BigDecimal} with a very large scale whose
+     * {@code toString()} and exact conversions ({@code toBigInteger}, {@code toBigIntegerExact}, ...) are
+     * quadratically slow, enabling a denial of service. We reject such values at parse time so a poisoned
+     * {@link BigDecimal} never reaches user code. The magnitude is computed on a {@code long} so a scale of
+     * {@link Integer#MIN_VALUE} cannot overflow the absolute value.
+     */
+    private BigDecimal checkBigDecimalScale(final BigDecimal decimal) {
+        if (maxBigDecimalScale >= 0) { // a negative value disables the check entirely (opt-out, at the caller's risk)
+            final long absScale = Math.abs((long) decimal.scale());
+            if (absScale > maxBigDecimalScale) {
+                throw new ArithmeticException(
+                        "BigDecimal scale (" + decimal.scale() + ") magnitude exceeds maximum allowed (" + maxBigDecimalScale + ")");
+            }
+        }
+        return decimal;
     }
 
     @Override

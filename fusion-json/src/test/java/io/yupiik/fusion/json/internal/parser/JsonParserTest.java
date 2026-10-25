@@ -32,6 +32,7 @@ import java.util.stream.Stream;
 import static java.util.stream.Collectors.joining;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class JsonParserTest {
@@ -128,6 +129,78 @@ class JsonParserTest {
             assertEquals(JsonParser.Event.VALUE_NUMBER, reader.next());
             assertEquals(123.56, reader.getDouble());
             assertFalse(reader.hasNext());
+        }
+    }
+
+    @Test
+    void bigDecimalScaleGuardRejectsHugeExponent() {
+        // CVE-2023-33008 / JOHNZON-397 class of DoS: tiny literal, huge-scale BigDecimal.
+        // A magnitude above the default 1000 limit must be rejected, not materialized.
+        for (final var value : new String[]{"1e1001", "1e20000000", "1E20000000"}) {
+            for (final var provided : new boolean[]{false, true}) {
+                try (final var reader = parser(value, provided)) {
+                    assertTrue(reader.hasNext());
+                    assertEquals(JsonParser.Event.VALUE_NUMBER, reader.next());
+                    final var e = assertThrows(ArithmeticException.class, reader::getBigDecimal, () -> value);
+                    assertTrue(e.getMessage().contains("scale"), () -> e.getMessage());
+                    assertFalse(reader.hasNext());
+                }
+            }
+        }
+    }
+
+    @Test
+    void bigDecimalScaleGuardAcceptsBoundary() {
+        // scale magnitude exactly at the default limit (1000) is accepted
+        for (final var value : new String[]{"1e1000", "1e-1000"}) {
+            try (final var reader = parser(value)) {
+                assertTrue(reader.hasNext());
+                assertEquals(JsonParser.Event.VALUE_NUMBER, reader.next());
+                reader.getBigDecimal(); // must not throw
+            }
+        }
+    }
+
+    @Test
+    void bigDecimalScaleGuardAcceptsNormalNumbers() {
+        for (final var value : new String[]{"1", "-1", "123.45", "1e3", "1e-3", "2.5E+10", "1e100"}) {
+            try (final var reader = parser(value)) {
+                assertTrue(reader.hasNext());
+                assertEquals(JsonParser.Event.VALUE_NUMBER, reader.next());
+                reader.getBigDecimal(); // must not throw
+            }
+        }
+    }
+
+    @Test
+    void bigDecimalScaleGuardHonorsCustomLimit() {
+        try (final var reader = parser("1e6", false, 5)) {
+            assertTrue(reader.hasNext());
+            assertEquals(JsonParser.Event.VALUE_NUMBER, reader.next());
+            final var e = assertThrows(ArithmeticException.class, reader::getBigDecimal);
+            assertTrue(e.getMessage().contains("5"), () -> e.getMessage());
+        }
+        try (final var reader = parser("1e4", false, 5)) {
+            assertTrue(reader.hasNext());
+            assertEquals(JsonParser.Event.VALUE_NUMBER, reader.next());
+            reader.getBigDecimal(); // scale magnitude 4 <= 5, accepted
+        }
+        // a negative limit disables the guard entirely (opt-out, at the caller's risk)
+        try (final var reader = parser("1e20000000", false, -1)) {
+            assertTrue(reader.hasNext());
+            assertEquals(JsonParser.Event.VALUE_NUMBER, reader.next());
+            reader.getBigDecimal(); // unlimited, must not throw
+        }
+    }
+
+    @Test
+    void bigDecimalScaleGuardIsIntegerMinValueSafe() {
+        // a literal with a large negative exponent produces a large positive scale; the magnitude check
+        // computes Math.abs((long) scale) so even the Integer.MIN_VALUE edge cannot overflow
+        try (final var reader = parser("1e-10000", false, 1000)) {
+            assertTrue(reader.hasNext());
+            assertEquals(JsonParser.Event.VALUE_NUMBER, reader.next());
+            assertThrows(ArithmeticException.class, reader::getBigDecimal);
         }
     }
 
@@ -271,8 +344,12 @@ class JsonParserTest {
     }
 
     private JsonParser parser(final String string, final boolean provided) {
+        return parser(string, provided, JsonParser.DEFAULT_MAX_BIG_DECIMAL_SCALE);
+    }
+
+    private JsonParser parser(final String string, final boolean provided, final int maxBigDecimalScale) {
         return new JsonParser(
                 provided ? new AvailableCharArrayReader(string.toCharArray()) : new StringReader(string),
-                16, new BufferProvider(16, -1), true);
+                16, new BufferProvider(16, -1), true, maxBigDecimalScale);
     }
 }

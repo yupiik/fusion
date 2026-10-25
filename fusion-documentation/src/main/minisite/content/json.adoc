@@ -60,6 +60,7 @@ public record MyModel(
 ----
 
 WARNING: `BigDecimal` is supported but avoid to use `toBigInteger()` or scale related methods without size validation due to java implementation.
+By default parsing rejects numbers whose `BigDecimal` scale magnitude exceeds 1000 (see `fusion.json.maxBigDecimalScale`) to prevent the CVE-2023-33008-style denial of service where a tiny literal like `1e20000000` yields a huge-scale `BigDecimal` making conversions and `toString` quadratically slow.
 
 Then read/write data using `JsonMapper`:
 
