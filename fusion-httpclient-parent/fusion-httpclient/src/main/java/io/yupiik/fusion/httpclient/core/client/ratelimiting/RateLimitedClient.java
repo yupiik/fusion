@@ -81,7 +81,7 @@ public class RateLimitedClient extends DelegatingHttpClient {
         if (maxRetriesExceeded(retry)) {
             throw noMoreRetries(request);
         }
-        final var pause = clientRateLimiter.before();
+        final var pause = clientRateLimiter.before(rateLimitKey(request));
         try {
             if (pause > 0) {
                 log(request, pause);
@@ -102,13 +102,13 @@ public class RateLimitedClient extends DelegatingHttpClient {
 
     @Override
     public <T> CompletableFuture<HttpResponse<T>> sendAsync(final HttpRequest request, final HttpResponse.BodyHandler<T> responseBodyHandler) {
-        final var pause = clientRateLimiter.before();
+        final var pause = clientRateLimiter.before(rateLimitKey(request));
         return wrap(pause, request, () -> super.sendAsync(request, responseBodyHandler), 0);
     }
 
     @Override
     public <T> CompletableFuture<HttpResponse<T>> sendAsync(final HttpRequest request, final HttpResponse.BodyHandler<T> responseBodyHandler, final HttpResponse.PushPromiseHandler<T> pushPromiseHandler) {
-        final var pause = clientRateLimiter.before();
+        final var pause = clientRateLimiter.before(rateLimitKey(request));
         return wrap(pause, request, () -> super.sendAsync(request, responseBodyHandler, pushPromiseHandler), 0);
     }
 
@@ -185,6 +185,11 @@ public class RateLimitedClient extends DelegatingHttpClient {
 
     private IllegalStateException noMoreRetries(final HttpRequest request) {
         return new IllegalStateException("Max retries (" + maxRetries + ") exceeded for " + request.method() + " " + request.uri());
+    }
+
+    private static String rateLimitKey(final HttpRequest request) {
+        final var authority = request.uri().getAuthority();
+        return authority == null ? "*" : authority;
     }
 
     protected <T> void doDelay(final long pause, final Callable<CompletableFuture<HttpResponse<T>>> delayedExecution) {

@@ -372,6 +372,79 @@ class RateLimitedClientTest {
         }
     }
 
+    @Test
+    void perHostBudgetIsolatedAcrossAuthorities() throws ExecutionException, InterruptedException {
+        final var clock = new Clock() {
+            @Override
+            public ZoneId getZone() {
+                return ZoneId.of("UTC");
+            }
+
+            @Override
+            public Clock withZone(final ZoneId zone) {
+                return this;
+            }
+
+            @Override
+            public Instant instant() {
+                return Instant.ofEpochMilli(NOW);
+            }
+        };
+
+        // one shared RateLimitedClient with a PER_HOST limiter: exhausting host-a must
+        // not throttle host-b (in GLOBAL mode host-b would share host-a's budget).
+        final var sent = new AtomicInteger(0);
+        final var scheduled = new AtomicInteger(0);
+        final var hosts = new ArrayList<String>();
+        final var client = new RateLimitedClient(
+                new DelegatingHttpClient(null) {
+                    @Override
+                    public <T> CompletableFuture<HttpResponse<T>> sendAsync(
+                            final HttpRequest request,
+                            final HttpResponse.BodyHandler<T> responseBodyHandler) {
+                        sent.incrementAndGet();
+                        hosts.add(request.uri().getHost());
+                        return completedFuture(new StaticHttpResponse<T>(
+                                request, Version.HTTP_1_1, 200, HttpHeaders.of(Map.of(), (a, b) -> true), null));
+                    }
+                },
+                new RateLimiter(1, 1000, clock, RateLimiter.Scope.PER_HOST),
+                1000, clock) {
+            @Override
+            protected <T> CompletableFuture<HttpResponse<T>> doScheduleLater(final long pause, final HttpRequest request,
+                                                                             final Supplier<CompletableFuture<HttpResponse<T>>> promise,
+                                                                             final int retry) {
+                scheduled.incrementAndGet();
+                return super.doScheduleLater(pause, request, promise, retry);
+            }
+
+            @Override
+            protected <T> void doDelay(final long pause, final Callable<CompletableFuture<HttpResponse<T>>> delayedExecution) {
+                try {
+                    delayedExecution.call();
+                } catch (final Exception e) {
+                    throw new IllegalStateException(e);
+                }
+            }
+        };
+
+        try {
+            final var hostA = HttpRequest.newBuilder().GET().uri(URI.create("http://host-a:80/")).build();
+            final var hostB = HttpRequest.newBuilder().GET().uri(URI.create("http://host-b:80/")).build();
+
+            assertEquals(200, client.sendAsync(hostA, discarding()).get().statusCode()); // host-a consumes its only permit
+            assertEquals(200, client.sendAsync(hostA, discarding()).get().statusCode()); // host-a throttled -> scheduled
+            assertEquals(200, client.sendAsync(hostB, discarding()).get().statusCode()); // host-b fresh -> not throttled
+
+            assertEquals(3, sent.get());
+            assertEquals(1, scheduled.get()); // only host-a's second request was throttled
+            assertTrue(hosts.contains("host-a"));
+            assertTrue(hosts.contains("host-b"));
+        } finally {
+            client.close();
+        }
+    }
+
     private String httpDate(final long epochMilli) {
         return DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss O", Locale.ENGLISH)
                 .format(OffsetDateTime.ofInstant(Instant.ofEpochMilli(epochMilli), ZoneOffset.UTC));
