@@ -78,8 +78,8 @@ public class RateLimitedClient extends DelegatingHttpClient {
     }
 
     private <T> HttpResponse<T> send(final HttpRequest request, final HttpResponse.BodyHandler<T> responseBodyHandler, final int retry) throws IOException, InterruptedException {
-        if (maxRetries >= 0 && retry > maxRetries) {
-            throw new IllegalStateException("Max retries (" + maxRetries + ") exceeded for " + request.method() + " " + request.uri());
+        if (maxRetriesExceeded(retry)) {
+            throw noMoreRetries(request);
         }
         final var pause = clientRateLimiter.before();
         try {
@@ -103,13 +103,13 @@ public class RateLimitedClient extends DelegatingHttpClient {
     @Override
     public <T> CompletableFuture<HttpResponse<T>> sendAsync(final HttpRequest request, final HttpResponse.BodyHandler<T> responseBodyHandler) {
         final var pause = clientRateLimiter.before();
-        return wrap(pause, request, () -> super.sendAsync(request, responseBodyHandler));
+        return wrap(pause, request, () -> super.sendAsync(request, responseBodyHandler), 0);
     }
 
     @Override
     public <T> CompletableFuture<HttpResponse<T>> sendAsync(final HttpRequest request, final HttpResponse.BodyHandler<T> responseBodyHandler, final HttpResponse.PushPromiseHandler<T> pushPromiseHandler) {
         final var pause = clientRateLimiter.before();
-        return wrap(pause, request, () -> super.sendAsync(request, responseBodyHandler, pushPromiseHandler));
+        return wrap(pause, request, () -> super.sendAsync(request, responseBodyHandler, pushPromiseHandler), 0);
     }
 
     private void log(final HttpRequest request, final long pause) {
@@ -117,23 +117,33 @@ public class RateLimitedClient extends DelegatingHttpClient {
     }
 
     private <T> CompletableFuture<HttpResponse<T>> wrap(final long pause, final HttpRequest request,
-                                                        final Supplier<CompletableFuture<HttpResponse<T>>> promise) {
+                                                        final Supplier<CompletableFuture<HttpResponse<T>>> promise,
+                                                        final int retry) {
         if (pause == 0) {
             return promise.get()
                     .whenComplete((ok, ko) -> clientRateLimiter.after())
                     .thenCompose(ok -> {
                         if (isRateLimited(ok)) {
                             final long newPause = findPause(request, ok);
-                            return wrap(newPause, request, promise);
+                            final int newRetry = retry + 1;
+                            if (maxRetriesExceeded(newRetry)) {
+                                return CompletableFuture.failedFuture(noMoreRetries(request));
+                            }
+                            return wrap(newPause, request, promise, newRetry);
                         }
                         return completedFuture(ok);
                     });
         }
-        return doScheduleLater(pause, request, promise);
+        final int newRetry = retry + 1;
+        if (maxRetriesExceeded(newRetry)) {
+            return CompletableFuture.failedFuture(noMoreRetries(request));
+        }
+        return doScheduleLater(pause, request, promise, newRetry);
     }
 
     protected <T> CompletableFuture<HttpResponse<T>> doScheduleLater(final long pause, final HttpRequest request,
-                                                                     final Supplier<CompletableFuture<HttpResponse<T>>> promise) {
+                                                                     final Supplier<CompletableFuture<HttpResponse<T>>> promise,
+                                                                     final int retry) {
         log(request, pause);
         final var facade = new CompletableFuture<HttpResponse<T>>();
         final Callable<CompletableFuture<HttpResponse<T>>> delayedExecution = () ->
@@ -141,7 +151,12 @@ public class RateLimitedClient extends DelegatingHttpClient {
                     try {
                         if (isRateLimited(ok)) {
                             final long newPause = findPause(request, ok);
-                            doScheduleLater(newPause, request, promise).whenComplete((innerOk, innerKo) -> {
+                            final int newRetry = retry + 1;
+                            if (maxRetriesExceeded(newRetry)) {
+                                facade.completeExceptionally(noMoreRetries(request));
+                                return;
+                            }
+                            doScheduleLater(newPause, request, promise, newRetry).whenComplete((innerOk, innerKo) -> {
                                 if (innerKo != null) {
                                     facade.completeExceptionally(innerKo);
                                 } else {
@@ -162,6 +177,14 @@ public class RateLimitedClient extends DelegatingHttpClient {
         doDelay(pause, delayedExecution);
         clientRateLimiter.after();
         return facade;
+    }
+
+    protected boolean maxRetriesExceeded(final int retry) {
+        return maxRetries >= 0 && retry > maxRetries;
+    }
+
+    private IllegalStateException noMoreRetries(final HttpRequest request) {
+        return new IllegalStateException("Max retries (" + maxRetries + ") exceeded for " + request.method() + " " + request.uri());
     }
 
     protected <T> void doDelay(final long pause, final Callable<CompletableFuture<HttpResponse<T>>> delayedExecution) {
