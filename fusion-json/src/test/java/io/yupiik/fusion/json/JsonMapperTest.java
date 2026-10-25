@@ -75,6 +75,29 @@ class JsonMapperTest {
     }
 
     @Test
+    void maxBigDecimalScaleConfig() {
+        try (final var mapper = new JsonMapperImpl(List.of(), key -> Optional.empty())) {
+            // default (1000): a huge-scale literal is rejected when materialized into a BigDecimal
+            assertThrows(ArithmeticException.class,
+                    () -> mapper.fromString(Object.class, "{\"v\": 1e1001}"));
+            // negative limit disables the guard
+            try (final var unlimited = new JsonMapperImpl(List.of(),
+                    key -> "fusion.json.maxBigDecimalScale".equals(key) ? Optional.of("-1") : Optional.empty())) {
+                final var accepted = unlimited.fromString(Object.class, "{\"v\": 1e1001}");
+                assertEquals(new java.math.BigDecimal("1e1001"), ((Map<?, ?>) accepted).get("v"));
+            }
+            // custom small positive limit
+            try (final var strict = new JsonMapperImpl(List.of(),
+                    key -> "fusion.json.maxBigDecimalScale".equals(key) ? Optional.of("5") : Optional.empty())) {
+                assertThrows(ArithmeticException.class,
+                        () -> strict.fromString(Object.class, "{\"v\": 1e6}"));
+                assertEquals(new java.math.BigDecimal("1e4"),
+                        ((Map<?, ?>) strict.fromString(Object.class, "{\"v\": 1e4}")).get("v"));
+            }
+        }
+    }
+
+    @Test
     void mapWithOnlyNullValues() {
         try (final var mapper = new JsonMapperImpl(List.of(), key -> Optional.empty())) {
             final var map = new java.util.LinkedHashMap<String, Object>();
