@@ -46,6 +46,8 @@ import static java.util.concurrent.CompletableFuture.completedFuture;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static java.util.stream.Collectors.toMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RateLimitedClientTest {
     private static final long NOW = Instant.parse("2026-08-16T00:00:00Z").toEpochMilli();
@@ -116,10 +118,10 @@ class RateLimitedClientTest {
             }
 
             @Override
-            protected <T> CompletableFuture<HttpResponse<T>> doScheduleLater(final long pause, final HttpRequest request, final Supplier<CompletableFuture<HttpResponse<T>>> promise) {
+            protected <T> CompletableFuture<HttpResponse<T>> doScheduleLater(final long pause, final HttpRequest request, final Supplier<CompletableFuture<HttpResponse<T>>> promise, final int retry) {
                 pauses.add(pause);
                 instant.set(Instant.ofEpochMilli(instant.get().toEpochMilli() + pause));
-                return super.doScheduleLater(pause, request, promise);
+                return super.doScheduleLater(pause, request, promise, retry);
             }
         };
         assertEquals(
@@ -167,10 +169,10 @@ class RateLimitedClientTest {
                 new RateLimiter(2, 1000, clock),
                 1000, clock) {
             @Override
-            protected <T> CompletableFuture<HttpResponse<T>> doScheduleLater(final long pause, final HttpRequest request, final Supplier<CompletableFuture<HttpResponse<T>>> promise) {
+            protected <T> CompletableFuture<HttpResponse<T>> doScheduleLater(final long pause, final HttpRequest request, final Supplier<CompletableFuture<HttpResponse<T>>> promise, final int retry) {
                 scheduled.incrementAndGet();
                 instant.set(Instant.ofEpochMilli(instant.get().toEpochMilli() + pause));
-                return super.doScheduleLater(pause, request, promise);
+                return super.doScheduleLater(pause, request, promise, retry);
             }
 
             @Override
@@ -245,6 +247,126 @@ class RateLimitedClientTest {
                             HttpRequest.newBuilder().GET().uri(URI.create("http://localhost:1234")).build(), discarding())
                     .get(20, SECONDS);
             assertEquals(200, response.statusCode());
+        } finally {
+            client.close();
+        }
+    }
+
+    @Test
+    void asyncBareRateLimitedIsBoundedByMaxRetries() throws InterruptedException {
+        final var clock = new Clock() {
+            @Override
+            public ZoneId getZone() {
+                return ZoneId.of("UTC");
+            }
+
+            @Override
+            public Clock withZone(final ZoneId zone) {
+                return this;
+            }
+
+            @Override
+            public Instant instant() {
+                return Instant.ofEpochMilli(NOW);
+            }
+        };
+
+        // a bare 429 (no retry headers) uses the window fallback, so without a bound the async
+        // path would recurse forever; the fix must complete exceptionally after maxRetries.
+        final int maxRetries = 2;
+        final var calls = new AtomicInteger(0);
+        final var client = new RateLimitedClient(
+                new DelegatingHttpClient(null) {
+                    @Override
+                    public <T> CompletableFuture<HttpResponse<T>> sendAsync(
+                            final HttpRequest request,
+                            final HttpResponse.BodyHandler<T> responseBodyHandler) {
+                        calls.incrementAndGet();
+                        return completedFuture(new StaticHttpResponse<T>(
+                                request, Version.HTTP_1_1, 429, HttpHeaders.of(Map.of(), (a, b) -> true), null));
+                    }
+                },
+                new RateLimiter(Integer.MAX_VALUE, Integer.MAX_VALUE, clock),
+                1000, clock, maxRetries) {
+            @Override
+            protected <T> void doDelay(final long pause, final Callable<CompletableFuture<HttpResponse<T>>> delayedExecution) {
+                try {
+                    delayedExecution.call();
+                } catch (final Exception e) {
+                    throw new IllegalStateException(e);
+                }
+            }
+        };
+
+        try {
+            final var request = HttpRequest.newBuilder().GET().uri(URI.create("http://localhost:1234")).build();
+            final var future = client.sendAsync(request, discarding());
+            final var failure = assertThrows(ExecutionException.class, future::get);
+            assertEquals(IllegalStateException.class, failure.getCause().getClass());
+            assertTrue(calls.get() <= maxRetries + 1, "expected at most " + (maxRetries + 1) + " calls but got " + calls.get());
+        } finally {
+            client.close();
+        }
+    }
+
+    @Test
+    void scheduledSurrogateIsAlsoBoundedByMaxRetries() throws InterruptedException {
+        final var clock = new Clock() {
+            @Override
+            public ZoneId getZone() {
+                return ZoneId.of("UTC");
+            }
+
+            @Override
+            public Clock withZone(final ZoneId zone) {
+                return this;
+            }
+
+            @Override
+            public Instant instant() {
+                return Instant.ofEpochMilli(NOW);
+            }
+        };
+
+        // force an initial client-side throttle then keep getting 429 with a Retry-After,
+        // so the bound must hold across doScheduleLater's internal recursion too.
+        final int maxRetries = 3;
+        final var calls = new AtomicInteger(0);
+        final var client = new RateLimitedClient(
+                new DelegatingHttpClient(null) {
+                    @Override
+                    public <T> CompletableFuture<HttpResponse<T>> sendAsync(
+                            final HttpRequest request,
+                            final HttpResponse.BodyHandler<T> responseBodyHandler) {
+                        calls.incrementAndGet();
+                        return completedFuture(new StaticHttpResponse<T>(
+                                request, Version.HTTP_1_1, 429,
+                                HttpHeaders.of(Map.of("Retry-After", List.of("1")), (a, b) -> true), null));
+                    }
+                },
+                new RateLimiter(Integer.MAX_VALUE, Integer.MAX_VALUE, clock) {
+                    @Override
+                    public long before() {
+                        return 1000; // always throttle, driving the scheduled path
+                    }
+                },
+                1000, clock, maxRetries) {
+            @Override
+            protected <T> void doDelay(final long pause, final Callable<CompletableFuture<HttpResponse<T>>> delayedExecution) {
+                try {
+                    delayedExecution.call();
+                } catch (final Exception e) {
+                    throw new IllegalStateException(e);
+                }
+            }
+        };
+
+        try {
+            final var request = HttpRequest.newBuilder().GET().uri(URI.create("http://localhost:1234")).build();
+            final var future = client.sendAsync(request, discarding());
+            final var failure = assertThrows(ExecutionException.class, future::get);
+            assertEquals(IllegalStateException.class, failure.getCause().getClass());
+            assertTrue(calls.get() <= maxRetries + 1, "expected at most " + (maxRetries + 1) + " calls but got " + calls.get());
         } finally {
             client.close();
         }
