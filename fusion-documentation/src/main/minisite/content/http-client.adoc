@@ -111,6 +111,41 @@ conf.setListeners(List.of(
 
 These decorators are combined by wrapping the client: `new ThrottledHttpClient(new RoutingHttpClient(delegate))`.
 
+`RateLimitedClient` wraps a delegate and uses a `RateLimiter` to throttle requests.
+A `RateLimiter` enforces a maximum number of requests (`permits`) per sliding `window` (in milliseconds).
+The permit count can be a fixed `int` or a `java.util.function.Function<String, Integer>` resolved per request key.
+You can choose the granularity of that budget through `RateLimiter.Scope`:
+
+* `GLOBAL` (the default, historical behavior) shares a single budget across every request routed through the client,
+* `PER_HOST` gives each distinct request authority (`uri.getAuthority()`, typically `host:port`) its own independent budget,
+  so a busy upstream never throttles requests to another host.
+
+[source,java]
+----
+// one shared budget of 50 requests per second across all hosts
+final var global = new RateLimiter(50, 1_000, Clock.systemUTC());
+
+// an independent budget of 50 requests per second per host
+final var perHost = new RateLimiter(50, 1_000, Clock.systemUTC(), RateLimiter.Scope.PER_HOST);
+
+// a per-host budget that varies the cap by host, or leaves some hosts unlimited
+final var tuned = new RateLimiter(
+        key -> "internal:8080".equals(key) ? Integer.MAX_VALUE : 20,
+        1_000, Clock.systemUTC(), RateLimiter.Scope.PER_HOST);
+
+final var client = new RateLimitedClient(delegate, perHost, 1_000, Clock.systemUTC());
+----
+
+The permits function receives the effective key (with `PER_HOST`, the request authority) and must be thread-safe.
+Return `Integer.MAX_VALUE` to leave a given host unlimited.
+`RateLimitedClient` itself is unchanged: it passes each request authority to the `RateLimiter`, which honors the scope.
+With `PER_HOST`, a single `RateLimitedClient` can serve many hosts with separate budgets instead of building one client per host.
+On a `429` (or a `403` with a `Retry-After` header) the client backs off up to `maxRetries` (default `5`, or unlimited when negative) before failing, whether the request went through the synchronous or the asynchronous path.
+
+NOTE: `GLOBAL` was historically an accidental safety valve for total outbound throughput.
+With `PER_HOST` each host is capped individually, so the aggregate ceiling across all hosts is higher.
+Use a `GLOBAL` limiter if you still want a hard total cap.
+
 == Closing
 
 By default (no `closeTimeout` set) `ExtendedHttpClient.close()` only closes the registered hooks and listeners:
