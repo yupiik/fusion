@@ -16,3 +16,7 @@ dependency-reduced-pom.xml
 
 # graft's local graph cache — regenerable, not committed (run `graft build`).
 /graft/
+
+# generated
+fusion-documentation/src/main/minisite/content/cli-ai-skills/
+
