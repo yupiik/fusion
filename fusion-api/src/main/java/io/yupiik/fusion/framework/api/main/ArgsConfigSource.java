@@ -47,6 +47,11 @@ import java.util.Set;
  * ({@code get("foo")} returns {@code false}); a negation never consumes the following token
  * ({@code --no-x v} binds {@code x=false} and drops {@code v}). Use {@code --no-x=value} for an
  * explicit value, which then only binds {@code no-x} like any other key.
+ * <p>
+ * The exact {@code --} token is the standard end-of-options marker: option parsing stops there and
+ * every following token - including ones which look like options, e.g. {@code -version} - is ignored
+ * (never bound, never rejected), so a wrapper command can forward its own option-looking arguments
+ * downstream ({@code my-app run --rc .yemrc -- mvn -DskipTests package}).
  */
 public class ArgsConfigSource implements ConfigurationSource {
     private final Map<String, String> values;  // key (dash and dot aliases) -> joined value
@@ -58,6 +63,9 @@ public class ArgsConfigSource implements ConfigurationSource {
         final var len = args.size();
         for (int i = 0; i < len; i++) {
             final var token = args.get(i);
+            if ("--".equals(token)) { // end-of-options marker: stop binding options entirely
+                break;
+            }
             if (!isOptionLike(token)) { // positional token (command name, bare value...), not a config entry
                 continue;
             }
@@ -67,7 +75,7 @@ public class ArgsConfigSource implements ConfigurationSource {
             final var rawName = token.startsWith("--") ? token.substring(2) : token.substring(1);
             final int sep = rawName.indexOf('=');
             final var name = (sep >= 0 ? rawName.substring(0, sep) : rawName).replace('.', '-');
-            if (name.isEmpty()) { // lone "-"/"--"
+            if (name.isEmpty()) { // lone "-"
                 continue;
             }
             if (sep >= 0) {

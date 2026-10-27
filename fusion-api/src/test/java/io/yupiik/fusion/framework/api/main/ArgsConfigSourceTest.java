@@ -161,4 +161,42 @@ class ArgsConfigSourceTest {
         final var location = Files.writeString(work.resolve("props.properties"), "foo=bar2");
         assertEquals("bar2", new ArgsConfigSource(List.of("--fusion-properties-whatever=" + location)).get("foo"));
     }
+
+    @Test
+    void delimiterStopsOptionParsing() { // the three rows from the yem regression report on the 1.2.x merge
+        assertNull(new ArgsConfigSource(List.of("--rc", "x", "--", "demo", "-version")).get("version"));
+        assertNull(new ArgsConfigSource(List.of("--", "demo", "-B", "-ntp", "verify")).get("B"));
+        assertNull(new ArgsConfigSource(List.of("--", "demo", "-DskipTests")).get("DskipTests"));
+    }
+
+    @Test
+    void delimiterKeepsBindingPrecedingOptions() {
+        final var source = new ArgsConfigSource(List.of("--rc", ".yemrc", "--defaultRc", "skip", "--", "demo", "-version"));
+        assertEquals(".yemrc", source.get("rc"));
+        assertEquals("skip", source.get("defaultRc"));
+        assertNull(source.get("version")); // after --, never bound
+    }
+
+    @Test
+    void delimiterWithOptionLikeTokensAfter() {
+        final var source = new ArgsConfigSource(List.of("--foo", "bar", "--", "--no-bar", "-x", "--y=z"));
+        assertEquals("bar", source.get("foo")); // before the delimiter binds normally
+        assertNull(source.get("bar"));          // --no-bar after -- must NOT be parsed as a negation
+        assertNull(source.get("no-bar"));
+        assertNull(source.get("x"));
+        assertNull(source.get("y"));
+    }
+
+    @Test
+    void delimiterFirst() {
+        final var source = new ArgsConfigSource(List.of("--", "--foo", "bar"));
+        assertNull(source.get("foo")); // everything after -- is ignored, including --foo
+    }
+
+    @Test
+    void optionBeforeDelimiterRequiresValue() {
+        assertEquals("Option '--foo' requires a value (use '--foo=value')",
+                assertThrows(IllegalArgumentException.class,
+                        () -> new ArgsConfigSource(List.of("--foo", "--"))).getMessage());
+    }
 }

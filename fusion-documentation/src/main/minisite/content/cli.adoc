@@ -88,6 +88,12 @@ The launcher args source only binds dash-led options: bare tokens (the command p
 Every dash-led option requires a value: `--url x` or `--url=x`; a bare option (`--url` alone or followed by another option) is rejected, except the exact `--help` token which is skipped.
 `--no-xxx` (e.g. `--no-my-command-force`) is the only implicit-value form and binds `false`; use `--my-command-force=true` for an explicit value.
 
+The exact `--` token is the standard end-of-options marker: everything after it is ignored
+(never bound as an option, never validated), so a wrapper command can forward its own
+option-looking arguments downstream, e.g. `my-app run --rc .yemrc -- mvn -DskipTests package`.
+Options in front of `--` still bind as usual and the trailing slice is left untouched for the
+command to consume (for example through the injected `Args` bean).
+
 == Shell completion
 
 Every Fusion CLI application exposes completion commands generating shell completion scripts (subcommands `completion/bash`, `completion/powershell` and `completion/zsh`): they register as regular `CliCommand` beans, so they appear in the app usage, documentation and their own completion.
