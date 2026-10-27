@@ -38,6 +38,7 @@ public class CliAwaiter implements Awaiter {
     private final List<CliCommand<? extends Runnable>> commands;
     private final CliCommandResolver resolver;
     private final Configuration configuration;
+    private final int delimiterIdx; // index of the "--" end-of-options marker in args, -1 when absent
 
     public CliAwaiter(final Args args,
                       final Configuration configuration,
@@ -46,6 +47,7 @@ public class CliAwaiter implements Awaiter {
         this.configuration = configuration;
         this.commands = commands;
         this.resolver = new CliCommandResolver(this.commands);
+        this.delimiterIdx = args.args().indexOf("--");
     }
 
     public static CliAwaiter of(final Args args,
@@ -64,7 +66,8 @@ public class CliAwaiter implements Awaiter {
         final var resolution = resolver.resolve(tokens);
         if (resolution.isExact()) {
             final var command = resolution.command();
-            final var commandArgs = tokens.subList(resolution.commandLen(), tokens.size());
+            final var end = delimiterIdx >= resolution.commandLen() ? delimiterIdx : tokens.size();
+            final var commandArgs = tokens.subList(resolution.commandLen(), end);
             if (commandArgs.equals(List.of("--help"))) {
                 throw new IllegalArgumentException(optionsFor(command));
             }

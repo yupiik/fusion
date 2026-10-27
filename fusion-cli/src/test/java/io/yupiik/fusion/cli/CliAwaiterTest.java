@@ -252,6 +252,24 @@ class CliAwaiterTest {
         assertEquals("x", capture.get());
     }
 
+    @Test
+    void delimiterExcludesPostDelimiterTokensFromCommandArgs() {
+        final var capture = new AtomicReference<String>();
+        // "--deploy-value" is after the "--" marker so it must not be reachable as a command option
+        new CliAwaiter(new Args(List.of("deploy", "--", "--deploy-value", "ok")), NO_CONFIG,
+                cmds(capturing(capture, "deploy"))).await();
+        assertEquals("missing", capture.get());
+    }
+
+    @Test
+    void delimiterKeepsCommandArgsBeforeMarker() {
+        final var capture = new AtomicReference<String>();
+        // a value in front of "--" still binds normally
+        new CliAwaiter(new Args(List.of("deploy", "--deploy-value", "ok", "--")), NO_CONFIG,
+                cmds(capturing(capture, "deploy"))).await();
+        assertEquals("ok", capture.get());
+    }
+
     private static Configuration argsConfiguration(final List<String> args) {
         return new ConfigurationImpl(List.of(new ArgsConfigSource(args)));
     }
