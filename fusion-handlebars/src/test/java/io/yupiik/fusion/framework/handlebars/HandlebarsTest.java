@@ -27,16 +27,21 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
 import static java.util.Locale.ROOT;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static java.util.stream.Collectors.joining;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class HandlebarsTest {
     @Test
@@ -559,6 +564,88 @@ class HandlebarsTest {
     }
 
     @Test
+    void nestedPartials() {
+        assertRender(
+                "<html>{{>layout}}</html>",
+                Map.of(),
+                "<html><body><footer/></body></html>",
+                new HandlebarsCompiler.Settings().partials(nestedPartialsTemplates()),
+                new MapAccessor());
+    }
+
+    @Test
+    void nestedPartialsCached() {
+        final var compiler = new HandlebarsCompiler(new MapAccessor());
+        final var settings = new HandlebarsCompiler.Settings().cachePartials(true).partials(nestedPartialsTemplates());
+        assertEquals(
+                "<html><body><footer/></body></html>",
+                compiler.compile(new HandlebarsCompiler.CompilationContext(settings, "<html>{{>layout}}</html>")).render(Map.of()));
+        assertEquals(
+                "<footer/><body><footer/></body>",
+                compiler.compile(new HandlebarsCompiler.CompilationContext(settings, "{{>footer}}{{>layout}}")).render(Map.of()));
+    }
+
+    @Test
+    void nestedPartialsCachedInOneHashBin() {
+        // "search" and "socialLinks" share a bin of the 16 bins of a new ConcurrentHashMap
+        assertRender(
+                "{{>search}}",
+                Map.of(),
+                "SL",
+                new HandlebarsCompiler.Settings()
+                        .cachePartials(true)
+                        .partials(Map.of("search", "S{{>socialLinks}}", "socialLinks", "L")),
+                new MapAccessor());
+    }
+
+    @Test
+    void cachedPartialCompiledOnceAcrossThreads() throws InterruptedException {
+        final var firstRead = new CountDownLatch(1);
+        final var release = new CountDownLatch(1);
+        final var reads = new AtomicInteger();
+        final var partials = new HashMap<String, String>(Map.of("footer", "<footer>{{>inner}}</footer>", "inner", "x")) {
+            @Override
+            public String get(final Object key) { // inner is read once per compilation of footer
+                if ("inner".equals(key)) {
+                    reads.incrementAndGet();
+                    firstRead.countDown();
+                    try {
+                        assertTrue(release.await(10, SECONDS));
+                    } catch (final InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        throw new IllegalStateException(e);
+                    }
+                }
+                return super.get(key);
+            }
+        };
+        final var compiler = new HandlebarsCompiler(new MapAccessor());
+        final var settings = new HandlebarsCompiler.Settings().cachePartials(true).partials(partials);
+        final var rendered = new String[2];
+        final var threads = new Thread[2];
+        for (int i = 0; i < threads.length; i++) {
+            final int index = i;
+            threads[i] = new Thread(() -> rendered[index] = compiler
+                    .compile(new HandlebarsCompiler.CompilationContext(settings, "{{>footer}}"))
+                    .render(Map.of()), "partials-" + i);
+        }
+        threads[0].start();
+        assertTrue(firstRead.await(10, SECONDS));
+        threads[1].start();
+        final var deadline = System.nanoTime() + SECONDS.toNanos(10);
+        while (threads[1].getState() != Thread.State.WAITING && threads[1].getState() != Thread.State.TIMED_WAITING) {
+            assertTrue(System.nanoTime() < deadline, "second thread neither waits for the lock nor for the source");
+            Thread.onSpinWait();
+        }
+        release.countDown();
+        for (final var thread : threads) {
+            thread.join(SECONDS.toMillis(10));
+        }
+        assertEquals(List.of("<footer>x</footer>", "<footer>x</footer>"), List.of(rendered));
+        assertEquals(1, reads.get());
+    }
+
+    @Test
     void userHelperOverridesDefault() {
         assertEquals(
                 "overridden",
@@ -666,6 +753,12 @@ class HandlebarsTest {
         return Map.of(
                 "person", "{{person.name}} is {{person.age}} years old.",
                 "person2", "{{name}} is {{age}} years old.");
+    }
+
+    private Map<String, String> nestedPartialsTemplates() {
+        return Map.of(
+                "layout", "<body>{{>footer}}</body>",
+                "footer", "<footer/>");
     }
 
     private Map<String, Function<HelperContext, Object>> helpers() {
