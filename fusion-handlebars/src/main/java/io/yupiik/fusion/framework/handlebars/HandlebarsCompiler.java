@@ -47,9 +47,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 
-import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.joining;
 
 public class HandlebarsCompiler {
@@ -57,6 +58,7 @@ public class HandlebarsCompiler {
     private final Map<String, Function<HelperContext, Object>> defaultHelpers = new DefaultHelpers().helpers();
     private final java.util.Set<String> defaultHelperNames = defaultHelpers.keySet();
     private final Map<String, Part> partialsGlobalCache = new ConcurrentHashMap<>();
+    private final Lock partialsGlobalCacheLock = new ReentrantLock();
 
     public HandlebarsCompiler() {
         this(new MapAccessor());
@@ -84,9 +86,31 @@ public class HandlebarsCompiler {
 
     private Part resolvePartial(final String name, final Settings settings, final Helpers helpers,
                                 final Map<String, Part> cache) {
-        return cache.computeIfAbsent(name, k -> ofNullable(settings.partials.get(k))
-                .map(tpl -> doCompile(tpl, helpers, n -> resolvePartial(n, settings, helpers, cache)))
-                .orElseThrow(() -> new IllegalArgumentException("No partials '" + k + "'")));
+        final var cached = cache.get(name); // do NOT use computeIfAbsent since nested partials make it recursive
+        if (cached != null) {
+            return cached;
+        }
+        final var template = settings.partials.get(name);
+        if (template == null) {
+            throw new IllegalArgumentException("No partials '" + name + "'");
+        }
+        if (!settings.cachePartials) { // the cache belongs to this compile() call, no other thread reads it
+            return compilePartial(name, template, settings, helpers, cache);
+        }
+        partialsGlobalCacheLock.lock(); // compile each partial once, even when several threads miss the cache
+        try {
+            final var compiled = cache.get(name);
+            return compiled != null ? compiled : compilePartial(name, template, settings, helpers, cache);
+        } finally {
+            partialsGlobalCacheLock.unlock();
+        }
+    }
+
+    private Part compilePartial(final String name, final String template, final Settings settings, final Helpers helpers,
+                                final Map<String, Part> cache) {
+        final var compiled = doCompile(template, helpers, n -> resolvePartial(n, settings, helpers, cache));
+        cache.put(name, compiled);
+        return compiled;
     }
 
     private Part doCompile(final String content, final Helpers helpers, final Function<String, Part> partials) {
