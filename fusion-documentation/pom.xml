@@ -174,7 +174,7 @@
           <dependency>
             <groupId>dev.langchain4j</groupId>
             <artifactId>langchain4j-embeddings-all-minilm-l6-v2</artifactId>
-            <version>1.16.1-beta26</version>
+            <version>1.23.0-beta33</version>
           </dependency>
         </dependencies>
       </plugin>
