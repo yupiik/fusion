@@ -56,36 +56,58 @@ class CurlLoggerListenerTest {
 
     @Test
     void postWithPayloadAndSingleQuote() {
-        final var listener = new CurlLoggerListener(new CurlLoggerListener.Configuration(Logger.getLogger("test")).setLogPayload(true));
+        final var listener = new CurlLoggerListener(new CurlLoggerListener.Configuration(Logger.getLogger("test")));
         final var request = new UnlockedHttpRequest(
                 "POST", URI.create("http://localhost:1234/test1"),
                 HttpRequest.BodyPublishers.ofString("{\"name\":\"it's\"}"),
                 HttpHeaders.of(Map.of("Content-Type", List.of("application/json")), (a, b) -> true));
         assertEquals(
-                "curl -i -X POST 'http://localhost:1234/test1' \\\n" +
+                "curl -X POST 'http://localhost:1234/test1' \\\n" +
                         "  -H 'Content-Type: application/json' \\\n" +
-                        "  --data-raw '{\"name\":\"it'\\''s\"}'\n" +
-                        "HTTP/1.1 200\n" +
-                        "\n",
+                        "  --data-raw '{\"name\":\"it'\\''s\"}'",
                 listener.toLogMessage(request, "{\"name\":\"it's\"}".getBytes(UTF_8), null, response(200, request)));
     }
 
     @Test
-    void postPayloadIsNotLoggedWithoutLogPayload() {
-        final var listener = new CurlLoggerListener(new CurlLoggerListener.Configuration(Logger.getLogger("test")));
-        final var request = new UnlockedHttpRequest(
-                "POST", URI.create("http://localhost:1234/test1"),
-                HttpRequest.BodyPublishers.ofString("{\"name\":\"secret\"}"),
-                HttpHeaders.of(Map.of("Content-Type", List.of("application/json")), (a, b) -> true));
+    void singleFlagLogsRequestAndResponse() {
+        final var listener = new CurlLoggerListener(new CurlLoggerListener.Configuration(Logger.getLogger("test")).setLogPayload(true));
+        final var request = postRequest("{\"name\":\"test\"}");
         assertEquals(
-                "curl -X POST 'http://localhost:1234/test1' \\\n" +
-                        "  -H 'Content-Type: application/json'",
-                listener.toLogMessage(request, "{\"name\":\"secret\"}".getBytes(UTF_8), null, response(200, request)));
+                "curl -i -X POST 'http://localhost:1234/test1' \\\n" +
+                        "  -H 'Content-Type: application/json' \\\n" +
+                        "  --data-raw '{\"name\":\"test\"}'\n" +
+                        "HTTP/1.1 200\n" +
+                        "\n" +
+                        "{\"ok\":true}",
+                listener.toLogMessage(request, "{\"name\":\"test\"}".getBytes(UTF_8), null, response(200, request, "{\"ok\":true}")));
     }
 
     @Test
-    void beforeDoesNotReadBodyWithoutLogPayload() {
-        final var listener = new CurlLoggerListener(new CurlLoggerListener.Configuration(Logger.getLogger("test")));
+    void responseWithoutRequestPayload() {
+        final var listener = new CurlLoggerListener(new CurlLoggerListener.Configuration(Logger.getLogger("test")).setLogPayload(false, true));
+        final var request = postRequest("{\"name\":\"test\"}");
+        assertEquals(
+                "curl -i -X POST 'http://localhost:1234/test1' \\\n" +
+                        "  -H 'Content-Type: application/json'\n" +
+                        "HTTP/1.1 200\n" +
+                        "\n" +
+                        "{\"ok\":true}",
+                listener.toLogMessage(request, "{\"name\":\"test\"}".getBytes(UTF_8), null, response(200, request, "{\"ok\":true}")));
+    }
+
+    @Test
+    void noPayload() {
+        final var listener = new CurlLoggerListener(new CurlLoggerListener.Configuration(Logger.getLogger("test")).setLogPayload(false, false));
+        final var request = postRequest("{\"name\":\"test\"}");
+        assertEquals(
+                "curl -X POST 'http://localhost:1234/test1' \\\n" +
+                        "  -H 'Content-Type: application/json'",
+                listener.toLogMessage(request, "{\"name\":\"test\"}".getBytes(UTF_8), null, response(200, request, "{\"ok\":true}")));
+    }
+
+    @Test
+    void beforeDoesNotReadBodyWithoutRequestPayload() {
+        final var listener = new CurlLoggerListener(new CurlLoggerListener.Configuration(Logger.getLogger("test")).setLogPayload(false, true));
         final var neverRead = new HttpRequest.BodyPublisher() {
             @Override
             public long contentLength() {
@@ -101,8 +123,24 @@ class CurlLoggerListenerTest {
                 "POST", URI.create("http://localhost:1234/test1"),
                 neverRead,
                 HttpHeaders.of(Map.of(), (a, b) -> true));
-        final var state = listener.before(1, request);
-        assertSame(request, state.request());
+        assertSame(request, listener.before(1, request).request());
+    }
+
+    @Test
+    void payloadFilterAppliesToRequestAndResponse() {
+        final var listener = new CurlLoggerListener(new CurlLoggerListener.Configuration(Logger.getLogger("test"))
+                .setLogPayload(true, true)
+                .setPayloadFilter(payload -> payload.replaceAll("\"password\":\"[^\"]*\"", "\"password\":\"******\"")));
+        final var request = postRequest("{\"password\":\"secret\"}");
+        assertEquals(
+                "curl -i -X POST 'http://localhost:1234/test1' \\\n" +
+                        "  -H 'Content-Type: application/json' \\\n" +
+                        "  --data-raw '{\"password\":\"******\"}'\n" +
+                        "HTTP/1.1 200\n" +
+                        "\n" +
+                        "{\"password\":\"******\",\"ok\":true}",
+                listener.toLogMessage(request, "{\"password\":\"secret\"}".getBytes(UTF_8), null,
+                        response(200, request, "{\"password\":\"secret\",\"ok\":true}")));
     }
 
     @Test
@@ -272,7 +310,7 @@ class CurlLoggerListenerTest {
 
     @Test
     void failingBodyPublisherIsWrapped() {
-        final var listener = new CurlLoggerListener(new CurlLoggerListener.Configuration(Logger.getLogger("test")).setLogPayload(true));
+        final var listener = new CurlLoggerListener(new CurlLoggerListener.Configuration(Logger.getLogger("test")));
         final var failing = new HttpRequest.BodyPublisher() {
             @Override
             public long contentLength() {
@@ -301,6 +339,13 @@ class CurlLoggerListenerTest {
                 HttpHeaders.of(Map.of(), (a, b) -> true));
         final var error = assertThrows(IllegalStateException.class, () -> listener.before(1, request));
         assertEquals("boom", error.getCause().getMessage());
+    }
+
+    private UnlockedHttpRequest postRequest(final String body) {
+        return new UnlockedHttpRequest(
+                "POST", URI.create("http://localhost:1234/test1"),
+                HttpRequest.BodyPublishers.ofString(body),
+                HttpHeaders.of(Map.of("Content-Type", List.of("application/json")), (a, b) -> true));
     }
 
     private String readBody(final HttpRequest request) {
