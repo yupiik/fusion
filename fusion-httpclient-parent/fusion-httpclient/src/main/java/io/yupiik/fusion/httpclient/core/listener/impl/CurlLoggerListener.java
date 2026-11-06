@@ -82,6 +82,10 @@ public class CurlLoggerListener implements RequestListener<CurlLoggerListener.Da
             this.logger = Objects.requireNonNull(logger, "logger required");
         }
 
+        /**
+         * When {@code true}, the request body is logged ({@code --data-raw}) and the response is appended like {@code curl -i} output.
+         * When {@code false} (default), the request is passed through untouched: its body is neither read nor logged.
+         */
         public Configuration setLogPayload(final boolean value) {
             this.logPayload = value;
             return this;
@@ -112,7 +116,7 @@ public class CurlLoggerListener implements RequestListener<CurlLoggerListener.Da
 
     @Override
     public State<Data> before(final long count, final HttpRequest request) {
-        final var payload = readPayload(request);
+        final var payload = configuration.logPayload() ? readPayload(request) : null;
         final var effectiveRequest = payload != null ?
                 new UnlockedHttpRequest(
                         Optional.of(HttpRequest.BodyPublishers.ofByteArray(payload)),
@@ -152,7 +156,7 @@ public class CurlLoggerListener implements RequestListener<CurlLoggerListener.Da
         curl.append(" -X ").append(request.method()).append(' ').append(quote(request.uri().toASCIIString()));
         request.headers().map().forEach((name, values) -> values.forEach(value ->
                 curl.append(" \\\n  -H ").append(quote(name + ": " + mask(name, value)))));
-        if (payload != null && payload.length > 0) {
+        if (configuration.logPayload() && payload != null && payload.length > 0) {
             curl.append(" \\\n  --data-raw ").append(quote(new String(payload, UTF_8)));
         }
         return curl.toString();
