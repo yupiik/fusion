@@ -38,6 +38,7 @@ import java.util.logging.Logger;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class CurlLoggerListenerTest {
@@ -55,16 +56,53 @@ class CurlLoggerListenerTest {
 
     @Test
     void postWithPayloadAndSingleQuote() {
-        final var listener = new CurlLoggerListener(new CurlLoggerListener.Configuration(Logger.getLogger("test")));
+        final var listener = new CurlLoggerListener(new CurlLoggerListener.Configuration(Logger.getLogger("test")).setLogPayload(true));
         final var request = new UnlockedHttpRequest(
                 "POST", URI.create("http://localhost:1234/test1"),
                 HttpRequest.BodyPublishers.ofString("{\"name\":\"it's\"}"),
                 HttpHeaders.of(Map.of("Content-Type", List.of("application/json")), (a, b) -> true));
         assertEquals(
-                "curl -X POST 'http://localhost:1234/test1' \\\n" +
+                "curl -i -X POST 'http://localhost:1234/test1' \\\n" +
                         "  -H 'Content-Type: application/json' \\\n" +
-                        "  --data-raw '{\"name\":\"it'\\''s\"}'",
+                        "  --data-raw '{\"name\":\"it'\\''s\"}'\n" +
+                        "HTTP/1.1 200\n" +
+                        "\n",
                 listener.toLogMessage(request, "{\"name\":\"it's\"}".getBytes(UTF_8), null, response(200, request)));
+    }
+
+    @Test
+    void postPayloadIsNotLoggedWithoutLogPayload() {
+        final var listener = new CurlLoggerListener(new CurlLoggerListener.Configuration(Logger.getLogger("test")));
+        final var request = new UnlockedHttpRequest(
+                "POST", URI.create("http://localhost:1234/test1"),
+                HttpRequest.BodyPublishers.ofString("{\"name\":\"secret\"}"),
+                HttpHeaders.of(Map.of("Content-Type", List.of("application/json")), (a, b) -> true));
+        assertEquals(
+                "curl -X POST 'http://localhost:1234/test1' \\\n" +
+                        "  -H 'Content-Type: application/json'",
+                listener.toLogMessage(request, "{\"name\":\"secret\"}".getBytes(UTF_8), null, response(200, request)));
+    }
+
+    @Test
+    void beforeDoesNotReadBodyWithoutLogPayload() {
+        final var listener = new CurlLoggerListener(new CurlLoggerListener.Configuration(Logger.getLogger("test")));
+        final var neverRead = new HttpRequest.BodyPublisher() {
+            @Override
+            public long contentLength() {
+                return 7;
+            }
+
+            @Override
+            public void subscribe(final Flow.Subscriber<? super ByteBuffer> subscriber) {
+                throw new AssertionError("the request body must not be read");
+            }
+        };
+        final var request = new UnlockedHttpRequest(
+                "POST", URI.create("http://localhost:1234/test1"),
+                neverRead,
+                HttpHeaders.of(Map.of(), (a, b) -> true));
+        final var state = listener.before(1, request);
+        assertSame(request, state.request());
     }
 
     @Test
@@ -234,7 +272,7 @@ class CurlLoggerListenerTest {
 
     @Test
     void failingBodyPublisherIsWrapped() {
-        final var listener = new CurlLoggerListener(new CurlLoggerListener.Configuration(Logger.getLogger("test")));
+        final var listener = new CurlLoggerListener(new CurlLoggerListener.Configuration(Logger.getLogger("test")).setLogPayload(true));
         final var failing = new HttpRequest.BodyPublisher() {
             @Override
             public long contentLength() {
