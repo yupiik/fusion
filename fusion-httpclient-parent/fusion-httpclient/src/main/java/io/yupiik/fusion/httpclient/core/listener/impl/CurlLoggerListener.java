@@ -30,6 +30,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Flow;
+import java.util.function.Function;
 import java.util.logging.Logger;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -45,6 +46,9 @@ import static java.util.stream.Collectors.toUnmodifiableSet;
  * Common sensitive headers ({@link Configuration#DEFAULT_SENSITIVE_HEADERS}: authorization,
  * proxy-authorization, api-key, x-api-key, cookie, set-cookie, x-csrf-token) are masked
  * with {@code ******} unless {@code setSensitiveHeaders} is called.
+ * <p>
+ * The request body is logged by default and the response is not, use {@code setLogPayload(request, response)}
+ * to choose and {@code setPayloadFilter} to post-process the logged payloads (to hide sensitive data for example).
  */
 public class CurlLoggerListener implements RequestListener<CurlLoggerListener.Data> {
     private static final String MASK = "******";
@@ -56,7 +60,9 @@ public class CurlLoggerListener implements RequestListener<CurlLoggerListener.Da
         final var headers = configuration.getSensitiveHeaders();
         this.configuration = new RuntimeConfiguration(
                 configuration.getLogger(),
-                configuration.isLogPayload(),
+                configuration.isLogRequestPayload(),
+                configuration.isLogResponsePayload(),
+                configuration.getPayloadFilter(),
                 headers.isEmpty() ? Set.of() :
                         headers.stream()
                                 .map(name -> name.toLowerCase(Locale.ROOT))
@@ -75,7 +81,9 @@ public class CurlLoggerListener implements RequestListener<CurlLoggerListener.Da
                 "x-csrf-token");
 
         private final Logger logger;
-        private boolean logPayload;
+        private boolean logRequestPayload = true;
+        private boolean logResponsePayload;
+        private Function<String, String> payloadFilter = Function.identity();
         private Collection<String> sensitiveHeaders = DEFAULT_SENSITIVE_HEADERS;
 
         public Configuration(final Logger logger) {
@@ -83,11 +91,29 @@ public class CurlLoggerListener implements RequestListener<CurlLoggerListener.Da
         }
 
         /**
-         * When {@code true}, the request body is logged ({@code --data-raw}) and the response is appended like {@code curl -i} output.
-         * When {@code false} (default), the request is passed through untouched: its body is neither read nor logged.
+         * Same as {@code setLogPayload(true, value)}: the request body is always logged, {@code value} only enables the response logging.
          */
         public Configuration setLogPayload(final boolean value) {
-            this.logPayload = value;
+            return setLogPayload(true, value);
+        }
+
+        /**
+         * @param request  whether the request body is logged ({@code --data-raw}, default {@code true}),
+         *                 when {@code false} the request is passed through untouched (its body is not read)
+         *                 but the logged command of a request with a body can't be replayed as such.
+         * @param response whether the response is appended like {@code curl -i} output, or the error like {@code curl: <message>} (default {@code false}).
+         */
+        public Configuration setLogPayload(final boolean request, final boolean response) {
+            this.logRequestPayload = request;
+            this.logResponsePayload = response;
+            return this;
+        }
+
+        /**
+         * Post-processes the logged request and response payloads, for example to hide sensitive data, identity by default.
+         */
+        public Configuration setPayloadFilter(final Function<String, String> value) {
+            this.payloadFilter = value;
             return this;
         }
 
@@ -103,8 +129,16 @@ public class CurlLoggerListener implements RequestListener<CurlLoggerListener.Da
             return logger;
         }
 
-        private boolean isLogPayload() {
-            return logPayload;
+        private boolean isLogRequestPayload() {
+            return logRequestPayload;
+        }
+
+        private boolean isLogResponsePayload() {
+            return logResponsePayload;
+        }
+
+        private Function<String, String> getPayloadFilter() {
+            return payloadFilter == null ? Function.identity() : payloadFilter;
         }
 
         private Collection<String> getSensitiveHeaders() {
@@ -112,11 +146,12 @@ public class CurlLoggerListener implements RequestListener<CurlLoggerListener.Da
         }
     }
 
-    private record RuntimeConfiguration(Logger logger, boolean logPayload, Set<String> sensitiveHeaders) {}
+    private record RuntimeConfiguration(Logger logger, boolean logRequestPayload, boolean logResponsePayload,
+                                        Function<String, String> payloadFilter, Set<String> sensitiveHeaders) {}
 
     @Override
     public State<Data> before(final long count, final HttpRequest request) {
-        final var payload = configuration.logPayload() ? readPayload(request) : null;
+        final var payload = configuration.logRequestPayload() ? readPayload(request) : null;
         final var effectiveRequest = payload != null ?
                 new UnlockedHttpRequest(
                         Optional.of(HttpRequest.BodyPublishers.ofByteArray(payload)),
@@ -137,7 +172,7 @@ public class CurlLoggerListener implements RequestListener<CurlLoggerListener.Da
 
     protected String toLogMessage(final HttpRequest request, final byte[] payload, final Throwable error, final HttpResponse<?> response) {
         final var message = new StringBuilder(toCurl(request, payload));
-        if (configuration.logPayload()) {
+        if (configuration.logResponsePayload()) {
             message.append('\n');
             if (error != null) {
                 message.append("curl: ").append(error.getMessage());
@@ -150,14 +185,14 @@ public class CurlLoggerListener implements RequestListener<CurlLoggerListener.Da
 
     protected String toCurl(final HttpRequest request, final byte[] payload) {
         final var curl = new StringBuilder("curl");
-        if (configuration.logPayload()) {
+        if (configuration.logResponsePayload()) {
             curl.append(" -i");
         }
         curl.append(" -X ").append(request.method()).append(' ').append(quote(request.uri().toASCIIString()));
         request.headers().map().forEach((name, values) -> values.forEach(value ->
                 curl.append(" \\\n  -H ").append(quote(name + ": " + mask(name, value)))));
-        if (configuration.logPayload() && payload != null && payload.length > 0) {
-            curl.append(" \\\n  --data-raw ").append(quote(new String(payload, UTF_8)));
+        if (configuration.logRequestPayload() && payload != null && payload.length > 0) {
+            curl.append(" \\\n  --data-raw ").append(quote(configuration.payloadFilter().apply(new String(payload, UTF_8))));
         }
         return curl.toString();
     }
@@ -170,7 +205,7 @@ public class CurlLoggerListener implements RequestListener<CurlLoggerListener.Da
         }
         builder.append("\n\n");
         if (response.body() != null) {
-            builder.append(response.body());
+            builder.append(configuration.payloadFilter().apply(String.valueOf(response.body())));
         }
         return builder.toString();
     }

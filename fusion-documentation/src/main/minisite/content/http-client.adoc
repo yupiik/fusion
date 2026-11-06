@@ -53,15 +53,20 @@ This listener enables to force all exchanges to be logged.
 
 ==== CurlLoggerListener
 
-This listener is a sibling of `ExchangeLogger` but instead of a free-form message it logs each exchange as a ready-to-replay `curl` command (method, URI, headers and body when payload logging is enabled). When payload logging is enabled the command uses `-i` and is followed by the raw response formatted like `curl -i` output (status line, headers, body), errors being logged like `curl: <message>`.
+This listener is a sibling of `ExchangeLogger` but instead of a free-form message it logs each exchange as a ready-to-replay `curl` command (method, URI, headers and body). When the response payload logging is enabled the command uses `-i` and is followed by the raw response formatted like `curl -i` output (status line, headers, body), errors being logged like `curl: <message>`.
+
+The payloads are configured with `setLogPayload(request, response)`: the request body is logged by default (`--data-raw`) and the response is not, `setLogPayload(value)` is a shortcut for `setLogPayload(true, value)`.
+Disabling the request payload avoids to read the request body (it can be big) but the logged command of a request with a body can't be replayed as such.
+Sensitive headers are masked and `setPayloadFilter` enables to post-process the logged payloads, for example to hide sensitive data.
 
 [source,java]
 ----
 new CurlLoggerListener(new CurlLoggerListener.Configuration(Logger.getLogger(getClass().getName()))
-        .setLogPayload(true))
+        .setLogPayload(true, false)
+        .setPayloadFilter(payload -> payload.replaceAll("\"password\":\"[^\"]*\"", "\"password\":\"******\"")))
 ----
 
-TIP: when payload logging is enabled, the listener must read the request body to build the command so it replaces the request publisher with the captured bytes and the request is still sent normally. When it is disabled (default), the request is passed through untouched: its body is neither read nor logged.
+TIP: when the request payload is logged, the listener must read the request body to build the command so it replaces the request publisher with the captured bytes and the request is still sent normally.
 
 ==== FilteringListener
 
