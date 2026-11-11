@@ -23,7 +23,7 @@ Requires Java >= 17 and Maven >= 3.8 (no wrapper is committed, use your own Mave
 | `mvn install -pl <module> -am` | Build one module and its dependencies. |
 | `mvn test -pl <module> -Dtest=MyTest` | Run a single test class. |
 | `mvn license:format` | Add/fix the mandatory Apache-2.0 Yupiik license headers. |
-| `mvn install -DskipTests ossindex:audit` | Dependency security audit. |
+| `mvn install -DskipTests dependency-check:aggregate` | Dependency security audit (OWASP Dependency-Check, needs an NVD API key or the NVD database of yupiik/owasp-nvd-cache; false positives go in `dependency-check-suppressions.xml`). |
 | `mvn compile yupiik-tools:serve-minisite -e` | Preview the documentation site (run in `fusion-documentation`). |
 
 ## Module map
