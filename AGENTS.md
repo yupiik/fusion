@@ -23,7 +23,7 @@ Requires Java >= 17 and Maven >= 3.8 (no wrapper is committed, use your own Mave
 | `mvn install -pl <module> -am` | Build one module and its dependencies. |
 | `mvn test -pl <module> -Dtest=MyTest` | Run a single test class. |
 | `mvn license:format` | Add/fix the mandatory Apache-2.0 Yupiik license headers. |
-| `mvn install -DskipTests dependency-check:aggregate` | Dependency security audit (OWASP Dependency-Check, needs an NVD API key or the NVD database of yupiik/owasp-nvd-cache; report false positives upstream with the "False Positive Report" issue template of dependency-check/DependencyCheck). Optionally add `-DossIndexAnalyzerUrl=https://api.guide.sonatype.com -DossIndexServerId=ossindex` (a `settings.xml` server whose password is a Sonatype Guide token) to also use the Sonatype database, which has fewer false positives. |
+| `mvn install -DskipTests org.owasp:dependency-check-maven:13.0.0:aggregate` | Dependency security audit (OWASP Dependency-Check, needs an NVD API key or the NVD database of yupiik/owasp-nvd-cache; report false positives upstream with the "False Positive Report" issue template of dependency-check/DependencyCheck). Optionally add `-DossIndexAnalyzerUrl=https://api.guide.sonatype.com -DossIndexServerId=ossindex` (a `settings.xml` server whose password is a Sonatype Guide token) to also use the Sonatype database, which has fewer false positives. |
 | `mvn compile yupiik-tools:serve-minisite -e` | Preview the documentation site (run in `fusion-documentation`). |
 
 ## Module map
