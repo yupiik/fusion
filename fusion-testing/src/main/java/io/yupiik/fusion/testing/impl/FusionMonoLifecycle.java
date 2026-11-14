@@ -17,6 +17,7 @@ package io.yupiik.fusion.testing.impl;
 
 import io.yupiik.fusion.framework.api.ConfiguringContainer;
 import io.yupiik.fusion.framework.api.RuntimeContainer;
+import io.yupiik.fusion.framework.api.container.DelegatingRuntimeContainer;
 import io.yupiik.fusion.framework.api.container.FusionModule;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -48,8 +49,16 @@ public class FusionMonoLifecycle extends FusionParameterResolver implements Befo
                                 })
                                 .forEach(container::disableModule);
                     }
-                    INSTANCE = container.start();
-                    Runtime.getRuntime().addShutdownHook(new Thread(INSTANCE::close, getClass().getName() + "-shutdown"));
+                    final var started = container.start();
+                    Runtime.getRuntime().addShutdownHook(new Thread(started::close, getClass().getName() + "-shutdown"));
+                    // JUnit closes the AutoCloseable values of the store at the end of the class (JUnit >= 5.13),
+                    // the shared container must only be closed at shutdown so expose a view ignoring close()
+                    INSTANCE = new DelegatingRuntimeContainer(started) {
+                        @Override
+                        public void close() {
+                            // no-op
+                        }
+                    };
                 }
             }
         }
