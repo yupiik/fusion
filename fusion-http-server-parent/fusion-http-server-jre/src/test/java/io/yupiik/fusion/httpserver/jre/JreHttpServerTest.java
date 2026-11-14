@@ -196,6 +196,34 @@ class JreHttpServerTest {
     }
 
     @Test
+    void nullHeaderValueIsIgnored() throws Exception {
+        final var s = start(Endpoint.of(
+                r -> "/null-header".equals(r.path()),
+                r -> completedFuture(Response.of()
+                        .status(200)
+                        .header("x-null", (String) null)
+                        .body("ok")
+                        .build())));
+        final var resp = send(url(s, "/null-header"), "GET", null);
+        assertEquals(200, resp.statusCode());
+        assertEquals("ok", resp.body());
+        assertTrue(resp.headers().firstValue("x-null").isEmpty());
+    }
+
+    @Test
+    void failingWriteClosesTheExchange() throws Exception {
+        final var s = start(Endpoint.of(
+                r -> "/invalid-header".equals(r.path()),
+                r -> completedFuture(Response.of()
+                        .status(200)
+                        .header("x-invalid", "line\nbreak") // rejected by the JDK server
+                        .body("ok")
+                        .build())));
+        final var resp = send(url(s, "/invalid-header"), "GET", null); // times out if the exchange is left open
+        assertEquals(500, resp.statusCode());
+    }
+
+    @Test
     void bufferedBodyGetsContentLength() throws Exception {
         final var s = start(Endpoint.of(
                 r -> "/json".equals(r.path()),
