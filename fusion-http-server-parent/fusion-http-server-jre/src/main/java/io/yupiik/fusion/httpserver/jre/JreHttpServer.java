@@ -37,6 +37,9 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
+import java.util.logging.Logger;
+
+import static java.util.logging.Level.SEVERE;
 
 /**
  * Runs a list of fusion {@link Endpoint}s on top of the JDK
@@ -52,6 +55,8 @@ import java.util.function.BiConsumer;
  * server's accept thread.</p>
  */
 public class JreHttpServer implements AutoCloseable {
+    private static final Logger logger = Logger.getLogger(JreHttpServer.class.getName());
+
     private final HttpServer server;
     private final JreHttpServerConfiguration configuration;
     private final List<Endpoint> endpoints;
@@ -188,7 +193,21 @@ public class JreHttpServer implements AutoCloseable {
             // handler returns. Closing the exchange right here (as the removed join() used to
             // guarantee was impossible) would tear the response down before its payload is written.
             // Only the synchronously-committed paths (HEAD, no body, 404/error) close it here.
-            if (write(exchange, resolved, request)) {
+            final boolean committed;
+            try {
+                committed = write(exchange, resolved, request);
+            } catch (final RuntimeException | Error e) {
+                // nothing owns the exchange (invalid header for example): never leave it open, the client would hang
+                try {
+                    exchange.sendResponseHeaders(500, -1);
+                } catch (final IOException | RuntimeException ignored) {
+                    // headers already sent or broken exchange, closing it is the only option
+                }
+                exchange.close();
+                logger.log(SEVERE, e, e::getMessage); // thrown in whenComplete it would be silently swallowed
+                return;
+            }
+            if (committed) {
                 exchange.close();
             }
         };
@@ -207,7 +226,9 @@ public class JreHttpServer implements AutoCloseable {
                 return;
             }
             for (final var value : values) {
-                headers.add(name, value);
+                if (value != null) { // as the servlet container does
+                    headers.add(name, value);
+                }
             }
         });
         for (final var cookie : response.cookies()) {
