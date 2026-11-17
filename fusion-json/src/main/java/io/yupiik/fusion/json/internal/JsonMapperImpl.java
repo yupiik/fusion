@@ -390,22 +390,51 @@ public class JsonMapperImpl implements JsonMapper {
                 throw missingCodecException(type);
             }
 
-            return readValue(codec, reader);
+            return readValue(type, codec, reader);
         } catch (final IOException ioe) {
             throw new IllegalStateException(ioe);
         }
     }
 
-    private <A> A readValue(final JsonCodec<A> codec, final Parser parser) throws IOException {
+    @SuppressWarnings("unchecked")
+    private <A> A readValue(final Type type, final JsonCodec<A> codec, final Parser parser) throws IOException {
         if (!parser.hasNext()) {
             throw new JsonException("No value");
         }
         final var event = parser.next();
         if (event == Parser.Event.VALUE_NULL) {
-            return null;
+            return (A) primitiveDefault(type);
         }
         parser.rewind(event);
         return codec.read(new JsonCodec.DeserializationContext(parser, codecLookup, rejectIncompatibleValues));
+    }
+
+    private Object primitiveDefault(final Type type) {
+        if (type == boolean.class) {
+            return false;
+        }
+        if (type == int.class) {
+            return 0;
+        }
+        if (type == long.class) {
+            return 0L;
+        }
+        if (type == float.class) {
+            return 0f;
+        }
+        if (type == double.class) {
+            return 0d;
+        }
+        if (type == byte.class) {
+            return (byte) 0;
+        }
+        if (type == short.class) {
+            return (short) 0;
+        }
+        if (type == char.class) {
+            return '\0';
+        }
+        return null;
     }
 
     private JsonCodec<?> readCodec(final Type type) {
@@ -448,7 +477,7 @@ public class JsonMapperImpl implements JsonMapper {
             if (codec == null) {
                 throw missingCodecException(type);
             }
-            return readValue(codec, jsonReader);
+            return readValue(type, codec, jsonReader);
         } catch (final IOException e) {
             throw new IllegalStateException(e);
         }

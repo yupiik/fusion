@@ -637,17 +637,7 @@ public abstract class BaseJsonCodec<A> implements JsonCodec<A> {
                 othersSlot = i;
             } else if (fields[i].container() == ContainerKind.VALUE) {
                 final var slot = fields[i].slotIndex();
-                if (fields[i].isWrapper()) {
-                    slots[slot] = null;
-                } else {
-                    slots[slot] = switch (fields[i].valueKind()) {
-                        case INTEGER -> 0;
-                        case LONG -> 0L;
-                        case BOOLEAN -> Boolean.FALSE;
-                        case DOUBLE -> 0.0d;
-                        default -> null;
-                    };
-                }
+                slots[slot] = defaultValue(fields[i]);
             }
         }
         final var others = othersSlot >= 0 ? new LinkedHashMap<String, Object>() : null;
@@ -768,7 +758,7 @@ public abstract class BaseJsonCodec<A> implements JsonCodec<A> {
                 }
                 case VALUE_NULL -> {
                     if (key >= 0) {
-                        slots[fields[key].slotIndex()] = null;
+                        slots[fields[key].slotIndex()] = defaultValue(fields[key]);
                     } else if (others != null) {
                         others.put(fallbackKey, null);
                     }
@@ -784,6 +774,19 @@ public abstract class BaseJsonCodec<A> implements JsonCodec<A> {
             }
         }
         throw new IllegalArgumentException("Object didn't end (missing END_OBJECT)");
+    }
+
+    private Object defaultValue(final FieldMeta<?> field) {
+        if (field.container() != ContainerKind.VALUE || field.isWrapper()) {
+            return null;
+        }
+        return switch (field.valueKind()) {
+            case INTEGER -> 0;
+            case LONG -> 0L;
+            case BOOLEAN -> false;
+            case DOUBLE -> 0d;
+            default -> null;
+        };
     }
 
     private void validateValue(final FieldMeta<?> field, final Parser.Event event) {
