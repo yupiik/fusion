@@ -98,6 +98,11 @@ public interface JsonMapper extends AutoCloseable {
      */
     // @Experimental
     interface Configuring {
+        /** Limits open objects and arrays during decoding; zero means unlimited (the default). */
+        default Configuring maxDepth(final int maxDepth) {
+            throw new UnsupportedOperationException("Nesting depth is not configurable by this mapper");
+        }
+
         /** Controls full-document suffix validation (enabled by default). */
         default Configuring rejectTrailingTokens(final boolean reject) {
             throw new UnsupportedOperationException("Document completion is not configurable by this mapper");

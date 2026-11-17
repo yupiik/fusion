@@ -126,6 +126,16 @@ The policy applies at every object level, including unknown or ignored members, 
 Escaped spellings such as `"a"` and `"\u0061"` denote the same member name.
 The setting is independent of typed value validation, is inherited by child mappers, and also applies to custom parser factories that implement the parser event contract.
 
+=== Nesting depth
+
+Deserialization nesting is unlimited by default.
+Set `fusion.json.maxDepth` through Fusion `Configuration`, or call `maxDepth(int)` on `JsonMapper.Configuring`, to limit the number of simultaneously open objects and arrays.
+Zero means unlimited, negative settings are rejected, a scalar root has depth zero, and an object or array root has depth one.
+For example, `[{}]` has maximum depth two.
+An opening container beyond the configured limit fails with `JsonException`, including in generated models, dynamic values, captured unknown values and skipped subtrees.
+The limit is inherited by child mappers and enforced for custom parser factories through their events, independently of other validation settings.
+It does not limit document size, string length, collection size or serialization nesting.
+
 === Document completion
 
 Mapper read methods require exactly one complete JSON value by default, followed only by JSON whitespace (space, tab, carriage return or line feed).

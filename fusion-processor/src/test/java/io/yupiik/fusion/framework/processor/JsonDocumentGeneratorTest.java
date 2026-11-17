@@ -31,6 +31,20 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class JsonDocumentGeneratorTest {
     @Test
+    void nestingLimitsIncludeGeneratedModelsAndSkippedUnknownValues(@TempDir final Path work) throws IOException {
+        new Compiler(work, "JsonTypedValues").compileAndJsonAsserts((loader, mapper) -> {
+            final var type = loader.apply("test.p.JsonTypedValues");
+            try (final var limited = mapper.as(JsonMapper.Configuring.class).orElseThrow().maxDepth(2).build()) {
+                final var boundary = "{\"text\":\"answer\",\"unknown\":[true,null]}";
+                assertEquals(mapper.fromString(type, boundary), limited.fromString(type, boundary));
+                for (final var json : List.of("{\"unknown\":[{}]}", "{\"unknown\":{\"nested\":[]}}")) {
+                    assertThrows(JsonException.class, () -> limited.fromString(type, json));
+                }
+            }
+        });
+    }
+
+    @Test
     void generatedModelsValidateCompleteDocumentsAndSkippedSubtrees(@TempDir final Path work) throws IOException {
         new Compiler(work, "JsonTypedValues").compileAndJsonAsserts((loader, mapper) -> {
             final var type = loader.apply("test.p.JsonTypedValues");
