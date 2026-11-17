@@ -16,6 +16,7 @@
 package io.yupiik.fusion.json.internal.codec;
 
 import io.yupiik.fusion.json.internal.JsonStrings;
+import io.yupiik.fusion.json.JsonException;
 import io.yupiik.fusion.json.serialization.JsonCodec;
 
 import java.io.IOException;
@@ -32,13 +33,14 @@ public class BigDecimalJsonCodec implements JsonCodec<BigDecimal> {
     public BigDecimal read(final DeserializationContext context) {
         final var parser = context.parser();
         if (!parser.hasNext()) {
-            throw new IllegalStateException("No more token to process.");
+            throw new JsonException("No more token to process.");
         }
         final var event = parser.next();
         return switch (event) {
+            case VALUE_NULL -> null;
             case VALUE_NUMBER -> parser.getBigDecimal();
             case VALUE_STRING -> new BigDecimal(parser.getString());
-            default -> throw new IllegalStateException("Expected VALUE_STRING or VALUE_NUMBER, got " + event);
+            default -> throw new JsonException("Expected VALUE_STRING or VALUE_NUMBER, got " + event);
         };
     }
 

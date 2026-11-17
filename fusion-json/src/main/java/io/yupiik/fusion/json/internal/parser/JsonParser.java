@@ -15,6 +15,7 @@
  */
 package io.yupiik.fusion.json.internal.parser;
 
+import io.yupiik.fusion.json.JsonException;
 import io.yupiik.fusion.json.deserialization.AvailableCharArrayReader;
 import io.yupiik.fusion.json.internal.JsonStrings;
 import io.yupiik.fusion.json.spi.Parser;
@@ -42,12 +43,12 @@ import static io.yupiik.fusion.json.spi.Parser.Event.VALUE_STRING;
 import static io.yupiik.fusion.json.spi.Parser.Event.VALUE_TRUE;
 
 // forked from Apache johnzon
-public class JsonParser implements Parser {
+public class JsonParser implements DocumentParser {
     private final boolean autoAdjust;
     private final char[] buffer;
     private int bufferPos = Integer.MIN_VALUE;
     private int bufferLeft = 0;
-    private int availableCharsInBuffer;
+    private int availableCharsInBuffer; // -1 means physical EOF, distinct from a raw NUL character
     private int startOfValueInBuffer = -1;
     private int endOfValueInBuffer = -1;
 
@@ -55,12 +56,10 @@ public class JsonParser implements Parser {
 
     private final BufferProvider bufferProvider;
 
-    private int arrayDepth = 0;
     private int objectDepth = 0;
 
     private byte previousEvent = -1;
     private char[] fallBackCopyBuffer;
-    private boolean releaseFallBackCopyBufferLength = true;
     private int fallBackCopyBufferLength;
 
     private long currentLine = 1;
@@ -81,6 +80,7 @@ public class JsonParser implements Parser {
 
     // for wrappers mainly
     private Event rewindedEvent;
+    private boolean singleRoot;
 
     /**
      * Maximum magnitude of a {@link BigDecimal} scale accepted when a number is read as decimal.
@@ -177,31 +177,30 @@ public class JsonParser implements Parser {
             return true;
         }
 
-        if (structureDepth > 0 || previousEvent == 0) {
-            return true;
-        }
-        if (previousEvent != END_ARRAY.ordinal() && previousEvent != END_OBJECT.ordinal() &&
-                previousEvent != VALUE_STRING.ordinal() && previousEvent != VALUE_FALSE.ordinal() && previousEvent != VALUE_TRUE.ordinal() &&
-                previousEvent != VALUE_NULL.ordinal() && previousEvent != VALUE_NUMBER.ordinal()) {
-            if (bufferPos < 0) { // check we don't have an empty string to parse
-                final char c = readNextChar();
-                unreadChar();
-                return c != Character.MIN_VALUE; // EOF
-            }
+        // Inside a structure, parsing (not lookahead) validates the next buffered token.
+        // Whitespace and refills still take the EOF-aware path below.
+        if (structureDepth > 0 && bufferLeft > 0 && buffer[bufferPos + 1] > ' ') {
             return true;
         }
 
-        //detect garbage at the end of the file after last object or array is closed
-        if (bufferPos < availableCharsInBuffer) {
-            final char c = readNextNonWhitespaceChar(readNextChar());
-            if (c == Character.MIN_VALUE) {
-                return false;
+        final char c = readNextNonWhitespaceChar(readNextChar());
+        if (availableCharsInBuffer < 0) {
+            if (structureDepth > 0) {
+                throw unexpectedChar("End of file hit too early");
             }
-            if (bufferPos < availableCharsInBuffer) {
+            return false;
+        }
+        unreadChar();
+        if (structureDepth == 0) {
+            if (previousEvent == END_ARRAY.ordinal() || previousEvent == END_OBJECT.ordinal()) {
                 throw unexpectedChar("EOF expected");
             }
+            // The raw SPI can stream root scalars, but must not hide suffix garbage.
+            if (c != '{' && c != '[' && c != '"' && c != '-' && !isAsciiDigit(c) && c != 't' && c != 'f' && c != 'n') {
+                throw unexpectedChar("Expected a JSON value");
+            }
         }
-        return false;
+        return true;
 
     }
 
@@ -234,11 +233,23 @@ public class JsonParser implements Parser {
 
     protected final char readNextChar() {
         if (bufferLeft == 0) {
-            if (startOfValueInBuffer > -1 && endOfValueInBuffer == -1) {
-                endOfValueInBuffer = availableCharsInBuffer;
+            if (availableCharsInBuffer < 0 || buffer.length == 0) {
+                availableCharsInBuffer = -1;
+                return Character.MIN_VALUE;
+            }
+            if (startOfValueInBuffer > -1) {
+                final boolean readingValue = endOfValueInBuffer == -1;
+                final boolean emptyValue = !readingValue && startOfValueInBuffer == endOfValueInBuffer;
+                if (readingValue) {
+                    endOfValueInBuffer = availableCharsInBuffer;
+                }
                 copyCurrentValue();
-
-                startOfValueInBuffer = 0;
+                if (readingValue) {
+                    startOfValueInBuffer = 0;
+                } else if (emptyValue) {
+                    // Nothing was copied, but accessors must still have a valid empty slice.
+                    startOfValueInBuffer = endOfValueInBuffer = 0;
+                }
             }
 
             if (bufferPos >= -1) {
@@ -246,10 +257,16 @@ public class JsonParser implements Parser {
             }
 
             try {
-                availableCharsInBuffer = in.read(buffer, 0, buffer.length);
-                if (availableCharsInBuffer <= 0) {
+                int read;
+                do {
+                    read = in.read(buffer, 0, buffer.length);
+                } while (read == 0);
+                if (read < 0) {
+                    bufferPos = 0;
+                    availableCharsInBuffer = -1;
                     return Character.MIN_VALUE;
                 }
+                availableCharsInBuffer = read;
             } catch (final IOException e) {
                 close();
                 throw new IllegalStateException("Unexpected IO exception on " + createLocation(), e);
@@ -261,6 +278,7 @@ public class JsonParser implements Parser {
             bufferPos++;
             bufferLeft--;
         }
+        // Token readers reject control characters in their own grammar; the buffer count distinguishes EOF from NUL.
         return buffer[bufferPos];
     }
 
@@ -295,50 +313,42 @@ public class JsonParser implements Parser {
 
         releaseBuffers(); // if first string was huge - and ignored in the mapping maybe - just drop it from the mem asap
 
-        if (!hasNext()) {
-            final char c = readNextChar();
-            unreadChar();
-            if (c != Character.MIN_VALUE) {
-                throw unexpectedChar("No available event");
-            }
+        if (structureDepth == 0 && !hasNext()) {
             throw new NoSuchElementException();
         }
 
         if (previousEvent > 0 && structureDepth == 0) {
-            throw unexpectedChar("Unexpected end of structure");
-        }
-
-        final char c = readNextNonWhitespaceChar(readNextChar());
-        if (c == ',') {
-            //last event must one of the following-> " ] } LITERAL
-            if (previousEvent == Byte.MIN_VALUE || previousEvent == START_ARRAY.ordinal()
-                    || previousEvent == START_OBJECT.ordinal() || previousEvent == Byte.MAX_VALUE
-                    || previousEvent == KEY_NAME.ordinal()) {
-                throw unexpectedChar("Expected \" ] } LITERAL");
+            if (singleRoot) {
+                throw new JsonException("Unexpected token after the JSON root");
             }
-
-            previousEvent = Byte.MAX_VALUE;
-            return next();
+            previousEvent = -1;
         }
 
-        if (c == ':') {
-            if (previousEvent != KEY_NAME.ordinal()) {
-                throw unexpectedChar("A : can only follow a key name");
-            }
-            previousEvent = Byte.MIN_VALUE;
-            return next();
-        }
-        if (!isCurrentNumberIntegral) {
-            isCurrentNumberIntegral = true;
-        }
-        if (currentIntegralNumber != Integer.MIN_VALUE) {
-            currentIntegralNumber = Integer.MIN_VALUE;
-        }
-        if (fallBackCopyBufferLength != 0) {
-            fallBackCopyBufferLength = 0;
-        }
-
+        isCurrentNumberIntegral = true;
+        currentIntegralNumber = Integer.MIN_VALUE;
+        fallBackCopyBufferLength = 0;
         startOfValueInBuffer = endOfValueInBuffer = -1;
+
+        char c;
+        while (true) {
+            c = readNextNonWhitespaceChar(readNextChar());
+            if (c == ',') {
+                // last event must be one of: " ] } LITERAL
+                if (previousEvent == Byte.MIN_VALUE || previousEvent == START_ARRAY.ordinal()
+                        || previousEvent == START_OBJECT.ordinal() || previousEvent == Byte.MAX_VALUE
+                        || previousEvent == KEY_NAME.ordinal()) {
+                    throw unexpectedChar("Expected \" ] } LITERAL");
+                }
+                previousEvent = Byte.MAX_VALUE;
+            } else if (c == ':') {
+                if (previousEvent != KEY_NAME.ordinal()) {
+                    throw unexpectedChar("A : can only follow a key name");
+                }
+                previousEvent = Byte.MIN_VALUE;
+            } else {
+                break;
+            }
+        }
         return switch (c) {
             case '{' -> handleStartObject();
             case '}' -> handleEndObject();
@@ -348,6 +358,21 @@ public class JsonParser implements Parser {
             case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-', 'f', 't', 'n' -> handleLiteral();
             default -> defaultHandling(c);
         };
+    }
+
+    public JsonParser forDocument() {
+        singleRoot = true;
+        return this;
+    }
+
+    @Override
+    public void ensureDocument(final boolean rejectTrailingTokens) {
+        if (structureDepth != 0 || previousEvent < 0 || rewindedEvent != null) {
+            throw new JsonException("The codec did not consume a complete JSON root");
+        }
+        if (rejectTrailingTokens && hasNext()) {
+            throw new JsonException("Unexpected content after the JSON root");
+        }
     }
 
     protected Event defaultHandling(char c) {
@@ -415,7 +440,6 @@ public class JsonParser implements Parser {
             throw unexpectedChar("Expected \"");
         }
         pushStructure(true);
-        arrayDepth++;
         return EVT_MAP[previousEvent = (byte) START_ARRAY.ordinal()];
     }
 
@@ -430,7 +454,6 @@ public class JsonParser implements Parser {
         }
 
         structureDepth--;
-        arrayDepth--;
         return EVT_MAP[previousEvent = (byte) END_ARRAY.ordinal()];
     }
 
@@ -455,6 +478,9 @@ public class JsonParser implements Parser {
                 } else if (n == '\\') {
                     appendToCopyBuffer(n);
                 } else {
+                    if (n != '"' && n != '/' && n != 'b' && n != 'f' && n != 'n' && n != 'r' && n != 't') {
+                        throw unexpectedChar("Invalid escape sequence");
+                    }
                     appendToCopyBuffer(JsonStrings.asEscapedChar(n));
                 }
             } else {
@@ -563,9 +589,11 @@ public class JsonParser implements Parser {
             }
         }
 
-        endOfValueInBuffer = y == Character.MIN_VALUE && endOfValueInBuffer < 0 ? -1 : bufferPos;
-        if (y == ',' || y == ']' || y == '}' || y == '\n' || y == ' ' || y == '\t' || y == '\r' || y == Character.MIN_VALUE) {
-            unreadChar();
+        endOfValueInBuffer = bufferPos;
+        if (y == ',' || y == ']' || y == '}' || y == '\n' || y == ' ' || y == '\t' || y == '\r' || availableCharsInBuffer < 0) {
+            if (availableCharsInBuffer >= 0) {
+                unreadChar();
+            }
             if (isCurrentNumberIntegral && c == '-' && cumulatedDigitValue >= 48 && cumulatedDigitValue <= 57) {
                 currentIntegralNumber = -(cumulatedDigitValue - 48); //optimize -0 till -9
                 return;
@@ -634,7 +662,7 @@ public class JsonParser implements Parser {
             throw new IllegalStateException(EVT_MAP[previousEvent] + " doesn't support matchString()");
         }
         if (buffers != null) { // multi-buffer value, unlikely for a key, use the assembled string
-            return Parser.super.matchString(candidates, lengthOffsets);
+            return DocumentParser.super.matchString(candidates, lengthOffsets);
         }
 
         final char[] source;
@@ -680,17 +708,17 @@ public class JsonParser implements Parser {
     @Override
     public void enforceNext(final Event event) {
         if (!hasNext()) {
-            throw new IllegalStateException("Expected " + event + " stream is finished.");
+            throw new JsonException("Expected " + event + " stream is finished.");
         }
         final var next = next();
         if (next != event) {
-            throw new IllegalStateException("Expected " + event + " but got " + next);
+            throw new JsonException("Expected " + event + " but got " + next);
         }
     }
 
     @Override
     public boolean isInArray() {
-        return arrayDepth > 0;
+        return structureDepth > objectDepth;
     }
 
     @Override
@@ -885,7 +913,7 @@ public class JsonParser implements Parser {
         if (releaseBuffer) {
             bufferProvider.release(buffer);
         }
-        if (releaseFallBackCopyBufferLength && fallBackCopyBuffer != null) {
+        if (fallBackCopyBuffer != null) {
             bufferProvider.release(fallBackCopyBuffer);
         }
         releaseBuffers();
@@ -999,9 +1027,9 @@ public class JsonParser implements Parser {
         return negative ? -retVal : retVal;
     }
 
-    private IllegalStateException unexpectedChar(final String message) {
-        final char c = bufferPos < 0 ? 0 : buffer[bufferPos];
-        return new IllegalStateException("Unexpected character '" + c + "' (Codepoint: " + String.valueOf(c).codePointAt(0) + ") on "
+    private JsonException unexpectedChar(final String message) {
+        final char c = bufferPos < 0 || bufferPos >= availableCharsInBuffer ? 0 : buffer[bufferPos];
+        return new JsonException("Unexpected character '" + c + "' (Codepoint: " + String.valueOf(c).codePointAt(0) + ") on "
                 + createLocation() + ". Reason is [[" + message + "]]");
     }
 

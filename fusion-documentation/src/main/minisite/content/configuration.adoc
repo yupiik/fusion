@@ -96,6 +96,11 @@ The following implicit keys are read directly from `Configuration` by the runtim
 [opts="header",cols="a,a,a,a"]
 |===
 | Key | Module | Default | Purpose
+| `fusion.json.rejectDuplicateKeys` | fusion-json | `false` | Reject repeated decoded member names in all objects, including skipped or unknown members.
+| `fusion.json.maxDepth` | fusion-json | `0` | Maximum number of simultaneously open objects and arrays during decoding; zero means unlimited, negative values are invalid.
+| `fusion.json.rejectUnknownFields` | fusion-json | `false` | Reject unknown modeled members; dynamic maps/objects and explicit `@JsonOthers` extension maps remain open.
+| `fusion.json.rejectTrailingTokens` | fusion-json | `true` | Require only JSON whitespace after the complete root; `false` restores suffix-ignoring reads, not streaming.
+| `fusion.json.rejectIncompatibleValues` | fusion-json | `true` | Reject incompatible typed JSON values; `false` restores legacy ignored-value and numeric coercion behavior.
 | `fusion.launcher.useHook` | fusion-api | `false` | Register a JVM shutdown hook closing the container.
 | `fusion.configuration.sources.secrets` | fusion-api | set | Comma separated secret directories (see above).
 | `fusion.http-server.start` | http-server | `true` | Set `false` to not auto-start the server.
@@ -117,4 +122,3 @@ The following implicit keys are read directly from `Configuration` by the runtim
 |===
 
 Module specific keys (`fusion.http-server.*`, `fusion.persistence.datasource.*`, the JWT and operator keys) are documented in their own pages.
-

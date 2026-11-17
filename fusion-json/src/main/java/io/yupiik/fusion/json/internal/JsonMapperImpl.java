@@ -18,6 +18,7 @@ package io.yupiik.fusion.json.internal;
 import io.yupiik.fusion.framework.api.configuration.Configuration;
 import io.yupiik.fusion.framework.api.container.Types;
 import io.yupiik.fusion.json.JsonMapper;
+import io.yupiik.fusion.json.JsonException;
 import io.yupiik.fusion.json.deserialization.AvailableCharArrayReader;
 import io.yupiik.fusion.json.internal.codec.BigDecimalJsonCodec;
 import io.yupiik.fusion.json.internal.codec.BooleanJsonCodec;
@@ -25,6 +26,7 @@ import io.yupiik.fusion.json.internal.codec.CollectionJsonCodec;
 import io.yupiik.fusion.json.internal.codec.DoubleJsonCodec;
 import io.yupiik.fusion.json.internal.codec.EnumJsonCodec;
 import io.yupiik.fusion.json.internal.codec.FloatJsonCodec;
+import io.yupiik.fusion.json.internal.codec.GenericNumberJsonCodec;
 import io.yupiik.fusion.json.internal.codec.IntegerJsonCodec;
 import io.yupiik.fusion.json.internal.codec.LocalDateJsonCodec;
 import io.yupiik.fusion.json.internal.codec.LocalDateTimeJsonCodec;
@@ -32,6 +34,7 @@ import io.yupiik.fusion.json.internal.codec.LongJsonCodec;
 import io.yupiik.fusion.json.internal.codec.MapJsonCodec;
 import io.yupiik.fusion.json.internal.codec.ObjectJsonCodec;
 import io.yupiik.fusion.json.internal.codec.OffsetDateTimeJsonCodec;
+import io.yupiik.fusion.json.internal.codec.RawMapJsonCodec;
 import io.yupiik.fusion.json.internal.codec.StringJsonCodec;
 import io.yupiik.fusion.json.internal.codec.ZonedDateTimeJsonCodec;
 import io.yupiik.fusion.json.internal.io.BufferedExtendedWriter;
@@ -39,7 +42,9 @@ import io.yupiik.fusion.json.internal.io.ByteBufferProvider;
 import io.yupiik.fusion.json.internal.io.FastStringWriter;
 import io.yupiik.fusion.json.internal.io.FastUtf8Reader;
 import io.yupiik.fusion.json.internal.parser.BufferProvider;
+import io.yupiik.fusion.json.internal.parser.DocumentParser;
 import io.yupiik.fusion.json.internal.parser.JsonParser;
+import io.yupiik.fusion.json.internal.parser.ValidatingParser;
 import io.yupiik.fusion.json.patch.JsonPatchOperation;
 import io.yupiik.fusion.json.serialization.ExtendedWriter;
 import io.yupiik.fusion.json.serialization.JsonCodec;
@@ -72,15 +77,60 @@ public class JsonMapperImpl implements JsonMapper {
     private final Function<Reader, Parser> parserFactory;
     private final boolean serializeNulls;
     private final boolean ignoreCodecClose;
+    private final boolean rejectIncompatibleValues;
+    private final boolean rejectDuplicateKeys;
+    private final boolean rejectTrailingTokens;
+    private final int maxDepth;
+    private final boolean rejectUnknownFields;
     private final Function<Class<?>, JsonCodec<?>> codecLookup = this::codecLookup; // avoids a lambda instance per (de)serialization
     private final BufferProvider writeBuffers;
     private final ByteBufferProvider byteBuffers;
 
     protected JsonMapperImpl(final Map<Type, JsonCodec<?>> codecs, final Function<Reader, Parser> parserFactory, final boolean serializeNulls, final boolean ignoreCodecClose) {
+        this(codecs, parserFactory, serializeNulls, ignoreCodecClose, true);
+    }
+
+    protected JsonMapperImpl(final Map<Type, JsonCodec<?>> codecs, final Function<Reader, Parser> parserFactory,
+                             final boolean serializeNulls, final boolean ignoreCodecClose, final boolean rejectIncompatibleValues) {
+        this(codecs, parserFactory, serializeNulls, ignoreCodecClose, rejectIncompatibleValues, false);
+    }
+
+    protected JsonMapperImpl(final Map<Type, JsonCodec<?>> codecs, final Function<Reader, Parser> parserFactory,
+                             final boolean serializeNulls, final boolean ignoreCodecClose, final boolean rejectIncompatibleValues,
+                             final boolean rejectDuplicateKeys) {
+        this(codecs, parserFactory, serializeNulls, ignoreCodecClose, rejectIncompatibleValues, rejectDuplicateKeys, true);
+    }
+
+    protected JsonMapperImpl(final Map<Type, JsonCodec<?>> codecs, final Function<Reader, Parser> parserFactory,
+                             final boolean serializeNulls, final boolean ignoreCodecClose, final boolean rejectIncompatibleValues,
+                             final boolean rejectDuplicateKeys, final boolean rejectTrailingTokens) {
+        this(codecs, parserFactory, serializeNulls, ignoreCodecClose, rejectIncompatibleValues,
+                rejectDuplicateKeys, rejectTrailingTokens, 0);
+    }
+
+    protected JsonMapperImpl(final Map<Type, JsonCodec<?>> codecs, final Function<Reader, Parser> parserFactory,
+                             final boolean serializeNulls, final boolean ignoreCodecClose, final boolean rejectIncompatibleValues,
+                             final boolean rejectDuplicateKeys, final boolean rejectTrailingTokens, final int maxDepth) {
+        this(codecs, parserFactory, serializeNulls, ignoreCodecClose, rejectIncompatibleValues,
+                rejectDuplicateKeys, rejectTrailingTokens, maxDepth, false);
+    }
+
+    protected JsonMapperImpl(final Map<Type, JsonCodec<?>> codecs, final Function<Reader, Parser> parserFactory,
+                             final boolean serializeNulls, final boolean ignoreCodecClose, final boolean rejectIncompatibleValues,
+                             final boolean rejectDuplicateKeys, final boolean rejectTrailingTokens, final int maxDepth,
+                             final boolean rejectUnknownFields) {
+        if (maxDepth < 0) {
+            throw new IllegalArgumentException("maxDepth must be non-negative");
+        }
         this.codecs = codecs;
         this.parserFactory = parserFactory;
         this.serializeNulls = serializeNulls;
         this.ignoreCodecClose = ignoreCodecClose;
+        this.rejectIncompatibleValues = rejectIncompatibleValues;
+        this.rejectDuplicateKeys = rejectDuplicateKeys;
+        this.rejectTrailingTokens = rejectTrailingTokens;
+        this.maxDepth = maxDepth;
+        this.rejectUnknownFields = rejectUnknownFields;
         this.writeBuffers = new BufferProvider(8 * 1024, -1);
         this.byteBuffers = new ByteBufferProvider(8 * 1024, -1);
     }
@@ -95,6 +145,18 @@ public class JsonMapperImpl implements JsonMapper {
         this.parserFactory = readerParserFunction;
         this.serializeNulls = false;
         this.ignoreCodecClose = false;
+        this.rejectIncompatibleValues = configuration.get("fusion.json.rejectIncompatibleValues")
+                .map(Boolean::parseBoolean).orElse(true);
+        this.rejectDuplicateKeys = configuration.get("fusion.json.rejectDuplicateKeys")
+                .map(Boolean::parseBoolean).orElse(false);
+        this.rejectTrailingTokens = configuration.get("fusion.json.rejectTrailingTokens")
+                .map(Boolean::parseBoolean).orElse(true);
+        this.maxDepth = configuration.get("fusion.json.maxDepth").map(Integer::parseInt).orElse(0);
+        this.rejectUnknownFields = configuration.get("fusion.json.rejectUnknownFields")
+                .map(Boolean::parseBoolean).orElse(false);
+        if (maxDepth < 0) {
+            throw new IllegalArgumentException("fusion.json.maxDepth must be non-negative");
+        }
         this.writeBuffers = createBufferProvider(configuration);
         this.byteBuffers = new ByteBufferProvider(maxStringLength(configuration), maxBuffers(configuration));
 
@@ -109,7 +171,7 @@ public class JsonMapperImpl implements JsonMapper {
         if (!this.codecs.containsKey(Map.class)) {
             final var object = this.codecs.get(Object.class);
             if (object != null) {
-                this.codecs.put(Map.class, object);
+                this.codecs.put(Map.class, new RawMapJsonCodec(object));
             }
         }
     }
@@ -121,6 +183,7 @@ public class JsonMapperImpl implements JsonMapper {
                 new LongJsonCodec(),
                 new DoubleJsonCodec(),
                 new FloatJsonCodec(),
+                new GenericNumberJsonCodec(),
                 new BigDecimalJsonCodec(),
                 new BooleanJsonCodec(),
                 new LocalDateJsonCodec(),
@@ -371,60 +434,116 @@ public class JsonMapperImpl implements JsonMapper {
     @Override
     @SuppressWarnings("unchecked")
     public <A> A read(final Type type, final Reader rawReader) {
-        try (final var reader = parserFactory.apply(rawReader)) {
-            final var codec = (JsonCodec<A>) codecs.get(type);
+        try (final var reader = newParser(rawReader)) {
+            final var codec = (JsonCodec<A>) readCodec(type);
             if (codec == null) {
-                if (type instanceof ParameterizedType pt && pt.getRawType() instanceof Class<?> rawClass) {
-                    if (rawClass == Map.class && pt.getActualTypeArguments().length == 2 && pt.getActualTypeArguments()[0] == String.class) {
-                        final var delegate = codecs.get(pt.getActualTypeArguments()[1]);
-                        if (delegate == null) {
-                            throw missingCodecException(pt.getActualTypeArguments()[1]);
-                        }
-                        final var wrapper = new MapJsonCodec<>(delegate);
-                        codecs.putIfAbsent(wrapper.type(), wrapper);
-                        return (A) wrapper.read(new JsonCodec.DeserializationContext(reader, codecLookup));
-                    }
-                    if ((rawClass == List.class || rawClass == Collection.class) && pt.getActualTypeArguments().length == 1) {
-                        final var delegate = codecs.get(pt.getActualTypeArguments()[0]);
-                        if (delegate == null) {
-                            throw missingCodecException(pt.getActualTypeArguments()[0]);
-                        }
-                        final var wrapper = new CollectionJsonCodec<>(delegate, List.class, ArrayList::new);
-                        codecs.putIfAbsent(wrapper.type(), wrapper);
-                        return (A) wrapper.read(new JsonCodec.DeserializationContext(reader, codecLookup));
-                    }
-                    if (rawClass == Set.class && pt.getActualTypeArguments().length == 1) {
-                        final var delegate = codecs.get(pt.getActualTypeArguments()[0]);
-                        if (delegate == null) {
-                            throw missingCodecException(pt.getActualTypeArguments()[0]);
-                        }
-                        final var wrapper = new CollectionJsonCodec<>(delegate, Set.class, HashSet::new);
-                        codecs.putIfAbsent(wrapper.type(), wrapper);
-                        return (A) wrapper.read(new JsonCodec.DeserializationContext(reader, codecLookup));
-                    }
-                }
                 throw missingCodecException(type);
             }
 
-            return codec.read(new JsonCodec.DeserializationContext(reader, codecLookup));
+            return readValue(type, codec, reader);
         } catch (final IOException ioe) {
             throw new IllegalStateException(ioe);
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private <A> A readValue(final Type type, final JsonCodec<A> codec, final DocumentParser parser) throws IOException {
+        if (!parser.hasNext()) {
+            throw new JsonException("No value");
+        }
+        final var event = parser.next();
+        if (event == Parser.Event.VALUE_NULL) {
+            parser.ensureDocument(rejectTrailingTokens);
+            return (A) primitiveDefault(type);
+        }
+        parser.rewind(event);
+        final var value = codec.read(new JsonCodec.DeserializationContext(
+                parser, codecLookup, rejectIncompatibleValues, rejectUnknownFields));
+        parser.ensureDocument(rejectTrailingTokens);
+        return value;
+    }
+
+    private Object primitiveDefault(final Type type) {
+        if (type == boolean.class) {
+            return false;
+        }
+        if (type == int.class) {
+            return 0;
+        }
+        if (type == long.class) {
+            return 0L;
+        }
+        if (type == float.class) {
+            return 0f;
+        }
+        if (type == double.class) {
+            return 0d;
+        }
+        if (type == byte.class) {
+            return (byte) 0;
+        }
+        if (type == short.class) {
+            return (short) 0;
+        }
+        if (type == char.class) {
+            return '\0';
+        }
+        return null;
+    }
+
+    private JsonCodec<?> readCodec(final Type type) {
+        final var existing = codecs.get(type);
+        if (existing != null) {
+            return existing;
+        }
+        if (type instanceof ParameterizedType pt) {
+            final var raw = pt.getRawType();
+            final var arguments = pt.getActualTypeArguments();
+            final JsonCodec<?> wrapper;
+            if (raw == Map.class && arguments.length == 2 && arguments[0] == String.class) {
+                final var delegate = readCodec(arguments[1]);
+                if (delegate == null) {
+                    return null;
+                }
+                wrapper = new MapJsonCodec<>(delegate);
+            } else if ((raw == List.class || raw == Collection.class || raw == Set.class) && arguments.length == 1) {
+                final var delegate = readCodec(arguments[0]);
+                if (delegate == null) {
+                    return null;
+                }
+                wrapper = raw == Set.class ? new CollectionJsonCodec<>(delegate, Set.class, HashSet::new) :
+                        new CollectionJsonCodec<>(delegate, (Class<?>) raw, ArrayList::new);
+            } else {
+                return null;
+            }
+            final var previous = codecs.putIfAbsent(type, wrapper);
+            return previous == null ? wrapper : previous;
+        }
+        return null;
     }
 
     // just a convenient method for typing
     @Override
     @SuppressWarnings("unchecked")
     public <A> A read(final Class<A> type, final Reader reader) {
-        try (final var jsonReader = parserFactory.apply(reader)) { // create the parser first so the reader is closed even on missing codec
+        try (final var jsonReader = newParser(reader)) { // close even on missing codec
             final var codec = (JsonCodec<A>) codecs.get(type);
             if (codec == null) {
                 throw missingCodecException(type);
             }
-            return codec.read(new JsonCodec.DeserializationContext(jsonReader, codecLookup));
+            return readValue(type, codec, jsonReader);
         } catch (final IOException e) {
             throw new IllegalStateException(e);
         }
+    }
+
+    private DocumentParser newParser(final Reader reader) {
+        final var parser = parserFactory.apply(reader);
+        if (!rejectDuplicateKeys && maxDepth == 0 && parser.getClass() == JsonParser.class) {
+            // Reuse the core parser's structure stack; external parsers need event tracking.
+            return ((JsonParser) parser).forDocument();
+        }
+        return new ValidatingParser(parser, rejectDuplicateKeys, maxDepth);
     }
 
     @Override
@@ -533,10 +652,53 @@ public class JsonMapperImpl implements JsonMapper {
     private static class ConfiguringImpl implements Configuring {
         private final JsonMapperImpl parent;
         private boolean serializeNulls;
+        private boolean rejectIncompatibleValues;
+        private boolean rejectDuplicateKeys;
+        private boolean rejectTrailingTokens;
+        private int maxDepth;
+        private boolean rejectUnknownFields;
 
         private ConfiguringImpl(final JsonMapperImpl jsonMapper) {
             this.parent = jsonMapper;
             this.serializeNulls = parent.serializeNulls;
+            this.rejectIncompatibleValues = parent.rejectIncompatibleValues;
+            this.rejectDuplicateKeys = parent.rejectDuplicateKeys;
+            this.rejectTrailingTokens = parent.rejectTrailingTokens;
+            this.maxDepth = parent.maxDepth;
+            this.rejectUnknownFields = parent.rejectUnknownFields;
+        }
+
+        @Override
+        public Configuring rejectIncompatibleValues(final boolean reject) {
+            this.rejectIncompatibleValues = reject;
+            return this;
+        }
+
+        @Override
+        public Configuring rejectDuplicateKeys(final boolean reject) {
+            this.rejectDuplicateKeys = reject;
+            return this;
+        }
+
+        @Override
+        public Configuring rejectTrailingTokens(final boolean reject) {
+            this.rejectTrailingTokens = reject;
+            return this;
+        }
+
+        @Override
+        public Configuring rejectUnknownFields(final boolean reject) {
+            this.rejectUnknownFields = reject;
+            return this;
+        }
+
+        @Override
+        public Configuring maxDepth(final int maxDepth) {
+            if (maxDepth < 0) {
+                throw new IllegalArgumentException("maxDepth must be non-negative");
+            }
+            this.maxDepth = maxDepth;
+            return this;
         }
 
         @Override
@@ -547,7 +709,8 @@ public class JsonMapperImpl implements JsonMapper {
 
         @Override
         public JsonMapper build() {
-            return new JsonMapperImpl(parent.codecs, parent.parserFactory, serializeNulls, true);
+            return new JsonMapperImpl(parent.codecs, parent.parserFactory, serializeNulls, true,
+                    rejectIncompatibleValues, rejectDuplicateKeys, rejectTrailingTokens, maxDepth, rejectUnknownFields);
         }
     }
 }

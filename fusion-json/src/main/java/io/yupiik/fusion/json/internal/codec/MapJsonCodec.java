@@ -16,6 +16,7 @@
 package io.yupiik.fusion.json.internal.codec;
 
 import io.yupiik.fusion.framework.api.container.Types;
+import io.yupiik.fusion.json.JsonException;
 import io.yupiik.fusion.json.internal.JsonStrings;
 import io.yupiik.fusion.json.internal.parser.JsonParser;
 import io.yupiik.fusion.json.serialization.JsonCodec;
@@ -46,7 +47,16 @@ public class MapJsonCodec<A> implements JsonCodec<Map<String, A>> {
     @Override
     public Map<String, A> read(final DeserializationContext context) throws IOException {
         final var reader = context.parser();
-        reader.enforceNext(START_OBJECT);
+        if (!reader.hasNext()) {
+            throw new JsonException("No value");
+        }
+        final var start = reader.next();
+        if (start == JsonParser.Event.VALUE_NULL) {
+            return null;
+        }
+        if (start != START_OBJECT) {
+            throw new JsonException("Expected=START_OBJECT, but got " + start);
+        }
 
         final var instance = new LinkedHashMap<String, A>();
         JsonParser.Event event;
@@ -57,7 +67,17 @@ public class MapJsonCodec<A> implements JsonCodec<Map<String, A>> {
             if (keyEvent != KEY_NAME) {
                 throw new IllegalStateException("Expected=KEY_NAME, but got " + keyEvent);
             }
-            instance.put(reader.getString(), delegate.read(context));
+            final var key = reader.getString();
+            if (!reader.hasNext()) {
+                throw new JsonException("No value");
+            }
+            final var valueEvent = reader.next();
+            if (valueEvent == JsonParser.Event.VALUE_NULL) {
+                instance.put(key, null);
+            } else {
+                reader.rewind(valueEvent);
+                instance.put(key, delegate.read(context));
+            }
         }
         return instance;
     }

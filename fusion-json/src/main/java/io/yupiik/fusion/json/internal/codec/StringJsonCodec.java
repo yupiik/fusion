@@ -16,12 +16,14 @@
 package io.yupiik.fusion.json.internal.codec;
 
 import io.yupiik.fusion.json.internal.JsonStrings;
+import io.yupiik.fusion.json.JsonException;
 import io.yupiik.fusion.json.serialization.JsonCodec;
 
 import java.io.IOException;
 import java.lang.reflect.Type;
 
 import static io.yupiik.fusion.json.spi.Parser.Event.VALUE_STRING;
+import static io.yupiik.fusion.json.spi.Parser.Event.VALUE_NULL;
 
 public class StringJsonCodec implements JsonCodec<String> {
     @Override
@@ -32,8 +34,15 @@ public class StringJsonCodec implements JsonCodec<String> {
     @Override
     public String read(final DeserializationContext context) {
         final var parser = context.parser();
-        if (!parser.hasNext() || parser.next() != VALUE_STRING) {
-            throw new IllegalStateException("Expected VALUE_STRING");
+        if (!parser.hasNext()) {
+            throw new JsonException("Expected VALUE_STRING");
+        }
+        final var event = parser.next();
+        if (event == VALUE_NULL) {
+            return null;
+        }
+        if (event != VALUE_STRING) {
+            throw new JsonException("Expected VALUE_STRING");
         }
         return parser.getString();
     }
