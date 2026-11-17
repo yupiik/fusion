@@ -98,6 +98,11 @@ public interface JsonMapper extends AutoCloseable {
      */
     // @Experimental
     interface Configuring {
+        /** Controls full-document suffix validation (enabled by default). */
+        default Configuring rejectTrailingTokens(final boolean reject) {
+            throw new UnsupportedOperationException("Document completion is not configurable by this mapper");
+        }
+
         /** Controls duplicate member rejection in every object (disabled by default). */
         default Configuring rejectDuplicateKeys(final boolean reject) {
             throw new UnsupportedOperationException("Duplicate member rejection is not configurable by this mapper");

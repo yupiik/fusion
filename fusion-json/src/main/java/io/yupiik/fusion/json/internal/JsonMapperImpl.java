@@ -42,6 +42,7 @@ import io.yupiik.fusion.json.internal.io.ByteBufferProvider;
 import io.yupiik.fusion.json.internal.io.FastStringWriter;
 import io.yupiik.fusion.json.internal.io.FastUtf8Reader;
 import io.yupiik.fusion.json.internal.parser.BufferProvider;
+import io.yupiik.fusion.json.internal.parser.DocumentParser;
 import io.yupiik.fusion.json.internal.parser.JsonParser;
 import io.yupiik.fusion.json.internal.parser.ValidatingParser;
 import io.yupiik.fusion.json.patch.JsonPatchOperation;
@@ -78,6 +79,7 @@ public class JsonMapperImpl implements JsonMapper {
     private final boolean ignoreCodecClose;
     private final boolean rejectIncompatibleValues;
     private final boolean rejectDuplicateKeys;
+    private final boolean rejectTrailingTokens;
     private final Function<Class<?>, JsonCodec<?>> codecLookup = this::codecLookup; // avoids a lambda instance per (de)serialization
     private final BufferProvider writeBuffers;
     private final ByteBufferProvider byteBuffers;
@@ -94,12 +96,19 @@ public class JsonMapperImpl implements JsonMapper {
     protected JsonMapperImpl(final Map<Type, JsonCodec<?>> codecs, final Function<Reader, Parser> parserFactory,
                              final boolean serializeNulls, final boolean ignoreCodecClose, final boolean rejectIncompatibleValues,
                              final boolean rejectDuplicateKeys) {
+        this(codecs, parserFactory, serializeNulls, ignoreCodecClose, rejectIncompatibleValues, rejectDuplicateKeys, true);
+    }
+
+    protected JsonMapperImpl(final Map<Type, JsonCodec<?>> codecs, final Function<Reader, Parser> parserFactory,
+                             final boolean serializeNulls, final boolean ignoreCodecClose, final boolean rejectIncompatibleValues,
+                             final boolean rejectDuplicateKeys, final boolean rejectTrailingTokens) {
         this.codecs = codecs;
         this.parserFactory = parserFactory;
         this.serializeNulls = serializeNulls;
         this.ignoreCodecClose = ignoreCodecClose;
         this.rejectIncompatibleValues = rejectIncompatibleValues;
         this.rejectDuplicateKeys = rejectDuplicateKeys;
+        this.rejectTrailingTokens = rejectTrailingTokens;
         this.writeBuffers = new BufferProvider(8 * 1024, -1);
         this.byteBuffers = new ByteBufferProvider(8 * 1024, -1);
     }
@@ -118,6 +127,8 @@ public class JsonMapperImpl implements JsonMapper {
                 .map(Boolean::parseBoolean).orElse(true);
         this.rejectDuplicateKeys = configuration.get("fusion.json.rejectDuplicateKeys")
                 .map(Boolean::parseBoolean).orElse(false);
+        this.rejectTrailingTokens = configuration.get("fusion.json.rejectTrailingTokens")
+                .map(Boolean::parseBoolean).orElse(true);
         this.writeBuffers = createBufferProvider(configuration);
         this.byteBuffers = new ByteBufferProvider(maxStringLength(configuration), maxBuffers(configuration));
 
@@ -395,7 +406,7 @@ public class JsonMapperImpl implements JsonMapper {
     @Override
     @SuppressWarnings("unchecked")
     public <A> A read(final Type type, final Reader rawReader) {
-        try (final var reader = new ValidatingParser(parserFactory.apply(rawReader), rejectDuplicateKeys)) {
+        try (final var reader = newParser(rawReader)) {
             final var codec = (JsonCodec<A>) readCodec(type);
             if (codec == null) {
                 throw missingCodecException(type);
@@ -408,16 +419,19 @@ public class JsonMapperImpl implements JsonMapper {
     }
 
     @SuppressWarnings("unchecked")
-    private <A> A readValue(final Type type, final JsonCodec<A> codec, final Parser parser) throws IOException {
+    private <A> A readValue(final Type type, final JsonCodec<A> codec, final DocumentParser parser) throws IOException {
         if (!parser.hasNext()) {
             throw new JsonException("No value");
         }
         final var event = parser.next();
         if (event == Parser.Event.VALUE_NULL) {
+            parser.ensureDocument(rejectTrailingTokens);
             return (A) primitiveDefault(type);
         }
         parser.rewind(event);
-        return codec.read(new JsonCodec.DeserializationContext(parser, codecLookup, rejectIncompatibleValues));
+        final var value = codec.read(new JsonCodec.DeserializationContext(parser, codecLookup, rejectIncompatibleValues));
+        parser.ensureDocument(rejectTrailingTokens);
+        return value;
     }
 
     private Object primitiveDefault(final Type type) {
@@ -483,7 +497,7 @@ public class JsonMapperImpl implements JsonMapper {
     @Override
     @SuppressWarnings("unchecked")
     public <A> A read(final Class<A> type, final Reader reader) {
-        try (final var jsonReader = new ValidatingParser(parserFactory.apply(reader), rejectDuplicateKeys)) { // close even on missing codec
+        try (final var jsonReader = newParser(reader)) { // close even on missing codec
             final var codec = (JsonCodec<A>) codecs.get(type);
             if (codec == null) {
                 throw missingCodecException(type);
@@ -492,6 +506,15 @@ public class JsonMapperImpl implements JsonMapper {
         } catch (final IOException e) {
             throw new IllegalStateException(e);
         }
+    }
+
+    private DocumentParser newParser(final Reader reader) {
+        final var parser = parserFactory.apply(reader);
+        if (!rejectDuplicateKeys && parser.getClass() == JsonParser.class) {
+            // Reuse the core parser's structure stack; external parsers need event tracking.
+            return ((JsonParser) parser).forDocument();
+        }
+        return new ValidatingParser(parser, rejectDuplicateKeys);
     }
 
     @Override
@@ -602,12 +625,14 @@ public class JsonMapperImpl implements JsonMapper {
         private boolean serializeNulls;
         private boolean rejectIncompatibleValues;
         private boolean rejectDuplicateKeys;
+        private boolean rejectTrailingTokens;
 
         private ConfiguringImpl(final JsonMapperImpl jsonMapper) {
             this.parent = jsonMapper;
             this.serializeNulls = parent.serializeNulls;
             this.rejectIncompatibleValues = parent.rejectIncompatibleValues;
             this.rejectDuplicateKeys = parent.rejectDuplicateKeys;
+            this.rejectTrailingTokens = parent.rejectTrailingTokens;
         }
 
         @Override
@@ -623,6 +648,12 @@ public class JsonMapperImpl implements JsonMapper {
         }
 
         @Override
+        public Configuring rejectTrailingTokens(final boolean reject) {
+            this.rejectTrailingTokens = reject;
+            return this;
+        }
+
+        @Override
         public Configuring serializeNulls() {
             this.serializeNulls = true;
             return this;
@@ -631,7 +662,7 @@ public class JsonMapperImpl implements JsonMapper {
         @Override
         public JsonMapper build() {
             return new JsonMapperImpl(parent.codecs, parent.parserFactory, serializeNulls, true,
-                    rejectIncompatibleValues, rejectDuplicateKeys);
+                    rejectIncompatibleValues, rejectDuplicateKeys, rejectTrailingTokens);
         }
     }
 }

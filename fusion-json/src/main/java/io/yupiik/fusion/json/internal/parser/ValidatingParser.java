@@ -27,12 +27,15 @@ import java.util.Set;
 import java.util.function.IntUnaryOperator;
 
 /** Applies document validation independently of the parser factory and codec used. */
-public class ValidatingParser implements Parser {
+public class ValidatingParser implements DocumentParser {
     private final Parser delegate;
     // A null frame denotes an array; each object owns its decoded names.
     // No tracking allocation or key materialization is needed when validation is disabled.
     private final List<Set<String>> scopes;
     private boolean replay;
+    private boolean started;
+    private boolean complete;
+    private int depth;
 
     public ValidatingParser(final Parser delegate, final boolean rejectDuplicateKeys) {
         this.delegate = delegate;
@@ -58,6 +61,25 @@ public class ValidatingParser implements Parser {
             replay = false;
             return event;
         }
+        if (complete) {
+            throw new JsonException("Unexpected token after the JSON root: " + event);
+        }
+        started = true;
+        switch (event) {
+            case START_OBJECT, START_ARRAY -> depth++;
+            case END_OBJECT, END_ARRAY -> {
+                if (depth == 0) {
+                    throw new JsonException("Unexpected closing token: " + event);
+                }
+                complete = --depth == 0;
+            }
+            case KEY_NAME -> {
+                if (depth == 0) {
+                    throw new JsonException("A JSON root cannot be a member name");
+                }
+            }
+            default -> complete = depth == 0;
+        }
         if (scopes != null) {
             switch (event) {
                 case START_OBJECT -> scopes.add(new HashSet<>());
@@ -75,6 +97,16 @@ public class ValidatingParser implements Parser {
             }
         }
         return event;
+    }
+
+    @Override
+    public void ensureDocument(final boolean rejectTrailingTokens) {
+        if (!started || !complete || depth != 0 || replay) {
+            throw new JsonException("The codec did not consume a complete JSON root");
+        }
+        if (rejectTrailingTokens && hasNext()) {
+            throw new JsonException("Unexpected content after the JSON root");
+        }
     }
 
     @Override

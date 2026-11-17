@@ -97,6 +97,7 @@ The following implicit keys are read directly from `Configuration` by the runtim
 |===
 | Key | Module | Default | Purpose
 | `fusion.json.rejectDuplicateKeys` | fusion-json | `false` | Reject repeated decoded member names in all objects, including skipped or unknown members.
+| `fusion.json.rejectTrailingTokens` | fusion-json | `true` | Require only JSON whitespace after the complete root; `false` restores suffix-ignoring reads, not streaming.
 | `fusion.json.rejectIncompatibleValues` | fusion-json | `true` | Reject incompatible typed JSON values; `false` restores legacy ignored-value and numeric coercion behavior.
 | `fusion.launcher.useHook` | fusion-api | `false` | Register a JVM shutdown hook closing the container.
 | `fusion.configuration.sources.secrets` | fusion-api | set | Comma separated secret directories (see above).

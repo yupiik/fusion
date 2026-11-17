@@ -126,6 +126,17 @@ The policy applies at every object level, including unknown or ignored members, 
 Escaped spellings such as `"a"` and `"\u0061"` denote the same member name.
 The setting is independent of typed value validation, is inherited by child mappers, and also applies to custom parser factories that implement the parser event contract.
 
+=== Document completion
+
+Mapper read methods require exactly one complete JSON value by default, followed only by JSON whitespace (space, tab, carriage return or line feed).
+Additional values, garbage, comments, empty documents and incomplete or malformed values, including skipped unknown subtrees, fail with `JsonException`.
+Literal NUL is not end-of-input; an escaped `\u0000` inside a JSON string remains valid.
+Set `fusion.json.rejectTrailingTokens=false` through Fusion `Configuration`, or call `rejectTrailingTokens(false)` on `JsonMapper.Configuring`, to skip the final suffix check for compatibility.
+The first value must still be complete, and a codec that returns before consuming it is rejected without draining the remaining document.
+Disabling suffix checks does not enable permissive JSON syntax, relax typed-value or duplicate policies, or create a streaming mapper API.
+Input can be read ahead during tokenization and mapper reads still close it; strict document reads require end-of-input.
+Custom parser factories must report remaining input honestly through the `Parser` contract for the mapper to validate their suffixes.
+
 == Ignoring attributes
 
 To tell the generated codec to totally ignore a record attribute, mark it with `@JsonIgnore`:
