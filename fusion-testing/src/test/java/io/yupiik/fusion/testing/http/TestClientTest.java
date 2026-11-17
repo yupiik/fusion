@@ -17,8 +17,11 @@ package io.yupiik.fusion.testing.http;
 
 import io.yupiik.fusion.httpclient.core.DelegatingHttpClient;
 import io.yupiik.fusion.httpclient.core.response.StaticHttpResponse;
+import io.yupiik.fusion.json.JsonException;
 import io.yupiik.fusion.json.internal.JsonMapperImpl;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.IOException;
 import java.net.URI;
@@ -36,9 +39,36 @@ import static java.net.http.HttpResponse.BodySubscribers.ofString;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Optional.empty;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.fail;
 
 class TestClientTest {
+    @ParameterizedTest
+    @ValueSource(strings = {"5", "\"5\""})
+    void numericResult(final String result) {
+        try (final var mapper = new JsonMapperImpl(List.of(), c -> empty());
+             final var client = newLocalClient(mapper, "{\"jsonrpc\":\"2.0\",\"result\":" + result + "}")) {
+            final var response = client.jsonRpcRequest("test", Map.of()).asJsonRpc().success();
+            assertEquals(5, response.as(Integer.class));
+            assertEquals(5L, response.as(Long.class));
+            assertEquals(5.0, response.as(Double.class));
+            assertThrows(JsonException.class, () -> mapper.fromString(Integer.class, "\"5\""));
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"[5,6]", "[\"5\",\"6\"]"})
+    void numericListResult(final String result) {
+        try (final var mapper = new JsonMapperImpl(List.of(), c -> empty());
+             final var client = newLocalClient(mapper, "{\"jsonrpc\":\"2.0\",\"result\":" + result + "}")) {
+            final var response = client.jsonRpcRequest("test", Map.of()).asJsonRpc().success();
+            assertEquals(List.of(5, 6), response.asList(Integer.class));
+            assertEquals(List.of(5L, 6L), response.asList(Long.class));
+            assertEquals(List.of(5.0, 6.0), response.asList(Double.class));
+            assertThrows(JsonException.class, () -> mapper.fromString(Integer.class, "\"5\""));
+        }
+    }
+
     @Test
     @SuppressWarnings("unchecked")
     void jsonRpcSingleRequest() {
@@ -73,6 +103,10 @@ class TestClientTest {
     }
 
     private TestClient newLocalClient() {
+        return newLocalClient(new JsonMapperImpl(List.of(), c -> empty()), null);
+    }
+
+    private TestClient newLocalClient(final JsonMapperImpl mapper, final String response) {
         return new TestClient(
                 new DelegatingHttpClient(null) {
                     @Override
@@ -81,10 +115,10 @@ class TestClientTest {
                         return new StaticHttpResponse<>(
                                 request, request.uri(), HTTP_1_1, 200,
                                 HttpHeaders.of(Map.of(), (a, b) -> true),
-                                (T) wrapRequest(request.bodyPublisher().orElseThrow()));
+                                (T) (response == null ? wrapRequest(request.bodyPublisher().orElseThrow()) : response));
                     }
                 },
-                new JsonMapperImpl(List.of(), c -> empty()), URI.create("http://testing"));
+                mapper, URI.create("http://testing"));
     }
 
     private String wrapRequest(final HttpRequest.BodyPublisher bodyPublisher) {

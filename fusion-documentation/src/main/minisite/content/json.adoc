@@ -93,6 +93,10 @@ Optional fields may be missing; malformed values are not treated as missing in t
 `Number` accepts JSON numbers or null, also returning `BigDecimal`, and writes numbers without quotes.
 `BigDecimal` retains its existing contract: it accepts numbers or decimal strings and writes decimal strings.
 Other numeric targets reject quoted numbers in the default mode.
+Note that generic-to-typed conversions through serialization do not necessarily preserve JSON token types: reading `5` as `Object` or `Number` returns a `BigDecimal`, and `mapper.toString(value)` selects its runtime codec and writes `"5"`.
+The same can occur for numeric members in maps or elements in collections, depending on the serialization path.
+Decoding that output as `Integer`, `Long` or `Double` fails with strict defaults, although decoding it as `BigDecimal` still works.
+For these conversions, use a compatibility child mapper as shown below; direct typed decoding of JSON numbers does not need this workaround.
 Application-specific constraints such as positive IDs, integral values or cursor progression remain application responsibilities.
 
 For compatibility with legacy ignored-value and numeric coercion behavior, set `fusion.json.rejectIncompatibleValues=false` through Fusion `Configuration`, or create a child mapper:

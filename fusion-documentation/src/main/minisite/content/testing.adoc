@@ -114,6 +114,10 @@ void myTest(@Fusion final TestClient client) { <1>
 <.> Asserts the JSON-RPC response has no `error`,
 <.> Maps the `result` as an object - compatible with `fusion-json`.
 
+The JSON-RPC helpers `as()` and `asList()` convert generic results with a compatibility child mapper using `rejectIncompatibleValues(false)` when the mapper supports configuration.
+This handles generic numbers represented as `BigDecimal`, whose serialization can produce decimal strings, without changing the application's mapper settings.
+NOTE: These helpers also accept genuinely quoted numeric results and therefore do not validate strict numeric token types; assert the raw response body when that distinction matters.
+
 === Before/After method task
 
 JUnit5 has `@BeforeEach`/`@AfterEach` callbacks but they are not per methods and related to the class - state - more then the test itself.
@@ -186,4 +190,3 @@ final var container = ConfiguringContainer.of()
     .start();
 ----
 <.> Register your own `TestingModule` instance (or a `ListingPredicateModule`) to replace the matching beans before the container starts.
-
