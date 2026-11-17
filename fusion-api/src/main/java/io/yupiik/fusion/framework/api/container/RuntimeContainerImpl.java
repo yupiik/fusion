@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 
 import static java.util.Optional.empty;
@@ -47,6 +48,7 @@ public class RuntimeContainerImpl implements RuntimeContainer {
 
     private final Map<Type, Type> slowLookupMatchings = new ConcurrentHashMap<>();
     private final Map<Type, List<FusionBean<?>>> listMatchings = new ConcurrentHashMap<>();
+    private final AtomicBoolean closed = new AtomicBoolean();
 
     public RuntimeContainerImpl(final Beans beans, final Contexts contexts, final Listeners listeners) {
         this.beans = beans;
@@ -172,6 +174,10 @@ public class RuntimeContainerImpl implements RuntimeContainer {
 
     @Override
     public void close() {
+        if (!closed.compareAndSet(false, true)) { // idempotent, Stop must be fired once
+            return;
+        }
+
         final var error = new IllegalStateException("Can't close the container properly");
 
         // stop event
