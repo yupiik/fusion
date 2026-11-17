@@ -395,6 +395,7 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
         return switch (def) {
             case BOOLEAN -> "BOOLEAN";
             case BIG_DECIMAL -> "BIG_DECIMAL";
+            case NUMBER -> "NUMBER";
             case INTEGER -> "INTEGER";
             case LONG -> "LONG";
             case DOUBLE -> "DOUBLE";
@@ -426,6 +427,7 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
             case STRING, INTEGER, LONG, DOUBLE, BOOLEAN -> "null";
             case ENUM -> ParsedType.of(param.type()).className() + ".class";
             case BIG_DECIMAL -> BigDecimal.class.getName() + ".class";
+            case NUMBER -> Number.class.getName() + ".class";
             case LOCAL_DATE -> LocalDate.class.getName() + ".class";
             case LOCAL_DATE_TIME -> LocalDateTime.class.getName() + ".class";
             case OFFSET_DATE_TIME -> OffsetDateTime.class.getName() + ".class";
@@ -565,6 +567,8 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
                         new JsonSchema(null, null, "integer", !"long".equals(testedType), "int64", null, null, null, null, null, description(), null);
                 case DOUBLE ->
                         new JsonSchema(null, null, "number", !"double".equals(testedType), "double", null, null, null, null, null, description(), null);
+                case NUMBER ->
+                        new JsonSchema(null, null, "number", true, null, null, null, null, null, null, description(), null);
                 // there is not yet a "decimal" format but number is not safe enough for big_decimal
                 case BIG_DECIMAL ->
                         new JsonSchema(null, null, "string", true, null, null, null, null, null, null, description(), null);
@@ -604,6 +608,7 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
     private enum ParamTypeDef { // a codec exists
         BOOLEAN,
         BIG_DECIMAL,
+        NUMBER,
         INTEGER,
         LONG,
         DOUBLE,
@@ -620,6 +625,7 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
             return switch (name) {
                 case "boolean", "java.lang.Boolean" -> BOOLEAN;
                 case "java.math.BigDecimal" -> BIG_DECIMAL;
+                case "java.lang.Number" -> NUMBER;
                 case "int", "java.lang.Integer" -> INTEGER;
                 case "long", "java.lang.Long" -> LONG;
                 case "double", "java.lang.Double" -> DOUBLE;

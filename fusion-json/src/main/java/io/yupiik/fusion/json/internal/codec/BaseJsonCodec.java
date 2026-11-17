@@ -16,6 +16,7 @@
 package io.yupiik.fusion.json.internal.codec;
 
 import io.yupiik.fusion.json.internal.JsonStrings;
+import io.yupiik.fusion.json.JsonException;
 import io.yupiik.fusion.json.serialization.ExtendedWriter;
 import io.yupiik.fusion.json.serialization.JsonCodec;
 import io.yupiik.fusion.json.spi.Parser;
@@ -530,12 +531,12 @@ public abstract class BaseJsonCodec<A> implements JsonCodec<A> {
                                                            final JsonCodec<T> delegate) throws IOException {
         final var reader = context.parser();
         if (!reader.hasNext()) {
-            throw new IllegalStateException("No more element");
+            throw new JsonException("No more element");
         }
 
         final var next = reader.next();
         if (next != Parser.Event.START_ARRAY) {
-            throw new IllegalStateException("Expected=START_ARRAY, but got " + next);
+            throw new JsonException("Expected=START_ARRAY, but got " + next);
         }
 
         Parser.Event event;
@@ -547,13 +548,35 @@ public abstract class BaseJsonCodec<A> implements JsonCodec<A> {
     }
 
     public enum ContainerKind {
-        VALUE, LIST, SET, MAP, MAP_LIST
+        VALUE(null), LIST(Parser.Event.START_ARRAY), SET(Parser.Event.START_ARRAY),
+        MAP(Parser.Event.START_OBJECT), MAP_LIST(Parser.Event.START_OBJECT);
+
+        private final int acceptedEvents;
+
+        ContainerKind(final Parser.Event start) {
+            acceptedEvents = start == null ? 0 : (1 << start.ordinal()) | (1 << Parser.Event.VALUE_NULL.ordinal());
+        }
     }
 
     public enum ValueKind {
-        BOOLEAN, BIG_DECIMAL, INTEGER, LONG, DOUBLE, STRING, ENUM,
-        LOCAL_DATE, LOCAL_DATE_TIME, OFFSET_DATE_TIME, ZONED_DATE_TIME,
-        GENERIC_OBJECT, MODEL
+        BOOLEAN(Parser.Event.VALUE_TRUE, Parser.Event.VALUE_FALSE),
+        BIG_DECIMAL(Parser.Event.VALUE_NUMBER, Parser.Event.VALUE_STRING),
+        NUMBER(Parser.Event.VALUE_NUMBER), INTEGER(Parser.Event.VALUE_NUMBER),
+        LONG(Parser.Event.VALUE_NUMBER), DOUBLE(Parser.Event.VALUE_NUMBER),
+        STRING(Parser.Event.VALUE_STRING), ENUM(Parser.Event.VALUE_STRING),
+        LOCAL_DATE(Parser.Event.VALUE_STRING), LOCAL_DATE_TIME(Parser.Event.VALUE_STRING),
+        OFFSET_DATE_TIME(Parser.Event.VALUE_STRING), ZONED_DATE_TIME(Parser.Event.VALUE_STRING),
+        GENERIC_OBJECT(Parser.Event.values()), MODEL(Parser.Event.START_OBJECT);
+
+        private final int acceptedEvents;
+
+        ValueKind(final Parser.Event... events) {
+            int mask = 1 << Parser.Event.VALUE_NULL.ordinal();
+            for (final var event : events) {
+                mask |= 1 << event.ordinal();
+            }
+            acceptedEvents = mask;
+        }
     }
 
     public record FieldMeta<A>(
@@ -606,6 +629,10 @@ public abstract class BaseJsonCodec<A> implements JsonCodec<A> {
         Parser.Event event;
         while (parser.hasNext()) {
             event = parser.next();
+            if (key >= 0 && (context.rejectIncompatibleValues() || fields[key].valueKind() == ValueKind.NUMBER) &&
+                    event != Parser.Event.KEY_NAME) {
+                validateValue(fields[key], event);
+            }
             switch (event) {
                 case KEY_NAME -> {
                     key = parser.matchString(keys, keyLengths);
@@ -649,9 +676,9 @@ public abstract class BaseJsonCodec<A> implements JsonCodec<A> {
                 case START_OBJECT -> {
                     if (key >= 0) {
                         final var field = fields[key];
-                        parser.rewind(event);
                         switch (field.container()) {
                             case VALUE -> {
+                                parser.rewind(event);
                                 if (field.valueKind() == ValueKind.GENERIC_OBJECT) {
                                     slots[field.slotIndex()] = context.codec(Object.class).read(context);
                                 } else {
@@ -659,6 +686,7 @@ public abstract class BaseJsonCodec<A> implements JsonCodec<A> {
                                 }
                             }
                             case MAP -> {
+                                parser.rewind(event);
                                 if (field.valueKind() == ValueKind.GENERIC_OBJECT) {
                                     slots[field.slotIndex()] = context.codec(Object.class).read(context);
                                 } else {
@@ -666,6 +694,7 @@ public abstract class BaseJsonCodec<A> implements JsonCodec<A> {
                                 }
                             }
                             case MAP_LIST -> {
+                                parser.rewind(event);
                                 slots[field.slotIndex()] = readMapList(context, field.delegateType());
                             }
                             default -> parser.skipObject();
@@ -681,12 +710,18 @@ public abstract class BaseJsonCodec<A> implements JsonCodec<A> {
                 case START_ARRAY -> {
                     if (key >= 0) {
                         final var field = fields[key];
-                        parser.rewind(event);
                         switch (field.container()) {
-                            case LIST -> slots[field.slotIndex()] = readList(context, field.delegateType());
-                            case SET -> slots[field.slotIndex()] = readSet(context, field.delegateType());
+                            case LIST -> {
+                                parser.rewind(event);
+                                slots[field.slotIndex()] = readList(context, field.delegateType());
+                            }
+                            case SET -> {
+                                parser.rewind(event);
+                                slots[field.slotIndex()] = readSet(context, field.delegateType());
+                            }
                             case VALUE -> {
                                 if (field.valueKind() == ValueKind.GENERIC_OBJECT) {
+                                    parser.rewind(event);
                                     slots[field.slotIndex()] = readList(context, Object.class);
                                 } else {
                                     parser.skipArray();
@@ -722,6 +757,15 @@ public abstract class BaseJsonCodec<A> implements JsonCodec<A> {
         throw new IllegalArgumentException("Object didn't end (missing END_OBJECT)");
     }
 
+    private void validateValue(final FieldMeta<?> field, final Parser.Event event) {
+        final int expected = field.container() == ContainerKind.VALUE ?
+                field.valueKind().acceptedEvents : field.container().acceptedEvents;
+        if ((expected & (1 << event.ordinal())) == 0) {
+            throw new JsonException("Incompatible " + event + " for member '" + new String(field.jsonName()) +
+                    "' (" + field.container() + "/" + field.valueKind() + ")");
+        }
+    }
+
     private static Object readStringValue(final DeserializationContext context, final Parser parser,
                                           final Parser.Event event, final FieldMeta<?> field) throws IOException {
         return switch (field.valueKind()) {
@@ -744,7 +788,7 @@ public abstract class BaseJsonCodec<A> implements JsonCodec<A> {
                 parser.rewind(event);
                 yield context.codec(BigDecimal.class).read(context);
             }
-            case GENERIC_OBJECT -> parser.getBigDecimal();
+            case NUMBER, GENERIC_OBJECT -> parser.getBigDecimal();
             default -> null;
         };
     }
@@ -778,7 +822,7 @@ public abstract class BaseJsonCodec<A> implements JsonCodec<A> {
                 case DOUBLE -> writeValue(first, field.keyPrefix(), ((Number) value).doubleValue(), context);
                 case BOOLEAN -> writeValue(first, field.keyPrefix(), (Boolean) value, context);
                 case STRING -> writeString(first, field.keyPrefix(), (CharSequence) value, context);
-                case ENUM, BIG_DECIMAL, LOCAL_DATE, LOCAL_DATE_TIME, OFFSET_DATE_TIME, ZONED_DATE_TIME, MODEL, GENERIC_OBJECT ->
+                case ENUM, BIG_DECIMAL, NUMBER, LOCAL_DATE, LOCAL_DATE_TIME, OFFSET_DATE_TIME, ZONED_DATE_TIME, MODEL, GENERIC_OBJECT ->
                         writeWithCodec(first, field.keyPrefix(), value, (Class<Object>) field.delegateType(), context);
             };
             case LIST, SET -> {

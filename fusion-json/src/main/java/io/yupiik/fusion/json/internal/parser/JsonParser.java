@@ -16,6 +16,7 @@
 package io.yupiik.fusion.json.internal.parser;
 
 import io.yupiik.fusion.json.deserialization.AvailableCharArrayReader;
+import io.yupiik.fusion.json.JsonException;
 import io.yupiik.fusion.json.internal.JsonStrings;
 import io.yupiik.fusion.json.spi.Parser;
 
@@ -680,11 +681,11 @@ public class JsonParser implements Parser {
     @Override
     public void enforceNext(final Event event) {
         if (!hasNext()) {
-            throw new IllegalStateException("Expected " + event + " stream is finished.");
+            throw new JsonException("Expected " + event + " stream is finished.");
         }
         final var next = next();
         if (next != event) {
-            throw new IllegalStateException("Expected " + event + " but got " + next);
+            throw new JsonException("Expected " + event + " but got " + next);
         }
     }
 

@@ -96,6 +96,7 @@ The following implicit keys are read directly from `Configuration` by the runtim
 [opts="header",cols="a,a,a,a"]
 |===
 | Key | Module | Default | Purpose
+| `fusion.json.rejectIncompatibleValues` | fusion-json | `true` | Reject incompatible typed JSON values; `false` restores legacy ignored-value and numeric coercion behavior.
 | `fusion.launcher.useHook` | fusion-api | `false` | Register a JVM shutdown hook closing the container.
 | `fusion.configuration.sources.secrets` | fusion-api | set | Comma separated secret directories (see above).
 | `fusion.http-server.start` | http-server | `true` | Set `false` to not auto-start the server.
@@ -117,4 +118,3 @@ The following implicit keys are read directly from `Configuration` by the runtim
 |===
 
 Module specific keys (`fusion.http-server.*`, `fusion.persistence.datasource.*`, the JWT and operator keys) are documented in their own pages.
-

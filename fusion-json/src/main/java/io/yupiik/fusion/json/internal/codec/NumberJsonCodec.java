@@ -16,6 +16,7 @@
 package io.yupiik.fusion.json.internal.codec;
 
 import io.yupiik.fusion.json.internal.parser.JsonParser;
+import io.yupiik.fusion.json.JsonException;
 import io.yupiik.fusion.json.serialization.JsonCodec;
 import io.yupiik.fusion.json.spi.Parser;
 
@@ -46,14 +47,14 @@ public abstract class NumberJsonCodec<A> implements JsonCodec<A> {
     public A read(final DeserializationContext context) {
         final var parser = context.parser();
         if (!parser.hasNext()) {
-            throw new IllegalStateException("No more token.");
+            throw new JsonException("No more token.");
         }
         final JsonParser.Event event = parser.next();
         if (event != VALUE_NUMBER) {
-            if (event == VALUE_STRING) { // assume it was a BigDecimal serialized so try to deserialize it
+            if (event == VALUE_STRING && !context.rejectIncompatibleValues()) { // legacy quoted-number coercion
                 return mapBigDecimal(new BigDecimal(parser.getString()));
             }
-            throw new IllegalStateException("Expected VALUE_NUMBER but got: " + event);
+            throw new JsonException("Expected VALUE_NUMBER but got: " + event);
         }
         return read(parser);
     }

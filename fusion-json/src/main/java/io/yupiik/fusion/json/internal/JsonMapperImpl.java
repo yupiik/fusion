@@ -25,6 +25,7 @@ import io.yupiik.fusion.json.internal.codec.CollectionJsonCodec;
 import io.yupiik.fusion.json.internal.codec.DoubleJsonCodec;
 import io.yupiik.fusion.json.internal.codec.EnumJsonCodec;
 import io.yupiik.fusion.json.internal.codec.FloatJsonCodec;
+import io.yupiik.fusion.json.internal.codec.GenericNumberJsonCodec;
 import io.yupiik.fusion.json.internal.codec.IntegerJsonCodec;
 import io.yupiik.fusion.json.internal.codec.LocalDateJsonCodec;
 import io.yupiik.fusion.json.internal.codec.LocalDateTimeJsonCodec;
@@ -32,6 +33,7 @@ import io.yupiik.fusion.json.internal.codec.LongJsonCodec;
 import io.yupiik.fusion.json.internal.codec.MapJsonCodec;
 import io.yupiik.fusion.json.internal.codec.ObjectJsonCodec;
 import io.yupiik.fusion.json.internal.codec.OffsetDateTimeJsonCodec;
+import io.yupiik.fusion.json.internal.codec.RawMapJsonCodec;
 import io.yupiik.fusion.json.internal.codec.StringJsonCodec;
 import io.yupiik.fusion.json.internal.codec.ZonedDateTimeJsonCodec;
 import io.yupiik.fusion.json.internal.io.BufferedExtendedWriter;
@@ -72,15 +74,22 @@ public class JsonMapperImpl implements JsonMapper {
     private final Function<Reader, Parser> parserFactory;
     private final boolean serializeNulls;
     private final boolean ignoreCodecClose;
+    private final boolean rejectIncompatibleValues;
     private final Function<Class<?>, JsonCodec<?>> codecLookup = this::codecLookup; // avoids a lambda instance per (de)serialization
     private final BufferProvider writeBuffers;
     private final ByteBufferProvider byteBuffers;
 
     protected JsonMapperImpl(final Map<Type, JsonCodec<?>> codecs, final Function<Reader, Parser> parserFactory, final boolean serializeNulls, final boolean ignoreCodecClose) {
+        this(codecs, parserFactory, serializeNulls, ignoreCodecClose, true);
+    }
+
+    protected JsonMapperImpl(final Map<Type, JsonCodec<?>> codecs, final Function<Reader, Parser> parserFactory,
+                             final boolean serializeNulls, final boolean ignoreCodecClose, final boolean rejectIncompatibleValues) {
         this.codecs = codecs;
         this.parserFactory = parserFactory;
         this.serializeNulls = serializeNulls;
         this.ignoreCodecClose = ignoreCodecClose;
+        this.rejectIncompatibleValues = rejectIncompatibleValues;
         this.writeBuffers = new BufferProvider(8 * 1024, -1);
         this.byteBuffers = new ByteBufferProvider(8 * 1024, -1);
     }
@@ -95,6 +104,8 @@ public class JsonMapperImpl implements JsonMapper {
         this.parserFactory = readerParserFunction;
         this.serializeNulls = false;
         this.ignoreCodecClose = false;
+        this.rejectIncompatibleValues = configuration.get("fusion.json.rejectIncompatibleValues")
+                .map(Boolean::parseBoolean).orElse(true);
         this.writeBuffers = createBufferProvider(configuration);
         this.byteBuffers = new ByteBufferProvider(maxStringLength(configuration), maxBuffers(configuration));
 
@@ -109,7 +120,7 @@ public class JsonMapperImpl implements JsonMapper {
         if (!this.codecs.containsKey(Map.class)) {
             final var object = this.codecs.get(Object.class);
             if (object != null) {
-                this.codecs.put(Map.class, object);
+                this.codecs.put(Map.class, new RawMapJsonCodec(object));
             }
         }
     }
@@ -121,6 +132,7 @@ public class JsonMapperImpl implements JsonMapper {
                 new LongJsonCodec(),
                 new DoubleJsonCodec(),
                 new FloatJsonCodec(),
+                new GenericNumberJsonCodec(),
                 new BigDecimalJsonCodec(),
                 new BooleanJsonCodec(),
                 new LocalDateJsonCodec(),
@@ -382,7 +394,7 @@ public class JsonMapperImpl implements JsonMapper {
                         }
                         final var wrapper = new MapJsonCodec<>(delegate);
                         codecs.putIfAbsent(wrapper.type(), wrapper);
-                        return (A) wrapper.read(new JsonCodec.DeserializationContext(reader, codecLookup));
+                        return (A) wrapper.read(new JsonCodec.DeserializationContext(reader, codecLookup, rejectIncompatibleValues));
                     }
                     if ((rawClass == List.class || rawClass == Collection.class) && pt.getActualTypeArguments().length == 1) {
                         final var delegate = codecs.get(pt.getActualTypeArguments()[0]);
@@ -391,7 +403,7 @@ public class JsonMapperImpl implements JsonMapper {
                         }
                         final var wrapper = new CollectionJsonCodec<>(delegate, List.class, ArrayList::new);
                         codecs.putIfAbsent(wrapper.type(), wrapper);
-                        return (A) wrapper.read(new JsonCodec.DeserializationContext(reader, codecLookup));
+                        return (A) wrapper.read(new JsonCodec.DeserializationContext(reader, codecLookup, rejectIncompatibleValues));
                     }
                     if (rawClass == Set.class && pt.getActualTypeArguments().length == 1) {
                         final var delegate = codecs.get(pt.getActualTypeArguments()[0]);
@@ -400,13 +412,13 @@ public class JsonMapperImpl implements JsonMapper {
                         }
                         final var wrapper = new CollectionJsonCodec<>(delegate, Set.class, HashSet::new);
                         codecs.putIfAbsent(wrapper.type(), wrapper);
-                        return (A) wrapper.read(new JsonCodec.DeserializationContext(reader, codecLookup));
+                        return (A) wrapper.read(new JsonCodec.DeserializationContext(reader, codecLookup, rejectIncompatibleValues));
                     }
                 }
                 throw missingCodecException(type);
             }
 
-            return codec.read(new JsonCodec.DeserializationContext(reader, codecLookup));
+            return codec.read(new JsonCodec.DeserializationContext(reader, codecLookup, rejectIncompatibleValues));
         } catch (final IOException ioe) {
             throw new IllegalStateException(ioe);
         }
@@ -421,7 +433,7 @@ public class JsonMapperImpl implements JsonMapper {
             if (codec == null) {
                 throw missingCodecException(type);
             }
-            return codec.read(new JsonCodec.DeserializationContext(jsonReader, codecLookup));
+            return codec.read(new JsonCodec.DeserializationContext(jsonReader, codecLookup, rejectIncompatibleValues));
         } catch (final IOException e) {
             throw new IllegalStateException(e);
         }
@@ -533,10 +545,18 @@ public class JsonMapperImpl implements JsonMapper {
     private static class ConfiguringImpl implements Configuring {
         private final JsonMapperImpl parent;
         private boolean serializeNulls;
+        private boolean rejectIncompatibleValues;
 
         private ConfiguringImpl(final JsonMapperImpl jsonMapper) {
             this.parent = jsonMapper;
             this.serializeNulls = parent.serializeNulls;
+            this.rejectIncompatibleValues = parent.rejectIncompatibleValues;
+        }
+
+        @Override
+        public Configuring rejectIncompatibleValues(final boolean reject) {
+            this.rejectIncompatibleValues = reject;
+            return this;
         }
 
         @Override
@@ -547,7 +567,7 @@ public class JsonMapperImpl implements JsonMapper {
 
         @Override
         public JsonMapper build() {
-            return new JsonMapperImpl(parent.codecs, parent.parserFactory, serializeNulls, true);
+            return new JsonMapperImpl(parent.codecs, parent.parserFactory, serializeNulls, true, rejectIncompatibleValues);
         }
     }
 }

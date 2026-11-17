@@ -98,6 +98,11 @@ public interface JsonMapper extends AutoCloseable {
      */
     // @Experimental
     interface Configuring {
+        /** Controls rejection of incompatible typed values (enabled by default). */
+        default Configuring rejectIncompatibleValues(final boolean reject) {
+            throw new UnsupportedOperationException("Typed value validation is not configurable by this mapper");
+        }
+
         /**
          * IMPORTANT: this method is a best effort and depends the generated codecs and type you pass to the mapper.
          * It returns a new mapper instance - thread safe - and does not change the underlying mapper behavior.

@@ -52,7 +52,7 @@ public abstract class BaseHttpEndpointGenerator extends BaseGenerator {
             OffsetDateTime.class.getName(), ZoneOffset.class.getName(), LocalDate.class.getName(),
             Integer.class.getName(), Long.class.getName(), Double.class.getName(), Float.class.getName(), Boolean.class.getName(),
             "io.yupiik.fusion.jsonrpc.api.PartialResponse",
-            Object.class.getName());
+            Object.class.getName(), Number.class.getName());
 
     protected final boolean generateBean;
     protected final ExecutableElement method;

@@ -82,6 +82,33 @@ public class MyService extends HttpServlet {
 
 TIP: for byte oriented sources/sinks prefer the `InputStream`/`OutputStream` flavors (`mapper.read(MyModel.class, inputStream)`, `mapper.write(instance, outputStream)`, both UTF-8): the mapper does the UTF-8 conversion itself with a decoder optimized for JSON payloads which is faster than an `InputStreamReader`/`OutputStreamWriter` bridge.
 
+== Typed decoding
+
+Typed decoding rejects incompatible JSON values with `io.yupiik.fusion.json.JsonException` by default.
+This includes scalar values supplied for lists, maps or nested models, and numbers or booleans supplied for strings.
+Unknown members are still ignored unless captured by `@JsonOthers`.
+Optional fields may be missing; malformed values are not treated as missing in this mode.
+
+`Object` accepts any JSON value and represents JSON numbers as `BigDecimal`.
+`Number` accepts JSON numbers or null, also returning `BigDecimal`, and writes numbers without quotes.
+`BigDecimal` retains its existing contract: it accepts numbers or decimal strings and writes decimal strings.
+Other numeric targets reject quoted numbers in the default mode.
+Application-specific constraints such as positive IDs, integral values or cursor progression remain application responsibilities.
+
+For compatibility with legacy ignored-value and numeric coercion behavior, set `fusion.json.rejectIncompatibleValues=false` through Fusion `Configuration`, or create a child mapper:
+
+[source,java]
+----
+try (final var compatible = mapper.as(JsonMapper.Configuring.class).orElseThrow()
+        .rejectIncompatibleValues(false)
+        .build()) {
+    // Use compatible within the lifetime of mapper.
+}
+----
+
+The child inherits its parent's settings without modifying the parent or its shared codecs.
+The new `Number` contract remains number-or-null in compatibility mode.
+
 == Ignoring attributes
 
 To tell the generated codec to totally ignore a record attribute, mark it with `@JsonIgnore`:
@@ -379,4 +406,3 @@ public class MyListener {
     }
 }
 ----
-
