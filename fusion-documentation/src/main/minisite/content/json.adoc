@@ -118,6 +118,14 @@ These null semantics do not depend on `rejectIncompatibleValues`; empty or white
 Primitive model fields and supported primitive roots instead use their Java defaults on explicit null: `boolean` becomes `false`, and numeric primitives become typed zero.
 This also resets an earlier value when duplicate members are permitted; wrappers such as `Boolean` and `Integer` still become null.
 
+=== Duplicate members
+
+Duplicate object members remain accepted by default, with later accepted assignments replacing earlier values.
+Enable `fusion.json.rejectDuplicateKeys=true` through Fusion `Configuration`, or call `rejectDuplicateKeys(true)` on `JsonMapper.Configuring`, to reject repeated decoded member names.
+The policy applies at every object level, including unknown or ignored members, skipped subtrees, `@JsonOthers`, and dynamic maps.
+Escaped spellings such as `"a"` and `"\u0061"` denote the same member name.
+The setting is independent of typed value validation, is inherited by child mappers, and also applies to custom parser factories that implement the parser event contract.
+
 == Ignoring attributes
 
 To tell the generated codec to totally ignore a record attribute, mark it with `@JsonIgnore`:

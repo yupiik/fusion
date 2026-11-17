@@ -39,6 +39,34 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class JsonTypedValuesGeneratorTest {
     @Test
+    void duplicatesAreCheckedInModeledCapturedIgnoredAndSkippedMembers(@TempDir final Path work) throws IOException {
+        new Compiler(work, "JsonTypedValues", "JsonRecords", "JsonIgnoreModel").compileAndJsonAsserts((loader, mapper) -> {
+            try (final var strict = mapper.as(JsonMapper.Configuring.class).orElseThrow().rejectDuplicateKeys(true).build()) {
+                final var modeled = loader.apply("test.p.JsonTypedValues");
+                for (final var json : List.of("{\"text\":null,\"text\":\"answer\"}",
+                        "{\"text\":\"first\",\"\\u0074ext\":\"answer\"}",
+                        "{\"unknown\":1,\"unknown\":2}",
+                        "{\"unknown\":[{\"x\":1,\"x\":2}]}",
+                        "{\"nested\":{\"id\":\"1\",\"id\":\"2\"}}",
+                        "{\"objectMap\":{\"x\":null,\"x\":1}}")) {
+                    assertThrows(JsonException.class, () -> strict.fromString(modeled, json), json);
+                }
+                final var ignored = loader.apply("test.p.JsonIgnoreModel$AllObjects");
+                assertThrows(JsonException.class, () -> strict.fromString(ignored,
+                        "{\"hiddenString\":null,\"hiddenString\":\"ignored\"}"));
+                assertThrows(JsonException.class, () -> strict.fromString(ignored,
+                        "{\"hiddenObject\":{\"x\":1,\"x\":2}}"));
+                final var captured = loader.apply("test.p.JsonRecords$OthersOnly");
+                assertThrows(JsonException.class, () -> strict.fromString(captured, "{\"x\":null,\"x\":2}"));
+                assertEquals("answer", field(mapper.fromString(modeled,
+                        "{\"text\":\"first\",\"text\":\"answer\"}"), "text"));
+                final var valid = "{\"models\":[{\"id\":\"1\"},{\"id\":\"2\"}],\"text\":\"after\"}";
+                assertEquals("after", field(strict.fromString(modeled, valid), "text"));
+            }
+        });
+    }
+
+    @Test
     void rejectsIncompatibleScalarFields(@TempDir final Path work) throws IOException {
         new Compiler(work, "JsonTypedValues").compileAndJsonAsserts((loader, mapper) -> {
             final var type = loader.apply("test.p.JsonTypedValues");

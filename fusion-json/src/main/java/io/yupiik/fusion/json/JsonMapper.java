@@ -98,6 +98,11 @@ public interface JsonMapper extends AutoCloseable {
      */
     // @Experimental
     interface Configuring {
+        /** Controls duplicate member rejection in every object (disabled by default). */
+        default Configuring rejectDuplicateKeys(final boolean reject) {
+            throw new UnsupportedOperationException("Duplicate member rejection is not configurable by this mapper");
+        }
+
         /** Controls rejection of incompatible typed values (enabled by default). */
         default Configuring rejectIncompatibleValues(final boolean reject) {
             throw new UnsupportedOperationException("Typed value validation is not configurable by this mapper");
