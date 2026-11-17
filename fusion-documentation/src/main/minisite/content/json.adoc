@@ -126,6 +126,17 @@ The policy applies at every object level, including unknown or ignored members, 
 Escaped spellings such as `"a"` and `"\u0061"` denote the same member name.
 The setting is independent of typed value validation, is inherited by child mappers, and also applies to custom parser factories that implement the parser event contract.
 
+=== Unknown modeled members
+
+Unknown members are ignored by default, unless a model captures them with `@JsonOthers`.
+Enable `fusion.json.rejectUnknownFields=true` through Fusion `Configuration`, or call `rejectUnknownFields(true)` on `JsonMapper.Configuring`, to reject unknown members in generated models with `JsonException` naming the member.
+The policy applies recursively to nested modeled values and is inherited by child mappers, independently of typed-value, duplicate and document-completion policies.
+Dynamic `Object` and `Map` values remain open, and an explicit `@JsonOthers` map still captures additional members.
+Declared `@JsonIgnore` names are recognized and skipped, not treated as unknown or captured.
+Regenerate older model codecs to retain ignored-name recognition when enabling rejection; the old metadata entry point remains supported but cannot identify ignored names that were not emitted.
+Handwritten codecs can inspect `DeserializationContext.rejectUnknownFields()` and enforce their own schema; the mapper does not infer their members through reflection.
+This policy does not make absent fields required or impose non-null or domain-value constraints.
+
 === Nesting depth
 
 Deserialization nesting is unlimited by default.

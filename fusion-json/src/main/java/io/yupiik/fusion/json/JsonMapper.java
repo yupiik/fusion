@@ -98,6 +98,11 @@ public interface JsonMapper extends AutoCloseable {
      */
     // @Experimental
     interface Configuring {
+        /** Rejects unknown modeled members, except explicit extension maps (disabled by default). */
+        default Configuring rejectUnknownFields(final boolean reject) {
+            throw new UnsupportedOperationException("Unknown field rejection is not configurable by this mapper");
+        }
+
         /** Limits open objects and arrays during decoding; zero means unlimited (the default). */
         default Configuring maxDepth(final int maxDepth) {
             throw new UnsupportedOperationException("Nesting depth is not configurable by this mapper");

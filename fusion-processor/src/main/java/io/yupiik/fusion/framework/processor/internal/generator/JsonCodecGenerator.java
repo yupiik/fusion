@@ -206,6 +206,11 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
         // array built in readObject is sized for every record component and defaults are preinitialized)
         final var ignoredParams = params.stream().filter(Param::ignored).toList();
         final boolean hasIgnored = !ignoredParams.isEmpty();
+        if (hasIgnored) {
+            out.append("  private static final java.util.Set<String> IGNORED_NAMES__ = java.util.Set.of(")
+                    .append(ignoredParams.stream().map(p -> "\"" + p.stringEscapedJsonName() + "\"").distinct().collect(joining(", ")))
+                    .append(");\n\n");
+        }
         out.append("  @SuppressWarnings({\"unchecked\", \"rawtypes\"})\n")
                 .append("  private static final ").append(BaseJsonCodec.class.getName()).append(".FieldMeta<").append(modelClass).append(">[] FIELDS__ = new ")
                 .append(BaseJsonCodec.class.getName()).append(".FieldMeta[] {\n");
@@ -345,7 +350,8 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
         out.append("  public ").append(modelClass.replace('$', '.')).append(" read(final ")
                 .append(JsonCodec.DeserializationContext.class.getName().replace('$', '.')).append(" context)")
                 .append(" throws ").append(IOException.class.getName()).append(" {\n");
-        out.append("    return readObject(context, KEYS__, KEYS_OFFSETS__, FIELDS__, FACTORY__);\n");
+        out.append("    return readObject(context, KEYS__, KEYS_OFFSETS__, FIELDS__, FACTORY__")
+                .append(hasIgnored ? ", IGNORED_NAMES__" : "").append(");\n");
         out.append("  }\n\n");
 
         // write()

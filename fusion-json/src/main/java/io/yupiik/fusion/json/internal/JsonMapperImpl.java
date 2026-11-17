@@ -81,6 +81,7 @@ public class JsonMapperImpl implements JsonMapper {
     private final boolean rejectDuplicateKeys;
     private final boolean rejectTrailingTokens;
     private final int maxDepth;
+    private final boolean rejectUnknownFields;
     private final Function<Class<?>, JsonCodec<?>> codecLookup = this::codecLookup; // avoids a lambda instance per (de)serialization
     private final BufferProvider writeBuffers;
     private final ByteBufferProvider byteBuffers;
@@ -110,6 +111,14 @@ public class JsonMapperImpl implements JsonMapper {
     protected JsonMapperImpl(final Map<Type, JsonCodec<?>> codecs, final Function<Reader, Parser> parserFactory,
                              final boolean serializeNulls, final boolean ignoreCodecClose, final boolean rejectIncompatibleValues,
                              final boolean rejectDuplicateKeys, final boolean rejectTrailingTokens, final int maxDepth) {
+        this(codecs, parserFactory, serializeNulls, ignoreCodecClose, rejectIncompatibleValues,
+                rejectDuplicateKeys, rejectTrailingTokens, maxDepth, false);
+    }
+
+    protected JsonMapperImpl(final Map<Type, JsonCodec<?>> codecs, final Function<Reader, Parser> parserFactory,
+                             final boolean serializeNulls, final boolean ignoreCodecClose, final boolean rejectIncompatibleValues,
+                             final boolean rejectDuplicateKeys, final boolean rejectTrailingTokens, final int maxDepth,
+                             final boolean rejectUnknownFields) {
         if (maxDepth < 0) {
             throw new IllegalArgumentException("maxDepth must be non-negative");
         }
@@ -121,6 +130,7 @@ public class JsonMapperImpl implements JsonMapper {
         this.rejectDuplicateKeys = rejectDuplicateKeys;
         this.rejectTrailingTokens = rejectTrailingTokens;
         this.maxDepth = maxDepth;
+        this.rejectUnknownFields = rejectUnknownFields;
         this.writeBuffers = new BufferProvider(8 * 1024, -1);
         this.byteBuffers = new ByteBufferProvider(8 * 1024, -1);
     }
@@ -142,6 +152,8 @@ public class JsonMapperImpl implements JsonMapper {
         this.rejectTrailingTokens = configuration.get("fusion.json.rejectTrailingTokens")
                 .map(Boolean::parseBoolean).orElse(true);
         this.maxDepth = configuration.get("fusion.json.maxDepth").map(Integer::parseInt).orElse(0);
+        this.rejectUnknownFields = configuration.get("fusion.json.rejectUnknownFields")
+                .map(Boolean::parseBoolean).orElse(false);
         if (maxDepth < 0) {
             throw new IllegalArgumentException("fusion.json.maxDepth must be non-negative");
         }
@@ -445,7 +457,8 @@ public class JsonMapperImpl implements JsonMapper {
             return (A) primitiveDefault(type);
         }
         parser.rewind(event);
-        final var value = codec.read(new JsonCodec.DeserializationContext(parser, codecLookup, rejectIncompatibleValues));
+        final var value = codec.read(new JsonCodec.DeserializationContext(
+                parser, codecLookup, rejectIncompatibleValues, rejectUnknownFields));
         parser.ensureDocument(rejectTrailingTokens);
         return value;
     }
@@ -643,6 +656,7 @@ public class JsonMapperImpl implements JsonMapper {
         private boolean rejectDuplicateKeys;
         private boolean rejectTrailingTokens;
         private int maxDepth;
+        private boolean rejectUnknownFields;
 
         private ConfiguringImpl(final JsonMapperImpl jsonMapper) {
             this.parent = jsonMapper;
@@ -651,6 +665,7 @@ public class JsonMapperImpl implements JsonMapper {
             this.rejectDuplicateKeys = parent.rejectDuplicateKeys;
             this.rejectTrailingTokens = parent.rejectTrailingTokens;
             this.maxDepth = parent.maxDepth;
+            this.rejectUnknownFields = parent.rejectUnknownFields;
         }
 
         @Override
@@ -672,6 +687,12 @@ public class JsonMapperImpl implements JsonMapper {
         }
 
         @Override
+        public Configuring rejectUnknownFields(final boolean reject) {
+            this.rejectUnknownFields = reject;
+            return this;
+        }
+
+        @Override
         public Configuring maxDepth(final int maxDepth) {
             if (maxDepth < 0) {
                 throw new IllegalArgumentException("maxDepth must be non-negative");
@@ -689,7 +710,7 @@ public class JsonMapperImpl implements JsonMapper {
         @Override
         public JsonMapper build() {
             return new JsonMapperImpl(parent.codecs, parent.parserFactory, serializeNulls, true,
-                    rejectIncompatibleValues, rejectDuplicateKeys, rejectTrailingTokens, maxDepth);
+                    rejectIncompatibleValues, rejectDuplicateKeys, rejectTrailingTokens, maxDepth, rejectUnknownFields);
         }
     }
 }

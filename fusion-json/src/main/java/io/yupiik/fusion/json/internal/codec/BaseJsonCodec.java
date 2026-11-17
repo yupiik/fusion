@@ -625,6 +625,12 @@ public abstract class BaseJsonCodec<A> implements JsonCodec<A> {
     // no String allocation, no map usage, no runtime search, no sparse table
     protected <A> A readObject(final DeserializationContext context, final char[][] keys, final IntUnaryOperator keyLengths,
                                final FieldMeta<A>[] fields, final Function<Object[], A> factory) throws IOException {
+        return readObject(context, keys, keyLengths, fields, factory, Set.of());
+    }
+
+    protected <A> A readObject(final DeserializationContext context, final char[][] keys, final IntUnaryOperator keyLengths,
+                               final FieldMeta<A>[] fields, final Function<Object[], A> factory,
+                               final Set<String> ignoredNames) throws IOException {
         final var parser = context.parser();
         if (readNullOrStart(parser, Parser.Event.START_OBJECT)) {
             return null;
@@ -655,8 +661,15 @@ public abstract class BaseJsonCodec<A> implements JsonCodec<A> {
             switch (event) {
                 case KEY_NAME -> {
                     key = parser.matchString(keys, keyLengths);
-                    if (othersSlot >= 0 && key < 0) {
-                        fallbackKey = parser.getString();
+                    if (key < 0 && (!ignoredNames.isEmpty() || othersSlot >= 0 || context.rejectUnknownFields())) {
+                        final var name = parser.getString();
+                        if (ignoredNames.contains(name)) {
+                            skipIgnoredValue(parser);
+                        } else if (othersSlot >= 0) {
+                            fallbackKey = name;
+                        } else if (context.rejectUnknownFields()) {
+                            throw new JsonException("Unknown JSON member '" + name + "'");
+                        }
                     }
                 }
                 case VALUE_STRING -> {
@@ -774,6 +787,16 @@ public abstract class BaseJsonCodec<A> implements JsonCodec<A> {
             }
         }
         throw new IllegalArgumentException("Object didn't end (missing END_OBJECT)");
+    }
+
+    private void skipIgnoredValue(final Parser parser) {
+        switch (parser.next()) {
+            case START_OBJECT -> parser.skipObject();
+            case START_ARRAY -> parser.skipArray();
+            default -> {
+                // scalar values are fully consumed by next()
+            }
+        }
     }
 
     private Object defaultValue(final FieldMeta<?> field) {
