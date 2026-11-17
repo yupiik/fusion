@@ -160,6 +160,26 @@ class ContainerTest {
         assertEquals(1, stopListener.size());
     }
 
+    @Test
+    void closeIsIdempotent() {
+        final var stopListener = new ArrayList<Stop>();
+        final var container = ConfiguringContainer.of().register(new FusionListener<Stop>() {
+                    @Override
+                    public Class<Stop> eventType() {
+                        return Stop.class;
+                    }
+
+                    @Override
+                    public void onEvent(final RuntimeContainer container, final Stop event) {
+                        stopListener.add(event);
+                    }
+                })
+                .start();
+        container.close();
+        container.close(); // the owner and an extension (JUnit store for example) can both close it
+        assertEquals(1, stopListener.size());
+    }
+
     @Generation(version = 1)
     public static class Bean1 implements Supplier<String> {
         @Injection
