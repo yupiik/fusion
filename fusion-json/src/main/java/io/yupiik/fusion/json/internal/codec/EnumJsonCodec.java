@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.function.Function;
 
 import static io.yupiik.fusion.json.spi.Parser.Event.VALUE_STRING;
+import static io.yupiik.fusion.json.spi.Parser.Event.VALUE_NULL;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toMap;
 
@@ -58,7 +59,14 @@ public class EnumJsonCodec<A extends Enum<A>> implements JsonCodec<A> {
     @Override
     public A read(final DeserializationContext context) {
         final var parser = context.parser();
-        if (!parser.hasNext() || parser.next() != VALUE_STRING) {
+        if (!parser.hasNext()) {
+            throw new JsonException("Expected VALUE_STRING");
+        }
+        final var event = parser.next();
+        if (event == VALUE_NULL) {
+            return null;
+        }
+        if (event != VALUE_STRING) {
             throw new JsonException("Expected VALUE_STRING");
         }
         final var string = parser.getChars();

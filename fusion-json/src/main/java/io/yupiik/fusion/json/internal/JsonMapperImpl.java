@@ -18,6 +18,7 @@ package io.yupiik.fusion.json.internal;
 import io.yupiik.fusion.framework.api.configuration.Configuration;
 import io.yupiik.fusion.framework.api.container.Types;
 import io.yupiik.fusion.json.JsonMapper;
+import io.yupiik.fusion.json.JsonException;
 import io.yupiik.fusion.json.deserialization.AvailableCharArrayReader;
 import io.yupiik.fusion.json.internal.codec.BigDecimalJsonCodec;
 import io.yupiik.fusion.json.internal.codec.BooleanJsonCodec;
@@ -384,44 +385,58 @@ public class JsonMapperImpl implements JsonMapper {
     @SuppressWarnings("unchecked")
     public <A> A read(final Type type, final Reader rawReader) {
         try (final var reader = parserFactory.apply(rawReader)) {
-            final var codec = (JsonCodec<A>) codecs.get(type);
+            final var codec = (JsonCodec<A>) readCodec(type);
             if (codec == null) {
-                if (type instanceof ParameterizedType pt && pt.getRawType() instanceof Class<?> rawClass) {
-                    if (rawClass == Map.class && pt.getActualTypeArguments().length == 2 && pt.getActualTypeArguments()[0] == String.class) {
-                        final var delegate = codecs.get(pt.getActualTypeArguments()[1]);
-                        if (delegate == null) {
-                            throw missingCodecException(pt.getActualTypeArguments()[1]);
-                        }
-                        final var wrapper = new MapJsonCodec<>(delegate);
-                        codecs.putIfAbsent(wrapper.type(), wrapper);
-                        return (A) wrapper.read(new JsonCodec.DeserializationContext(reader, codecLookup, rejectIncompatibleValues));
-                    }
-                    if ((rawClass == List.class || rawClass == Collection.class) && pt.getActualTypeArguments().length == 1) {
-                        final var delegate = codecs.get(pt.getActualTypeArguments()[0]);
-                        if (delegate == null) {
-                            throw missingCodecException(pt.getActualTypeArguments()[0]);
-                        }
-                        final var wrapper = new CollectionJsonCodec<>(delegate, List.class, ArrayList::new);
-                        codecs.putIfAbsent(wrapper.type(), wrapper);
-                        return (A) wrapper.read(new JsonCodec.DeserializationContext(reader, codecLookup, rejectIncompatibleValues));
-                    }
-                    if (rawClass == Set.class && pt.getActualTypeArguments().length == 1) {
-                        final var delegate = codecs.get(pt.getActualTypeArguments()[0]);
-                        if (delegate == null) {
-                            throw missingCodecException(pt.getActualTypeArguments()[0]);
-                        }
-                        final var wrapper = new CollectionJsonCodec<>(delegate, Set.class, HashSet::new);
-                        codecs.putIfAbsent(wrapper.type(), wrapper);
-                        return (A) wrapper.read(new JsonCodec.DeserializationContext(reader, codecLookup, rejectIncompatibleValues));
-                    }
-                }
                 throw missingCodecException(type);
             }
 
-            return codec.read(new JsonCodec.DeserializationContext(reader, codecLookup, rejectIncompatibleValues));
+            return readValue(codec, reader);
         } catch (final IOException ioe) {
             throw new IllegalStateException(ioe);
         }
+    }
+
+    private <A> A readValue(final JsonCodec<A> codec, final Parser parser) throws IOException {
+        if (!parser.hasNext()) {
+            throw new JsonException("No value");
+        }
+        final var event = parser.next();
+        if (event == Parser.Event.VALUE_NULL) {
+            return null;
+        }
+        parser.rewind(event);
+        return codec.read(new JsonCodec.DeserializationContext(parser, codecLookup, rejectIncompatibleValues));
+    }
+
+    private JsonCodec<?> readCodec(final Type type) {
+        final var existing = codecs.get(type);
+        if (existing != null) {
+            return existing;
+        }
+        if (type instanceof ParameterizedType pt) {
+            final var raw = pt.getRawType();
+            final var arguments = pt.getActualTypeArguments();
+            final JsonCodec<?> wrapper;
+            if (raw == Map.class && arguments.length == 2 && arguments[0] == String.class) {
+                final var delegate = readCodec(arguments[1]);
+                if (delegate == null) {
+                    return null;
+                }
+                wrapper = new MapJsonCodec<>(delegate);
+            } else if ((raw == List.class || raw == Collection.class || raw == Set.class) && arguments.length == 1) {
+                final var delegate = readCodec(arguments[0]);
+                if (delegate == null) {
+                    return null;
+                }
+                wrapper = raw == Set.class ? new CollectionJsonCodec<>(delegate, Set.class, HashSet::new) :
+                        new CollectionJsonCodec<>(delegate, (Class<?>) raw, ArrayList::new);
+            } else {
+                return null;
+            }
+            final var previous = codecs.putIfAbsent(type, wrapper);
+            return previous == null ? wrapper : previous;
+        }
+        return null;
     }
 
     // just a convenient method for typing
@@ -433,7 +448,7 @@ public class JsonMapperImpl implements JsonMapper {
             if (codec == null) {
                 throw missingCodecException(type);
             }
-            return codec.read(new JsonCodec.DeserializationContext(jsonReader, codecLookup, rejectIncompatibleValues));
+            return readValue(codec, jsonReader);
         } catch (final IOException e) {
             throw new IllegalStateException(e);
         }

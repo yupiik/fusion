@@ -35,6 +35,7 @@ public class BooleanJsonCodec implements JsonCodec<Boolean> {
         }
         final var next = parser.next();
         return switch (next) {
+            case VALUE_NULL -> null;
             case VALUE_TRUE -> true;
             case VALUE_FALSE -> false;
             default -> throw new JsonException("Expected true/false and got " + next);

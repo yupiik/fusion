@@ -50,6 +50,9 @@ public abstract class NumberJsonCodec<A> implements JsonCodec<A> {
             throw new JsonException("No more token.");
         }
         final JsonParser.Event event = parser.next();
+        if (event == Parser.Event.VALUE_NULL) {
+            return null;
+        }
         if (event != VALUE_NUMBER) {
             if (event == VALUE_STRING && !context.rejectIncompatibleValues()) { // legacy quoted-number coercion
                 return mapBigDecimal(new BigDecimal(parser.getString()));

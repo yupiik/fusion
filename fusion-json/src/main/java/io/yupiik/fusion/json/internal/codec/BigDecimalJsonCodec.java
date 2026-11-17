@@ -37,6 +37,7 @@ public class BigDecimalJsonCodec implements JsonCodec<BigDecimal> {
         }
         final var event = parser.next();
         return switch (event) {
+            case VALUE_NULL -> null;
             case VALUE_NUMBER -> parser.getBigDecimal();
             case VALUE_STRING -> new BigDecimal(parser.getString());
             default -> throw new JsonException("Expected VALUE_STRING or VALUE_NUMBER, got " + event);

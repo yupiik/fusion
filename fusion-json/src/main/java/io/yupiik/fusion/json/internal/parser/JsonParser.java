@@ -1000,9 +1000,9 @@ public class JsonParser implements Parser {
         return negative ? -retVal : retVal;
     }
 
-    private IllegalStateException unexpectedChar(final String message) {
+    private JsonException unexpectedChar(final String message) {
         final char c = bufferPos < 0 ? 0 : buffer[bufferPos];
-        return new IllegalStateException("Unexpected character '" + c + "' (Codepoint: " + String.valueOf(c).codePointAt(0) + ") on "
+        return new JsonException("Unexpected character '" + c + "' (Codepoint: " + String.valueOf(c).codePointAt(0) + ") on "
                 + createLocation() + ". Reason is [[" + message + "]]");
     }
 

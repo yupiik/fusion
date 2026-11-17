@@ -492,7 +492,9 @@ public abstract class BaseJsonCodec<A> implements JsonCodec<A> {
     protected <T> Map<String, T> readMap(final DeserializationContext context, final Class<T> valueType) throws IOException {
         final var delegate = context.codec(valueType);
         final var reader = context.parser();
-        reader.enforceNext(Parser.Event.START_OBJECT);
+        if (readNullOrStart(reader, Parser.Event.START_OBJECT)) {
+            return null;
+        }
 
         final var instance = new LinkedHashMap<String, T>();
         Parser.Event event;
@@ -503,7 +505,8 @@ public abstract class BaseJsonCodec<A> implements JsonCodec<A> {
             if (keyEvent != Parser.Event.KEY_NAME) {
                 throw new IllegalStateException("Expected=KEY_NAME, but got " + keyEvent);
             }
-            instance.put(reader.getString(), delegate.read(context));
+            final var key = reader.getString();
+            instance.put(key, readNullable(context, delegate));
         }
         return instance;
     }
@@ -511,7 +514,9 @@ public abstract class BaseJsonCodec<A> implements JsonCodec<A> {
     protected <T> Map<String, List<T>> readMapList(final DeserializationContext context, final Class<T> itemType) throws IOException {
         final var delegate = context.codec(itemType);
         final var reader = context.parser();
-        reader.enforceNext(Parser.Event.START_OBJECT);
+        if (readNullOrStart(reader, Parser.Event.START_OBJECT)) {
+            return null;
+        }
 
         final var instance = new LinkedHashMap<String, List<T>>();
         Parser.Event event;
@@ -530,21 +535,43 @@ public abstract class BaseJsonCodec<A> implements JsonCodec<A> {
     private <T, C extends Collection<T>> C readCollection(final DeserializationContext context, final C instance,
                                                            final JsonCodec<T> delegate) throws IOException {
         final var reader = context.parser();
-        if (!reader.hasNext()) {
-            throw new JsonException("No more element");
-        }
-
-        final var next = reader.next();
-        if (next != Parser.Event.START_ARRAY) {
-            throw new JsonException("Expected=START_ARRAY, but got " + next);
+        if (readNullOrStart(reader, Parser.Event.START_ARRAY)) {
+            return null;
         }
 
         Parser.Event event;
         while (reader.hasNext() && (event = reader.next()) != Parser.Event.END_ARRAY) {
             reader.rewind(event);
-            instance.add(delegate.read(context));
+            instance.add(readNullable(context, delegate));
         }
         return instance;
+    }
+
+    private boolean readNullOrStart(final Parser parser, final Parser.Event start) {
+        if (!parser.hasNext()) {
+            throw new JsonException("No value");
+        }
+        final var event = parser.next();
+        if (event == Parser.Event.VALUE_NULL) {
+            return true;
+        }
+        if (event != start) {
+            throw new JsonException("Expected=" + start + ", but got " + event);
+        }
+        return false;
+    }
+
+    private <T> T readNullable(final DeserializationContext context, final JsonCodec<T> delegate) throws IOException {
+        final var parser = context.parser();
+        if (!parser.hasNext()) {
+            throw new JsonException("No value");
+        }
+        final var event = parser.next();
+        if (event == Parser.Event.VALUE_NULL) {
+            return null;
+        }
+        parser.rewind(event);
+        return delegate.read(context);
     }
 
     public enum ContainerKind {
@@ -599,7 +626,9 @@ public abstract class BaseJsonCodec<A> implements JsonCodec<A> {
     protected <A> A readObject(final DeserializationContext context, final char[][] keys, final IntUnaryOperator keyLengths,
                                final FieldMeta<A>[] fields, final Function<Object[], A> factory) throws IOException {
         final var parser = context.parser();
-        parser.enforceNext(Parser.Event.START_OBJECT);
+        if (readNullOrStart(parser, Parser.Event.START_OBJECT)) {
+            return null;
+        }
 
         final var slots = new Object[fields.length];
         int othersSlot = -1;

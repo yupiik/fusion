@@ -109,6 +109,13 @@ try (final var compatible = mapper.as(JsonMapper.Configuring.class).orElseThrow(
 The child inherits its parent's settings without modifying the parent or its shared codecs.
 The new `Number` contract remains number-or-null in compatibility mode.
 
+=== Null reference values
+
+JSON `null` is preserved for reference roots and fields, including `Boolean`, numeric wrappers, strings, dates, enums, generated models and containers.
+Null list/set elements and map values are preserved, including generated-model elements and null lists in map-of-list values.
+For example, `[null,{}]` decoded as a list of generated models retains both elements.
+These null semantics do not depend on `rejectIncompatibleValues`; empty or whitespace-only input is not JSON null and is rejected.
+
 == Ignoring attributes
 
 To tell the generated codec to totally ignore a record attribute, mark it with `@JsonIgnore`:

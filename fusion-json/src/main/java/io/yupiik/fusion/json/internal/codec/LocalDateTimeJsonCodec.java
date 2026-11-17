@@ -24,6 +24,7 @@ import java.lang.reflect.Type;
 import java.time.LocalDateTime;
 
 import static io.yupiik.fusion.json.spi.Parser.Event.VALUE_STRING;
+import static io.yupiik.fusion.json.spi.Parser.Event.VALUE_NULL;
 
 public class LocalDateTimeJsonCodec implements JsonCodec<LocalDateTime> {
     @Override
@@ -34,7 +35,14 @@ public class LocalDateTimeJsonCodec implements JsonCodec<LocalDateTime> {
     @Override
     public LocalDateTime read(final DeserializationContext context) {
         final var parser = context.parser();
-        if (!parser.hasNext() || parser.next() != VALUE_STRING) {
+        if (!parser.hasNext()) {
+            throw new JsonException("Expected VALUE_STRING");
+        }
+        final var event = parser.next();
+        if (event == VALUE_NULL) {
+            return null;
+        }
+        if (event != VALUE_STRING) {
             throw new JsonException("Expected VALUE_STRING");
         }
         return LocalDateTime.parse(parser.getString());
