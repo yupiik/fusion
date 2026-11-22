@@ -58,9 +58,6 @@ public abstract class BaseJsonCodec<A> implements JsonCodec<A> {
         final var writer = context.writer();
         boolean first = true;
         for (final var entry : others.entrySet()) {
-            if (entry.getValue() == null) {
-                continue;
-            }
             if (!first) {
                 writer.write(',');
             }
@@ -76,16 +73,13 @@ public abstract class BaseJsonCodec<A> implements JsonCodec<A> {
     protected boolean writeJsonOthers(final boolean firstAttribute, final char[] name, final Map<String, Object> value,
                                       final SerializationContext context) throws IOException {
         if (value == null || value.isEmpty()) {
-            return writeNullAttribute(firstAttribute, name, context);
+            return firstAttribute;
         }
         // note: the name is not written, the attributes of the map are flattened in the enclosing object
         final var delegate = context.codec(Object.class);
         final var writer = context.writer();
         var first = firstAttribute;
         for (final var entry : value.entrySet()) {
-            if (entry.getValue() == null) {
-                continue;
-            }
             first = separator(first, context);
             JsonStrings.escapeCharsTo(entry.getKey(), writer);
             writer.write(':');
@@ -576,6 +570,11 @@ public abstract class BaseJsonCodec<A> implements JsonCodec<A> {
     protected <A> A readObject(final DeserializationContext context, final char[][] keys, final IntUnaryOperator keyLengths,
                                final FieldMeta<A>[] fields, final Function<Object[], A> factory) throws IOException {
         final var parser = context.parser();
+        final var start = parser.next();
+        if (start == Parser.Event.VALUE_NULL) {
+            return null;
+        }
+        parser.rewind(start);
         parser.enforceNext(Parser.Event.START_OBJECT);
 
         final var slots = new Object[fields.length];
@@ -752,6 +751,10 @@ public abstract class BaseJsonCodec<A> implements JsonCodec<A> {
     protected <A> void writeObject(final A instance, final SerializationContext context,
                                    final FieldMeta<A>[] fields) throws IOException {
         final var writer = context.writer();
+        if (instance == null) {
+            writer.write("null");
+            return;
+        }
         writer.write('{');
         boolean first = true;
         for (final var field : fields) {

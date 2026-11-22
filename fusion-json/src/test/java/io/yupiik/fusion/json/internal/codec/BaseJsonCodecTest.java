@@ -33,6 +33,8 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class BaseJsonCodecTest {
     private final Codec codec = new Codec();
@@ -111,49 +113,49 @@ class BaseJsonCodecTest {
     }
 
     @Test
-    void jsonOthersKeepsItsQuirks() throws IOException {
-        // flattened, no attribute name
-        assertEquals("\"k\":\"v\"", write((first, ctx) -> codec.writeJsonOthers(
-                first, "\"a\":".toCharArray(), Map.of("k", "v"), ctx), false));
-        assertEquals("\"b\":1", write((first, ctx) -> codec.writeJsonOthers(
-                codec.writeValue(first, "\"b\":".toCharArray(), "1", ctx), "\"a\":".toCharArray(), Map.of(), ctx), false));
-        assertEquals("\"a\":null", write((first, ctx) -> codec.writeJsonOthers(
-                first, "\"a\":".toCharArray(), null, ctx), true));
+    void jsonOthersPreservesPresenceAndNeverWritesTheVirtualFieldName() throws IOException {
+        for (final var nulls : List.of(false, true)) {
+            assertEquals("", write((first, ctx) -> codec.writeJsonOthers(
+                    first, "\"extensions\":".toCharArray(), null, ctx), nulls));
+            assertEquals("", write((first, ctx) -> codec.writeJsonOthers(
+                    first, "\"extensions\":".toCharArray(), Map.of(), ctx), nulls));
+            final var values = new LinkedHashMap<String, Object>();
+            values.put("leading", null);
+            values.put("value", "text");
+            values.put("trailing", null);
+            assertEquals("\"leading\":null,\"value\":\"text\",\"trailing\":null", write((first, ctx) ->
+                    codec.writeJsonOthers(first, "\"extensions\":".toCharArray(), values, ctx), nulls));
+            assertEquals("\"before\":1,\"leading\":null,\"value\":\"text\",\"trailing\":null,\"after\":2", write((first, ctx) ->
+                    codec.writeValue(codec.writeJsonOthers(codec.writeValue(first, "\"before\":".toCharArray(), "1", ctx),
+                            "\"extensions\":".toCharArray(), values, ctx), "\"after\":".toCharArray(), "2", ctx), nulls));
+            values.clear();
+            values.put("id", null);
+            values.put("result", null);
+            assertEquals("\"id\":null,\"result\":null", write((first, ctx) ->
+                    codec.writeJsonOthers(first, "\"extensions\":".toCharArray(), values, ctx), nulls));
+        }
     }
 
     @Test
-    void jsonOthersSkipsNullValuedEntriesWithoutDanglingComma() throws IOException {
-        // trailing null - this is the exact bug: comma was written for "k2" before
-        // the loop discovered its value was null and skipped it
-        final var trailingNull = new LinkedHashMap<String, Object>();
-        trailingNull.put("k1", "v1");
-        trailingNull.put("k2", null);
-        assertEquals("\"k1\":\"v1\"", write((first, ctx) ->
-                codec.writeJsonOthers(first, "\"a\":".toCharArray(), trailingNull, ctx), false));
-
-        // leading null - first entry skipped, comma must not appear before the
-        // first *real* entry even though it wasn't the first *map* entry
-        final var leadingNull = new LinkedHashMap<String, Object>();
-        leadingNull.put("k1", null);
-        leadingNull.put("k2", "v2");
-        assertEquals("\"k2\":\"v2\"", write((first, ctx) ->
-                codec.writeJsonOthers(first, "\"a\":".toCharArray(), leadingNull, ctx), false));
-
-        // null sandwiched between two real entries
-        final var middleNull = new LinkedHashMap<String, Object>();
-        middleNull.put("k1", "v1");
-        middleNull.put("k2", null);
-        middleNull.put("k3", "v3");
-        assertEquals("\"k1\":\"v1\",\"k3\":\"v3\"", write((first, ctx) ->
-                codec.writeJsonOthers(first, "\"a\":".toCharArray(), middleNull, ctx), false));
-
-        // all-null map (non-empty, but every value null) - must behave like empty,
-        // not like "wrote nothing but still consumed a comma slot"
-        final var allNull = new LinkedHashMap<String, Object>();
-        allNull.put("k1", null);
-        allNull.put("k2", null);
-        assertEquals("\"b\":1", write((first, ctx) -> codec.writeJsonOthers(
-                codec.writeValue(first, "\"b\":".toCharArray(), "1", ctx), "\"a\":".toCharArray(), allNull, ctx), false));
+    @SuppressWarnings("unchecked")
+    void nullObject() throws IOException {
+        final var fields = (BaseJsonCodec.FieldMeta<Object>[]) new BaseJsonCodec.FieldMeta<?>[0];
+        assertNull(read("null", (c, ctx) -> c.readObject(ctx, new char[0][], length -> -1, fields,
+                slots -> { throw new AssertionError("Null must not instantiate the model"); })));
+        assertEquals("object", read("{}", (c, ctx) -> c.readObject(ctx, new char[0][], length -> -1,
+                fields, slots -> "object")));
+        assertThrows(IllegalStateException.class, () -> read("[]", (c, ctx) ->
+                c.readObject(ctx, new char[0][], length -> -1, fields, slots -> "object")));
+        for (final var serializeNulls : List.of(false, true)) {
+            assertEquals("null", write((first, ctx) -> {
+                codec.writeObject(null, ctx, fields);
+                return false;
+            }, serializeNulls));
+            assertEquals("{}", write((first, ctx) -> {
+                codec.writeObject(new Object(), ctx, fields);
+                return false;
+            }, serializeNulls));
+        }
     }
 
     @Test
