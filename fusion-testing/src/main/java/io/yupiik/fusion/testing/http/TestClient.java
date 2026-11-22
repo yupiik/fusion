@@ -137,10 +137,13 @@ public class TestClient implements AutoCloseable {
     public static class JsonRpc {
         private final Map<String, Object> response;
         private final JsonMapper jsonMapper;
+        private final Optional<JsonMapper.Configuring> compatibleConfiguration;
 
         public JsonRpc(final Map<String, Object> response, final JsonMapper jsonMapper) {
             this.response = response;
             this.jsonMapper = jsonMapper;
+            this.compatibleConfiguration = jsonMapper.as(JsonMapper.Configuring.class)
+                    .map(it -> it.rejectIncompatibleValues(false));
         }
 
         public Map<String, Object> raw() {
@@ -153,7 +156,7 @@ public class TestClient implements AutoCloseable {
                 if (data == null) {
                     return null;
                 }
-                return jsonMapper.fromString(type, jsonMapper.toString(data()));
+                return convert(type, data());
             } catch (final IllegalStateException ise) {
                 return fail(response.toString(), ise);
             }
@@ -165,7 +168,18 @@ public class TestClient implements AutoCloseable {
             if (result == null) {
                 return null;
             }
-            return jsonMapper.fromString(new Types.ParameterizedTypeImpl(List.class, type), jsonMapper.toString(result));
+            return convert(new Types.ParameterizedTypeImpl(List.class, type), result);
+        }
+
+        private <T> T convert(final Type type, final Object value) {
+            if (compatibleConfiguration.isEmpty()) {
+                return jsonMapper.fromString(type, jsonMapper.toString(value));
+            }
+            // Generic numbers become BigDecimal, whose codec writes strings. This conversion
+            // also intentionally accepts genuinely quoted numeric results, not just reserialized numbers.
+            try (final var compatible = compatibleConfiguration.orElseThrow().build()) {
+                return compatible.fromString(type, jsonMapper.toString(value));
+            }
         }
 
         public JsonRpc success() {

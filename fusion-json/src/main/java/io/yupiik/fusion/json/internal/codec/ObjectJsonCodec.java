@@ -16,6 +16,7 @@
 package io.yupiik.fusion.json.internal.codec;
 
 import io.yupiik.fusion.json.internal.JsonStrings;
+import io.yupiik.fusion.json.JsonException;
 import io.yupiik.fusion.json.serialization.JsonCodec;
 
 import java.io.IOException;
@@ -43,7 +44,7 @@ public class ObjectJsonCodec implements JsonCodec<Object> {
     public Object read(final DeserializationContext context) throws IOException {
         final var parser = context.parser();
         if (!parser.hasNext()) {
-            return null;
+            throw new JsonException("No value");
         }
 
         final var next = parser.next();

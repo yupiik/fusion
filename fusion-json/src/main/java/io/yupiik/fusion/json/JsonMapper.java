@@ -98,6 +98,31 @@ public interface JsonMapper extends AutoCloseable {
      */
     // @Experimental
     interface Configuring {
+        /** Rejects unknown modeled members, except explicit extension maps (disabled by default). */
+        default Configuring rejectUnknownFields(final boolean reject) {
+            throw new UnsupportedOperationException("Unknown field rejection is not configurable by this mapper");
+        }
+
+        /** Limits open objects and arrays during decoding; zero means unlimited (the default). */
+        default Configuring maxDepth(final int maxDepth) {
+            throw new UnsupportedOperationException("Nesting depth is not configurable by this mapper");
+        }
+
+        /** Controls full-document suffix validation (enabled by default). */
+        default Configuring rejectTrailingTokens(final boolean reject) {
+            throw new UnsupportedOperationException("Document completion is not configurable by this mapper");
+        }
+
+        /** Controls duplicate member rejection in every object (disabled by default). */
+        default Configuring rejectDuplicateKeys(final boolean reject) {
+            throw new UnsupportedOperationException("Duplicate member rejection is not configurable by this mapper");
+        }
+
+        /** Controls rejection of incompatible typed values (enabled by default). */
+        default Configuring rejectIncompatibleValues(final boolean reject) {
+            throw new UnsupportedOperationException("Typed value validation is not configurable by this mapper");
+        }
+
         /**
          * IMPORTANT: this method is a best effort and depends the generated codecs and type you pass to the mapper.
          * It returns a new mapper instance - thread safe - and does not change the underlying mapper behavior.

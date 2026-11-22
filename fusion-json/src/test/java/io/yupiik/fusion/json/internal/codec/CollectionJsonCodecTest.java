@@ -15,13 +15,18 @@
  */
 package io.yupiik.fusion.json.internal.codec;
 
+import io.yupiik.fusion.json.JsonException;
+import io.yupiik.fusion.json.internal.parser.BufferProvider;
+import io.yupiik.fusion.json.internal.parser.JsonParser;
 import io.yupiik.fusion.json.serialization.ExtendedWriter;
 import io.yupiik.fusion.json.serialization.JsonCodec;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.io.StringReader;
 import java.io.StringWriter;
 import java.lang.reflect.Type;
+import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -31,6 +36,31 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class CollectionJsonCodecTest {
+    @Test
+    void dynamicReadPreservesNullsAndMixedValues() throws IOException {
+        final var codec = new CollectionJsonCodec<Object, List<Object>>(null, List.class, ArrayList::new);
+        try (final var parser = new JsonParser(new StringReader("[null,1,\"a\",[true,null]]"),
+                16, new BufferProvider(16, -1), true)) {
+            final var context = new JsonCodec.DeserializationContext(parser, type -> new ObjectJsonCodec());
+            assertEquals(Arrays.asList(null, BigDecimal.ONE, "a", Arrays.asList(true, null)), codec.read(context));
+        }
+    }
+
+    @Test
+    void typedReadPreservesNullsWithoutDelegatingThem() throws IOException {
+        final var codec = new CollectionJsonCodec<String, List<String>>(new StringJsonCodec(), List.class, ArrayList::new);
+        try (final var parser = new JsonParser(new StringReader("[null,\"a\",null]"),
+                16, new BufferProvider(16, -1), true)) {
+            assertEquals(Arrays.asList(null, "a", null), codec.read(new JsonCodec.DeserializationContext(parser, type -> {
+                throw new AssertionError("Typed collections must not look up a codec");
+            })));
+        }
+        try (final var parser = new JsonParser(new StringReader("[null,1]"),
+                16, new BufferProvider(16, -1), true)) {
+            assertThrows(JsonException.class, () -> codec.read(new JsonCodec.DeserializationContext(parser, type -> null)));
+        }
+    }
+
     @Test
     void cachesAcrossNullsAndRefreshesOnTypeChanges() throws IOException {
         final var codec = new CollectionJsonCodec<Object, List<Object>>(null, List.class, ArrayList::new);

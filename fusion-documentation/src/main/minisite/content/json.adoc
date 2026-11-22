@@ -82,6 +82,86 @@ public class MyService extends HttpServlet {
 
 TIP: for byte oriented sources/sinks prefer the `InputStream`/`OutputStream` flavors (`mapper.read(MyModel.class, inputStream)`, `mapper.write(instance, outputStream)`, both UTF-8): the mapper does the UTF-8 conversion itself with a decoder optimized for JSON payloads which is faster than an `InputStreamReader`/`OutputStreamWriter` bridge.
 
+== Typed decoding
+
+Typed decoding rejects incompatible JSON values with `io.yupiik.fusion.json.JsonException` by default.
+This includes scalar values supplied for lists, maps or nested models, and numbers or booleans supplied for strings.
+Unknown members are still ignored unless captured by `@JsonOthers`.
+Optional fields may be missing; malformed values are not treated as missing in this mode.
+
+`Object` accepts any JSON value and represents JSON numbers as `BigDecimal`.
+`Number` accepts JSON numbers or null, also returning `BigDecimal`, and writes numbers without quotes.
+`BigDecimal` retains its existing contract: it accepts numbers or decimal strings and writes decimal strings.
+Other numeric targets reject quoted numbers in the default mode.
+Note that generic-to-typed conversions through serialization do not necessarily preserve JSON token types: reading `5` as `Object` or `Number` returns a `BigDecimal`, and `mapper.toString(value)` selects its runtime codec and writes `"5"`.
+The same can occur for numeric members in maps or elements in collections, depending on the serialization path.
+Decoding that output as `Integer`, `Long` or `Double` fails with strict defaults, although decoding it as `BigDecimal` still works.
+For these conversions, use a compatibility child mapper as shown below; direct typed decoding of JSON numbers does not need this workaround.
+Application-specific constraints such as positive IDs, integral values or cursor progression remain application responsibilities.
+
+For compatibility with legacy ignored-value and numeric coercion behavior, set `fusion.json.rejectIncompatibleValues=false` through Fusion `Configuration`, or create a child mapper:
+
+[source,java]
+----
+try (final var compatible = mapper.as(JsonMapper.Configuring.class).orElseThrow()
+        .rejectIncompatibleValues(false)
+        .build()) {
+    // Use compatible within the lifetime of mapper.
+}
+----
+
+The child inherits its parent's settings without modifying the parent or its shared codecs.
+The new `Number` contract remains number-or-null in compatibility mode.
+
+=== Null reference values
+
+JSON `null` is preserved for reference roots and fields, including `Boolean`, numeric wrappers, strings, dates, enums, generated models and containers.
+Null list/set elements and map values are preserved, including generated-model elements and null lists in map-of-list values.
+For example, `[null,{}]` decoded as a list of generated models retains both elements.
+These null semantics do not depend on `rejectIncompatibleValues`; empty or whitespace-only input is not JSON null and is rejected.
+Primitive model fields and supported primitive roots instead use their Java defaults on explicit null: `boolean` becomes `false`, and numeric primitives become typed zero.
+This also resets an earlier value when duplicate members are permitted; wrappers such as `Boolean` and `Integer` still become null.
+
+=== Duplicate members
+
+Duplicate object members remain accepted by default, with later accepted assignments replacing earlier values.
+Enable `fusion.json.rejectDuplicateKeys=true` through Fusion `Configuration`, or call `rejectDuplicateKeys(true)` on `JsonMapper.Configuring`, to reject repeated decoded member names.
+The policy applies at every object level, including unknown or ignored members, skipped subtrees, `@JsonOthers`, and dynamic maps.
+Escaped spellings such as `"a"` and `"\u0061"` denote the same member name.
+The setting is independent of typed value validation, is inherited by child mappers, and also applies to custom parser factories that implement the parser event contract.
+
+=== Unknown modeled members
+
+Unknown members are ignored by default, unless a model captures them with `@JsonOthers`.
+Enable `fusion.json.rejectUnknownFields=true` through Fusion `Configuration`, or call `rejectUnknownFields(true)` on `JsonMapper.Configuring`, to reject unknown members in generated models with `JsonException` naming the member.
+The policy applies recursively to nested modeled values and is inherited by child mappers, independently of typed-value, duplicate and document-completion policies.
+Dynamic `Object` and `Map` values remain open, and an explicit `@JsonOthers` map still captures additional members.
+Declared `@JsonIgnore` names are recognized and skipped, not treated as unknown or captured.
+Regenerate older model codecs to retain ignored-name recognition when enabling rejection; the old metadata entry point remains supported but cannot identify ignored names that were not emitted.
+Handwritten codecs can inspect `DeserializationContext.rejectUnknownFields()` and enforce their own schema; the mapper does not infer their members through reflection.
+This policy does not make absent fields required or impose non-null or domain-value constraints.
+
+=== Nesting depth
+
+Deserialization nesting is unlimited by default.
+Set `fusion.json.maxDepth` through Fusion `Configuration`, or call `maxDepth(int)` on `JsonMapper.Configuring`, to limit the number of simultaneously open objects and arrays.
+Zero means unlimited, negative settings are rejected, a scalar root has depth zero, and an object or array root has depth one.
+For example, `[{}]` has maximum depth two.
+An opening container beyond the configured limit fails with `JsonException`, including in generated models, dynamic values, captured unknown values and skipped subtrees.
+The limit is inherited by child mappers and enforced for custom parser factories through their events, independently of other validation settings.
+It does not limit document size, string length, collection size or serialization nesting.
+
+=== Document completion
+
+Mapper read methods require exactly one complete JSON value by default, followed only by JSON whitespace (space, tab, carriage return or line feed).
+Additional values, garbage, comments, empty documents and incomplete or malformed values, including skipped unknown subtrees, fail with `JsonException`.
+Literal NUL is not end-of-input; an escaped `\u0000` inside a JSON string remains valid.
+Set `fusion.json.rejectTrailingTokens=false` through Fusion `Configuration`, or call `rejectTrailingTokens(false)` on `JsonMapper.Configuring`, to skip the final suffix check for compatibility.
+The first value must still be complete, and a codec that returns before consuming it is rejected without draining the remaining document.
+Disabling suffix checks does not enable permissive JSON syntax, relax typed-value or duplicate policies, or create a streaming mapper API.
+Input can be read ahead during tokenization and mapper reads still close it; strict document reads require end-of-input.
+Custom parser factories must report remaining input honestly through the `Parser` contract for the mapper to validate their suffixes.
+
 == Collections
 
 Root collections can contain values of different types, nested collections, maps, and nulls.

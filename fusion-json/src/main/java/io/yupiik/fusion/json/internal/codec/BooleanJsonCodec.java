@@ -16,6 +16,7 @@
 package io.yupiik.fusion.json.internal.codec;
 
 import io.yupiik.fusion.json.serialization.JsonCodec;
+import io.yupiik.fusion.json.JsonException;
 
 import java.io.IOException;
 import java.lang.reflect.Type;
@@ -30,13 +31,14 @@ public class BooleanJsonCodec implements JsonCodec<Boolean> {
     public Boolean read(final DeserializationContext context) {
         final var parser = context.parser();
         if (!parser.hasNext()) {
-            throw new IllegalStateException("No value");
+            throw new JsonException("No value");
         }
         final var next = parser.next();
         return switch (next) {
+            case VALUE_NULL -> null;
             case VALUE_TRUE -> true;
             case VALUE_FALSE -> false;
-            default -> throw new IllegalStateException("Expected true/false and got " + next);
+            default -> throw new JsonException("Expected true/false and got " + next);
         };
     }
 

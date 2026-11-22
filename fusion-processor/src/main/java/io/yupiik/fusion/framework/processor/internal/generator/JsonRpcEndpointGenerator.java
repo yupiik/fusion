@@ -255,6 +255,7 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
         switch (type.type()) {
             case CLASS -> {
                 return switch (type.className()) {
+                    case "java.lang.Number" -> new JsonSchema(null, null, "number", !(required != null && required), null, null, null, null, null);
                     case "java.lang.Object" -> new JsonSchema(null, null, "object", !(required != null && required), null, null, true, null, null);
                     case "boolean", "java.lang.Boolean" ->
                             new JsonSchema(null, null, "boolean", !(required != null && required) && !"boolean".equals(type.className()), null, null, null, null, null);
@@ -296,6 +297,7 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
                                 null, null,
                                 null, null,
                                 switch (type.args().get(0)) {
+                                    case "java.lang.Number" -> new JsonSchema(null, null, "number", !(required != null && required), null, null, null, null, null);
                                     case "java.lang.Object" ->
                                             new JsonSchema(null, null, "object", !(required != null && required), null, null, true, null, null);
                                     case "boolean", "java.lang.Boolean" ->
@@ -325,6 +327,7 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
                                 "object", !(required != null && required),
                                 null, null,
                                 (switch (type.args().get(1)) {
+                                    case "java.lang.Number" -> new JsonSchema(null, null, "number", !(required != null && required), null, null, null, null, null);
                                     case "java.lang.Object" ->
                                             new JsonSchema(null, null, "object", !(required != null && required), null, null, true, null, null);
                                     case "boolean", "java.lang.Boolean" ->
@@ -355,6 +358,7 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
                                 "object", !(required != null && required),
                                 null, null,
                                 (switch (type.args().get(0)) {
+                                    case "java.lang.Number" -> new JsonSchema(null, null, "number", !(required != null && required), null, null, null, null, null);
                                     case "java.lang.Object" ->
                                             new JsonSchema(null, null, "object", !(required != null && required), null, null, true, null, null);
                                     case "boolean", "java.lang.Boolean" ->
@@ -434,6 +438,11 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
                 case "java.lang.Integer" -> "value == null ? null : ((java.lang.Number) value).intValue()";
                 case "long" -> "value == null ? 0L : ((java.lang.Number) value).longValue()";
                 case "java.lang.Long" -> "value == null ? null : ((java.lang.Number) value).longValue()";
+                case "float" -> "value == null ? 0F : ((java.lang.Number) value).floatValue()";
+                case "java.lang.Float" -> "value == null ? null : ((java.lang.Number) value).floatValue()";
+                case "double" -> "value == null ? 0D : ((java.lang.Number) value).doubleValue()";
+                case "java.lang.Double" -> "value == null ? null : ((java.lang.Number) value).doubleValue()";
+                case "java.lang.Number" -> "(java.lang.Number) value";
                 case "java.lang.String" -> "(java.lang.String) value";
                 default -> // not the most sexy, todo: review if we can avoid a roundtrip
                         "value == null ? null : jsonMapper.fromString(" + param.className() + ".class, jsonMapper.toString(value))";
@@ -469,6 +478,17 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
                         case "java.lang.Long" -> cast +
                                 "map(item -> item == null ? null : ((java.lang.Number) item).longValue())." +
                                 collector;
+                        case "float" ->
+                                cast + "map(item -> item == null ? 0F : ((java.lang.Number) item).floatValue())." + collector;
+                        case "java.lang.Float" -> cast +
+                                "map(item -> item == null ? null : ((java.lang.Number) item).floatValue())." +
+                                collector;
+                        case "double" ->
+                                cast + "map(item -> item == null ? 0D : ((java.lang.Number) item).doubleValue())." + collector;
+                        case "java.lang.Double" -> cast +
+                                "map(item -> item == null ? null : ((java.lang.Number) item).doubleValue())." +
+                                collector;
+                        case "java.lang.Number" -> cast + "map(item -> (java.lang.Number) item)." + collector;
                         case "java.lang.String" -> cast +
                                 "map(item -> (java.lang.String) item)." +
                                 collector;
@@ -506,6 +526,17 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
                                 ".map(item -> " + Map.class.getName() + ".entry(item.getKey(), item.getValue() == null ?" +
                                 " null : ((java.lang.Number) item.getValue()).longValue()))" +
                                 collector;
+                        case "java.lang.Float" -> cast +
+                                ".map(item -> " + Map.class.getName() + ".entry(item.getKey(), item.getValue() == null ?" +
+                                " null : ((java.lang.Number) item.getValue()).floatValue()))" +
+                                collector;
+                        case "java.lang.Double" -> cast +
+                                ".map(item -> " + Map.class.getName() + ".entry(item.getKey(), item.getValue() == null ?" +
+                                " null : ((java.lang.Number) item.getValue()).doubleValue()))" +
+                                collector;
+                        case "java.lang.Number" -> cast +
+                                ".map(item -> " + Map.class.getName() + ".entry(item.getKey(), (java.lang.Number) item.getValue()))" +
+                                collector;
                         case "java.lang.String" -> cast +
                                 ".map(item -> " + Map.class.getName() + ".entry(item.getKey(), (java.lang.String) item.getValue()))" +
                                 collector;
@@ -523,6 +554,11 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
                             Optional.class.getName() + ".ofNullable(value == null ? (" + Integer.class.getName() + ") null : ((java.lang.Number) value).intValue())";
                     case "java.lang.Long" ->
                             Optional.class.getName() + ".ofNullable(value == null ? (" + Long.class.getName() + ") null : ((java.lang.Number) value).longValue())";
+                    case "java.lang.Float" ->
+                            Optional.class.getName() + ".ofNullable(value).map(item -> ((java.lang.Number) item).floatValue())";
+                    case "java.lang.Double" ->
+                            Optional.class.getName() + ".ofNullable(value).map(item -> ((java.lang.Number) item).doubleValue())";
+                    case "java.lang.Number" -> Optional.class.getName() + ".ofNullable((java.lang.Number) value)";
                     case "java.lang.String" ->
                             Optional.class.getName() + ".ofNullable(value == null ? (" + String.class.getName() + ")null : ((String) value))";
                     default -> // not the most sexy, todo: review if we can avoid a roundtrip

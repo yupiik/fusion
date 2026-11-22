@@ -79,9 +79,32 @@ public interface JsonCodec<A> {
         private final Parser parser;
         private final Function<Class<?>, JsonCodec<?>> codecLookup;
 
+        private final boolean rejectIncompatibleValues;
+        private final boolean rejectUnknownFields;
+
         public DeserializationContext(final Parser parser, final Function<Class<?>, JsonCodec<?>> codecLookup) {
+            this(parser, codecLookup, true);
+        }
+
+        public DeserializationContext(final Parser parser, final Function<Class<?>, JsonCodec<?>> codecLookup,
+                                      final boolean rejectIncompatibleValues) {
+            this(parser, codecLookup, rejectIncompatibleValues, false);
+        }
+
+        public DeserializationContext(final Parser parser, final Function<Class<?>, JsonCodec<?>> codecLookup,
+                                      final boolean rejectIncompatibleValues, final boolean rejectUnknownFields) {
             this.parser = parser;
             this.codecLookup = codecLookup;
+            this.rejectIncompatibleValues = rejectIncompatibleValues;
+            this.rejectUnknownFields = rejectUnknownFields;
+        }
+
+        public boolean rejectUnknownFields() {
+            return rejectUnknownFields;
+        }
+
+        public boolean rejectIncompatibleValues() {
+            return rejectIncompatibleValues;
         }
 
         public Parser parser() {
