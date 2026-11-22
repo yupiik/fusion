@@ -159,9 +159,16 @@ Configuration:
 | module | Title name for `list` formatter.
 | output | When to generate the asciidoc file, by default - when not set - it uses `$source/content/_partials/generated/documentation.$module.adoc`.
 | formatter | Can be `list` for a plain asciidoc list (with h1/h2 titles), `table` for a table and `definitionlist` for a definition list. Data are globally the same but depending your configuration it can be easier to read in one style or another.
-| urls | If not set `META-INF/fusion/configuration/documentation.json` is loaded from the classpath else the url to convert to asciidoc (same format).
-| roots | If you don't want to generate the configuration for all classes, the root classes to include from the JSON file (urls).
+| urls | Comma-separated metadata URLs or file paths. When unset, all `META-INF/fusion/configuration/documentation.json` resources on the classpath are loaded. Classes are merged before references are flattened, allowing nested configuration classes from another input.
+| roots | Comma-separated root class names to include from the metadata inputs. Nested classes needed by these roots are retained. An unknown root fails generation.
+| namePrefix | Comma-separated property name prefix filters, applied in order. Prefix a value with `!` to exclude matching names.
 |===
+
+When multiple inputs resolve to the same output file, their selected roots are combined and the file is written once.
+Use an explicit `output` and `module` to produce a single reference from several modules.
+Conflicting definitions of the same configuration class fail generation rather than silently selecting one input.
+
+For specialized integrations, subclasses can override `findRoots`, `findUrls`, `flatten`, `findParameters` or the formatting methods without replacing the generator.
 
 
 == CLI documentation

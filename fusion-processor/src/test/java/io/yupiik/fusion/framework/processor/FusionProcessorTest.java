@@ -1713,6 +1713,14 @@ class FusionProcessorTest {
     }
 
     @Test
+    void jsonOthersRetainsExplicitNullValues(@TempDir final Path work) throws IOException {
+        new Compiler(work, "JsonOthersOrder")
+                .jsonRoundTripAsserts("test.p.JsonOthersOrder$OthersFirst",
+                        "{\"name\":\"root\",\"id\":null,\"result\":null}",
+                        "OthersFirst[others={id=null, result=null}, name=root]");
+    }
+
+    @Test
     void jsonGeneratedCodec(@TempDir final Path work) throws IOException {
         // assert the exact generated codec: KEYS__ sorted by length, dense KEYS_OFFSETS__ switch driving
         // matchString (no sparse table, no runtime search) and @JsonOthers slot indices following the
