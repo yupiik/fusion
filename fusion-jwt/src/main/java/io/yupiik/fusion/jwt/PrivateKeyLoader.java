@@ -35,14 +35,28 @@ import java.util.stream.Stream;
 
 public class PrivateKeyLoader {
     public PrivateKey loadPrivateKey(final String pem) {
+        return loadPrivateKey(pem, "RSA");
+    }
+
+    /** Loads a PKCS#8 RSA, EC or EdDSA key, or a PKCS#1 RSA key. */
+    public PrivateKey loadPrivateKey(final String pem, final String algorithm) {
+        if (!"RSA".equals(algorithm) && !"EC".equals(algorithm) &&
+                !"EdDSA".equals(algorithm) && !"Ed25519".equals(algorithm) && !"Ed448".equals(algorithm)) {
+            throw new IllegalArgumentException("Unsupported key algorithm: " + algorithm);
+        }
         try {
             return readPEMObjects(pem).stream().map(object -> switch (PEMType.fromBegin(object.beginMarker())) {
-                case PRIVATE_KEY_PKCS1 -> rsaPrivateKeyFromPKCS1(object.derBytes());
-                case PRIVATE_KEY_PKCS8 -> rsaPrivateKeyFromPKCS8(object.derBytes());
+                case PRIVATE_KEY_PKCS1 -> {
+                    if (!"RSA".equals(algorithm)) {
+                        throw new IllegalArgumentException("PKCS#1 requires RSA");
+                    }
+                    yield rsaPrivateKeyFromPKCS1(object.derBytes());
+                }
+                case PRIVATE_KEY_PKCS8 -> privateKeyFromPKCS8(object.derBytes(), algorithm);
                 default -> throw new IllegalArgumentException("Unknown key type: '" + object.beginMarker + "'");
             }).filter(Objects::nonNull).findFirst().orElseGet(() -> {
                 if (!pem.startsWith("---")) {
-                    return rsaPrivateKeyFromPKCS8(Base64.getDecoder().decode(pem));
+                    return privateKeyFromPKCS8(Base64.getDecoder().decode(pem), algorithm);
                 }
                 throw new IllegalArgumentException("Invalid key: " + pem);
             });
@@ -51,9 +65,9 @@ public class PrivateKeyLoader {
         }
     }
 
-    private PrivateKey rsaPrivateKeyFromPKCS8(final byte[] pkcs8) {
+    private PrivateKey privateKeyFromPKCS8(final byte[] pkcs8, final String algorithm) {
         try {
-            return KeyFactory.getInstance("RSA").generatePrivate(new PKCS8EncodedKeySpec(pkcs8));
+            return KeyFactory.getInstance(algorithm).generatePrivate(new PKCS8EncodedKeySpec(pkcs8));
         } catch (final NoSuchAlgorithmException | InvalidKeySpecException e) {
             throw new IllegalStateException(e);
         }
