@@ -27,8 +27,8 @@ Here are the subkeys:
 [opts="header",cols="^,^,^"]
 |===
 | Key | Default | Description
-| `jwt.key` | required | The public/private key used to validate.
-| `jwt.algo` | `RS256` | The signature algorithm.
+| `jwt.key` | required without `jwt.keys` | The verification public key (PEM or base64 X509 SubjectPublicKeyInfo), or the raw UTF-8 HMAC secret.
+| `jwt.algo` | `RS256` | The pinned verification algorithm when using `jwt.key`; the JWT header must match it.
 | `jwt.issuer` | - | The expected issuer.
 | `jwt.tolerance` | `30s` | Clock tolerance in seconds.
 | `jwt.jtiRequired` | `true` | Whether the JWT ID is required.
@@ -39,6 +39,65 @@ Here are the subkeys:
 |===
 
 The signer side uses a `JwtSignerConfiguration` with `jwt-signer.*` keys (`key` required, `algorithm` `RS256`, `issuer` required, `kid` `k001`, `expRequired` `true`, `expValidity`, `iatRequired` `false`, `nbfRequired` `false`).
+
+== Algorithms and key formats
+
+JWT signing and verification share the `io.yupiik.fusion.jwt.Jws` cryptographic implementation, using JDK providers without a third-party JOSE dependency.
+
+[opts="header",cols="1,2,3"]
+|===
+| JOSE algorithm | Key | Signature representation
+| `HS256`, `HS384`, `HS512` | `SecretKey` with at least 256, 384, or 512 bits respectively | HMAC-SHA-256, HMAC-SHA-384, or HMAC-SHA-512 bytes
+| `RS256`, `RS384`, `RS512` | RSA private/public key | RSASSA-PKCS1-v1_5 with SHA-256, SHA-384, or SHA-512
+| `PS256`, `PS384`, `PS512` | RSA private/public key | RSASSA-PSS with the selected SHA digest, MGF1 using that same digest, and a digest-length salt (32, 48, or 64 bytes)
+| `ES256` | EC P-256 (`secp256r1`) private/public key | 64-byte JOSE signature
+| `ES384` | EC P-384 (`secp384r1`) private/public key | 96-byte JOSE signature
+| `ES512` | EC P-521 (`secp521r1`) private/public key | 132-byte JOSE signature
+| `EdDSA` | Ed25519 or Ed448 private/public key | EdDSA bytes for the key's curve
+| `Ed25519`, `Ed448` | Private/public key for the named curve | EdDSA bytes for the named curve
+|===
+
+ECDSA signatures use the JOSE fixed-width `R || S` representation, with each unsigned integer left-padded to the curve width (32, 48, or 66 bytes).
+They are not ASN.1 DER signatures: JCA interoperability must use an `inP1363Format` signature algorithm or explicitly convert between the two representations.
+In particular, `ES512` uses P-521, not a 512-bit EC curve.
+
+For `JwtSignerFactory.newJwtFactory`, configure `jwt-signer.key` with a PKCS8 private key in PEM (`PRIVATE KEY`) or bare base64 form for RSA, EC, and Ed keys.
+For HMAC, both `jwt-signer.key` and `jwt.key` are the raw secret string encoded as UTF-8, not base64-decoded key material.
+Whitespace is part of the HMAC secret.
+Use a cryptographically random secret with at least the digest's bit strength (32, 48, or 64 bytes), not a password or an asymmetric public key reused as a secret.
+Everyone who can verify an HMAC token can also sign one, so do not expose HMAC secrets through a public JWKS endpoint.
+
+For default asymmetric verification, `jwt.key` accepts a PEM `PUBLIC KEY` or bare base64 X509 SubjectPublicKeyInfo for RSA, EC, Ed25519, or Ed448.
+For JWKS verification, `jwt.keys` also supports `kty=OKP` with `crv=Ed25519` or `crv=Ed448` and `x` containing the base64url-encoded raw public key, without padding.
+An OKP `x` value is not the base64 encoding of the full X509 key.
+Set the key's `alg` to the intended algorithm and its `use` to `sig` (or leave `use` unset).
+
+WARNING: Pin algorithms in trusted configuration, never select an algorithm or fetch a key solely from an untrusted JWT header.
+
+For a default key, the header `alg` must match `jwt.algo`.
+For a configured key set, the header `kid` selects a known key and `alg` must match that key's configured algorithm.
+A missing or unknown `kid` is rejected rather than falling back to a default key.
+`EdDSA` and the explicit `Ed25519`/`Ed448` identifiers are separate header values: use the same identifier in signer and validator configuration.
+The `none` algorithm, unsupported algorithms, incompatible key families, incorrect EC curves, and undersized HMAC keys are rejected.
+Signature verification does not replace application authorization checks or an appropriate issuer and claim policy.
+
+== Raw JWS cryptography
+
+Use `Jws` when signing or verifying bytes without JWT claim enrichment or serialization.
+The methods `sign(String algorithm, Key key, byte[] signingInput)` and `verify(String algorithm, Key key, byte[] signingInput, byte[] signature)` operate on raw signature bytes.
+For compact JWS, supply the exact ASCII bytes of `base64url(protectedHeader) + "." + base64url(payload)`; base64url-encode the returned signature without padding for the final compact segment.
+Use a private key to sign asymmetric algorithms, a public key to verify them, or a `SecretKey` for HMAC.
+
+[source,java]
+----
+final var jws = new Jws();
+final var signature = jws.sign("ES256", privateKey, signingInput);
+final var valid = jws.verify("ES256", publicKey, signingInput, signature);
+----
+
+`JwtSignerFactory.newSigner(String, PrivateKey)` remains available for asymmetric signing.
+Its `newSigner(String, Key)` overload also accepts a `SecretKey` for HMAC and returns a function producing raw signature bytes from a signing string.
+The signer and validator factory constructors remain unchanged.
 
 == Usage
 

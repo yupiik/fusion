@@ -20,28 +20,22 @@ import io.yupiik.fusion.json.JsonMapper;
 import io.yupiik.fusion.json.internal.JsonMapperImpl;
 import io.yupiik.fusion.jwt.internal.JwtImpl;
 
-import javax.crypto.Mac;
-import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.security.AlgorithmParameters;
-import java.security.InvalidAlgorithmParameterException;
+import java.security.GeneralSecurityException;
+import java.security.Key;
 import java.security.KeyFactory;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
-import java.security.Signature;
 import java.security.spec.ECGenParameterSpec;
 import java.security.spec.ECParameterSpec;
 import java.security.spec.ECPoint;
 import java.security.spec.ECPublicKeySpec;
-import java.security.spec.InvalidKeySpecException;
-import java.security.spec.InvalidParameterSpecException;
-import java.security.spec.MGF1ParameterSpec;
-import java.security.spec.PSSParameterSpec;
+import java.security.spec.EdECPoint;
+import java.security.spec.EdECPublicKeySpec;
+import java.security.spec.NamedParameterSpec;
 import java.security.spec.RSAPublicKeySpec;
-import java.security.spec.X509EncodedKeySpec;
 import java.time.Clock;
 import java.util.Base64;
 import java.util.List;
@@ -49,11 +43,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
-import static java.util.Objects.requireNonNull;
 import static java.util.Optional.empty;
 import static java.util.stream.Collectors.toMap;
 
@@ -61,6 +53,7 @@ import static java.util.stream.Collectors.toMap;
 public class JwtValidatorFactory {
     private final JsonMapper mapper;
     private final Clock clock;
+    private final Jws jws = new Jws();
 
     public JwtValidatorFactory(final Optional<JsonMapper> mapper, final Optional<Clock> clock) { // also used by proxies
         this.mapper = mapper == null ? null : mapper.orElseGet(() -> new JsonMapperImpl(List.of(), c -> empty()));
@@ -69,182 +62,121 @@ public class JwtValidatorFactory {
 
     public Function<String, Jwt> newValidator(final JwtValidatorConfiguration configuration) {
         final var decoder = Base64.getUrlDecoder();
-        if (configuration.algo() != null && configuration.algo().startsWith("HS")) {
-            final var secretKey = new SecretKeySpec(
-                    configuration.key().getBytes(StandardCharsets.UTF_8),
-                    "HmacSHA" + configuration.algo().substring("hs".length()));
-            final var hmacAlgo = switch (configuration.algo()) {
-                case "HS256" -> "HmacSHA256";
-                case "HS384" -> "HmacSHA384";
-                case "HS512" -> "HmacSHA512";
-                default -> throw new IllegalArgumentException(configuration.algo());
-            };
-            return jwt -> { // this is not in public keys (insecured) so we can always verify with default key
-                final var split = SigningStringAndSignature.of(jwt);
-                if (!verifyHmac(hmacAlgo, secretKey, split.signingString(), decoder.decode(split.signature()))) {
-                    throw new IllegalArgumentException("Invalid JWT '" + jwt + "'");
-                }
-                return toJwt(configuration, Map.of(), split);
-            };
-        }
-
         final var hasKeys = !configuration.keys().isEmpty();
         final var keyValidators = configuration.keys().stream()
-                .filter(it -> ("sig".equals(it.use()) || it.use() == null) && ("RSA".equals(it.kty()) || "EC".equals(it.kty())))
+                .filter(it -> ("sig".equals(it.use()) || it.use() == null) &&
+                        ("RSA".equals(it.kty()) || "EC".equals(it.kty()) || "OKP".equals(it.kty())))
                 .collect(toMap(JwtValidatorConfiguration.JwkKey::kid, k -> prepareValidator(k, decoder)));
-        final var defaultValidator = configuration.algo() == null || configuration.algo().isBlank() ?
-                null :
-                prepareValidator(new JwtValidatorConfiguration.JwkKey(
-                        "",
-                        configuration.algo().startsWith("RS") ? "RSA" : "EC",
-                        configuration.algo(),
-                        "sig",
-                        null, null, List.of(configuration.key()), null, null, null), decoder);
+        final Predicate<SigningStringAndSignature> defaultValidator;
+        if (hasKeys) {
+            defaultValidator = null;
+        } else if (configuration.algo() != null && configuration.algo().startsWith("HS")) {
+            final var key = new SecretKeySpec(configuration.key().getBytes(StandardCharsets.UTF_8),
+                    "HmacSHA" + configuration.algo().substring(2));
+            defaultValidator = verifier(configuration.algo(), key, decoder);
+        } else if (configuration.algo() != null && !configuration.algo().isBlank()) {
+            defaultValidator = prepareValidator(new JwtValidatorConfiguration.JwkKey(
+                    "", keyType(configuration.algo()), configuration.algo(), "sig",
+                    null, null, List.of(configuration.key()), null, null, null), decoder);
+        } else {
+            throw new IllegalArgumentException("A JWT verification algorithm or keys must be configured");
+        }
         return jwt -> {
             final var split = SigningStringAndSignature.of(jwt);
             if (!hasKeys && !defaultValidator.test(split)) {
                 throw new IllegalArgumentException("Invalid JWT '" + jwt + "'");
             }
+            // A configured but unusable JWKS must never bypass signature validation.
+            if (hasKeys && keyValidators.isEmpty()) {
+                throw new IllegalArgumentException("No usable JWT verification keys");
+            }
             return toJwt(configuration, keyValidators, split);
         };
     }
 
+    private String keyType(final String algorithm) {
+        return switch (algorithm) {
+            case "RS256", "RS384", "RS512", "PS256", "PS384", "PS512" -> "RSA";
+            case "ES256", "ES384", "ES512" -> "EC";
+            case "EdDSA", "Ed25519", "Ed448" -> "OKP";
+            default -> throw new IllegalArgumentException("Unsupported JWS algorithm: " + algorithm);
+        };
+    }
+
     protected Predicate<SigningStringAndSignature> prepareValidator(final JwtValidatorConfiguration.JwkKey jwkKey, final Base64.Decoder decoder) {
-        final Consumer<Signature> customizer;
-        final String signatureAlgo;
-        switch (jwkKey.alg()) {
-            case "ES256" -> {
-                signatureAlgo = "SHA256withECDSA";
-                customizer = null;
-            }
-            case "ES384" -> {
-                signatureAlgo = "SHA384withECDSA";
-                customizer = null;
-            }
-            case "ES512" -> {
-                signatureAlgo = "SHA512withECDSA";
-                customizer = null;
-            }
-            case "RS256" -> {
-                signatureAlgo = "SHA256withRSA";
-                customizer = null;
-            }
-            case "RS384" -> {
-                signatureAlgo = "SHA384withRSA";
-                customizer = null;
-            }
-            case "RS512" -> {
-                signatureAlgo = "SHA512withRSA";
-                customizer = null;
-            }
-            case "PS256" -> {
-                signatureAlgo = "RSASSA-PSS";
-
-                final var ps256Param = new PSSParameterSpec("SHA-256", "MGF1", MGF1ParameterSpec.SHA256, 32, PSSParameterSpec.TRAILER_FIELD_BC);
-                customizer = s -> {
-                    try {
-                        s.setParameter(ps256Param);
-                    } catch (final InvalidAlgorithmParameterException e) {
-                        throw new IllegalStateException(e);
-                    }
-                };
-            }
-            case "PS384" -> {
-                signatureAlgo = "RSASSA-PSS";
-
-                final var ps256Param = new PSSParameterSpec("SHA-384", "MGF1", MGF1ParameterSpec.SHA384, 48, PSSParameterSpec.TRAILER_FIELD_BC);
-                customizer = s -> {
-                    try {
-                        s.setParameter(ps256Param);
-                    } catch (final InvalidAlgorithmParameterException e) {
-                        throw new IllegalStateException(e);
-                    }
-                };
-            }
-            case "PS512" -> {
-                signatureAlgo = "RSASSA-PSS";
-
-                final var ps256Param = new PSSParameterSpec("SHA-512", "MGF1", MGF1ParameterSpec.SHA512, 64, PSSParameterSpec.TRAILER_FIELD_BC);
-                customizer = s -> {
-                    try {
-                        s.setParameter(ps256Param);
-                    } catch (final InvalidAlgorithmParameterException e) {
-                        throw new IllegalStateException(e);
-                    }
-                };
-            }
-            default -> throw new IllegalArgumentException(jwkKey.alg());
+        if (!keyType(jwkKey.alg()).equals(jwkKey.kty())) {
+            throw new IllegalArgumentException("Incompatible JWT key type and algorithm");
         }
-        final var publicKey = loadKey(jwkKey);
-        return split -> verifySignature(signatureAlgo, publicKey, split.signingString(), decoder.decode(split.signature()), customizer);
+        return verifier(jwkKey.alg(), loadKey(jwkKey), decoder);
+    }
+
+    private Predicate<SigningStringAndSignature> verifier(final String algorithm, final Key key, final Base64.Decoder decoder) {
+        return split -> {
+            final var header = mapper.fromBytes(Object.class, decoder.decode(split.signingString().substring(0, split.signingString().indexOf('.'))));
+            if (!(header instanceof Map<?, ?> values) || !algorithm.equals(values.get("alg"))) {
+                return false;
+            }
+            return jws.verify(algorithm, key, split.signingString().getBytes(StandardCharsets.UTF_8), decoder.decode(split.signature()));
+        };
     }
 
     protected PublicKey loadKey(final JwtValidatorConfiguration.JwkKey jwkKey) {
-        if (jwkKey.x5c() != null && !jwkKey.x5c().isEmpty()) { // shortcut, "hack" for default case
-            final var maybePEM = jwkKey.x5c().get(0);
-            if (maybePEM.contains("-----BEGIN")) {
-                return new PublicKeyLoader().loadPublicKey(maybePEM, jwkKey.kty());
-            }
-            try {
-                final var keySpec = new X509EncodedKeySpec(Base64.getDecoder().decode(maybePEM));
-                switch (jwkKey.kty()) {
-                    case "RSA" -> {
-                        try {
-                            return KeyFactory.getInstance("RSA").generatePublic(keySpec);
-                        } catch (final NoSuchAlgorithmException | InvalidKeySpecException e) {
-                            throw new IllegalStateException(e);
-                        }
-                    }
-                    case "EC" -> {
-                        try {
-                            return KeyFactory.getInstance("EC").generatePublic(keySpec);
-                        } catch (final InvalidKeySpecException | NoSuchAlgorithmException e) {
-                            throw new IllegalStateException(e);
-                        }
-                    }
-                    default -> throw new IllegalArgumentException("Unsupported kty='" + jwkKey.kty() + "'");
-                }
-            } catch (final IllegalStateException ise) {
-                try {
-                    return new PublicKeyLoader().loadPublicKey(maybePEM, jwkKey.kty());
-                } catch (final IllegalArgumentException iae) {
-                    // no-op, try standard key
-                }
-            }
+        if (jwkKey.x5c() != null && !jwkKey.x5c().isEmpty()) { // shortcut for default PEM/base64 X.509 key
+            return new PublicKeyLoader().loadPublicKey(jwkKey.x5c().get(0), jwkKey.kty());
         }
-
-        return switch (jwkKey.kty()) {
-            case "RSA" -> {
-                final var modulus = new BigInteger(1, Base64.getUrlDecoder().decode(jwkKey.n()));
-                final var exponent = new BigInteger(1, Base64.getUrlDecoder().decode(jwkKey.e()));
-                final var spec = new RSAPublicKeySpec(modulus, exponent);
-                try {
-                    yield KeyFactory.getInstance("RSA").generatePublic(spec);
-                } catch (final NoSuchAlgorithmException | InvalidKeySpecException e) {
-                    throw new IllegalArgumentException("Invalid key: " + jwkKey, e);
-                }
-            }
-            case "EC" -> {
-                final var x = Base64.getUrlDecoder().decode(jwkKey.x());
-                final var y = Base64.getUrlDecoder().decode(jwkKey.y());
-                final var pubPoint = new ECPoint(new BigInteger(1, x), new BigInteger(1, y));
-                try {
-                    final var parameters = AlgorithmParameters.getInstance("EC");
-                    if (jwkKey.alg().endsWith("256")) {
-                        parameters.init(new ECGenParameterSpec("secp256r1"));
-                    } else if (jwkKey.alg().endsWith("384")) {
-                        parameters.init(new ECGenParameterSpec("secp384r1"));
-                    } else {
-                        parameters.init(new ECGenParameterSpec("secp521r1"));
+        try {
+            return switch (jwkKey.kty()) {
+                case "RSA" -> KeyFactory.getInstance("RSA").generatePublic(new RSAPublicKeySpec(
+                        new BigInteger(1, Base64.getUrlDecoder().decode(jwkKey.n())),
+                        new BigInteger(1, Base64.getUrlDecoder().decode(jwkKey.e()))));
+                case "EC" -> {
+                    final var curve = switch (jwkKey.alg()) {
+                        case "ES256" -> "P-256";
+                        case "ES384" -> "P-384";
+                        case "ES512" -> "P-521";
+                        default -> throw new IllegalArgumentException("Unsupported EC algorithm: " + jwkKey.alg());
+                    };
+                    if (jwkKey.crv() != null && !curve.equals(jwkKey.crv())) {
+                        throw new IllegalArgumentException("Incompatible EC curve and algorithm");
                     }
-                    final var ecParameters = parameters.getParameterSpec(ECParameterSpec.class);
-                    yield KeyFactory.getInstance("EC").generatePublic(new ECPublicKeySpec(pubPoint, ecParameters));
-                } catch (final NoSuchAlgorithmException | InvalidParameterSpecException | InvalidKeySpecException e) {
-                    throw new IllegalArgumentException("Invalid key: " + jwkKey, e);
+                    final var parameters = AlgorithmParameters.getInstance("EC");
+                    parameters.init(new ECGenParameterSpec(switch (curve) {
+                        case "P-256" -> "secp256r1";
+                        case "P-384" -> "secp384r1";
+                        default -> "secp521r1";
+                    }));
+                    final var point = new ECPoint(new BigInteger(1, Base64.getUrlDecoder().decode(jwkKey.x())),
+                            new BigInteger(1, Base64.getUrlDecoder().decode(jwkKey.y())));
+                    yield KeyFactory.getInstance("EC").generatePublic(new ECPublicKeySpec(point, parameters.getParameterSpec(ECParameterSpec.class)));
                 }
-            }
-            default -> throw new IllegalArgumentException("Unsupported kty='" + jwkKey.kty() + "'");
-        };
+                case "OKP" -> {
+                    final var length = switch (jwkKey.crv()) {
+                        case "Ed25519" -> 32;
+                        case "Ed448" -> 57;
+                        default -> throw new IllegalArgumentException("Unsupported OKP curve: " + jwkKey.crv());
+                    };
+                    if (!"EdDSA".equals(jwkKey.alg()) && !jwkKey.alg().equals(jwkKey.crv())) {
+                        throw new IllegalArgumentException("Incompatible OKP curve and algorithm");
+                    }
+                    final var encoded = Base64.getUrlDecoder().decode(jwkKey.x());
+                    if (encoded.length != length) {
+                        throw new IllegalArgumentException("Invalid OKP public key length");
+                    }
+                    final var xOdd = (encoded[length - 1] & 0x80) != 0;
+                    encoded[length - 1] &= 0x7f;
+                    for (int i = 0; i < length / 2; i++) {
+                        final var tmp = encoded[i];
+                        encoded[i] = encoded[length - i - 1];
+                        encoded[length - i - 1] = tmp;
+                    }
+                    yield KeyFactory.getInstance(jwkKey.crv()).generatePublic(new EdECPublicKeySpec(
+                            new NamedParameterSpec(jwkKey.crv()), new EdECPoint(xOdd, new BigInteger(1, encoded))));
+                }
+                default -> throw new IllegalArgumentException("Unsupported kty='" + jwkKey.kty() + "'");
+            };
+        } catch (final GeneralSecurityException e) {
+            throw new IllegalArgumentException("Invalid verification key", e);
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -253,17 +185,17 @@ public class JwtValidatorFactory {
                         final SigningStringAndSignature signingStringAndSignature) {
         final var signingString = signingStringAndSignature.signingString();
         final int sep = signingString.indexOf('.');
-        if (sep < 0 || signingString.indexOf('.', sep + 1) >= 0) {
+        if (sep < 0 || signingString.substring(sep + 1).contains(".")) {
             throw new IllegalArgumentException("Invalid jwt header.payload: '" + signingString + "'");
         }
 
         final var header = signingString.substring(0, sep);
         final var headerData = (Map<String, Object>) mapper.fromBytes(Object.class, Base64.getUrlDecoder().decode(header));
-        if (!keyValidators.isEmpty() &&
-                requireNonNull(headerData.get("kid"), "missing kid") instanceof String kid &&
-                !requireNonNull(keyValidators.get(kid), "unknown kid").test(signingStringAndSignature)) {
-            throw new IllegalArgumentException("Invalid JWT '" +
-                    signingStringAndSignature.signingString() + '.' + signingStringAndSignature.signature() + "'");
+        if (!keyValidators.isEmpty()) {
+            if (!(headerData.get("kid") instanceof String kid) || !keyValidators.containsKey(kid) ||
+                    !keyValidators.get(kid).test(signingStringAndSignature)) {
+                throw new IllegalArgumentException("Invalid JWT signature or kid");
+            }
         }
 
         final var payload = signingString.substring(sep + 1);
@@ -321,37 +253,8 @@ public class JwtValidatorFactory {
         return new JwtImpl(mapper, header, payload, headerData, payloadData);
     }
 
-    protected boolean verifyHmac(final String algo, final SecretKey key, final String signingString, final byte[] expected) {
-        try {
-            final var mac = Mac.getInstance(algo);
-            mac.init(key);
-            return MessageDigest.isEqual(mac.doFinal(signingString.getBytes(StandardCharsets.UTF_8)), expected);
-        } catch (final RuntimeException e) {
-            throw e;
-        } catch (final Exception e) {
-            throw new IllegalStateException(e);
-        }
-    }
-
-    protected boolean verifySignature(final String algo, final PublicKey key, final String signingString, final byte[] expected,
-                                      final Consumer<Signature> customizer) {
-        try {
-            final var signature = Signature.getInstance(algo);
-            if (customizer != null) {
-                customizer.accept(signature);
-            }
-            signature.initVerify(key);
-            signature.update(signingString.getBytes(StandardCharsets.UTF_8));
-            return signature.verify(expected);
-        } catch (final RuntimeException e) {
-            throw e;
-        } catch (final Exception e) {
-            throw new IllegalStateException(e);
-        }
-    }
-
     protected record SigningStringAndSignature(String signingString, String signature) {
-        private static SigningStringAndSignature of(String jwt) {
+        private static SigningStringAndSignature of(final String jwt) {
             final int lastDot = jwt.lastIndexOf('.');
             if (lastDot < 0) {
                 throw new IllegalArgumentException("No dot in JWT: '" + jwt + "'");

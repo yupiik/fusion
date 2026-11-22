@@ -29,38 +29,31 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Stream;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-
 public class PublicKeyLoader {
     public PublicKey loadPublicKey(final String pem, final String rawAlgo) {
+        final var algorithm = switch (rawAlgo) {
+            case "RSA", "RS256", "RS384", "RS512", "PS256", "PS384", "PS512" -> "RSA";
+            case "EC", "ES256", "ES384", "ES512" -> "EC";
+            case "OKP", "EdDSA" -> "EdDSA";
+            case "Ed25519", "Ed448" -> rawAlgo;
+            default -> throw new IllegalArgumentException("Unsupported key algorithm: " + rawAlgo);
+        };
         try {
             return readPEMObjects(pem).stream()
                     .filter(o -> PEMType.fromBegin(o.beginMarker()) == PEMType.PUBLIC_KEY_X509)
                     .map(it -> {
-                        if (rawAlgo.startsWith("RS")) {
-                            try {
-                                final var keyFactory = KeyFactory.getInstance("RSA");
-                                final var publicKeySpec = new X509EncodedKeySpec(it.derBytes());
-                                return keyFactory.generatePublic(publicKeySpec);
-                            } catch (final NoSuchAlgorithmException | InvalidKeySpecException e) {
-                                throw new IllegalStateException(e);
-                            }
+                        try {
+                            return KeyFactory.getInstance(algorithm).generatePublic(new X509EncodedKeySpec(it.derBytes()));
+                        } catch (final NoSuchAlgorithmException | InvalidKeySpecException e) {
+                            throw new IllegalStateException(e);
                         }
-                        if (rawAlgo.startsWith("ES")) {
-                            try {
-                                return KeyFactory.getInstance("EC").generatePublic(new X509EncodedKeySpec(it.derBytes()));
-                            } catch (final InvalidKeySpecException | NoSuchAlgorithmException e) {
-                                throw new IllegalStateException(e);
-                            }
-                        }
-                        return null;
                     })
                     .filter(Objects::nonNull)
                     .findFirst()
                     .orElseGet(() -> {
                         try { // give a try directly if the x509 was inlined
-                            final var keyFactory = KeyFactory.getInstance("RSA");
-                            return keyFactory.generatePublic(new X509EncodedKeySpec(pem.getBytes(UTF_8)));
+                            final var keyFactory = KeyFactory.getInstance(algorithm);
+                            return keyFactory.generatePublic(new X509EncodedKeySpec(Base64.getDecoder().decode(pem)));
                         } catch (final NoSuchAlgorithmException | InvalidKeySpecException ex) {
                             final var illegalArgumentException = new IllegalArgumentException("Invalid key: " + pem);
                             illegalArgumentException.addSuppressed(ex);

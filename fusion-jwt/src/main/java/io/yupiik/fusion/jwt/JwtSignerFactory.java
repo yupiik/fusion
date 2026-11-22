@@ -19,12 +19,10 @@ import io.yupiik.fusion.framework.api.scope.ApplicationScoped;
 import io.yupiik.fusion.json.JsonMapper;
 import io.yupiik.fusion.json.internal.JsonMapperImpl;
 
+import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
-import java.security.InvalidAlgorithmParameterException;
+import java.security.Key;
 import java.security.PrivateKey;
-import java.security.Signature;
-import java.security.spec.MGF1ParameterSpec;
-import java.security.spec.PSSParameterSpec;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Base64;
@@ -34,7 +32,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -45,6 +42,7 @@ import static java.util.Optional.empty;
 public class JwtSignerFactory {
     private final JsonMapper mapper;
     private final Clock clock;
+    private final Jws jws = new Jws();
 
     public JwtSignerFactory(final Optional<JsonMapper> mapper, final Optional<Clock> clock) { // also used by proxies
         this.mapper = mapper == null ? null : mapper.orElseGet(() -> new JsonMapperImpl(List.of(), c -> empty()));
@@ -52,8 +50,15 @@ public class JwtSignerFactory {
     }
 
     public Function<Map<String, Object>, String> newJwtFactory(final JwtSignerConfiguration configuration) {
-        final var key = new PrivateKeyLoader().loadPrivateKey(configuration.key());
-        final var signer = newSigner(configuration.algorithm(), key);
+        final var algorithm = normalizeAlgorithm(configuration.algorithm());
+        final Key key = algorithm.startsWith("HS") ?
+                new SecretKeySpec(configuration.key().getBytes(StandardCharsets.UTF_8), "HmacSHA" + algorithm.substring(2)) :
+                new PrivateKeyLoader().loadPrivateKey(configuration.key(), switch (algorithm) {
+                    case "ES256", "ES384", "ES512" -> "EC";
+                    case "EdDSA", "Ed25519", "Ed448" -> "EdDSA";
+                    default -> "RSA";
+                });
+        final var signer = newSigner(algorithm, key);
         final var b64Url = Base64.getUrlEncoder().withoutPadding();
 
         BiConsumer<Supplier<Instant>, Map<String, Object>> enricher = (c, p) -> {
@@ -71,7 +76,7 @@ public class JwtSignerFactory {
         }
 
         final var header = new LinkedHashMap<String, Object>();
-        header.put("alg", configuration.algorithm());
+        header.put("alg", algorithm);
         header.put("typ", "JWT");
         header.put("kid", configuration.kid());
         final var jwtHeader = b64Url.encodeToString(mapper.toBytes(header)) + '.';
@@ -104,68 +109,23 @@ public class JwtSignerFactory {
      * @return the raw signature (not base64 url encoded nor the full JWT to let you reuse this signing process in other locations).
      */
     public Function<String, byte[]> newSigner(final String jwtAlgorithm, final PrivateKey privateKey) {
-        try {
-            return switch (jwtAlgorithm.toUpperCase(ROOT)) {
-                case "RS256" -> signingString -> sign(signingString, privateKey, "SHA256withRSA", null);
-                case "RS384" -> signingString -> sign(signingString, privateKey, "SHA384withRSA", null);
-                case "RS512" -> signingString -> sign(signingString, privateKey, "SHA512withRSA", null);
-                case "PS256" -> {
-                    final var ps256Param = new PSSParameterSpec("SHA-256", "MGF1", MGF1ParameterSpec.SHA256, 32, PSSParameterSpec.TRAILER_FIELD_BC);
-                    yield signingString -> sign(signingString, privateKey, "RSASSA-PSS",
-                            s -> {
-                                try {
-                                    s.setParameter(ps256Param);
-                                } catch (final InvalidAlgorithmParameterException e) {
-                                    throw new IllegalStateException(e);
-                                }
-                            });
-                }
-                case "PS384" -> {
-                    final var ps384Param = new PSSParameterSpec("SHA-384", "MGF1", MGF1ParameterSpec.SHA384, 48, PSSParameterSpec.TRAILER_FIELD_BC);
-                    yield signingString -> sign(signingString, privateKey, "RSASSA-PSS",
-                            s -> {
-                                try {
-                                    s.setParameter(ps384Param);
-                                } catch (final InvalidAlgorithmParameterException e) {
-                                    throw new IllegalStateException(e);
-                                }
-                            });
-                }
-                case "PS512" -> {
-                    final var ps512Param = new PSSParameterSpec("SHA-512", "MGF1", MGF1ParameterSpec.SHA512, 64, PSSParameterSpec.TRAILER_FIELD_BC);
-                    yield signingString -> sign(signingString, privateKey, "RSASSA-PSS",
-                            s -> {
-                                try {
-                                    s.setParameter(ps512Param);
-                                } catch (final InvalidAlgorithmParameterException e) {
-                                    throw new IllegalStateException(e);
-                                }
-                            });
-                }
-                default -> throw new IllegalArgumentException(jwtAlgorithm);
-            };
-        } catch (final RuntimeException e) {
-            throw e;
-        } catch (final Exception e) {
-            throw new IllegalStateException(e);
-        }
+        return newSigner(jwtAlgorithm, (Key) privateKey);
     }
 
-    private byte[] sign(final String signingString, final PrivateKey privateKey,
-                        final String signingAlgorithm,
-                        final Consumer<Signature> customizer) {
-        try {
-            final var signature = Signature.getInstance(signingAlgorithm);
-            if (customizer != null) {
-                customizer.accept(signature);
-            }
-            signature.initSign(privateKey);
-            signature.update(signingString.getBytes(StandardCharsets.UTF_8));
-            return signature.sign();
-        } catch (final RuntimeException e) {
-            throw e;
-        } catch (final Exception e) {
-            throw new IllegalStateException(e);
-        }
+    /** Creates a raw signer using an asymmetric private key or an HMAC secret key. */
+    public Function<String, byte[]> newSigner(final String jwtAlgorithm, final Key key) {
+        final var algorithm = normalizeAlgorithm(jwtAlgorithm);
+        return signingString -> jws.sign(algorithm, key, signingString.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private String normalizeAlgorithm(final String algorithm) {
+        final var normalized = algorithm.toUpperCase(ROOT);
+        return switch (normalized) {
+            case "EDDSA" -> "EdDSA";
+            case "ED25519" -> "Ed25519";
+            case "ED448" -> "Ed448";
+            case "HS256", "HS384", "HS512", "RS256", "RS384", "RS512", "PS256", "PS384", "PS512", "ES256", "ES384", "ES512" -> normalized;
+            default -> throw new IllegalArgumentException("Unsupported JWS algorithm: " + algorithm);
+        };
     }
 }
