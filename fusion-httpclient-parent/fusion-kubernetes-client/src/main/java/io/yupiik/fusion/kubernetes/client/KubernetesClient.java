@@ -605,6 +605,16 @@ public class KubernetesClient extends HttpClient implements AutoCloseable {
                     })
                     .ifPresent(configuration::setTokenEvaluator);
         }
+        if (configuration.getTokenEvaluator() == null &&
+                (configuration.getToken() == null || "none".equals(configuration.getToken()) ||
+                        "/var/run/secrets/kubernetes.io/serviceaccount/token".equals(configuration.getToken()))) {
+            selectedUser.ifPresent(user -> {
+                if (user.get("username") instanceof String username && user.get("password") instanceof String password) {
+                    authorization = "Basic " + Base64.getEncoder().encodeToString((username + ':' + password).getBytes(UTF_8));
+                    configuration.setToken(null); // do not replace kubeconfig credentials with the default service account token
+                }
+            });
+        }
         selectedUser
                 .map(it -> {
                     try {

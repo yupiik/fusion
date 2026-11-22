@@ -58,6 +58,7 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -73,7 +74,10 @@ import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toMap;
 
 public class JsonMapperImpl implements JsonMapper {
+    private final CollectionJsonCodec<Object, Collection<Object>> dynamicCollectionCodec =
+            new CollectionJsonCodec<>(null, Collection.class, ArrayList::new);
     private final Map<Type, JsonCodec<?>> codecs;
+    private final Map<Class<?>, JsonCodec<?>> collectionOverrides;
     private final Function<Reader, Parser> parserFactory;
     private final boolean serializeNulls;
     private final boolean ignoreCodecClose;
@@ -123,6 +127,7 @@ public class JsonMapperImpl implements JsonMapper {
             throw new IllegalArgumentException("maxDepth must be non-negative");
         }
         this.codecs = codecs;
+        this.collectionOverrides = indexCollectionOverrides(codecs);
         this.parserFactory = parserFactory;
         this.serializeNulls = serializeNulls;
         this.ignoreCodecClose = ignoreCodecClose;
@@ -174,6 +179,7 @@ public class JsonMapperImpl implements JsonMapper {
                 this.codecs.put(Map.class, new RawMapJsonCodec(object));
             }
         }
+        this.collectionOverrides = indexCollectionOverrides(this.codecs);
     }
 
     protected Stream<JsonCodec<?>> builtInCodecs() {
@@ -389,46 +395,32 @@ public class JsonMapperImpl implements JsonMapper {
 
     @SuppressWarnings("unchecked")
     private void doWriteCollection(final Writer writer, final Collection<?> collection) throws IOException {
-        if (collection.isEmpty()) {
-            writer.write("[]");
-            return;
-        }
-
-        Object firstItem = null;
-        for (final var it : collection) {
-            if (it != null) {
-                firstItem = it;
-                break;
+        if (!collectionOverrides.isEmpty()) {
+            for (final var item : collection) {
+                if (item != null) {
+                    final var existing = (JsonCodec<Collection<?>>) collectionOverrides.get(item.getClass());
+                    if (existing != null) {
+                        existing.write(collection, newSerializationContext(writer));
+                        return;
+                    }
+                    break;
+                }
             }
         }
-        if (firstItem != null) {
-            if (firstItem instanceof Map<?, ?>) { // consider it is just an object
-                final JsonCodec<Collection<?>> jsonCodec = (JsonCodec<Collection<?>>) codecs.get(Object.class);
-                jsonCodec.write(collection, newSerializationContext(writer));
-                return;
+        dynamicCollectionCodec.write((Collection<Object>) collection, newSerializationContext(writer));
+    }
+
+    private Map<Class<?>, JsonCodec<?>> indexCollectionOverrides(final Map<Type, JsonCodec<?>> codecs) {
+        final var overrides = new HashMap<Class<?>, JsonCodec<?>>();
+        codecs.forEach((type, codec) -> {
+            if (type instanceof ParameterizedType parameterized && parameterized.getRawType() == Collection.class) {
+                final var arguments = parameterized.getActualTypeArguments();
+                if (arguments.length == 1 && arguments[0] instanceof Class<?> elementType) {
+                    overrides.put(elementType, codec);
+                }
             }
-
-            final var itemClass = firstItem.getClass();
-
-            final var key = new Types.ParameterizedTypeImpl(Collection.class, itemClass);
-            final JsonCodec<Collection<?>> existing = (JsonCodec<Collection<?>>) codecs.get(key);
-            if (existing != null) {
-                existing.write(collection, newSerializationContext(writer));
-                return;
-            }
-
-            final var itemCodec = (JsonCodec<?>) codecs.get(itemClass);
-            if (itemCodec == null) {
-                throw missingCodecException(itemClass);
-            }
-
-            final var wrapper = new CollectionJsonCodec<>(itemCodec, List.class, () -> (Collection) new ArrayList<>());
-            codecs.putIfAbsent(key, wrapper);
-            wrapper.write(collection, newSerializationContext(writer));
-            return;
-        }
-
-        writer.write(collection.stream().map(it -> "null").collect(joining(",", "[", "]")));
+        });
+        return Map.copyOf(overrides);
     }
 
     @Override

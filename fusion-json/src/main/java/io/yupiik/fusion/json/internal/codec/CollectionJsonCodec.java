@@ -37,7 +37,7 @@ public class CollectionJsonCodec<A, L extends Collection<A>> implements JsonCode
     public CollectionJsonCodec(final JsonCodec<A> delegate, final Class<?> rawType, final Supplier<L> collectionFactory) {
         this.delegate = delegate;
         this.collectionFactory = collectionFactory;
-        this.type = new Types.ParameterizedTypeImpl(rawType, delegate.type());
+        this.type = new Types.ParameterizedTypeImpl(rawType, delegate == null ? Object.class : delegate.type());
     }
 
     @Override
@@ -46,6 +46,7 @@ public class CollectionJsonCodec<A, L extends Collection<A>> implements JsonCode
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public L read(final DeserializationContext context) throws IOException {
         final var reader = context.parser();
         if (!reader.hasNext()) {
@@ -60,6 +61,7 @@ public class CollectionJsonCodec<A, L extends Collection<A>> implements JsonCode
             throw new JsonException("Expected=START_ARRAY, but got " + next);
         }
 
+        final JsonCodec<A> itemCodec = delegate == null ? (JsonCodec<A>) context.codec(Object.class) : delegate;
         final var instance = collectionFactory.get();
         JsonParser.Event event;
         while (reader.hasNext() && (event = reader.next()) != END_ARRAY) {
@@ -67,7 +69,7 @@ public class CollectionJsonCodec<A, L extends Collection<A>> implements JsonCode
                 instance.add(null);
             } else {
                 reader.rewind(event);
-                instance.add(delegate.read(context));
+                instance.add(itemCodec.read(context));
             }
         }
 
@@ -76,6 +78,10 @@ public class CollectionJsonCodec<A, L extends Collection<A>> implements JsonCode
 
     @Override
     public void write(final L value, final SerializationContext context) throws IOException {
+        if (delegate == null) {
+            writeDynamic(value, context);
+            return;
+        }
         final var writer = context.writer();
         final var it = value.iterator();
         writer.write('[');
@@ -89,6 +95,40 @@ public class CollectionJsonCodec<A, L extends Collection<A>> implements JsonCode
             if (it.hasNext()) {
                 writer.write(',');
             }
+        }
+        writer.write(']');
+    }
+
+    @SuppressWarnings("unchecked")
+    private void writeDynamic(final L value, final SerializationContext context) throws IOException {
+        final var writer = context.writer();
+        writer.write('[');
+        boolean first = true;
+        Class<?> lastCodecType = null;
+        JsonCodec<Object> lastCodec = null;
+        for (final var item : value) {
+            if (first) {
+                first = false;
+            } else {
+                writer.write(',');
+            }
+            if (item == null) {
+                writer.write("null");
+                continue;
+            }
+            final var itemClass = item.getClass();
+            if (itemClass != lastCodecType) {
+                final Class<?> codecType = item instanceof java.util.Map<?, ?> || item instanceof Collection<?> ? Object.class : itemClass;
+                lastCodec = (JsonCodec<Object>) context.codec(codecType);
+                if (lastCodec == null && item instanceof Number) {
+                    lastCodec = context.codec(Object.class);
+                }
+                if (lastCodec == null) {
+                    throw new IllegalStateException("No codec for '" + itemClass.getTypeName() + "'");
+                }
+                lastCodecType = itemClass;
+            }
+            lastCodec.write(item, context);
         }
         writer.write(']');
     }

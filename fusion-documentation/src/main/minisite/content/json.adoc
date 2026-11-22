@@ -162,6 +162,19 @@ Disabling suffix checks does not enable permissive JSON syntax, relax typed-valu
 Input can be read ahead during tokenization and mapper reads still close it; strict document reads require end-of-input.
 Custom parser factories must report remaining input honestly through the `Parser` contract for the mapper to validate their suffixes.
 
+== Collections
+
+Root collections can contain values of different types, nested collections, maps, and nulls.
+A registered codec for `Collection<T>` takes precedence when `T` is the runtime type of the first non-null element; otherwise, elements are serialized individually.
+Each element uses its registered codec when available, with a generic JSON number fallback for numeric types without a registered codec.
+Element codec selection uses the exact runtime class, so a subclass uses its own codec rather than a preceding superclass element's codec.
+
+== Extension attributes
+
+Use `@JsonOthers Map<String, Object>` to capture additional JSON object members in a typed record.
+Explicit null entries in this map are preserved on serialization independently of `serializeNulls`, just like entries in a JSON object.
+An absent or empty extension map writes no members, even with `serializeNulls` enabled; its component name is never emitted as a JSON property.
+
 == Ignoring attributes
 
 To tell the generated codec to totally ignore a record attribute, mark it with `@JsonIgnore`:

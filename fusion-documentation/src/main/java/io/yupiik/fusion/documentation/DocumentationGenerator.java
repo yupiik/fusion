@@ -25,6 +25,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Enumeration;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -56,12 +58,20 @@ public class DocumentationGenerator implements Runnable {
     public void run() {
         final boolean includeEnv = Boolean.parseBoolean(configuration.get("includeEnvironmentNames"));
         try (final var json = new JsonMapperImpl(List.of(), c -> Optional.empty())) {
+            final var classes = new LinkedHashMap<String, Object>();
+            final var outputs = new LinkedHashMap<Path, Document>();
             final var docs = findUrls();
             while (docs.hasMoreElements()) {
                 final var url = docs.nextElement();
                 try (final var in = url.openStream()) {
                     final var doc = (Map<String, Object>) json.fromBytes(Object.class, in.readAllBytes());
-                    if (doc.get("classes") instanceof Map<?, ?> classes) {
+                    if (doc.get("classes") instanceof Map<?, ?> entries) {
+                        entries.forEach((name, value) -> {
+                            final var previous = classes.putIfAbsent(name.toString(), value);
+                            if (previous != null && !previous.equals(value)) {
+                                throw new IllegalStateException("Conflicting configuration metadata for '" + name + "'");
+                            }
+                        });
                         final var roots = ofNullable((List<String>) doc.get("roots")).orElse(List.of());
 
                         var file = url.getFile().replace("!/META-INF/fusion/configuration/documentation.json", "");
@@ -70,8 +80,7 @@ public class DocumentationGenerator implements Runnable {
                         final var fileRef = file;
                         final var module = ofNullable(configuration.get("module"))
                                 .orElseGet(() -> {
-                                    // assume this form:
-                                    // jar:file:/path/to/project/target/project-local-repo/group.id/artifact/version/group-version.jar!/META-INF/fusion/configuration/documentation.json
+                                    // jar:file:/path/to/group/artifact/version/artifact-version.jar!/META-INF/fusion/configuration/documentation.json
                                     if (url.getFile().endsWith("!/META-INF/fusion/configuration/documentation.json")) {
                                         final var versionSep = fileRef.indexOf('-');
                                         if (versionSep > 0) {
@@ -80,47 +89,67 @@ public class DocumentationGenerator implements Runnable {
                                         if (fileRef.endsWith(".jar")) {
                                             return fileRef.substring(0, fileRef.length() - ".jar".length());
                                         }
-                                        // fallback on legacy case
                                     }
-                                    // this will mainly work for fusion itself but unlikely for other libs, legacy fallback
+                                    // Legacy fallback for Fusion module names.
                                     return fileRef.substring(fileRef.indexOf('-') + 1, fileRef.indexOf("-1"));
-                                }); // fusion-$module-$version.jar
+                                });
                         final var adoc = ofNullable(configuration.get("output"))
                                 .map(Path::of)
                                 .orElseGet(() -> sourceBase.resolve("content/_partials/generated/documentation." + module + ".adoc"));
-                        var params = findParameters(classes, roots);
-
-                        final var filter = configuration.get("namePrefix");
-                        if (filter != null) {
-                            var stream = params.stream();
-                            for (final var prefix : filter.split(",")) {
-                                if (prefix.isBlank()) {
-                                    continue;
-                                }
-
-                                final var not = prefix.startsWith("!");
-                                final var value = not ?
-                                        prefix.substring(1) :
-                                        prefix;
-                                final Predicate<Parameter> startsWith = it -> it.name().startsWith(value);
-
-                                stream = stream.filter(not ? not(startsWith) : startsWith);
-                            }
-                            params = stream.toList();
-                        }
-
-                        Files.createDirectories(adoc.getParent());
-                        Files.writeString(adoc, switch (configuration.getOrDefault("formatter", "default").toLowerCase(ROOT)) {
-                            case "definitionlist" -> definitionList(params, includeEnv);
-                            case "table" -> table(params, includeEnv);
-                            default -> list(params, module, includeEnv);
-                        });
+                        outputs.computeIfAbsent(adoc, ignored -> new Document(module, new LinkedHashSet<>())).roots().addAll(roots);
                     }
                 }
+            }
+
+            final var roots = findRoots(outputs.values().stream().flatMap(it -> it.roots().stream()).distinct().toList());
+            for (final var output : outputs.entrySet()) {
+                final var document = output.getValue();
+                var params = findParameters(classes, document.roots().stream().filter(roots::contains).toList());
+                final var filter = configuration.get("namePrefix");
+                if (filter != null) {
+                    var stream = params.stream();
+                    for (final var prefix : filter.split(",")) {
+                        if (prefix.isBlank()) {
+                            continue;
+                        }
+                        final var not = prefix.startsWith("!");
+                        final var value = not ? prefix.substring(1) : prefix;
+                        final Predicate<Parameter> startsWith = it -> it.name().startsWith(value);
+                        stream = stream.filter(not ? not(startsWith) : startsWith);
+                    }
+                    params = stream.toList();
+                }
+
+                final var adoc = output.getKey();
+                Files.createDirectories(adoc.toAbsolutePath().getParent());
+                Files.writeString(adoc, switch (configuration.getOrDefault("formatter", "default").toLowerCase(ROOT)) {
+                    case "definitionlist" -> definitionList(params, includeEnv);
+                    case "table" -> table(params, includeEnv);
+                    default -> list(params, document.module(), includeEnv);
+                });
             }
         } catch (final IOException e) {
             throw new IllegalStateException(e);
         }
+    }
+
+    /** Selects the documented roots, independently of the nested classes needed to flatten them. */
+    protected List<String> findRoots(final List<String> roots) {
+        final var configured = configuration.get("roots");
+        if (configured == null) {
+            return roots;
+        }
+        final var selected = Stream.of(configured.split(","))
+                .map(String::strip)
+                .filter(not(String::isBlank))
+                .distinct()
+                .toList();
+        for (final var root : selected) {
+            if (!roots.contains(root)) {
+                throw new IllegalStateException("Missing configuration root '" + root + "'");
+            }
+        }
+        return selected;
     }
 
     @SuppressWarnings("unchecked")
@@ -144,6 +173,7 @@ public class DocumentationGenerator implements Runnable {
                                         envPattern.matcher(name.replace("$index", "INDEX")).replaceAll("_").toUpperCase(ROOT));
                             });
                 })
+                .distinct()
                 .sorted(comparing(Parameter::name))
                 .toList();
     }
@@ -233,7 +263,7 @@ public class DocumentationGenerator implements Runnable {
         return "";
     }
 
-    private Enumeration<URL> findUrls() throws IOException {
+    protected Enumeration<URL> findUrls() throws IOException {
         final var paths = configuration.get("urls");
         if (paths != null) {
             return enumeration(Stream.of(paths.split(","))
@@ -262,7 +292,7 @@ public class DocumentationGenerator implements Runnable {
     }
 
     @SuppressWarnings("unchecked")
-    private Stream<Map<String, ?>> flatten(final Map<?, ?> classes, final Map<String, ?> item) {
+    protected Stream<Map<String, ?>> flatten(final Map<?, ?> classes, final Map<String, ?> item) {
         final var ref = item.get("ref");
         if (ref == null) {
             return Stream.of(item);
@@ -277,6 +307,9 @@ public class DocumentationGenerator implements Runnable {
                         .filter(Predicate.not(e -> e.getValue() == null))
                         .collect(toMap(Map.Entry::getKey, Map.Entry::getValue)))
                 .flatMap(it -> flatten(classes, it));
+    }
+
+    private record Document(String module, Collection<String> roots) {
     }
 
     public record Parameter(String name, String documentation,

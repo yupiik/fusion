@@ -28,6 +28,7 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class DocumentationGeneratorTest {
     private static final String DOC_CONTENT = """
@@ -214,6 +215,83 @@ class DocumentationGeneratorTest {
                 `jwt.expRequired` (env: `JWT_EXPREQUIRED`)::
                 Are `exp` (expiry) validation required of can it be skipped if claim is missing. Default: `true`.
                 """, Files.readString(output));
+    }
+
+    @Test
+    void selectRootsWithoutExcludingNestedClasses(@TempDir final Path work) throws IOException {
+        final var metadata = Files.writeString(work.resolve("roots.json"), """
+                {"classes":{
+                  "Included":[{"name":"app.nested","ref":"Nested"}],
+                  "Nested":[{"name":"value","documentation":"Nested value","defaultValue":0}],
+                  "Ignored":[{"name":"cli.option","documentation":"CLI option"}]
+                },"roots":["Included","Ignored"]}
+                """);
+        final var output = work.resolve("output.adoc");
+        new DocumentationGenerator(work, Map.of(
+                "urls", metadata.toString(), "module", "test", "roots", " Included, Included, ",
+                "formatter", "definitionlist", "output", output.toString())).run();
+        assertEquals("""
+                `app.nested.value`::
+                Nested value. Default: `0`.
+                """, Files.readString(output));
+    }
+
+    @Test
+    void rejectUnknownRoot(@TempDir final Path work) throws IOException {
+        final var input = writeConf(work);
+        final var error = assertThrows(IllegalStateException.class,
+                () -> new DocumentationGenerator(work, Map.of(
+                        "urls", input.toExternalForm(), "module", "test", "roots", "Missing")).run());
+        assertEquals("Missing configuration root 'Missing'", error.getMessage());
+    }
+
+    @Test
+    void combineRootsInsteadOfOverwritingSharedOutput(@TempDir final Path work) throws IOException {
+        final var first = writeConf(work);
+        final var second = Files.writeString(work.resolve("second.json"), """
+                {"classes":{"Other":[{"name":"server.port","documentation":"Port","defaultValue":8080}]},"roots":["Other"]}
+                """);
+        final var output = work.resolve("output.adoc");
+        new DocumentationGenerator(work, Map.of(
+                "urls", first.toExternalForm() + ',' + second + ',' + first.toExternalForm(),
+                "module", "test", "formatter", "definitionlist", "output", output.toString())).run();
+        assertEquals("""
+                `jwt.algo`::
+                JWT `alg` value. Default: `RS256`.
+                `jwt.expRequired`::
+                Are `exp` (expiry) validation required of can it be skipped if claim is missing. Default: `true`.
+                `server.port`::
+                Port. Default: `8080`.
+                """, Files.readString(output));
+    }
+
+    @Test
+    void resolveReferencesAcrossInputs(@TempDir final Path work) throws IOException {
+        final var first = Files.writeString(work.resolve("first.json"), """
+                {"classes":{"Root":[{"name":"app.nested","ref":"Nested"}]},"roots":["Root"]}
+                """);
+        final var second = Files.writeString(work.resolve("second.json"), """
+                {"classes":{"Nested":[{"name":"value","documentation":"Nested value","defaultValue":0}]},"roots":[]}
+                """);
+        final var output = work.resolve("output.adoc");
+        new DocumentationGenerator(work, Map.of(
+                "urls", first + "," + second, "module", "test", "roots", "Root",
+                "formatter", "definitionlist", "output", output.toString())).run();
+        assertEquals("""
+                `app.nested.value`::
+                Nested value. Default: `0`.
+                """, Files.readString(output));
+    }
+
+    @Test
+    void rejectConflictingClassDefinitions(@TempDir final Path work) throws IOException {
+        final var first = writeConf(work);
+        final var second = Files.writeString(work.resolve("second.json"), DOC_CONTENT.replace("RS256", "ES256"));
+        final var error = assertThrows(IllegalStateException.class,
+                () -> new DocumentationGenerator(work, Map.of(
+                        "urls", first.toExternalForm() + ',' + second,
+                        "module", "test", "output", work.resolve("output.adoc").toString())).run());
+        assertEquals("Conflicting configuration metadata for 'io.yupiik.test.JwtValidatorConfiguration'", error.getMessage());
     }
 
     private URL writeConf(final Path work) throws IOException {

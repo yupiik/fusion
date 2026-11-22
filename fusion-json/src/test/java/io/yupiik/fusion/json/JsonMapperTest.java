@@ -26,6 +26,9 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.lang.reflect.Type;
+import java.math.BigInteger;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -65,6 +68,68 @@ class JsonMapperTest {
             ctx.writer().write("{\"name\":\"" + value.name() + "\"}");
         }
     });
+
+    @Test
+    void heterogeneousRootCollections() {
+        try (final var mapper = new JsonMapperImpl(jsonCodecs, key -> Optional.empty())) {
+            final var values = java.util.Arrays.asList(null, "value", null, "again", true,
+                    new java.math.BigDecimal("1.25"), Map.of("key", "value"),
+                    List.of("nested", false), new Simple("model"), null, "end");
+            assertEquals("[null,\"value\",null,\"again\",true,\"1.25\",{\"key\":\"value\"}," +
+                    "[\"nested\",false],{\"name\":\"model\"},null,\"end\"]", mapper.toString(values));
+            assertEquals("[null,null]", mapper.toString(java.util.Arrays.asList(null, null)));
+            assertEquals("[]", mapper.toString(List.of()));
+            assertEquals("[1,2,3]", mapper.toString(List.of(1, 2, 3)));
+            assertEquals("[1,2,3.5]", mapper.toString(List.of(1, 2L, 3.5)));
+            assertEquals("[[\"nested\"],true]", mapper.toString(List.of(List.of("nested"), true)));
+            assertEquals("[{\"a\":true},false]", mapper.toString(List.of(Map.of("a", true), false)));
+            assertThrows(IllegalStateException.class, () -> mapper.toString(List.of("valid", new StringBuilder())));
+        }
+    }
+
+    @Test
+    void registeredRootCollectionCodecTakesPrecedence() {
+        final var codec = new JsonCodec<Collection<Simple>>() {
+            @Override
+            public Type type() {
+                return new Types.ParameterizedTypeImpl(Collection.class, Simple.class);
+            }
+
+            @Override
+            public Collection<Simple> read(final DeserializationContext context) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public void write(final Collection<Simple> value, final SerializationContext context) throws IOException {
+                context.writer().write("[\"custom\"]");
+            }
+        };
+        // No Simple codec: the collection override must be sufficient on its own.
+        try (final var mapper = new JsonMapperImpl(List.of(codec), key -> Optional.empty())) {
+            assertEquals("[\"custom\"]", mapper.toString(List.of(new Simple("model"))));
+            assertEquals("[\"custom\"]", mapper.toString(Arrays.asList(null, new Simple("model"))));
+            assertEquals("[null,null]", mapper.toString(Arrays.asList(null, null)));
+            assertEquals("[]", mapper.toString(List.of()));
+            assertEquals("[1,\"other\"]", mapper.toString(List.of(1, "other")));
+            try (final var configured = mapper.as(JsonMapper.Configuring.class).orElseThrow().serializeNulls().build()) {
+                assertEquals("[\"custom\"]", configured.toString(List.of(new Simple("model"))));
+                assertEquals("[\"custom\"]", configured.toString(Arrays.asList(null, new Simple("model"))));
+                assertEquals("[1,\"other\"]", configured.toString(List.of(1, "other")));
+            }
+        }
+    }
+
+    @Test
+    void heterogeneousRootCollectionsSupportNumbersWithoutExactCodecs() {
+        try (final var mapper = new JsonMapperImpl(List.of(), key -> Optional.empty())) {
+            final var values = List.of(Map.of("key", "value"), Short.valueOf((short) 1),
+                    Byte.valueOf((byte) 2), new BigInteger("12345678901234567890"));
+            assertEquals("[{\"key\":\"value\"},1,2,12345678901234567890]", mapper.toString(values));
+            assertEquals("[1,1,null,2]", mapper.toString(Arrays.asList(
+                    Short.valueOf((short) 1), Short.valueOf((short) 1), null, Byte.valueOf((byte) 2))));
+        }
+    }
 
     @Test
     void generic() {
