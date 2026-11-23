@@ -34,12 +34,12 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Base64;
 import java.util.List;
-import java.util.Locale;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -73,11 +73,18 @@ class KubeconfigProxyTest {
             final var config = configuration(work, format, "http://u%40ser+name:p%3Ass%2Bword@localhost:" + proxy.getAddress().getPort())
                     .setTokenEvaluator(() -> "api-token");
             try (final var client = new KubernetesClient(config)) {
-                final var response = client.send(HttpRequest.newBuilder(URI.create("http://kubernetes.api/test"))
-                        .timeout(Duration.ofSeconds(10)).build(), HttpResponse.BodyHandlers.discarding());
-                assertEquals(200, response.statusCode());
-                assertEquals(List.of("", expected), received);
-                assertEquals(List.of("Bearer api-token", "Bearer api-token"), originAuthorization);
+                for (var mode = 0; mode < 3; mode++) {
+                    final var request = HttpRequest.newBuilder(URI.create("http://kubernetes.api/test"))
+                            .timeout(Duration.ofSeconds(10)).build();
+                    final var response = switch (mode) {
+                        case 0 -> client.send(request, HttpResponse.BodyHandlers.discarding());
+                        case 1 -> client.sendAsync(request, HttpResponse.BodyHandlers.discarding()).get(10, SECONDS);
+                        default -> client.sendAsync(request, HttpResponse.BodyHandlers.discarding(), null).get(10, SECONDS);
+                    };
+                    assertEquals(200, response.statusCode());
+                }
+                assertEquals(List.of(expected, expected, expected), received);
+                assertEquals(List.of("Bearer api-token", "Bearer api-token", "Bearer api-token"), originAuthorization);
             }
         } finally {
             proxy.stop(0);
@@ -86,26 +93,21 @@ class KubeconfigProxyTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"yaml", "json"})
-    void credentialsAreScopedToConfiguredProxy(final String format, @TempDir final Path work) throws IOException {
+    void preparesDecodedProxyCredentialsWithoutAuthenticator(final String format, @TempDir final Path work) throws IOException {
         for (final var credentials : List.of(
                 new String[]{"http://u%40ser+name:p%3Ass%2Bword@localhost:3128", "u@ser+name", "p:ss+word", "localhost", "3128"},
                 new String[]{"http://user@localhost", "user", "", "localhost", "80"},
                 new String[]{"http://user:@localhost:3128", "user", "", "localhost", "3128"},
                 new String[]{"http://user:pass@[::1]:3128", "user", "pass", "::1", "3128"})) {
             try (final var client = new KubernetesClient(configuration(work, format, credentials[0]))) {
-                final var authenticator = client.authenticator().orElseThrow();
-                final var host = credentials[3];
-                final var port = Integer.parseInt(credentials[4]);
-                final var password = authenticator.requestPasswordAuthenticationInstance(host.toUpperCase(Locale.ROOT), null, port,
-                        "http", "test", "basic", null, Authenticator.RequestorType.PROXY);
-                assertEquals(credentials[1], password.getUserName());
-                assertEquals(credentials[2], new String(password.getPassword()));
-                assertNull(authenticator.requestPasswordAuthenticationInstance(host, null, port,
-                        "http", "test", "basic", null, Authenticator.RequestorType.SERVER));
-                assertNull(authenticator.requestPasswordAuthenticationInstance("other.invalid", null, port,
-                        "http", "test", "basic", null, Authenticator.RequestorType.PROXY));
-                assertNull(authenticator.requestPasswordAuthenticationInstance(host, null, port + 1,
-                        "http", "test", "basic", null, Authenticator.RequestorType.PROXY));
+                assertTrue(client.authenticator().isEmpty());
+                final var prepared = client.prepare(HttpRequest.newBuilder(URI.create("http://kubernetes.api/test")).build());
+                assertEquals("Basic " + Base64.getEncoder().encodeToString((credentials[1] + ':' + credentials[2]).getBytes(UTF_8)),
+                        prepared.headers().firstValue("Proxy-Authorization").orElseThrow());
+                assertTrue(prepared.headers().firstValue("Authorization").isEmpty());
+                final var selected = client.proxy().orElseThrow().select(prepared.uri()).get(0);
+                assertEquals(credentials[3], ((InetSocketAddress) selected.address()).getHostString());
+                assertEquals(Integer.parseInt(credentials[4]), ((InetSocketAddress) selected.address()).getPort());
             }
         }
     }
@@ -161,6 +163,8 @@ class KubeconfigProxyTest {
         try (final var client = new KubernetesClient(config)) {
             assertSame(override, client.proxy().orElseThrow());
             assertSame(authenticator, client.authenticator().orElseThrow());
+            assertTrue(client.prepare(HttpRequest.newBuilder(URI.create("http://kubernetes.api/test")).build())
+                    .headers().firstValue("Proxy-Authorization").isEmpty());
         }
     }
 
@@ -184,7 +188,10 @@ class KubeconfigProxyTest {
                         final var selected = client.proxy().orElseThrow().select(URI.create("http://cluster.invalid/test"));
                         assertEquals(URI.create(proxy).getPort(), ((InetSocketAddress) selected.get(0).address()).getPort());
                     }
-                    assertEquals(proxy != null && proxy.contains("@"), client.authenticator().isPresent());
+                    assertTrue(client.authenticator().isEmpty());
+                    assertEquals(proxy != null && proxy.contains("@"), client.prepare(
+                                    HttpRequest.newBuilder(URI.create("http://kubernetes.api/test")).build())
+                            .headers().firstValue("Proxy-Authorization").isPresent());
                     if (withCustomizer) {
                         assertEquals(Duration.ofSeconds(5), client.connectTimeout().orElseThrow());
                     }
@@ -254,6 +261,95 @@ class KubeconfigProxyTest {
             assertTrue(error.getMessage().contains("kubeconfig proxy-url"));
             assertFalse(error.getMessage().contains("secret"));
             assertNull(config.getClientCustomizer());
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"yaml", "json"})
+    void replacingProxyDoesNotLeakCredentials(final String format, @TempDir final Path work) throws Exception {
+        final var received = new CopyOnWriteArrayList<String>();
+        final var server = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
+        server.createContext("/", exchange -> {
+            try (exchange) {
+                received.add(exchange.getRequestHeaders().getFirst("Proxy-Authorization") == null ? "absent" : "leaked");
+                received.add(exchange.getRequestHeaders().getFirst("Authorization"));
+                exchange.sendResponseHeaders(200, -1);
+            }
+        });
+        server.start();
+        try {
+            for (final var direct : List.of(false, true)) {
+                final var config = configuration(work, format, "http://user:secret@unused.invalid:3128")
+                        .setTokenEvaluator(() -> "api-token")
+                        .setClientCustomizer(builder -> builder.proxy(ProxySelector.of(direct ? null : server.getAddress())));
+                // A direct request uses the local origin; the other case uses it as a replacement proxy.
+                final var target = direct ? "http://localhost:" + server.getAddress().getPort() + "/test" : "http://kubernetes.api/test";
+                try (final var client = new KubernetesClient(config)) {
+                    assertEquals(200, client.send(HttpRequest.newBuilder(URI.create(target))
+                            .timeout(Duration.ofSeconds(10)).build(), HttpResponse.BodyHandlers.discarding()).statusCode());
+                }
+            }
+            assertEquals(List.of("absent", "Bearer api-token", "absent", "Bearer api-token"), received);
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"yaml", "json"})
+    void preservesExplicitProxyAuthorization(final String format, @TempDir final Path work) throws IOException {
+        try (final var client = new KubernetesClient(configuration(work, format, "http://user:pass@localhost:3128"))) {
+            final var prepared = client.prepare(HttpRequest.newBuilder(URI.create("http://kubernetes.api/test"))
+                    .header("Proxy-Authorization", "Basic explicit").build());
+            assertEquals(List.of("Basic explicit"), prepared.headers().allValues("Proxy-Authorization"));
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"yaml", "json"})
+    void customAuthenticatorDisablesAutomaticProxyAuthorization(final String format, @TempDir final Path work) throws IOException {
+        final var authenticator = new Authenticator() {};
+        final var config = configuration(work, format, "http://user:pass@localhost:3128")
+                .setClientCustomizer(builder -> builder.authenticator(authenticator));
+        try (final var client = new KubernetesClient(config)) {
+            assertSame(authenticator, client.authenticator().orElseThrow());
+            assertTrue(client.prepare(HttpRequest.newBuilder(URI.create("http://kubernetes.api/test")).build())
+                    .headers().firstValue("Proxy-Authorization").isEmpty());
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"yaml", "json"})
+    void proxyCredentialsSurviveRedirects(final String format, @TempDir final Path work) throws Exception {
+        final var received = new CopyOnWriteArrayList<String>();
+        final var proxy = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
+        proxy.createContext("/", exchange -> {
+            try (exchange) {
+                final var auth = exchange.getRequestHeaders().getFirst("Proxy-Authorization");
+                received.add(auth == null ? "absent" : auth);
+                if (exchange.getRequestURI().getPath().startsWith("/test")) {
+                    exchange.getResponseHeaders().set("Location", "/test-cross".equals(exchange.getRequestURI().getPath()) ?
+                            "http://other.invalid/redirected" : "/redirected");
+                    exchange.sendResponseHeaders(302, -1);
+                } else {
+                    exchange.sendResponseHeaders(200, -1);
+                }
+            }
+        });
+        proxy.start();
+        try {
+            final var config = configuration(work, format, "http://user:pass@localhost:" + proxy.getAddress().getPort())
+                    .setClientCustomizer(builder -> builder.followRedirects(HttpClient.Redirect.NORMAL));
+            try (final var client = new KubernetesClient(config)) {
+                for (final var path : List.of("/test", "/test-cross")) {
+                    assertEquals(200, client.send(HttpRequest.newBuilder(URI.create("http://kubernetes.api" + path))
+                            .timeout(Duration.ofSeconds(10)).build(), HttpResponse.BodyHandlers.discarding()).statusCode());
+                }
+            }
+            final var expected = "Basic " + Base64.getEncoder().encodeToString("user:pass".getBytes(UTF_8));
+            assertEquals(List.of(expected, expected, expected, expected), received);
+        } finally {
+            proxy.stop(0);
         }
     }
 

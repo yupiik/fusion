@@ -44,7 +44,8 @@ public class KubernetesClientConfiguration {
 
     /**
      * Enables to customize the HTTP client before it is fully built, it generally has the SSL context already set.
-     * The kubeconfig proxy and its authenticator, if any, are already set and can be overridden by this customizer.
+     * The kubeconfig proxy is already set and can be overridden by this customizer.
+     * Replacing its proxy selector or setting an authenticator disables automatic kubeconfig proxy credentials.
      * Ignored if client is provided.
      *
      * @param clientCustomizer customizer of the http client.

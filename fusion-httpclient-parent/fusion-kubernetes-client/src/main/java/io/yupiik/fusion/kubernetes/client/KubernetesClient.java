@@ -33,8 +33,9 @@ import java.io.InputStreamReader;
 import java.net.Authenticator;
 import java.net.CookieHandler;
 import java.net.InetSocketAddress;
-import java.net.PasswordAuthentication;
+import java.net.Proxy;
 import java.net.ProxySelector;
+import java.net.SocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URLDecoder;
@@ -76,6 +77,7 @@ import java.util.function.Supplier;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
 
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Optional.empty;
 import static java.util.Optional.of;
@@ -175,22 +177,18 @@ public class KubernetesClient extends HttpClient implements AutoCloseable {
         }
         final var host = proxy.getHost().startsWith("[") ? proxy.getHost().substring(1, proxy.getHost().length() - 1) : proxy.getHost();
         final var port = proxy.getPort() < 0 ? 80 : proxy.getPort();
-        builder.proxy(ProxySelector.of(InetSocketAddress.createUnresolved(host, port)));
+        final var selector = ProxySelector.of(InetSocketAddress.createUnresolved(host, port));
         final var userInfo = proxy.getRawUserInfo();
         if (userInfo != null) {
             final var separator = userInfo.indexOf(':');
             // User info is URI encoded, not form encoded: a literal '+' must remain a plus.
             final var username = URLDecoder.decode((separator < 0 ? userInfo : userInfo.substring(0, separator)).replace("+", "%2B"), UTF_8);
             final var password = separator < 0 ? "" : URLDecoder.decode(userInfo.substring(separator + 1).replace("+", "%2B"), UTF_8);
-            builder.authenticator(new Authenticator() {
-                @Override
-                protected PasswordAuthentication getPasswordAuthentication() {
-                    if (getRequestorType() == RequestorType.PROXY && host.equalsIgnoreCase(getRequestingHost()) && port == getRequestingPort()) {
-                        return new PasswordAuthentication(username, password.toCharArray());
-                    }
-                    return null;
-                }
-            });
+            final var authorization = "Basic " + Base64.getEncoder()
+                    .encodeToString((username + ':' + password).getBytes(ISO_8859_1));
+            builder.proxy(new KubeconfigProxySelector(selector, authorization));
+        } else {
+            builder.proxy(selector);
         }
     }
 
@@ -284,7 +282,17 @@ public class KubernetesClient extends HttpClient implements AutoCloseable {
                 builder.header("Authorization", auth);
             }
         }
+        if (request.headers().firstValue("Proxy-Authorization").isEmpty()) {
+            kubeconfigProxyAuthorization().ifPresent(auth -> builder.header("Proxy-Authorization", auth));
+        }
         return builder.build();
+    }
+
+    private Optional<String> kubeconfigProxyAuthorization() {
+        // On JDK 21, installing an Authenticator strips the origin's bearer header.
+        // Only use the credentials while the original kubeconfig proxy selector is active.
+        return delegate.authenticator().isEmpty() && delegate.proxy().orElse(null) instanceof KubeconfigProxySelector proxy ?
+                of(proxy.authorization) : empty();
     }
 
     protected String authorization() {
@@ -411,11 +419,15 @@ public class KubernetesClient extends HttpClient implements AutoCloseable {
     public WebSocket.Builder newWebSocketBuilder() {
         return new WebSocketBuilderDelegate(delegate.newWebSocketBuilder()) {
             private boolean authorization;
+            private boolean proxyAuthorization;
 
             @Override
             public WebSocket.Builder header(final String name, final String value) {
                 if (!authorization) {
                     authorization = "authorization".equalsIgnoreCase(name);
+                }
+                if (!proxyAuthorization) {
+                    proxyAuthorization = "proxy-authorization".equalsIgnoreCase(name);
                 }
                 return super.header(name, value);
             }
@@ -435,9 +447,32 @@ public class KubernetesClient extends HttpClient implements AutoCloseable {
                         header("Authorization", auth);
                     }
                 }
+                if (!proxyAuthorization) {
+                    kubeconfigProxyAuthorization().ifPresent(auth -> header("Proxy-Authorization", auth));
+                }
                 return super.buildAsync(actualUri, listener);
             }
         };
+    }
+
+    private static final class KubeconfigProxySelector extends ProxySelector {
+        private final ProxySelector delegate;
+        private final String authorization;
+
+        private KubeconfigProxySelector(final ProxySelector delegate, final String authorization) {
+            this.delegate = delegate;
+            this.authorization = authorization;
+        }
+
+        @Override
+        public List<Proxy> select(final URI uri) {
+            return delegate.select(uri);
+        }
+
+        @Override
+        public void connectFailed(final URI uri, final SocketAddress address, final IOException failure) {
+            delegate.connectFailed(uri, address, failure);
+        }
     }
 
     private TrustManager[] newNoopTrustManager() {

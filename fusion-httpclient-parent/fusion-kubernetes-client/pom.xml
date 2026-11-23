@@ -28,6 +28,21 @@
   <name>Fusion :: HTTP Client Parent :: Kubernetes Client</name>
   <description>Lightweight Kubernetes client based on the JDK HTTP client (in-cluster and kubeconfig support).</description>
 
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <systemPropertyVariables>
+            <!-- Enable Basic authentication only in the test JVM for the CONNECT regression test. -->
+            <jdk.http.auth.tunneling.disabledSchemes></jdk.http.auth.tunneling.disabledSchemes>
+          </systemPropertyVariables>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
   <dependencies>
     <dependency>
       <groupId>${project.groupId}</groupId>

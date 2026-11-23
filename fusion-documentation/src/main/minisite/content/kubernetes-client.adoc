@@ -84,8 +84,10 @@ Invalid proxy URLs, HTTPS or SOCKS proxy schemes, and non-root paths, queries or
 
 Proxy credentials can be included in the URL, for example `http://user:password@proxy.example.com:3128`.
 Username and password components are percent-decoded, while literal `+` characters remain unchanged; omit the password or leave it empty to use an empty password.
-Credentials are provided only for proxy authentication challenges matching the configured proxy host and port, never for origin-server authentication challenges.
-The proxy authenticator is applied before `clientCustomizer`, which can override it using the JDK builder's `authenticator` method.
+Fusion sends these credentials preemptively in `Proxy-Authorization` while the kubeconfig proxy selector is active, without installing a JDK `Authenticator`, so Kubernetes bearer authentication is preserved on JDK 21.
+Replacing the proxy selector in `clientCustomizer` disables automatic kubeconfig proxy credentials, as does installing a custom `Authenticator`; an explicitly supplied `Proxy-Authorization` header is preserved.
+Credentials are for the configured proxy, not for origin-server authentication.
+NOTE: A custom JDK `Authenticator` can suppress an explicit origin `Authorization` header on JDK 21; kubeconfig proxy authentication avoids this limitation by not installing one.
 Proxy authentication follows the JDK's authentication policy; Fusion does not change global JVM authentication settings.
 IMPORTANT: The JDK disables Basic proxy authentication for HTTPS CONNECT by default; if your proxy requires it, explicitly enable it at JVM startup with `-Djdk.http.auth.tunneling.disabledSchemes=` after evaluating the security implications.
 
