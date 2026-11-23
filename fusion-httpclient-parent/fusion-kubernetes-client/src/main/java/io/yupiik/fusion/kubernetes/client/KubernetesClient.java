@@ -107,7 +107,7 @@ public class KubernetesClient extends HttpClient implements AutoCloseable {
                 .setPrivateKeyCertificate(originalConfiguration.getPrivateKeyCertificate())
                 .setSkipTls(originalConfiguration.isSkipTls())
                 .setKubeconfig(originalConfiguration.getKubeconfig());
-        final var ns = fillFromKubeConfig(configuration.getKubeconfig(), configuration);
+        final var ns = fillFromKubeConfig(configuration);
         this.base = normalizeEndpoint(configuration.getMaster());
         this.delegate = ofNullable(configuration.getClient())
                 .orElseGet(() -> ofNullable(configuration.getClientWrapper()).orElseGet(Function::identity).apply(createClient(configuration)));
@@ -491,12 +491,13 @@ public class KubernetesClient extends HttpClient implements AutoCloseable {
     }
 
     @SuppressWarnings("unchecked")
-    private String fillFromKubeConfig(final Path kubeconfig, final KubernetesClientConfiguration configuration) {
-        if (configuration.getKubeconfig() == null || Files.notExists(configuration.getKubeconfig())) {
+    private String fillFromKubeConfig(final KubernetesClientConfiguration configuration) {
+        final var kubeconfig = configuration.getKubeconfig();
+        final var conf = loadKubeConfig(kubeconfig);
+        if (conf == null) {
             return null;
         }
 
-        final var conf = loadKubeConfig(kubeconfig);
         final var contexts = conf.get("contexts");
         if (!(contexts instanceof List<?> ctxs) || ctxs.isEmpty()) {
             Logger.getLogger(getClass().getName()).warning(() -> "No contexts in '" + kubeconfig + "' skipping autoconfiguration of k8s connection.");
@@ -762,6 +763,9 @@ public class KubernetesClient extends HttpClient implements AutoCloseable {
 
     @SuppressWarnings("unchecked")
     protected Map<String, Object> loadKubeConfig(final Path kubeconfig) {
+        if (kubeconfig == null || Files.notExists(kubeconfig)) {
+            return null;
+        }
         try (final var reader = Files.newBufferedReader(kubeconfig)) {
             if (kubeconfig.getFileName().toString().endsWith(".json")) {
                 ensureJsonMapper();
