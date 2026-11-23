@@ -41,7 +41,7 @@ public class HttpEndpoints {
         return completedFuture(Response.of().status(201).header("java-method", "all").build());
     }
 
-    @HttpMatcher(priority = 1, methods = "GET")
+    @HttpMatcher(methods = "GET")
     public Response get(final Request request) {
         return Response.of()
                 .status(202)
@@ -50,32 +50,32 @@ public class HttpEndpoints {
                 .build();
     }
 
-    @HttpMatcher(priority = 2, methods = "GET", pathMatching = HttpMatcher.PathMatching.EXACT, path = "/foo")
+    @HttpMatcher(methods = "GET", pathMatching = HttpMatcher.PathMatching.EXACT, path = "/foo")
     public CompletionStage<Response> getAndFooPath() {
         return completedFuture(Response.of().status(203).header("java-method", "getAndFooPath").build());
     }
 
-    @HttpMatcher(priority = 3, methods = "GET", pathMatching = HttpMatcher.PathMatching.ENDS_WITH, path = "/foo")
+    @HttpMatcher(methods = "GET", pathMatching = HttpMatcher.PathMatching.ENDS_WITH, path = "/foo")
     public CompletionStage<Response> getAndEndsWithFooPath() {
         return completedFuture(Response.of().status(204).header("java-method", "getAndEndsWithFooPath").build());
     }
 
-    @HttpMatcher(priority = 4, methods = "GET", pathMatching = HttpMatcher.PathMatching.STARTS_WITH, path = "/foo")
+    @HttpMatcher(methods = "GET", pathMatching = HttpMatcher.PathMatching.STARTS_WITH, path = "/foo")
     public CompletionStage<Response> getAndStartsWithFooPath() {
         return completedFuture(Response.of().status(205).header("java-method", "getAndStartsWithFooPath").build());
     }
 
-    @HttpMatcher(priority = 5, methods = "GET", pathMatching = HttpMatcher.PathMatching.REGEX, path = "/foo/.+/foo")
+    @HttpMatcher(methods = "GET", pathMatching = HttpMatcher.PathMatching.REGEX, path = "/foo/.+/foo")
     public CompletionStage<Response> getAndRegexFooPath() {
         return completedFuture(Response.of().status(206).header("java-method", "getAndRegexFooPath").build());
     }
 
-    @HttpMatcher(priority = 7, methods = "POST", pathMatching = HttpMatcher.PathMatching.EXACT, path = "/greetstage")
+    @HttpMatcher(methods = "POST", pathMatching = HttpMatcher.PathMatching.EXACT, path = "/greetstage")
     public CompletionStage<GreetResponse> greetStage(final GreetRequest request) {
         return completedFuture(new GreetResponse("Hello " + request.name() + "!"));
     }
 
-    @HttpMatcher(priority = 6, methods = "POST", pathMatching = HttpMatcher.PathMatching.EXACT, path = "/greet")
+    @HttpMatcher(methods = "POST", pathMatching = HttpMatcher.PathMatching.EXACT, path = "/greet")
     public GreetResponse greet(final GreetRequest request) {
         return new GreetResponse("Hello " + request.name() + "!");
     }

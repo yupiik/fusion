@@ -15,6 +15,8 @@
  */
 package io.yupiik.fusion.framework.processor;
 
+import static io.yupiik.fusion.framework.processor.test.ProcessorInternals.stateDirectory;
+
 import io.yupiik.fusion.framework.processor.test.GeneratedFactories;
 import io.yupiik.fusion.json.internal.JsonMapperImpl;
 import io.yupiik.fusion.json.serialization.JsonCodec;
@@ -86,7 +88,7 @@ class CentralPortabilityReviewTest {
         }
         // Discovery must not import the producer's entries into consumer build state or generated artifacts.
         final var index = new Properties();
-        try (final var in = Files.newBufferedReader(work.resolve("cross/state/app.module/json-models-v1.properties"))) {
+        try (final var in = Files.newBufferedReader(stateDirectory(work.resolve("cross/state"), work.resolve("cross/classes/app.module"), "app.module").resolve("json-models-v1.properties"))) {
             index.load(in);
         }
         assertEquals(Set.of("app.Envelope"), index.stringPropertyNames());

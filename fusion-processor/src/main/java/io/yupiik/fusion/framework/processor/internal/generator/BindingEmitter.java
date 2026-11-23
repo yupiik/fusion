@@ -16,6 +16,7 @@
 package io.yupiik.fusion.framework.processor.internal.generator;
 
 import io.yupiik.fusion.framework.processor.internal.CompilerSource;
+import io.yupiik.fusion.framework.processor.internal.ModuleProcessingEnvironment;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
@@ -26,17 +27,23 @@ import java.io.FileNotFoundException;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.URI;
 import java.nio.file.DirectoryNotEmptyException;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
+import java.security.DigestOutputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.UnaryOperator;
 import java.util.regex.Pattern;
@@ -60,7 +67,9 @@ public final class BindingEmitter {
     private final Path output;
     private final Path marker;
     private final Path inventory;
-    private final String namespace;
+    private final Path pendingUpdate;
+    private String namespace;
+    private final String coordinationNamespace = UUID.randomUUID().toString().replace("-", "");
     private final Map<String, Entry> entries = new TreeMap<>();
     private final Map<String, Set<String>> origins = new TreeMap<>();
     private final Map<String, String> factories = new TreeMap<>();
@@ -89,7 +98,10 @@ public final class BindingEmitter {
         this.marker = output == null ? (workdir == null ? null : workdir.resolve("compact-origins-v1")) :
                 output.resolveSibling(".fusion-" + output.getFileName()).resolve("compact-origins-v1");
         this.inventory = marker == null ? null : marker.resolveSibling("compact-holders-v1");
-        this.namespace = namespace(environment, output);
+        this.pendingUpdate = marker == null ? null : marker.resolveSibling("compact-update-in-progress-v1");
+        if (pendingUpdate != null && Files.exists(pendingUpdate)) {
+            throw new IllegalStateException("Incomplete compact output update; perform a full clean rebuild (including class output and work state)");
+        }
         this.cache = workdir == null ? null : workdir.resolve("compact-v1.bin");
         if (cache != null && output != null && cache.toAbsolutePath().normalize().startsWith(output.toAbsolutePath().normalize())) {
             throw new IllegalArgumentException("fusion.workdir must be outside packaged class output");
@@ -182,7 +194,7 @@ public final class BindingEmitter {
         if (emitted) {
             return;
         }
-        final var pack = "io.yupiik.fusion.generated.compact_" + namespace + ".round" + round++;
+        final var pack = "io.yupiik.fusion.generated.compact_" + coordinationNamespace + ".round" + round++;
         roundPackages.add(pack);
         try {
             final var source = environment.getFiler().createSourceFile(pack + ".FusionRound");
@@ -284,10 +296,15 @@ public final class BindingEmitter {
                         "; this compiler requires a full clean rebuild for partial recompilation");
             }
         }
+        namespace = namespace(moduleName);
         final var holders = new ArrayList<BaseGenerator.GeneratedClass>();
         standalone(holders, moduleName);
         if (moduleName != null) {
             descriptors(holders, moduleName);
+        }
+        if (pendingUpdate != null) {
+            Files.createDirectories(pendingUpdate.getParent());
+            Files.writeString(pendingUpdate, "A successful final processing round is required before reusing this output.\n", UTF_8);
         }
         for (final var holder : holders) {
             writer.accept(new BaseGenerator.GeneratedClass(holder.name(), resolveReferences(holder.content())));
@@ -307,6 +324,13 @@ public final class BindingEmitter {
             Files.write(inventory, new java.util.TreeSet<>(currentHolders), UTF_8);
         }
         emitted = true;
+    }
+
+    /** Publication is not transactional; failed compilations must not reuse a partially updated inventory. */
+    public void complete() throws IOException {
+        if (emitted && pendingUpdate != null) {
+            Files.deleteIfExists(pendingUpdate);
+        }
     }
 
     /** Removes only a known processor-owned compilation unit, never business classes. */
@@ -819,24 +843,43 @@ public final class BindingEmitter {
         return required[0];
     }
 
-    private String namespace(final ProcessingEnvironment environment, final Path output) {
-        final var identity = new StringBuilder(environment.getOptions().getOrDefault("fusion.moduleFqn", ""));
-        if (output != null) {
-            // Retain project and source-set identity, never the machine-specific absolute prefix.
-            var root = output;
-            while (root.getParent() != null && !"target".equals(root.getFileName().toString()) && !"build".equals(root.getFileName().toString())) {
-                root = root.getParent();
-            }
-            if (root.getParent() != null) {
-                identity.append(':').append(root.getParent().getFileName()).append(':').append(root.relativize(output).toString().replace('\\', '/'));
-            } else {
-                identity.append(':').append(output.getParent() == null ? "" : output.getParent().getFileName()).append(':').append(output.getFileName());
-            }
-        }
+    private String namespace(final String moduleName) throws IOException {
+        // Canonical, versioned logical inventory: provenance paths never affect emitted identities.
         try {
-            return java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
-                    .digest(identity.toString().getBytes(UTF_8)), 0, 12);
-        } catch (final java.security.NoSuchAlgorithmException e) {
+            final var digest = MessageDigest.getInstance("SHA-256");
+            try (final var out = new DataOutputStream(new DigestOutputStream(OutputStream.nullOutputStream(), digest))) {
+                text(out, "fusion-bindings-namespace");
+                out.writeInt(1);
+                text(out, moduleName == null ? "" : moduleName);
+                text(out, environment instanceof ModuleProcessingEnvironment scoped ? scoped.moduleName() : "");
+                final var options = List.of("fusion.generateModule", "fusion.generateBeanForCliCommands",
+                        "fusion.generateBeanForHttpEndpoints", "fusion.generateBeanForJsonRpcEndpoints",
+                        "fusion.generateBeanForPersistenceEntities", "fusion.generateBeanForJsonCodec",
+                        "fusion.generateBeanForRootConfiguration");
+                out.writeInt(options.size());
+                for (final var option : options) {
+                    text(out, option);
+                    out.writeBoolean(Boolean.parseBoolean(environment.getOptions().getOrDefault(option, "true")));
+                }
+                out.writeInt(entries.size());
+                for (final var entry : entries.entrySet()) {
+                    final var binding = entry.getValue().binding();
+                    text(out, entry.getKey());
+                    text(out, entry.getValue().origin());
+                    text(out, binding.packageName());
+                    text(out, binding.kind() == null ? "" : binding.kind());
+                    text(out, binding.registrationType());
+                    text(out, binding.factoryExpression());
+                    out.writeInt(binding.methods().size());
+                    for (final var method : binding.methods()) {
+                        out.writeInt(method.operation());
+                        text(out, method.declaration());
+                        text(out, method.inlineExpression());
+                    }
+                }
+            }
+            return HexFormat.of().formatHex(digest.digest(), 0, 12);
+        } catch (final NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
         }
     }

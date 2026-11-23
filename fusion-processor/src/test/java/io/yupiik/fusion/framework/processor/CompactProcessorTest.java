@@ -15,6 +15,8 @@
  */
 package io.yupiik.fusion.framework.processor;
 
+import static io.yupiik.fusion.framework.processor.test.ProcessorInternals.stateDirectory;
+
 import io.yupiik.fusion.framework.api.ConfiguringContainer;
 import io.yupiik.fusion.framework.api.container.FusionModule;
 import io.yupiik.fusion.framework.api.container.bean.FunctionalBean;
@@ -386,7 +388,7 @@ class CompactProcessorTest {
     @Test
     void missingCacheRequiresFullRebuildInsteadOfLosingUnseenMembers() throws Exception {
         compile(Map.of("demo.A", bean("A"), "demo.B", bean("B")));
-        Files.delete(work.resolve("state/compact-v1.bin"));
+        Files.delete(stateDirectory(work.resolve("state"), work.resolve("classes"), "").resolve("compact-v1.bin"));
         final var failure = assertThrows(AssertionError.class, () -> compile(Map.of("demo.B", bean("B"))));
         assertTrue(failure.getMessage().contains("full clean rebuild"), failure.getMessage());
     }
@@ -394,7 +396,7 @@ class CompactProcessorTest {
     @Test
     void obsoleteSerializedOperationsRequireCleanRebuild() throws Exception {
         compile(Map.of("demo.A", bean("A")));
-        try (final var out = new java.io.DataOutputStream(Files.newOutputStream(work.resolve("state/compact-v1.bin")))) {
+        try (final var out = new java.io.DataOutputStream(Files.newOutputStream(stateDirectory(work.resolve("state"), work.resolve("classes"), "").resolve("compact-v1.bin")))) {
             out.writeInt(1);
             out.writeInt(0);
         }
@@ -405,7 +407,7 @@ class CompactProcessorTest {
     @Test
     void incompleteCacheIsNotAcceptedAsAnEmptyApplication() throws Exception {
         compile(Map.of("demo.A", bean("A"), "demo.B", bean("B")));
-        try (final var out = new java.io.DataOutputStream(Files.newOutputStream(work.resolve("state/compact-v1.bin")))) {
+        try (final var out = new java.io.DataOutputStream(Files.newOutputStream(stateDirectory(work.resolve("state"), work.resolve("classes"), "").resolve("compact-v1.bin")))) {
             out.writeInt(2);
             out.writeInt(0);
         }
@@ -598,7 +600,7 @@ class CompactProcessorTest {
     @Test
     void disabledCacheStillProtectsUnseenOrigins() throws Exception {
         compile(Map.of("demo.A", bean("A"), "demo.B", bean("B")), "-Afusion.workdir=false");
-        assertFalse(Files.exists(work.resolve("state/compact-v1.bin")));
+        assertFalse(Files.exists(work.resolve("state")));
         final var failure = assertThrows(AssertionError.class, () -> compile(Map.of("demo.B", bean("B")), "-Afusion.workdir=false"));
         assertTrue(failure.getMessage().contains("full clean rebuild"), failure.getMessage());
         compile(Map.of("demo.A", bean("A"), "demo.B", bean("B")), "-Afusion.workdir=false");
@@ -701,7 +703,7 @@ class CompactProcessorTest {
     void losingAllExternalStateStillRequiresCleaningExistingClassOutput() throws Exception {
         compile(Map.of("demo.A", bean("A"), "demo.B", bean("B")));
         assertTrue(holderNames().isEmpty(), "Inline-only modules must retain the lost-cache safety check");
-        Files.delete(work.resolve("state/compact-v1.bin"));
+        Files.delete(stateDirectory(work.resolve("state"), work.resolve("classes"), "").resolve("compact-v1.bin"));
         Files.delete(work.resolve(".fusion-classes/compact-origins-v1"));
         final var failure = assertThrows(AssertionError.class, () -> compile(Map.of("demo.B", bean("B"))));
         assertTrue(failure.getMessage().contains("full clean rebuild"), failure.getMessage());
@@ -853,7 +855,7 @@ class CompactProcessorTest {
     private List<String> jsonModelNames() throws Exception {
         assertFalse(Files.exists(work.resolve("classes/META-INF/fusion/json/models-v1")));
         final var properties = new java.util.Properties();
-        try (final var in = Files.newBufferedReader(work.resolve("state/json-models-v1.properties"))) {
+        try (final var in = Files.newBufferedReader(stateDirectory(work.resolve("state"), work.resolve("classes"), "").resolve("json-models-v1.properties"))) {
             properties.load(in);
         }
         return properties.stringPropertyNames().stream().sorted().toList();

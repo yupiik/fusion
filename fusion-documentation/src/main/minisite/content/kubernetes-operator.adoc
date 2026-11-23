@@ -50,6 +50,7 @@ The operator default runtime has these default configuration keys:
 [opts="header",cols="^,^,^"]
 |===
 | Key | Default | Description
+| `operator.enabled` | `true` | Enable watches and probes; set explicitly to `false` for metadata-only or disabled containers.
 | `operator.kubernetes.master` | from `KUBERNETES_SERVICE_HOST`/`PORT` | The Kubernetes API master URL.
 | `operator.kubernetes.tls-skip` | `false` | Skip TLS validation.
 | `operator.kubernetes.token` | `/var/run/secrets/kubernetes.io/serviceaccount/token` | The service account token.
@@ -58,10 +59,77 @@ The operator default runtime has these default configuration keys:
 | `operator.event-thread-count` | `1` | Number of event dispatch threads.
 | `operator.probe-port` | `8081` | Port of the probe/health server.
 | `operator.await` | `true` | Await the operator before the container exits.
-| `operator.storage` | - | Where to persist the last seen `resourceVersion`.
+| `operator.storage` | - | Directory for the last processed resource inventory, used to detect downtime deletions; startup always lists current API state.
+| `operator.retry.initial-delay` | `100` | Initial list/watch retry delay in milliseconds (at least 1).
+| `operator.retry.max-delay` | `5000` | Delay cap in milliseconds, at least the initial delay; also caps `Retry-After`.
+| `operator.retry.retry-permanent-errors` | `false` | Retry permanent API or invalid-response failures instead of stopping the affected watch.
 |===
 
 `Operator.DefaultOperatorConfiguration` (reusable in custom `@RootConfiguration` records) exposes `namespaced` (`true`), `namespaces` (`["default"]`), `resource-plural-name` (required) and `api-version` (required).
+
+=== Activation and probes
+
+Operators start by default, including when the module is discovered in a container used only for metadata.
+Such containers must set `operator.enabled=false` explicitly.
+This switch is checked before resolving typed operator configuration, Kubernetes clients, executors, operator instances or probes, so a disabled container does not require valid Kubernetes settings or an available probe port.
+
+The existing probe server exposes `GET /health` for liveness and `GET /ready` for initial-inventory/terminal-failure readiness.
+Readiness returns 503 until every configured watch has reconciled a complete fresh API list, and after any watch stops terminally.
+It returns 200 after initial synchronization, including during transient reconnects; it is not a freshness or Kubernetes connectivity guarantee.
+Liveness and `/metrics` are unchanged.
+Startup still waits for operator `onStart`, not for Kubernetes list/watch success, so configure a readiness probe if deployment activation must reflect synchronization failures.
+
+=== Recovery and delivery
+
+Transport failures, HTTP 408/429/5xx and normal stream EOF reconnect with exponential backoff capped by `operator.retry.max-delay`.
+Valid events reset the backoff; merely opening an empty stream does not.
+For 429/503, numeric or HTTP-date `Retry-After` is honored within the configured cap; malformed or past values are ignored.
+Kubernetes `Status` failures are also checked in HTTP-200 list responses, bare watch Status responses and in-band `ERROR` events.
+Status `details.retryAfterSeconds` is supported for 429/503.
+Cancellation during shutdown is quiet and does not schedule another request.
+Diagnostics identify the runtime logger, watch index, list/watch phase, status and retry delay, with repeated failures sampled; response bodies, resource contents, URLs and exception details are not logged.
+
+By default, permanent API failures (notably 401, 403 and collection 404), invalid list responses and callback failures stop only the affected collection/namespace watch.
+Other watches and operators keep running, the process stays alive, and readiness becomes unsuccessful.
+There is no process exit or automatic shutdown of unrelated operators.
+Correct the configuration/permissions/handler and restart the application to recover a terminal watch.
+Set `operator.retry.retry-permanent-errors=true` when API or schema provisioning is expected to recover without a restart; it does not retry failed application callbacks.
+HTTP or in-band 410 discards the expired cursor and performs a complete relist, reconciling deletions only within that watch's known inventory.
+
+Every startup performs a fresh full LIST of current API objects, regardless of stored or expired resource versions.
+There is no startup `limit=1` cursor-validation probe: it cannot supply current reconciliation values and would allow stale persisted additions before downtime changes are discovered.
+All continuation pages must share the same collection `metadata.resourceVersion` and are collected before delivering callbacks, comparing deletions or persisting inventory.
+Lists without a nonblank collection resource version, with inconsistent page versions or with malformed continuation tokens are invalid responses, not successful synchronization or the end of pagination.
+The complete list must also contain unique, nonblank item UIDs and, for namespace-specific watches, objects belonging to the watched namespace; an invalid identity rejects the entire snapshot before callbacks.
+The runtime delivers `onAdd` for the current listed objects before opening WATCH from the LIST collection's `metadata.resourceVersion`; resource versions are opaque tokens, never a maximum of individual object versions.
+A failed startup LIST does not replay stale objects, publish a partial snapshot, open that watch or make it ready.
+Live reconnects use the last successfully processed in-memory event or bookmark cursor; 410 requires another complete current LIST.
+
+Storage writes only the companion `.items` JSON inventory by atomic replacement where supported, after successful callbacks.
+The existing inventory shape (including informational metadata) is retained for upgrade compatibility, but only validated item UIDs and their old object data are used to identify downtime deletions absent from the fresh snapshot, including when it is empty.
+Persisted objects are never replayed through `onAdd`, and no persisted startup cursor is read, validated or resumed.
+Legacy cursor files are ignored and no longer written; they may be removed, while keeping `.items` preserves downtime deletion comparison during upgrades.
+Missing or corrupt inventory safely starts from current API state, without historical deletion comparison.
+An inventory with duplicate/missing UIDs or objects outside the watched namespace is ignored as a whole, so reusing storage after a namespace change cannot emit deletions for the previous namespace.
+Downtime deletions are delivered before current additions, comparing UIDs rather than names so a recreated object deletes the old identity and adds the new one.
+Callbacks run before inventory persistence and the next watch connection; if a callback throws, only the affected watch stops.
+Inventory I/O failures are diagnosed but do not roll back successful callbacks, the in-memory cursor or readiness; an outdated inventory can therefore miss downtime deletions or repeat deletion callbacks on a later restart.
+Crash recovery can repeat callbacks; filesystem atomic replacement is not a power-loss durability guarantee.
+Do not share a storage directory between simultaneous processes or distinct operators using the same resource plural name.
+
+NOTE: Make `onAdd`, `onModify` and `onDelete` idempotent: restart, relist and server replay can repeat work, and the runtime does not promise exactly-once external side effects or suppress same-version callbacks.
+
+=== Event workers and shutdown
+
+The scheduler supplied to the runtime/controller is borrowed for HTTP work and retry timers and is never closed by the controller.
+Event callbacks run on a separate, controller-owned worker pool sized by `operator.event-thread-count`, so blocked callbacks do not consume scheduler threads.
+The controller has two ingress lanes: the legacy raw event queue and internal tasks, each FIFO, alternating when both have work to avoid starvation.
+There is no global ordering between lanes, and with multiple workers callback completion order is unspecified; the runtime separately preserves each watch's callback/checkpoint order and yields between bounded batches.
+The protected raw queue remains a real unbounded `BlockingQueue` supporting direct `offer`, `put` and `add`; `onEvent` is preferred for admission synchronized with shutdown.
+Controller diagnostics for this legacy ingress also omit raw event bodies and exception details; `onError` still receives the original ERROR event.
+Shutdown closes admission, cancels watches/retry timers and drains accepted work for up to five seconds before discarding pending work and interrupting only the owned workers.
+Direct raw queue writes after the shutdown snapshot are not processed.
+The five-second bound covers the worker drain, not application `onStop` code or callbacks that ignore interruption; borrowed clients and schedulers remain application/container-owned.
 
 == Build a custom operator
 
@@ -251,10 +319,10 @@ Here is an example for the API CRD we took as an example:
 ----
 
 Once this descriptor applied (using `mvn bundlebee:apply` or `kubectl apply`), you can deploy the operator itself.
-The operator needs a service account with the needed roles of what the operator uses from the Kubernetes API.
-It is at least the permissions to `get`, `list`, `watch` the custom resources we just defined but it is also generally the permissions to create/update/delete a deployment/configmap/....
+The operator requires a service account with `list` and `watch` permissions on the watched resources; pagination requires no additional permission.
+Grant `get` or write permissions only when your handlers use those operations, for example to fetch individual resources or create/update/delete deployments or ConfigMaps.
 
-TIP: you can use `ClusterRole` but it is good to ensure it is namespaces to avoid the operator to break something in other namespaces - at least while testing or until your operator is cluster wide (like an observability one for ex).
+TIP: Use a `Role` and `RoleBinding` for each watched namespace; watching across all namespaces or watching cluster-scoped resources requires a `ClusterRole` and `ClusterRoleBinding`.
 
 TIP: you can also use `@CustomResourceDefinition` to generate a default descriptor in your jar:
 
@@ -509,10 +577,11 @@ Here is what it can look like in your manifest.json assuming you have previous r
 
 == Operator and persistence
 
-If you configure `storage` property of the operator, the operator (or CRD watchers) will persist the latest seen `resourceVersion`.
-It enables to limit the effects of replay of events which can happen.
+If you configure the `storage` property, each collection/namespace watch persists its known resource inventory in a `.items` file for downtime deletion comparison.
+Startup always lists fresh API state before delivering additions and watching at the fresh collection version; persistence does not enable persisted-cursor resume or stale startup additions.
 
-Note that when bookmarks are enabled, only bookmarks are persisted else any new event can lead to an update to the persistence.
+The inventory is checkpointed after successful list reconciliation and resource events.
+Bookmarks advance the in-memory reconnect cursor without rewriting unchanged inventory.
 
 The persistence is on the local storage so implies a single replica of the operator as of today.
 

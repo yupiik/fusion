@@ -23,6 +23,7 @@ import io.yupiik.fusion.framework.api.container.bean.ProvidedInstanceBean;
 import io.yupiik.fusion.framework.api.scope.DefaultScoped;
 import io.yupiik.fusion.json.JsonMapper;
 import io.yupiik.kubernetes.operator.base.impl.OperatorsLifecycle;
+import io.yupiik.kubernetes.operator.base.impl.OperatorConfiguration;
 import org.junit.jupiter.api.Test;
 
 import java.net.InetSocketAddress;
@@ -41,13 +42,61 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class OperatorsLifecycleTest {
+    @Test
+    void programmaticConfigurationRetainsConstructorsAndValidatesRetryBounds() {
+        final var legacy = new OperatorConfiguration(null, true, 1, -1, false, null);
+        assertTrue(legacy.enabled());
+        assertEquals(new OperatorConfiguration.Retry(100, 5_000, false), legacy.retry());
+        assertFalse(new OperatorConfiguration(false, null, true, 1, -1, false, null).enabled());
+        assertThrows(IllegalArgumentException.class, () -> new OperatorConfiguration.Retry(0, 1, false));
+        assertThrows(IllegalArgumentException.class, () -> new OperatorConfiguration.Retry(10, 1, false));
+    }
+
+    @Test
+    void permanentListFailureMakesReadinessUnsuccessfulWithoutChangingLiveness() throws Exception {
+        final var attempted = new CompletableFuture<Void>();
+        final var requests = new AtomicInteger();
+        final var server = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
+        server.createContext("/", exchange -> {
+            requests.incrementAndGet();
+            try (exchange) {
+                exchange.sendResponseHeaders(403, -1);
+                attempted.complete(null);
+            }
+        });
+        server.start();
+        final int port;
+        try (final var reservation = new ServerSocket(0)) {
+            port = reservation.getLocalPort();
+        }
+        final var values = Map.of(
+                "operator.kubernetes.master", "http://localhost:" + server.getAddress().getPort(),
+                "operator.kubernetes.token", "target/missing-token",
+                "operator.kubernetes.certificates", "target/missing-ca",
+                "operator.probe-port", Integer.toString(port));
+        try (final var container = configured(values::get).start();
+             final var threads = container.lookup(ScheduledExecutorService.class)) {
+            attempted.get(5, SECONDS);
+            final var client = HttpClient.newHttpClient();
+            assertEquals(503, client.send(HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/ready")).build(),
+                    HttpResponse.BodyHandlers.discarding()).statusCode());
+            assertEquals(200, client.send(HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/health")).build(),
+                    HttpResponse.BodyHandlers.discarding()).statusCode());
+            assertFalse(threads.instance().isShutdown());
+            assertEquals(1, requests.get());
+        } finally {
+            server.stop(0);
+        }
+    }
+
     @Test
     void twoMetadataContainersNeverResolveRuntimeConfiguration() throws Exception {
         try (final var occupied = new ServerSocket(0)) {
             final ConfigurationSource source = key -> switch (key) {
-                case "operator.enabled" -> null; // default must be inactive
+                case "operator.enabled" -> "false"; // metadata containers opt out explicitly
                 case "operator.probe-port" -> Integer.toString(occupied.getLocalPort());
                 case "operator.kubernetes.master" -> ":not a URI";
                 case "operator.event-thread-count" -> "not an integer";
@@ -82,7 +131,7 @@ class OperatorsLifecycleTest {
     }
 
     @Test
-    void enabledStartsOneWatchAndProbeAndClosesThem() throws Exception {
+    void enabledByDefaultStartsOneWatchAndProbeAndClosesThem() throws Exception {
         final var lists = new AtomicInteger();
         final var watches = new AtomicInteger();
         final var watch = new CompletableFuture<HttpExchange>();
@@ -97,7 +146,7 @@ class OperatorsLifecycleTest {
             } else {
                 lists.incrementAndGet();
                 try (exchange) {
-                    final var body = "{\"items\":[]}".getBytes(StandardCharsets.UTF_8);
+                    final var body = "{\"metadata\":{\"resourceVersion\":\"initial\"},\"items\":[]}".getBytes(StandardCharsets.UTF_8);
                     exchange.sendResponseHeaders(200, body.length);
                     exchange.getResponseBody().write(body);
                 }
@@ -109,7 +158,6 @@ class OperatorsLifecycleTest {
             port = reservation.getLocalPort();
         }
         final var values = Map.of(
-                "operator.enabled", "true",
                 "operator.kubernetes.master", "http://localhost:" + server.getAddress().getPort(),
                 "operator.kubernetes.token", "target/missing-token",
                 "operator.kubernetes.certificates", "target/missing-ca",
@@ -117,13 +165,19 @@ class OperatorsLifecycleTest {
         final ScheduledExecutorService scheduler;
         try {
             try (final var container = configured(values::get).start();
-                 final var threads = container.lookup(ScheduledExecutorService.class)) {
+                 final var threads = container.lookup(ScheduledExecutorService.class);
+                 final var config = container.lookup(OperatorConfiguration.class)) {
+                assertTrue(config.instance().enabled());
+                assertEquals(new OperatorConfiguration.Retry(100, 5_000, false), config.instance().retry());
                 scheduler = threads.instance();
                 watch.get(5, SECONDS);
                 final var response = HttpClient.newHttpClient().send(
                         HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/health")).build(),
                         HttpResponse.BodyHandlers.discarding());
                 assertEquals(200, response.statusCode());
+                assertEquals(200, HttpClient.newHttpClient().send(
+                        HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/ready")).build(),
+                        HttpResponse.BodyHandlers.discarding()).statusCode());
                 assertEquals(1, lists.get());
                 assertEquals(1, watches.get());
                 assertFalse(scheduler.isShutdown());

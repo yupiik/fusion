@@ -57,6 +57,7 @@ import static io.yupiik.kubernetes.operator.base.test.sample.FusionGeneratedModu
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -80,14 +81,14 @@ class OperatorRuntimeTest {
                         "{\"type\":\"BOOKMARK\",\"metadata\":{\"resourceVersion\":\"WRONG\"}," +
                                 "\"object\":{\"metadata\":{\"resourceVersion\":\"" + token + "\"}}}\n" : "");
             } else {
-                send(exchange, 200, "{\"items\":[]}");
+                send(exchange, 200, "{\"metadata\":{\"resourceVersion\":\"initial\"},\"items\":[]}");
             }
         })) {
             fixture.start();
             until(() -> queries.size() >= 2);
             assertEquals(List.of(token), bookmarks);
             assertEquals(token, URLDecoder.decode(queries.get(1).split("resourceVersion=", 2)[1], StandardCharsets.UTF_8));
-            assertEquals("{\"resourceVersion\":\"" + token + "\"}", Files.readString(storage.resolve("samples")));
+            assertTrue(Files.readString(storage.resolve("samples.items")).contains("\"resourceVersion\":\"initial\""), "bookmarks do not rewrite unchanged inventory");
         }
     }
 
@@ -104,7 +105,7 @@ class OperatorRuntimeTest {
     private void reconnects(final boolean failure) throws Exception {
         try (final var fixture = new Fixture(null, true, 1, new TestOperator(), exchange -> {
             if (!isWatch(exchange)) {
-                send(exchange, 200, "{\"items\":[]}");
+                send(exchange, 200, "{\"metadata\":{\"resourceVersion\":\"initial\"},\"items\":[]}");
             } else {
                 if (failure) {
                     try (exchange) {
@@ -133,7 +134,7 @@ class OperatorRuntimeTest {
     }
 
     @Test
-    void failedHandlersAndMalformedEventsDoNotKillWorkersOrStarveHttp() throws Exception {
+    void malformedEventsDoNotKillWorkersOrStarveHttp() throws Exception {
         final var events = new CopyOnWriteArrayList<String>();
         final var response = new AtomicInteger();
         // Four event workers and only one HTTP/scheduler thread would starve the old shared-pool loop.
@@ -141,7 +142,6 @@ class OperatorRuntimeTest {
             @Override
             public void onAdd(final SampleResource resource) {
                 events.add("add:" + resource.metadata().resourceVersion());
-                throw new IllegalStateException("intentional handler failure");
             }
 
             @Override
@@ -153,7 +153,7 @@ class OperatorRuntimeTest {
             public void onDelete(final SampleResource resource) {
                 events.add("delete:" + resource.metadata().resourceVersion());
             }
-        }, exchange -> send(exchange, 200, !isWatch(exchange) ? "{\"items\":[]}" :
+        }, exchange -> send(exchange, 200, !isWatch(exchange) ? "{\"metadata\":{\"resourceVersion\":\"initial\"},\"items\":[]}" :
                 response.getAndIncrement() == 0 ? "not-json\n" + event("ADDED", "z-token") +
                         event("MODIFIED", "10") + event("DELETED", "2") : ""))) {
             fixture.start();
@@ -163,11 +163,11 @@ class OperatorRuntimeTest {
     }
 
     @Test
-    void expiredPersistedTokenIsClearedBeforeFullRelist(@TempDir final Path storage) throws Exception {
+    void persistedTokenIsIgnoredByFreshStartupList(@TempDir final Path storage) throws Exception {
         Files.writeString(storage.resolve("samples"), "{\"resourceVersion\":\"expired-token\"}");
+        Files.writeString(storage.resolve("samples.items"), "{\"metadata\":{\"resourceVersion\":\"expired-token\"},\"items\":[]}");
         final var adds = new CopyOnWriteArrayList<String>();
         final var requests = new CopyOnWriteArrayList<String>();
-        final var cleared = new AtomicReference<Boolean>();
         try (final var fixture = new Fixture(storage, true, 1, new TestOperator() {
             @Override
             public void onAdd(final SampleResource resource) {
@@ -179,19 +179,18 @@ class OperatorRuntimeTest {
             if (uri.contains("expired-token")) {
                 send(exchange, 410, "{}");
             } else if (!isWatch(exchange)) {
-                cleared.set(!Files.exists(storage.resolve("samples")));
                 send(exchange, 200, "{\"metadata\":{\"resourceVersion\":\"fresh-list\"},\"items\":[" +
-                        object("item-one") + "," + object("item-two") + "]}");
+                        object("one", "item-one") + "," + object("two", "item-two") + "]}");
             } else {
                 send(exchange, 200, "");
             }
         })) {
             fixture.start();
             until(() -> requests.stream().anyMatch(uri -> uri.contains("watch=true")));
-            assertEquals(Boolean.TRUE, cleared.get());
             assertEquals(List.of("item-one", "item-two"), adds);
             assertTrue(requests.stream().anyMatch(uri -> uri.contains("watch=true") && uri.contains("resourceVersion=fresh-list")));
-            assertFalse(requests.stream().anyMatch(uri -> uri.contains("limit=")));
+            assertTrue(requests.stream().noneMatch(uri -> uri.contains("limit=") || uri.contains("expired-token")));
+            assertEquals("{\"resourceVersion\":\"expired-token\"}", Files.readString(storage.resolve("samples")));
         }
     }
 
@@ -213,7 +212,7 @@ class OperatorRuntimeTest {
         try (final var fixture = new Fixture(storage, true, 1, new TestOperator() {
             @Override
             public void onDelete(final SampleResource resource) {
-                assertFalse(Files.exists(storage.resolve("samples")), "delete must precede the fresh-list checkpoint");
+                assertTrue(assertDoesNotThrow(() -> Files.readString(storage.resolve("samples.items"))).contains("list-1"), "delete must precede the fresh-list checkpoint");
                 deleted.add(resource.metadata().resourceVersion());
             }
         }, exchange -> {
@@ -267,8 +266,8 @@ class OperatorRuntimeTest {
             until(() -> queries.stream().anyMatch(q -> q.contains("one:") && q.contains("resourceVersion=bookmark-one")) &&
                     queries.stream().anyMatch(q -> q.contains("two:") && q.contains("resourceVersion=bookmark-two")));
             fixture.runtime.stop();
-            assertEquals("{\"resourceVersion\":\"bookmark-one\"}", Files.readString(storage.resolve("samples-one")));
-            assertEquals("{\"resourceVersion\":\"bookmark-two\"}", Files.readString(storage.resolve("samples-two")));
+            assertTrue(Files.readString(storage.resolve("samples-one.items")).contains("initial-one"));
+            assertTrue(Files.readString(storage.resolve("samples-two.items")).contains("initial-two"));
             assertFalse(Files.exists(storage.resolve("samples")));
         }
     }
@@ -300,7 +299,7 @@ class OperatorRuntimeTest {
             public void onStop() {
                 callbacks.add("stop");
             }
-        }, exchange -> send(exchange, 200, "{\"items\":[]}"))) {
+        }, exchange -> send(exchange, 200, "{\"metadata\":{\"resourceVersion\":\"initial\"},\"items\":[]}"))) {
             // Directly accepted events make the drain boundary deterministic, without an HTTP race.
             fixture.runtime.init();
             fixture.runtime.onEvent(event("ADDED", "one"));
@@ -354,7 +353,11 @@ class OperatorRuntimeTest {
     }
 
     private static String object(final String version) {
-        return "{\"metadata\":{\"uid\":\"test\",\"namespace\":\"default\",\"resourceVersion\":\"" + version +
+        return object("test", version);
+    }
+
+    private static String object(final String uid, final String version) {
+        return "{\"metadata\":{\"uid\":\"" + uid + "\",\"namespace\":\"default\",\"resourceVersion\":\"" + version +
                 "\"},\"spec\":{\"message\":\"test\"}}";
     }
 

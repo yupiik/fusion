@@ -35,13 +35,23 @@ public class InstallCommand implements Runnable {
 
 Key points:
 - The class implements `Runnable` and takes its `@RootConfiguration` record in the constructor; the
-  annotation processor generates the bean and the `Xxx$FusionConfigurationFactory` that builds the record
-  from runtime configuration.
+  annotation processor generates compact command/bean registrations and configuration binding code
+  that builds the record from runtime configuration, not a per-record factory class.
 - Statement order REQUIREMENT: `@Property.defaultValue` is a Java expression emitted verbatim (see
   `fusion-annotation-processing` skill). String defaults need escaped quotes: `defaultValue = "\"local\""`.
   Required-but-no-default params must be declared `required = true`.
 - Long `documentation` strings can be multi-segment javadoc text; keep `@Property` values ASCII and avoid
   unescaped `.md`/asciidoc gotchas.
+
+For manual configuration construction, keep module generation enabled and configure
+`-Afusion.moduleFqn=com.acme.FusionModule` in the configuration record's package.
+`FusionModule.InstallCommand$Conf$FusionConfigurationFactory()` returns a typed
+`BiFunction<Configuration, Function<String, String>, InstallCommand.Conf>`; apply it to the runtime
+configuration and diagnostic key mapper (often `Function.identity()`).
+The public root-module method is stable even if its implementation overflows into a binding holder.
+Do not instantiate the removed `Xxx$FusionConfigurationFactory` class or depend on `FusionBindings_*`
+owner names; normally command dispatch handles configuration and lifecycle for you.
+See https://www.yupiik.io/fusion/tooling.html#manual-binding-lookup for package and module-generation boundaries.
 
 ## Arg binding and invocation
 
@@ -71,4 +81,5 @@ container. Debug dispatch/binding issues there first.
 
 - Bundle `fusion-build-api` + `fusion-processor` (provided) and `fusion-api` + `fusion-cli` (compile) into
   the module.
-- Shade into a one-jar with `Main-Class` set. Keep it runtime-dependency-light.<!-- generated from fusion-build-internal src/main/resources/agents/skills/fusion-cli/SKILL.md - do not edit -->
+- Shade into a one-jar with `Main-Class` set. Keep it runtime-dependency-light.
+<!-- generated from fusion-build-internal src/main/resources/agents/skills/fusion-cli/SKILL.md - do not edit -->

@@ -15,6 +15,8 @@
  */
 package io.yupiik.fusion.framework.processor;
 
+import static io.yupiik.fusion.framework.processor.test.ProcessorInternals.stateDirectory;
+
 import io.yupiik.fusion.framework.processor.test.GeneratedFactories;
 import io.yupiik.fusion.framework.api.container.FusionBean;
 import io.yupiik.fusion.json.JsonMapper;
@@ -83,7 +85,7 @@ class JsonNativePackagingTest {
     @Test
     void missingIndexFailsSafeInsteadOfTrustingStaleLocalClassOutput() throws Exception {
         compile(Map.of("demo.Model", model("Model")), true);
-        Files.delete(work.resolve("state/json-models-v1.properties"));
+        Files.delete(stateDirectory(work.resolve("state"), work.resolve("classes"), "").resolve("json-models-v1.properties"));
         compile(Map.of("demo.Consumer", consumer("Model")), false);
     }
 
@@ -132,7 +134,7 @@ class JsonNativePackagingTest {
 
     private Set<String> modelNames() throws Exception {
         final var properties = new Properties();
-        try (final var reader = Files.newBufferedReader(work.resolve("state/json-models-v1.properties"))) {
+        try (final var reader = Files.newBufferedReader(stateDirectory(work.resolve("state"), work.resolve("classes"), "").resolve("json-models-v1.properties"))) {
             properties.load(reader);
         }
         return properties.stringPropertyNames();

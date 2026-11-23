@@ -32,6 +32,7 @@ import java.net.http.HttpRequest;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -39,9 +40,12 @@ import java.util.concurrent.CountDownLatch;
 import static io.yupiik.fusion.testing.assertion.Asserts.waitUntil;
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SampleOperatorTest {
     @Test
+    @Timeout(15)
     void handleEvents() {
         final var controller = new MockController();
         try (final var logs = new SampleLoggingCapture(2, m -> m.startsWith("[") && m.contains("test1"));
@@ -58,6 +62,7 @@ class SampleOperatorTest {
                                              "" /* length=0 -> chunking as we want */ :
                                              """
                                                      {
+                                                       "metadata":{"resourceVersion":"initial"},
                                                        "items":[]
                                                      }""").getBytes(StandardCharsets.UTF_8);
                                      ex.sendResponseHeaders(200, response.length);
@@ -118,7 +123,7 @@ class SampleOperatorTest {
             try {
                 assertEquals(
                         List.of(
-                                "[ADD] SampleResource[metadata=Metadata[uid=null, resourceVersion=null, name=test1, namespace=default, labels=null, annotations=null], spec=Spec[message=hello]]",
+                    "[ADD] SampleResource[metadata=Metadata[uid=null, resourceVersion=null, name=test1, namespace=default, labels=null, annotations=null], spec=Spec[message=hello]]",
                                 "[DELETE] SampleResource[metadata=Metadata[uid=null, resourceVersion=null, name=test1, namespace=default, labels=null, annotations=null], spec=Spec[message=hello]]"
                         ),
                         logs.all());
@@ -159,7 +164,7 @@ class SampleOperatorTest {
                                                                    "kind": "Sample",
                                                                    "apiVersion": "fusion.yupiik.io/v1",
                                                                    "metadata": {
-                                                                     "name": "test2",
+                                                                     "uid": "sample-test2", "name": "test2",
                                                                      "namespace": "default",
                                                                      "resourceVersion": "12346"
                                                                    },
@@ -186,7 +191,7 @@ class SampleOperatorTest {
                     final var operator = ConfiguringContainer.of()
                             .register(new ProvidedInstanceBean<>(ApplicationScoped.class, ConfigurationSource.class, () -> configurationSource(kubernetes, storage)))
                             .start()) {
-                final var tracker = storage.resolve("samples");
+                final var tracker = storage.resolve("samples.items");
                 try {
                     waitUntil(() -> {
                         try {
@@ -195,7 +200,7 @@ class SampleOperatorTest {
                             return false;
                         }
                     });
-                    assertEquals("{\"resourceVersion\":\"12346\"}", Files.readString(tracker));
+                    assertTrue(Files.readString(tracker).contains("\"resourceVersion\":\"12346\""));
                 } finally {
                     end.countDown();
                 }
@@ -207,7 +212,7 @@ class SampleOperatorTest {
                     final var logs = new SampleLoggingCapture(4, m -> m.startsWith("[") && m.contains("test2"));
                     final var kubernetes = new CapturingHttpServer(spec -> {
                         spec.map(
-                                "GET", "/apis/fusion.yupiik.io/v1/namespaces/default/samples?resourceVersion=12346",
+                                "GET", "/apis/fusion.yupiik.io/v1/namespaces/default/samples",
                                 rs -> rs.send(
                                         200, Map.of(),
                                         """
@@ -216,7 +221,7 @@ class SampleOperatorTest {
                                                   "items": []
                                                 }"""));
                         spec.map(
-                                "GET", "/apis/fusion.yupiik.io/v1/namespaces/default/samples?watch=true&resourceVersion=12346",
+                                "GET", "/apis/fusion.yupiik.io/v1/namespaces/default/samples?watch=true&resourceVersion=123456",
                                 rs -> rs.send(
                                         200, Map.of(),
                                         new CapturingHttpServer.ResponseBodyHandler() {
@@ -231,7 +236,7 @@ class SampleOperatorTest {
                                                                    "kind": "Sample",
                                                                    "apiVersion": "fusion.yupiik.io/v1",
                                                                    "metadata": {
-                                                                     "name": "test2",
+                                                                     "uid": "sample-test2", "name": "test2",
                                                                      "namespace": "default",
                                                                      "resourceVersion": "12345"
                                                                    },
@@ -246,7 +251,7 @@ class SampleOperatorTest {
                                                                    "kind": "Sample",
                                                                    "apiVersion": "fusion.yupiik.io/v1",
                                                                    "metadata": {
-                                                                     "name": "test2",
+                                                                     "uid": "sample-test2", "name": "test2",
                                                                      "namespace": "default",
                                                                      "resourceVersion": "12346"
                                                                    },
@@ -261,7 +266,7 @@ class SampleOperatorTest {
                                                                    "kind": "Sample",
                                                                    "apiVersion": "fusion.yupiik.io/v1",
                                                                    "metadata": {
-                                                                     "name": "test2",
+                                                                     "uid": "sample-test2", "name": "test2",
                                                                      "namespace": "default",
                                                                      "resourceVersion": "12347"
                                                                    },
@@ -287,11 +292,14 @@ class SampleOperatorTest {
                     .start()) {
                 try {
                     final var traces = logs.all();
-                    // Restore the persisted inventory before replaying watch events.
-                    assertEquals(List.of("12346", "12345", "12346", "12347").stream()
-                            .map(version -> "[ADD] SampleResource[metadata=Metadata[uid=null, resourceVersion=" + version +
+                    // The empty current LIST deletes the historical UID; there is no stale startup ADD.
+                    final var expected = new ArrayList<String>();
+                    expected.add("[DELETE] SampleResource[metadata=Metadata[uid=sample-test2, resourceVersion=12346, name=test2, namespace=default, labels=null, annotations=null], spec=Spec[message=hello]]");
+                    expected.addAll(List.of("12345", "12346", "12347").stream()
+                            .map(version -> "[ADD] SampleResource[metadata=Metadata[uid=sample-test2, resourceVersion=" + version +
                                     ", name=test2, namespace=default, labels=null, annotations=null], spec=Spec[message=hello]]")
-                            .toList(), traces);
+                            .toList());
+                    assertEquals(expected, traces);
                 } finally {
                     end.countDown();
                 }

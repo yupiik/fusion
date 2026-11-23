@@ -1,0 +1,105 @@
+= Migrating to Fusion 1.3
+:minisite-index: 650
+:minisite-index-title: Migration to 1.3
+:minisite-index-description: Upgrade guidance for generated bindings, testing, annotation dependencies, routing and operators.
+:minisite-index-icon: exchange-alt
+:minisite-nav-prev-link: ai-skills.html
+:minisite-nav-prev-label: AI skills
+
+[abstract]
+This guide consolidates the source and behavior changes to review when upgrading from Fusion 1.2.x to 1.3.
+
+== Build JDK versus runtime baseline
+
+Building Fusion itself requires JDK 21 or newer and Maven 3.8 or newer.
+The runtime baseline remains Java 17.
+The newer build JDK requirement does not imply that applications must run on Java 21.
+
+== Generated implementation classes and manual construction
+
+The 1.3 processor no longer emits per-model implementation classes such as `X$FusionJsonCodec`, `X$FusionConfigurationFactory`, `X$FusionPersistenceEntity` and `X$FusionBean`.
+Compact generated modules and package binding holders use shared runtime adapters instead.
+Application source that directly constructs or extends these former generated classes must be migrated when recompiled; this is distinct from running already compiled 1.2.x-generated code on the 1.3 runtime.
+The latter remains supported, but does not restore the old generated source API in a fresh compilation.
+Perform a clean rebuild when switching processors so obsolete generated classes do not conceal source dependencies on the old layout.
+
+Prefer normal module discovery for beans/listeners and registered `JsonMapper` codecs rather than referencing implementation owners.
+For manual codec, configuration, persistence or service-factory construction, keep module generation enabled and set `-Afusion.moduleFqn=com.acme.FusionModule`, with the root module in the model's package.
+The generated root module exposes public static methods with typed return values, for example `FusionModule.Model$FusionJsonCodec()` and `FusionModule.Settings$FusionConfigurationFactory()`.
+These methods remain on the root module when size overflow moves construction code into a holder; neither module size nor shard indices need to enter application code.
+Nested names retain `$`, for example `FusionModule.Outer$Model$FusionJsonCodec()`.
+There is no supported string-based lookup API replacing these typed calls.
+
+See xref:tooling.adoc#manual-binding-lookup[standalone factories] for a typed example and the return types for all supported families.
+The stable root-module entry point applies to models in that module's package, not arbitrary models in other packages.
+With `fusion.generateModule=false`, standalone factories remain, but the generated construction owner names are implementation details rather than a stable public API.
+Ordinary bean/listener descriptors have no standalone factory; use generated module registration.
+Do not depend on `FusionBindings_*` names or shard numbering.
+
+Use an explicit, unique `fusion.moduleFqn` for independently compiled artifacts, particularly libraries sharing business packages.
+Do not use a checkout directory name as an application-level module identity.
+See xref:setup.adoc[setup] for output identity, compiler options and incremental-state requirements, and xref:processor-internals.adoc[processor internals] for implementation details.
+
+== Testing discovery and directory lists
+
+`ListingPredicateModule` is a constructor-based fallback for legacy or manually written descriptors.
+Its bean/listener filename predicates do not select or exclude the compact processor's normal module registrations.
+Tests filtering names such as `X$FusionBean.class` must instead use normal module discovery and container selection/filtering based on business types and registration metadata.
+
+The `io.yupiik.fusion.testing.module.TestingModule.dirs` system property now uses the platform path separator, not a comma-separated list.
+Use `target/classes:target/test-classes` on Unix-like systems and `target/classes;target/test-classes` on Windows.
+In portable Java launchers, join paths with `File.pathSeparator`.
+See xref:testing.adoc[testing] for the discovery boundaries and container test helpers.
+
+== CLASS-retained build annotations on the compile classpath
+
+`@JsonProperty`, `@JsonOthers`, `@JsonModel` and `@BeanMetadataAlias` now have `CLASS` retention so the processor can read annotation metadata from compiled libraries.
+Consumers compiling against those libraries should include the matching `io.yupiik.fusion:fusion-build-api` version on their compile classpath, even if their own source has no Fusion annotations.
+Otherwise javac can report missing annotation classes or annotation methods such as `Cannot find annotation method 'value()'`; with `-Xlint:all -Werror`, these warnings fail the compilation.
+The diagnostics depend on which annotated classes and members javac reads, so a successful minimal consumer compilation is not evidence that the dependency is unnecessary.
+For example, an isolated Java 17 classfile fixture containing a `@JsonModel` record with a `@JsonProperty("renamed")` constructor parameter reproduces the missing `value()` warning when a consumer constructs the record under javac 17 or 21 with `-proc:none -Xlint:all -Werror` and no build-api on its compile classpath.
+Adding build-api to that compile classpath makes the same consumer compile, and the resulting program runs without build-api on its runtime classpath.
+
+For Maven consumers, declare `fusion-build-api` directly with `provided` scope; a library's provided dependency is not a transitive compile dependency for its consumers.
+Do not add a runtime dependency just to silence these warnings: the metadata is consumed at compile time and Fusion does not reflectively read these annotations at runtime.
+See xref:setup.adoc[setup] for the build-api/processor/runtime dependency split.
+
+== HTTP routing priorities and ties
+
+Both HTTP adapters test routes in descending routing-priority order (higher values first) and use the first matching endpoint.
+Set distinct `@HttpMatcher(priority = ...)` values when overlapping matchers need a specific precedence, for example an exact route before a GET catch-all.
+Routing priority is separate from the priority of the bean supplying an endpoint.
+
+Equal routing priorities preserve the endpoint list's supplied order in the adapters; this is not a specificity rule.
+The compact processor's generated registrations use stable binding identity order within equal-priority groups, rather than the old per-endpoint descriptor class layout.
+Do not rely on old generated class names, source declaration order, or cross-module discovery order to break routing ties after upgrading.
+Review ambiguous routes even when both matchers still compile unchanged.
+See xref:http-server.adoc[HTTP server routing] for the precise generated-registration and custom-endpoint ordering boundaries.
+
+== Kubernetes operators
+
+Review xref:kubernetes-operator.adoc[Kubernetes operator startup, recovery and retry behavior] when upgrading an operator; that page is the reference for exact settings, defaults and retry limits.
+Metadata-only containers must explicitly disable operator startup rather than relying on an opt-in default.
+
+Every startup now reconciles a complete fresh LIST of current API objects before WATCH, using the LIST collection's opaque `metadata.resourceVersion`, never individual item versions.
+There is no startup `limit=1` cursor-validation probe because it cannot provide current reconciliation values.
+Persisted inventory is used only to identify UIDs deleted during downtime, including when the current list is empty; it is not replayed through `onAdd`.
+Legacy persisted cursor files are ignored and no longer written, validated or resumed; keep existing `.items` inventories for upgrade deletion comparison, and remove legacy cursor files if desired.
+Missing or corrupt inventory does not prevent current-state startup, but historical downtime deletion comparison is unavailable.
+A failed fresh LIST never substitutes stale objects or partial results, opens that watch or makes it ready.
+Live watch reconnects retain the last successfully processed in-memory cursor, while 410 requires a full relist.
+Verify list/watch failure handling, including RBAC/CRD failures, using the operator guide's retry and logging contract.
+Keep callbacks idempotent: restart, relist and server replay can repeat work, with no duplicate suppression or exactly-once delivery guarantee.
+
+For subclasses of `SimpleController`, the protected `queue` remains a real `BlockingQueue<String>` for raw watch lines.
+Controllers use isolated, owned workers sized by the constructor's thread count; a borrowed scheduler is not closed with the controller.
+Raw-line and continuation-task queues are separate FIFOs and alternate when both have work; there is no single total FIFO order across both queues.
+Shutdown drains a bounded snapshot for at most five seconds; direct writes to the protected queue after the shutdown snapshot are not processed.
+See the operator guide for controller lifecycle and callback-failure behavior rather than assuming an unbounded shutdown drain.
+
+== Incremental compiler work directory
+
+An explicit `-Afusion.workdir` participates in processor incremental state, not runtime configuration.
+Review xref:setup.adoc[setup's compilation-output isolation rules] and xref:processor-internals.adoc[the incremental-state contract] before sharing compiler arguments between main compilation, test compilation and IDE partial builds.
+When configuring compiler arguments at plugin level, verify the effective state location separately for main compilation, test compilation and each IDE output; a cache for one output must not prune another output's entries.
+Use those pages for the current path-resolution and cleanup semantics, and clean-rebuild guidance; do not package work-directory state into application artifacts.

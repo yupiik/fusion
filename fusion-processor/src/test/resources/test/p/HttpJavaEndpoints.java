@@ -16,6 +16,7 @@
 package test.p;
 
 import io.yupiik.fusion.framework.build.api.http.HttpJavaMatcher;
+import io.yupiik.fusion.framework.build.api.http.HttpMatcher;
 import io.yupiik.fusion.framework.build.api.json.JsonModel;
 import io.yupiik.fusion.http.server.api.Request;
 import io.yupiik.fusion.http.server.api.Response;
@@ -41,7 +42,7 @@ public class HttpJavaEndpoints {
         return completedFuture(Response.of().status(201).header("java-method", "all").build());
     }
 
-    @HttpJavaMatcher(priority = 1, value = """
+    @HttpJavaMatcher("""
             "GET".equals(req.method())
             """)
     public Response get(final Request request) {
@@ -52,28 +53,28 @@ public class HttpJavaEndpoints {
                 .build();
     }
 
-    @HttpJavaMatcher(priority = 2, value = """
+    @HttpJavaMatcher("""
             "GET".equals(req.method()) && "/foo".equals(req.path())
             """)
     public CompletionStage<Response> getAndFooPath() {
         return completedFuture(Response.of().status(203).header("java-method", "getAndFooPath").build());
     }
 
-    @HttpJavaMatcher(priority = 3, value = """
+    @HttpJavaMatcher("""
             "GET".equals(req.method()) && req.path().endsWith("/foo")
             """)
     public CompletionStage<Response> getAndEndsWithFooPath() {
         return completedFuture(Response.of().status(204).header("java-method", "getAndEndsWithFooPath").build());
     }
 
-    @HttpJavaMatcher(priority = 4, value = """
+    @HttpJavaMatcher("""
             "GET".equals(req.method()) && req.path().startsWith("/foo")
             """)
     public CompletionStage<Response> getAndStartsWithFooPath() {
         return completedFuture(Response.of().status(205).header("java-method", "getAndStartsWithFooPath").build());
     }
 
-    @HttpJavaMatcher(priority = 5, value = """
+    @HttpJavaMatcher("""
             { // never use this kind of regex which recompiles per request the request, just for tests
                 if (!"GET".equals(req.method())) { return false; }
                 final var matcher = java.util.regex.Pattern.compile("/foo/.+/foo").matcher(req.path());
@@ -88,14 +89,14 @@ public class HttpJavaEndpoints {
         return completedFuture(Response.of().status(206).header("java-method", "getAndRegexFooPath").build());
     }
 
-    @HttpJavaMatcher(priority = 7, value = """
+    @HttpJavaMatcher("""
             "POST".equals(req.method()) && "/greetstage".equals(req.path())
             """)
     public CompletionStage<GreetResponse> greetStage(final GreetRequest request) {
         return completedFuture(new GreetResponse("Hello " + request.name() + "!"));
     }
 
-    @HttpJavaMatcher(priority = 6, value = """
+    @HttpJavaMatcher("""
             "POST".equals(req.method()) && "/greet".equals(req.path())
             """)
     public GreetResponse greet(final GreetRequest request) {

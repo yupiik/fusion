@@ -15,6 +15,8 @@
  */
 package io.yupiik.fusion.framework.processor;
 
+import static io.yupiik.fusion.framework.processor.test.ProcessorInternals.stateDirectory;
+
 import org.eclipse.jdt.internal.compiler.tool.EclipseCompiler;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -114,7 +116,7 @@ class CompilerPortabilityTest {
         final var options = List.of("-Afusion.generateModule=false");
         final var first = compile(new EclipseCompiler(), "incremental", sources, options, List.of(new FusionProcessor()));
         assertTrue(first.success(), first.diagnostics());
-        assertTrue(Files.exists(work.resolve("incremental/state/compact-v1.bin")), "Explicit workdir must work without a javac output URI");
+        assertTrue(Files.exists(stateDirectory(work.resolve("incremental/state"), work.resolve("incremental/classes"), "").resolve("compact-v1.bin")), "Explicit workdir must work without a javac output URI");
         final var partial = compile(new EclipseCompiler(), "incremental", Map.of("alpha/First.java", sources.get("alpha/First.java")),
                 options, List.of(new FusionProcessor()));
         assertTrue(partial.success(), partial.diagnostics());

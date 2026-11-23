@@ -33,6 +33,7 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -42,7 +43,7 @@ import static java.util.concurrent.CompletableFuture.allOf;
 public class OperatorsLifecycle implements Awaiter {
     private final RuntimeContainer container;
     private final List<Instance<?>> handles = new ArrayList<>();
-    private final List<OperatorRuntime<?>> operators = new ArrayList<>();
+    private final List<OperatorRuntime<?>> operators = new CopyOnWriteArrayList<>();
     private HttpServer probes;
 
     public OperatorsLifecycle(final RuntimeContainer container) {
@@ -53,7 +54,7 @@ public class OperatorsLifecycle implements Awaiter {
     public void onStart(@OnEvent final Start ignored) {
         // Do not even parse runtime configuration or instantiate producers in metadata containers.
         try (final var configuration = container.lookup(Configuration.class)) {
-            if (!configuration.instance().get("operator.enabled").map(Boolean::parseBoolean).orElse(false)) {
+            if (!configuration.instance().get("operator.enabled").map(Boolean::parseBoolean).orElse(true)) {
                 return;
             }
         }
@@ -110,6 +111,7 @@ public class OperatorsLifecycle implements Awaiter {
                     }
                     switch (exchange.getRequestURI().getPath()) {
                         case "/health" -> exchange.sendResponseHeaders(200, 0);
+                        case "/ready" -> exchange.sendResponseHeaders(operators.stream().allMatch(OperatorRuntime::isReady) ? 200 : 503, 0);
                         case "/metrics" -> exchange.sendResponseHeaders(200, 0);
                         default -> exchange.sendResponseHeaders(404, 0);
                     }

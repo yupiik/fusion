@@ -39,6 +39,7 @@ import io.yupiik.fusion.framework.api.scope.DefaultScoped;
 import io.yupiik.fusion.framework.processor.test.GeneratedFactories;
 import io.yupiik.fusion.framework.processor.test.CompilationClassLoader;
 import io.yupiik.fusion.framework.processor.test.Compiler;
+import io.yupiik.fusion.framework.processor.test.ProcessorInternals;
 import io.yupiik.fusion.http.server.api.Body;
 import io.yupiik.fusion.http.server.api.Cookie;
 import io.yupiik.fusion.http.server.api.Request;
@@ -87,6 +88,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.ServiceLoader;
@@ -1930,9 +1932,10 @@ class FusionProcessorTest {
     @Test
     void incrementalCompilationKeepsLocalJsonSchemasOnly(@TempDir final Path work) throws IOException {
         final var state = work.resolve("fusion").toString();
-        final var workdir = Path.of(state).resolve("json_schema");
         final var compiler = new Compiler(work, "JsonEnumCustomMapping", "EmptyRecord").workdir(state);
         compiler.assertCompiles(0);
+        final var workdir = ProcessorInternals.stateDirectory(Path.of(state), work.resolve("classes"), "")
+                .resolve("json_schema");
 
         // cold build: the module bundle and the workdir cache only hold local schemas (record AND enum)
         final var bundle = work.resolve("classes").resolve("META-INF").resolve("fusion").resolve("json").resolve("schemas.json");
@@ -3343,7 +3346,7 @@ class FusionProcessorTest {
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    private void withEndpoint(final RuntimeContainer container, final int priority, final Consumer<Endpoint> consumer) {
+    private void withEndpoint(final RuntimeContainer container, final String method, final Consumer<Endpoint> consumer) {
         final var beans = container.getBeans().getBeans().values().stream().flatMap(Collection::stream)
                 .filter(bean -> bean.type().getTypeName().equals("io.yupiik.fusion.http.server.impl.DefaultEndpoint")).toList();
         int matches = 0;
@@ -3351,13 +3354,26 @@ class FusionProcessorTest {
             try (final var instance = container.getContexts().findContext(bean.scope()).orElseThrow()
                     .getOrCreate(container, (FusionBean) bean)) {
                 final var endpoint = (Endpoint) instance.instance();
-                if (endpoint.priority() == priority) {
+                final var probe = switch (method) {
+                    case "greet", "greetStage" -> new SimpleRequest("POST", "/" + method.toLowerCase(Locale.ROOT),
+                            new HashMap<>(), new BytesPublisher("{\"name\":\"probe\"}"));
+                    case "getAndRegexFooPath" -> new SimpleRequest("GET", "/foo/bar/foo", new HashMap<>());
+                    default -> new SimpleRequest();
+                };
+                if (!endpoint.matches(probe)) {
+                    continue;
+                }
+                final var response = endpoint.handle(probe).toCompletableFuture().join();
+                final var selected = method.startsWith("greet") ? response.status() == 200 :
+                        List.of(method).equals(response.headers().get("java-method"));
+                if (selected) {
                     matches++;
+                    assertEquals("all".equals(method) ? 0 : 1000, endpoint.priority());
                     consumer.accept(endpoint);
                 }
             }
         }
-        assertEquals(1, matches, "Expected one registered endpoint with fixture priority " + priority);
+        assertEquals(1, matches, "Expected one endpoint with observable fixture behavior " + method);
     }
 
     private void assertJsonRpc(final JsonRpcEndpoint instance, final String request, final String response) {
@@ -3387,32 +3403,32 @@ class FusionProcessorTest {
                         "test.p.Http" + marker + "Endpoints$greet$FusionHttp" + marker + "Endpoint",
                         "test.p.Http" + marker + "Endpoints$greetStage$FusionHttp" + marker + "Endpoint"));
 
-        withEndpoint(container, 0, instance -> {
+        withEndpoint(container, "all", instance -> {
             assertTrue(instance.matches(new SimpleRequest()));
             assertTrue(instance.matches(new SimpleRequest("POST", "/foo", Map.of())));
             assertTrue(instance.matches(new SimpleRequest("POST", "/whatever", Map.of())));
         });
-        withEndpoint(container, 1, instance -> {
+        withEndpoint(container, "get", instance -> {
             assertTrue(instance.matches(new SimpleRequest()));
             assertFalse(instance.matches(new SimpleRequest("POST", "/foo", Map.of())));
             assertTrue(instance.matches(new SimpleRequest("GET", "/whatever", Map.of())));
         });
-        withEndpoint(container, 2, instance -> {
+        withEndpoint(container, "getAndFooPath", instance -> {
             assertTrue(instance.matches(new SimpleRequest()));
             assertFalse(instance.matches(new SimpleRequest("POST", "/foo", Map.of())));
             assertFalse(instance.matches(new SimpleRequest("GET", "/whatever", Map.of())));
         });
-        withEndpoint(container, 3, instance -> {
+        withEndpoint(container, "getAndEndsWithFooPath", instance -> {
             assertTrue(instance.matches(new SimpleRequest()));
             assertFalse(instance.matches(new SimpleRequest("GET", "/foo/bar", Map.of())));
             assertTrue(instance.matches(new SimpleRequest("GET", "/whatever/foo", Map.of())));
         });
-        withEndpoint(container, 4, instance -> {
+        withEndpoint(container, "getAndStartsWithFooPath", instance -> {
             assertTrue(instance.matches(new SimpleRequest()));
             assertTrue(instance.matches(new SimpleRequest("GET", "/foo/bar", Map.of())));
             assertFalse(instance.matches(new SimpleRequest("GET", "/whatever/foo", Map.of())));
         });
-        withEndpoint(container, 5, instance -> {
+        withEndpoint(container, "getAndRegexFooPath", instance -> {
             assertFalse(instance.matches(new SimpleRequest()));
 
             final var attributes = new HashMap<String, Object>();
@@ -3421,7 +3437,7 @@ class FusionProcessorTest {
             final var matcher = attributes.get("fusion.http.matcher");
             assertInstanceOf(Matcher.class, matcher);
         });
-        withEndpoint(container, 6, instance -> {
+        withEndpoint(container, "greet", instance -> {
             assertFalse(instance.matches(new SimpleRequest()));
             assertTrue(instance.matches(new SimpleRequest("POST", "/greet", Map.of())));
 
@@ -3432,7 +3448,7 @@ class FusionProcessorTest {
             assertEquals(Map.of("content-type", List.of("application/json;charset=utf-8")), response.headers());
             assertEquals("{\"message\":\"Hello fusion!\"}", assertDoesNotThrow(() -> new String(new RequestBodyAggregator(response.body(), UTF_8).promise().toCompletableFuture().get())));
         });
-        withEndpoint(container, 7, instance -> {
+        withEndpoint(container, "greetStage", instance -> {
             assertFalse(instance.matches(new SimpleRequest()));
             assertTrue(instance.matches(new SimpleRequest("POST", "/greetstage", Map.of())));
 

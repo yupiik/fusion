@@ -29,14 +29,17 @@ Generated from the annotation processor metadata (`META-INF/fusion/configuration
 | Name | Env variable | Description | Default | Required |
 |---|---|---|---|---|
 | `operator.await` | `OPERATOR_AWAIT` | Should operator await process termination, keep it `true` until you embed it. | `true` | no |
-| `operator.enabled` | `OPERATOR_ENABLED` | Enable operator watches and probes. Must be explicitly enabled for operator startup; metadata containers remain inactive by default. | `false` | no |
+| `operator.enabled` | `OPERATOR_ENABLED` | Enable operator watches and probes. Set explicitly to false in metadata-only containers. | `true` | no |
 | `operator.event-thread-count` | `OPERATOR_EVENT_THREAD_COUNT` | How many threads are handling events, take care that more than one require a specific concurrency handling. | `1` | no |
 | `operator.kubernetes.certificates` | `OPERATOR_KUBERNETES_CERTIFICATES` | Kubernetes certificate to connect to its API. | `"/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"` | no |
 | `operator.kubernetes.master` | `OPERATOR_KUBERNETES_MASTER` | The kubernetes API base URL. | `java.util.Optional.ofNullable(System.getenv("KUBERNETES_SERVICE_HOST")).map(host -> "https://" + host + ':' + java.util.Optional.ofNullable(System.getenv("KUBERNETES_SERVICE_PORT")).orElse("443")).orElse("https://kubernetes.default.svc")` | no |
 | `operator.kubernetes.tls-skip` | `OPERATOR_KUBERNETES_TLS_SKIP` | Should TLS validations be skipped. | `false` | no |
 | `operator.kubernetes.token` | `OPERATOR_KUBERNETES_TOKEN` | Kubernetes token (service account). | `"/var/run/secrets/kubernetes.io/serviceaccount/token"` | no |
 | `operator.probe-port` | `OPERATOR_PROBE_PORT` | Server for healthchecks, set to a negative value to disable (when embedded for ex). | `8081` | no |
-| `operator.storage` | `OPERATOR_STORAGE` | Operator can store locally (on the filesystem) the latest resource version it saw. This must be a directory, ignored if `null`. | - | no |
+| `operator.retry.initial-delay` | `OPERATOR_RETRY_INITIAL_DELAY` | Initial retry delay in milliseconds, at least 1. | `100` | no |
+| `operator.retry.max-delay` | `OPERATOR_RETRY_MAX_DELAY` | Maximum retry delay in milliseconds, including Retry-After. | `5000` | no |
+| `operator.retry.retry-permanent-errors` | `OPERATOR_RETRY_RETRY_PERMANENT_ERRORS` | Retry permanent list/watch failures (including 401, 403 and collection 404) instead of stopping the affected watch. | `false` | no |
+| `operator.storage` | `OPERATOR_STORAGE` | Directory for the last processed object inventory, used only to identify downtime deletions. Startup always lists current API state; no persistent cursor is resumed. Ignored if `null`. | - | no |
 | `operator.use-bookmarks` | `OPERATOR_USE_BOOKMARKS` | If `true`, `BOOKMARK` events are enabled. | `true` | no |
 
 ## Working in this module

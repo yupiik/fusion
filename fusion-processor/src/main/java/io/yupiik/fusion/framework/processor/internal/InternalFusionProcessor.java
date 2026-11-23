@@ -251,6 +251,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
     private String module;
     private Path outputRoot;
     private Path workdir;
+    private WorkdirState workdirState;
     private BindingEmitter bindings;
     private JsonModelIndex modelIndex;
     private boolean moduleGenerated;
@@ -266,7 +267,15 @@ public class InternalFusionProcessor extends AbstractProcessor {
     @Override
     public synchronized void init(final ProcessingEnvironment processingEnv) {
         super.init(processingEnv);
+        try {
+            initialize(processingEnv);
+        } catch (final RuntimeException | Error failure) {
+            closeWorkdir();
+            throw failure;
+        }
+    }
 
+    private void initialize(final ProcessingEnvironment processingEnv) {
         debugTime = Boolean.parseBoolean(processingEnv.getOptions().getOrDefault("fusion.debug.timeTracking", "false"));
         clock = debugTime ? systemUTC() : null;
         outputRoot = findOutput().orElse(null);
@@ -447,14 +456,27 @@ public class InternalFusionProcessor extends AbstractProcessor {
     }
 
     private Path findWorkdir(final Path outputRoot) {
-        // explicit option wins even when a compiler cannot locate a nonexistent output resource.
+        // An explicit root is shared by build-tool compile/test tasks, never a shared inventory.
         final var option = processingEnv.getOptions().get("fusion.workdir");
         if ("false".equals(option)) {
             return null;
         }
         if (option != null && !option.isBlank()) {
-            return processingEnv instanceof ModuleProcessingEnvironment scoped ?
-                    Path.of(option).resolve(scoped.moduleName()) : Path.of(option);
+            if (outputRoot == null) {
+                if (processingEnv instanceof ModuleProcessingEnvironment) {
+                    throw new IllegalStateException("Explicit fusion.workdir requires a verifiable file class output; disable it with false or perform a full clean rebuild with a supported output");
+                }
+                // A multi-module javac invocation has no unqualified output. Its scoped
+                // processors acquire state once actual module outputs can be verified.
+                return null;
+            }
+            try {
+                workdirState = WorkdirState.open(Path.of(option), outputRoot,
+                        processingEnv instanceof ModuleProcessingEnvironment scoped ? scoped.moduleName() : "");
+                return workdirState.directory();
+            } catch (final IOException e) {
+                throw new IllegalStateException("Cannot own fusion.workdir; perform a full clean rebuild", e);
+            }
         }
         if (outputRoot == null) {
             return null;
@@ -489,10 +511,40 @@ public class InternalFusionProcessor extends AbstractProcessor {
 
     @Override
     public boolean process(final Set<? extends TypeElement> annotations, final RoundEnvironment roundEnv) {
-        if (!(processingEnv instanceof ModuleProcessingEnvironment) && processNamedModules(annotations, roundEnv)) {
-            return false;
+        try {
+            if (!(processingEnv instanceof ModuleProcessingEnvironment) && processNamedModules(annotations, roundEnv)) {
+                return false;
+            }
+            final var explicitWorkdir = processingEnv.getOptions().get("fusion.workdir");
+            if (outputRoot == null && explicitWorkdir != null && !explicitWorkdir.isBlank() && !"false".equals(explicitWorkdir)) {
+                throw new IllegalStateException("Explicit fusion.workdir requires a verifiable file class output; disable it with false or perform a full clean rebuild with a supported output");
+            }
+            return processRound(roundEnv, roundEnv.getRootElements().stream().anyMatch(it -> !isCoordinationSource(it)));
+        } catch (final RuntimeException | Error failure) {
+            closeWorkdirs();
+            throw failure;
+        } finally {
+            if (roundEnv.processingOver()) {
+                closeWorkdirs();
+            }
         }
-        return processRound(roundEnv, roundEnv.getRootElements().stream().anyMatch(it -> !isCoordinationSource(it)));
+    }
+
+    private void closeWorkdirs() {
+        moduleProcessors.values().forEach(InternalFusionProcessor::closeWorkdir);
+        closeWorkdir();
+    }
+
+    private void closeWorkdir() {
+        if (workdirState != null) {
+            try {
+                workdirState.close();
+            } catch (final IOException e) {
+                throw new IllegalStateException("Cannot release fusion.workdir ownership", e);
+            } finally {
+                workdirState = null;
+            }
+        }
     }
 
     private boolean processRound(final RoundEnvironment roundEnv, final boolean sourceActivity) {
@@ -501,6 +553,13 @@ public class InternalFusionProcessor extends AbstractProcessor {
             final var start = debugStart();
             generateMetadata();
             debugEnd("generateMeta", processingEnv, start);
+            if (!roundEnv.errorRaised() && moduleGenerated) {
+                try {
+                    bindings.complete();
+                } catch (final IOException e) {
+                    throw new IllegalStateException("Cannot complete compact output update; perform a full clean rebuild", e);
+                }
+            }
         } else {
             final var start = debugStart();
             roundEnv.getRootElements().forEach(bindings::touch);

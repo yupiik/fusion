@@ -66,6 +66,28 @@ public class Greeting implements Endpoint {
 
 TIP: for byte oriented payloads (JSON typically) prefer `Response.of().bytesBody(stream -> ...)` which writes directly on the response `OutputStream` (no container char conversion), and read request bodies through `request.unwrapOrNull(InputStream.class)` (preferred over `Reader.class` for the same reason) - this is what the generated JSON endpoints and the JSON-RPC endpoint do.
 
+== Endpoint precedence
+
+Both the Tomcat and JRE adapters test endpoints in descending `Endpoint.priority()` order (highest value first).
+The default routing priority is `1000`, including for `@HttpMatcher` and `@HttpJavaMatcher`.
+The first endpoint whose matcher returns `true` handles the request; subsequent matchers and handlers are not invoked.
+There is no automatic ranking of exact paths, prefixes, suffixes, regular expressions, HTTP methods, or Java matcher expressions by specificity.
+For example, give a catch-all fallback `priority = 0` and leave normal routes at `1000`, or give an overriding route a higher explicit priority.
+For handwritten endpoints, override `priority()` or use the priority argument of `Endpoint.of`.
+
+Equal routing priorities preserve the order of the endpoint list supplied to the adapter.
+Both adapters take a sorted snapshot without reordering the caller's list.
+In Tomcat this also applies to endpoints collected by the container, configuration listeners, manually supplied lists, and the monitoring servlet.
+Bean collection order is a separate concern: `@Order`/bean priority controls the container's bean ordering, not the endpoint's routing priority.
+Generated bean ordering remains deterministic and independent of routing precedence; do not use generated implementation class names, runtime object identities, or binding holder layout to choose a route.
+
+IMPORTANT: Tomcat previously tested the supplied list without sorting by endpoint priority; honoring routing priority for all endpoint lists is an intentional behavior change.
+The JRE adapter already sorted by descending priority.
+Within a generated module, endpoints tied in both bean ordering and routing priority retain the generator's lexical endpoint order, as before (not Java source declaration order).
+Across generated modules, or between generated and handwritten endpoints, equal-priority winners can differ from older per-endpoint generated classes because the container no longer orders them by those implementation class names.
+There is deliberately no global lexical route order across modules.
+If overlapping routes require a particular winner across these boundaries, give them distinct endpoint priorities rather than relying on module discovery order or generated-versus-manual tie order.
+
 == Configuration
 
 Most of the configuration can be customized using an event listener on `WebServer.Configuration` and unwrapping the instance as a `TomcatWebServerConfiguration` you have access to a full Tomcat server customization (HTTP/2.0, WebSocket and so on).

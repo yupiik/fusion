@@ -18,14 +18,17 @@ package io.yupiik.kubernetes.operator.base.impl;
 import io.yupiik.fusion.json.JsonMapper;
 import io.yupiik.kubernetes.operator.base.spi.Operator;
 
+import java.util.ArrayDeque;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 
@@ -38,15 +41,34 @@ public abstract class SimpleController<T extends ObjectLike> {
 
     private final ExecutorService workers;
     private final ReentrantLock admission = new ReentrantLock();
+    private final Condition available = admission.newCondition();
     private final AtomicBoolean initialized = new AtomicBoolean();
     private final JsonMapper jsonMapper;
     private final int threadCount;
     protected final Operator<T> operator;
 
     protected final OperatorState<T> state = new OperatorState<>();
-    private final BlockingQueue<Runnable> queue = new LinkedBlockingQueue<>();
+    /**
+     * Legacy subclass event ingress, including direct {@code offer}, {@code put} and {@code add} calls.
+     * Prefer {@link #onEvent(String)} for admission synchronized with stop.
+     * Stop snapshots pending entries; direct submissions after that snapshot are not processed.
+     * This is a real, unbounded queue, not a view of the internal task queue.
+     */
+    protected final BlockingQueue<String> queue = new LinkedBlockingQueue<>();
+    private final Queue<Runnable> tasks = new ArrayDeque<>();
+    private final Queue<String> drainingEvents = new ArrayDeque<>();
+    private boolean preferEvent = true;
+    private boolean drained;
     protected volatile boolean stopping = false;
 
+    /**
+     * @param threads borrowed scheduler retained in the constructor for subclass compatibility;
+     *                subclasses can use it for HTTP work and timers, but event loops run on isolated,
+     *                owned workers so they cannot starve the scheduler. This controller never closes it.
+     * @param jsonMapper event mapper.
+     * @param threadCount number of owned event workers.
+     * @param operator event callbacks.
+     */
     public SimpleController(final ScheduledExecutorService threads,
                             final JsonMapper jsonMapper,
                             final int threadCount,
@@ -103,14 +125,23 @@ public abstract class SimpleController<T extends ObjectLike> {
     }
 
     public void onEvent(final String event) {
-        enqueue(() -> handleEvent(event));
+        admission.lock();
+        try {
+            if (!stopping) {
+                queue.offer(event);
+                available.signal();
+            }
+        } finally {
+            admission.unlock();
+        }
     }
 
     protected final void enqueue(final Runnable event) {
         admission.lock();
         try {
             if (!stopping) {
-                queue.offer(event);
+                tasks.offer(event);
+                available.signal();
             }
         } finally {
             admission.unlock();
@@ -119,19 +150,27 @@ public abstract class SimpleController<T extends ObjectLike> {
 
     // Only continuations of already admitted work may bypass shutdown admission.
     protected final void enqueueContinuation(final Runnable event) {
-        queue.offer(event);
+        admission.lock();
+        try {
+            if (!drained) {
+                tasks.offer(event);
+                available.signal();
+            }
+        } finally {
+            admission.unlock();
+        }
     }
 
     @SuppressWarnings("unchecked")
     protected final void handleEvent(final String line) {
         final var data = jsonMapper.fromString(Event.class, line);
         if (data.type() == null || data.object() == null) {
-            logger.warning(() -> "Ignoring event: " + data);
+            logger.warning("Ignoring event without type or object");
             return;
         }
         switch (data.type()) {
             case "ERROR" -> {
-                logger.severe(line);
+                logger.severe("Kubernetes ERROR event received");
                 operator.onError(line);
             }
             case "BOOKMARK" -> {
@@ -150,7 +189,7 @@ public abstract class SimpleController<T extends ObjectLike> {
             case "ADDED" -> internalOnAdd(asObject(data.object()));
             case "MODIFIED" -> internalOnModified(asObject(data.object()));
             case "DELETED" -> internalOnDelete(asObject(data.object()));
-            default -> logger.warning(() -> "Ignoring event: " + data);
+            default -> logger.warning("Ignoring event with unsupported type");
         }
     }
 
@@ -163,42 +202,94 @@ public abstract class SimpleController<T extends ObjectLike> {
     }
 
     private void eventLoop() {
-        while (!stopping || !queue.isEmpty()) {
+        while (true) {
             try {
-                final var poll = queue.poll(50, MILLISECONDS);
-                if (poll != null) {
-                    poll.run();
+                final var next = nextTask();
+                if (next == null) {
+                    break;
                 }
+                next.run();
             } catch (final InterruptedException e) {
                 logger.info("Exiting from controller on interruption");
                 Thread.currentThread().interrupt();
                 break;
             } catch (final RuntimeException e) {
-                logger.log(SEVERE, "Event handler failed; continuing with the next event", e);
+                // Callback and parsing exceptions can contain credentials, URLs or resource bodies.
+                logger.log(SEVERE, "Event handler failed; continuing with the next event");
             }
         }
         logger.info("Exiting from controller");
     }
 
+    // FIFO within each lane, alternating when both are busy. With multiple workers callback
+    // completion order is intentionally unspecified, just as with a single shared work queue.
+    private Runnable nextTask() throws InterruptedException {
+        admission.lockInterruptibly();
+        try {
+            while (true) {
+                final var events = stopping ? drainingEvents : queue;
+                final var event = (preferEvent || tasks.isEmpty()) ? events.poll() : null;
+                if (event != null) {
+                    preferEvent = false;
+                    return () -> handleEvent(event);
+                }
+                final var task = tasks.poll();
+                if (task != null) {
+                    preferEvent = true;
+                    return task;
+                }
+                if (!events.isEmpty()) {
+                    continue;
+                }
+                if (stopping) {
+                    return null;
+                }
+                // Direct legacy queue writes cannot signal our condition.
+                available.await(50, MILLISECONDS);
+            }
+        } finally {
+            admission.unlock();
+        }
+    }
+
     public void stop() {
         admission.lock();
         try {
-            stopping = true;
+            if (!stopping) {
+                stopping = true;
+                // drainTo takes a finite snapshot even while legacy producers keep submitting.
+                queue.drainTo(drainingEvents);
+            }
             workers.shutdown();
+            available.signalAll();
         } finally {
             admission.unlock();
         }
         final var deadline = System.nanoTime() + MILLISECONDS.toNanos(5_000);
         try {
             if (!workers.awaitTermination(Math.max(0, deadline - System.nanoTime()), NANOSECONDS)) {
-                queue.clear();
+                discardPending();
                 workers.shutdownNow();
                 logger.warning("Event drain exceeded 5 seconds; interrupting workers");
             }
         } catch (final InterruptedException e) {
-            queue.clear();
+            discardPending();
             workers.shutdownNow();
             Thread.currentThread().interrupt();
+        } finally {
+            discardPending();
+            queue.clear();
+        }
+    }
+
+    private void discardPending() {
+        admission.lock();
+        try {
+            drained = true;
+            tasks.clear();
+            drainingEvents.clear();
+        } finally {
+            admission.unlock();
         }
     }
 }

@@ -18,6 +18,8 @@ package io.yupiik.fusion.framework.processor.test;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 /** Test access to internals hidden by PreparePackaging, without exposing them on the compile classpath. */
 public final class ProcessorInternals extends ClassLoader {
@@ -27,6 +29,19 @@ public final class ProcessorInternals extends ClassLoader {
 
     public ProcessorInternals(final ClassLoader parent) {
         super(parent);
+    }
+
+    public static Path stateDirectory(final Path root, final Path output, final String module) throws IOException {
+        final var expected = "fusion-output-state-v1\n" + output.toRealPath().toUri() + "\n" + module + "\n";
+        try (final var files = Files.list(root.resolve("outputs-v1"))) {
+            for (final var candidate : files.toList()) {
+                final var owner = candidate.resolve("owner");
+                if (Files.exists(owner) && expected.equals(Files.readString(owner))) {
+                    return candidate;
+                }
+            }
+        }
+        throw new IllegalStateException("No owned state for " + output + " (" + module + ")");
     }
 
     @Override

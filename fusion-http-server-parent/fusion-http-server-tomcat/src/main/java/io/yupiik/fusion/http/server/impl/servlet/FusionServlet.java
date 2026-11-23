@@ -30,6 +30,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -54,7 +55,10 @@ public class FusionServlet extends HttpServlet {
     private volatile boolean stopped;
 
     public FusionServlet(final List<? extends BaseEndpoint> endpoints) {
-        this.endpoints = endpoints;
+        // Stream sorting is stable: ties keep the supplied order, including manual and monitoring endpoints.
+        this.endpoints = endpoints.stream()
+                .sorted(Comparator.comparingInt(BaseEndpoint::priority).reversed())
+                .toList();
     }
 
     /**

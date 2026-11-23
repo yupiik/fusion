@@ -22,8 +22,8 @@ import io.yupiik.fusion.framework.build.api.configuration.RootConfiguration;
 @ApplicationScoped
 @RootConfiguration("operator")
 public record OperatorConfiguration(
-        @Property(defaultValue = "false",
-                documentation = "Enable operator watches and probes. Must be explicitly enabled for operator startup; metadata containers remain inactive by default.")
+        @Property(defaultValue = "true",
+                documentation = "Enable operator watches and probes. Set explicitly to false in metadata-only containers.")
         boolean enabled,
         @Property(documentation = "Kubernetes client configuration.")
         Kubernetes kubernetes,
@@ -45,9 +45,42 @@ public record OperatorConfiguration(
         boolean await,
 
         @Property(defaultValue = "null",
-                documentation = "Operator can store locally (on the filesystem) the latest resource version it saw. This must be a directory, ignored if `null`.")
-        String storage
+                documentation = "Directory for the last processed object inventory, used only to identify downtime deletions. Startup always lists current API state; no persistent cursor is resumed. Ignored if `null`.")
+        String storage,
+
+        @Property(documentation = "List/watch retry policy.")
+        Retry retry
 ) {
+    // Preserve the existing programmatic construction contract.
+    public OperatorConfiguration(final Kubernetes kubernetes, final boolean useBookmarks, final int eventThreadCount,
+                                 final int probePort, final boolean await, final String storage) {
+        this(true, kubernetes, useBookmarks, eventThreadCount, probePort, await, storage);
+    }
+
+    public OperatorConfiguration(final boolean enabled, final Kubernetes kubernetes, final boolean useBookmarks,
+                                 final int eventThreadCount, final int probePort, final boolean await, final String storage) {
+        this(enabled, kubernetes, useBookmarks, eventThreadCount, probePort, await, storage, new Retry(100, 5_000, false));
+    }
+
+    public OperatorConfiguration {
+        if (retry == null) {
+            retry = new Retry(100, 5_000, false);
+        }
+    }
+
+    public record Retry(
+            @Property(value = "initial-delay", defaultValue = "100", documentation = "Initial retry delay in milliseconds, at least 1.")
+            long initialDelay,
+            @Property(value = "max-delay", defaultValue = "5000", documentation = "Maximum retry delay in milliseconds, including Retry-After.")
+            long maxDelay,
+            @Property(value = "retry-permanent-errors", defaultValue = "false", documentation = "Retry permanent list/watch failures (including 401, 403 and collection 404) instead of stopping the affected watch.")
+            boolean retryPermanentErrors) {
+        public Retry {
+            if (initialDelay < 1 || maxDelay < initialDelay) {
+                throw new IllegalArgumentException("Retry delays must satisfy 1 <= initial-delay <= max-delay");
+            }
+        }
+    }
 
     public record Kubernetes(
             @Property(

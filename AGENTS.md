@@ -15,7 +15,8 @@ annotation processor; only bean resolution happens at runtime.
 
 ## Requirements and build commands
 
-Requires Java >= 17 and Maven >= 3.8 (no wrapper is committed, use your own Maven).
+Building Fusion requires JDK >= 21 and Maven >= 3.8 (no wrapper is committed, use your own Maven).
+The runtime baseline remains Java 17; do not confuse the build JDK requirement with the application runtime requirement.
 
 | Command | Purpose |
 |---|---|
