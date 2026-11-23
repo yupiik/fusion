@@ -15,10 +15,8 @@
  */
 package io.yupiik.fusion.framework.processor;
 
-import static io.yupiik.fusion.framework.processor.test.ProcessorInternals.stateDirectory;
-
-import io.yupiik.fusion.framework.processor.test.GeneratedFactories;
 import io.yupiik.fusion.framework.api.container.FusionBean;
+import io.yupiik.fusion.framework.processor.test.GeneratedFactories;
 import io.yupiik.fusion.json.JsonMapper;
 import io.yupiik.fusion.json.serialization.JsonCodec;
 import org.junit.jupiter.api.Test;
@@ -37,6 +35,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
+import static io.yupiik.fusion.framework.processor.test.ProcessorInternals.stateDirectory;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;

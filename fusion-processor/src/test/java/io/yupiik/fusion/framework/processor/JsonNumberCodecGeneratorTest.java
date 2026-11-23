@@ -16,8 +16,8 @@
 package io.yupiik.fusion.framework.processor;
 
 import io.yupiik.fusion.framework.processor.test.Compiler;
-import io.yupiik.fusion.json.JsonMapper;
 import io.yupiik.fusion.json.JsonException;
+import io.yupiik.fusion.json.JsonMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 

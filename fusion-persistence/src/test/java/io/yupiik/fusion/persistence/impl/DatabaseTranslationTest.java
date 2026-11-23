@@ -21,7 +21,6 @@ import io.yupiik.fusion.persistence.impl.entity.AutoIncrementEntity;
 import io.yupiik.fusion.persistence.impl.entity.AutoIncrementEntityModel;
 import io.yupiik.fusion.persistence.impl.translation.DefaultTranslation;
 import io.yupiik.fusion.persistence.impl.translation.DuckDBTranslation;
-import io.yupiik.fusion.persistence.spi.DatabaseTranslation;
 import io.yupiik.fusion.persistence.test.EnableH2;
 import org.junit.jupiter.api.Test;
 

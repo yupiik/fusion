@@ -15,8 +15,6 @@
  */
 package io.yupiik.fusion.framework.processor;
 
-import static io.yupiik.fusion.framework.processor.test.ProcessorInternals.stateDirectory;
-
 import org.eclipse.jdt.internal.compiler.tool.EclipseCompiler;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -39,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static io.yupiik.fusion.framework.processor.test.ProcessorInternals.stateDirectory;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 

@@ -15,8 +15,8 @@
  */
 package io.yupiik.fusion.framework.processor;
 
-import io.yupiik.fusion.framework.processor.test.GeneratedFactories;
 import io.yupiik.fusion.framework.build.api.metadata.spi.MetadataContributor;
+import io.yupiik.fusion.framework.processor.test.GeneratedFactories;
 import io.yupiik.fusion.json.internal.JsonMapperImpl;
 import io.yupiik.fusion.json.serialization.JsonCodec;
 import org.junit.jupiter.api.Test;

@@ -20,8 +20,6 @@ import io.yupiik.fusion.json.schema.validation.spi.ValidationContext;
 import io.yupiik.fusion.json.schema.validation.spi.ValidationExtension;
 import io.yupiik.fusion.json.schema.validation.spi.builtin.type.TypeFilter;
 
-import java.net.Inet4Address;
-import java.net.UnknownHostException;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;

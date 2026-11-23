@@ -64,8 +64,8 @@ import static io.yupiik.kubernetes.operator.base.test.sample.FusionGeneratedModu
 import static io.yupiik.kubernetes.operator.base.test.sample.FusionGeneratedModule.SampleResource$Spec$FusionJsonCodec;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static java.util.stream.IntStream.range;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;

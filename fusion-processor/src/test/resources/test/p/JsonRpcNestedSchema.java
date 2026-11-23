@@ -17,19 +17,6 @@ package test.p;
 
 import io.yupiik.fusion.framework.build.api.json.JsonModel;
 import io.yupiik.fusion.framework.build.api.jsonrpc.JsonRpc;
-import io.yupiik.fusion.framework.build.api.jsonrpc.JsonRpcParam;
-import io.yupiik.fusion.framework.build.api.metadata.BeanMetadata;
-import io.yupiik.fusion.http.server.api.Request;
-
-import java.time.OffsetDateTime;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
-import java.util.stream.Stream;
-
-import static java.util.concurrent.CompletableFuture.completedFuture;
-import static java.util.stream.Collectors.joining;
 
 public class JsonRpcNestedSchema {
     @JsonRpc("nested-schema")

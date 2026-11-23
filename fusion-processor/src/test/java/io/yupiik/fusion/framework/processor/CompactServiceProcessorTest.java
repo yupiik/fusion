@@ -15,24 +15,23 @@
  */
 package io.yupiik.fusion.framework.processor;
 
-import io.yupiik.fusion.cli.internal.CliCommand;
 import io.yupiik.fusion.cli.internal.BaseCliCommand;
-import io.yupiik.fusion.http.server.spi.DirectEndpointHandler;
-import java.util.function.Function;
-import io.yupiik.fusion.framework.api.RuntimeContainer;
+import io.yupiik.fusion.cli.internal.CliCommand;
 import io.yupiik.fusion.framework.api.ConfiguringContainer;
 import io.yupiik.fusion.framework.api.Instance;
+import io.yupiik.fusion.framework.api.RuntimeContainer;
 import io.yupiik.fusion.framework.api.container.FusionModule;
+import io.yupiik.fusion.framework.api.container.bean.FunctionalBean;
 import io.yupiik.fusion.framework.api.container.bean.ProvidedInstanceBean;
 import io.yupiik.fusion.framework.api.scope.DefaultScoped;
 import io.yupiik.fusion.framework.processor.test.GeneratedFactories;
-import io.yupiik.fusion.framework.api.container.bean.FunctionalBean;
 import io.yupiik.fusion.http.server.api.Body;
 import io.yupiik.fusion.http.server.api.Cookie;
 import io.yupiik.fusion.http.server.api.Request;
 import io.yupiik.fusion.http.server.api.Response;
 import io.yupiik.fusion.http.server.impl.DefaultEndpoint;
 import io.yupiik.fusion.http.server.impl.flow.BytesPublisher;
+import io.yupiik.fusion.http.server.spi.DirectEndpointHandler;
 import io.yupiik.fusion.json.internal.JsonMapperImpl;
 import io.yupiik.fusion.json.serialization.JsonCodec;
 import io.yupiik.fusion.jsonrpc.JsonRpcException;
@@ -63,10 +62,16 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Flow;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.stream.Stream;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CompactServiceProcessorTest {
     @TempDir

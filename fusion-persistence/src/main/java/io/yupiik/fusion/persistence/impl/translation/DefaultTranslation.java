@@ -17,16 +17,6 @@ package io.yupiik.fusion.persistence.impl.translation;
 
 import io.yupiik.fusion.persistence.spi.DatabaseTranslation;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.OffsetDateTime;
-import java.time.ZonedDateTime;
-import java.util.Date;
-import java.util.List;
-
-import static java.util.stream.Collectors.joining;
-
 public class DefaultTranslation implements DatabaseTranslation {
 
 }

@@ -18,9 +18,9 @@ package io.yupiik.fusion.framework.build.api.http;
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 
+import static io.yupiik.fusion.framework.build.api.http.HttpMatcher.PathMatching.IGNORED;
 import static java.lang.annotation.ElementType.METHOD;
 import static java.lang.annotation.RetentionPolicy.SOURCE;
-import static io.yupiik.fusion.framework.build.api.http.HttpMatcher.PathMatching.IGNORED;
 
 /**
  * Mark a method taking as input parameter a {@code io.yupiik.fusion.http.server.api.Request} and returning a

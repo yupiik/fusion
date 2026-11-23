@@ -21,7 +21,6 @@ import io.yupiik.fusion.json.schema.validation.spi.ValidationExtension;
 import io.yupiik.fusion.json.schema.validation.spi.builtin.type.TypeFilter;
 
 import java.time.Duration;
-import java.time.OffsetTime;
 import java.time.format.DateTimeParseException;
 import java.util.Optional;
 import java.util.function.Function;

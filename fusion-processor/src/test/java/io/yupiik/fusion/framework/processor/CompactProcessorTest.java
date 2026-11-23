@@ -15,8 +15,6 @@
  */
 package io.yupiik.fusion.framework.processor;
 
-import static io.yupiik.fusion.framework.processor.test.ProcessorInternals.stateDirectory;
-
 import io.yupiik.fusion.framework.api.ConfiguringContainer;
 import io.yupiik.fusion.framework.api.container.FusionModule;
 import io.yupiik.fusion.framework.api.container.bean.FunctionalBean;
@@ -25,12 +23,12 @@ import io.yupiik.fusion.framework.processor.test.GeneratedFactories;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import javax.tools.ToolProvider;
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.Processor;
 import javax.annotation.processing.RoundEnvironment;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.TypeElement;
+import javax.tools.ToolProvider;
 import java.io.File;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -44,6 +42,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.IntStream;
 
+import static io.yupiik.fusion.framework.processor.test.ProcessorInternals.stateDirectory;
 import static java.util.stream.Collectors.joining;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;

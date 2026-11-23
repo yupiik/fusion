@@ -25,16 +25,16 @@ import io.yupiik.fusion.framework.processor.test.GeneratedFactories;
 import io.yupiik.fusion.http.server.impl.DefaultEndpoint;
 import io.yupiik.fusion.json.internal.JsonMapperImpl;
 import io.yupiik.fusion.json.serialization.JsonCodec;
-import io.yupiik.fusion.jsonrpc.impl.JsonRpcMethod;
 import io.yupiik.fusion.jsonrpc.impl.DefaultJsonRpcMethod;
+import io.yupiik.fusion.jsonrpc.impl.JsonRpcMethod;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.junit.jupiter.api.io.TempDir;
 
 import javax.tools.ToolProvider;
 import java.io.File;
-import java.io.StringWriter;
 import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
@@ -46,7 +46,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CompactSourceNamesTest {
     @TempDir

@@ -15,10 +15,9 @@
  */
 package io.yupiik.fusion.framework.api.container.bean;
 
-import io.yupiik.fusion.framework.api.container.listener.FunctionalListener;
-
 import io.yupiik.fusion.framework.api.Instance;
 import io.yupiik.fusion.framework.api.RuntimeContainer;
+import io.yupiik.fusion.framework.api.container.listener.FunctionalListener;
 import io.yupiik.fusion.framework.api.scope.DefaultScoped;
 import org.junit.jupiter.api.Test;
 

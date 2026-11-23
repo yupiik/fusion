@@ -15,8 +15,6 @@
  */
 package io.yupiik.fusion.framework.api.main;
 
-import java.util.List;
-
 /**
  * Same as launcher but dedicated to CLI applications: bare arguments - the command path segments -
  * are not configuration entries anyway now that the args source only binds dash-led options, so the

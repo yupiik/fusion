@@ -16,7 +16,6 @@
 package test.p;
 
 import io.yupiik.fusion.framework.build.api.http.HttpJavaMatcher;
-import io.yupiik.fusion.framework.build.api.http.HttpMatcher;
 import io.yupiik.fusion.framework.build.api.json.JsonModel;
 import io.yupiik.fusion.http.server.api.Request;
 import io.yupiik.fusion.http.server.api.Response;

@@ -15,14 +15,13 @@
  */
 package test.p.persistence;
 
-import io.yupiik.fusion.framework.build.api.persistence.OnDelete;
-import io.yupiik.fusion.framework.build.api.persistence.OnUpdate;
-
-import test.p.Bean2;
 import io.yupiik.fusion.framework.build.api.persistence.Id;
+import io.yupiik.fusion.framework.build.api.persistence.OnDelete;
 import io.yupiik.fusion.framework.build.api.persistence.OnInsert;
 import io.yupiik.fusion.framework.build.api.persistence.OnLoad;
+import io.yupiik.fusion.framework.build.api.persistence.OnUpdate;
 import io.yupiik.fusion.framework.build.api.persistence.Table;
+import test.p.Bean2;
 
 import java.util.ArrayList;
 import java.util.List;

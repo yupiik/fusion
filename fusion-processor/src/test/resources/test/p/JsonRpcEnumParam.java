@@ -19,10 +19,7 @@ import io.yupiik.fusion.framework.build.api.json.JsonModel;
 import io.yupiik.fusion.framework.build.api.jsonrpc.JsonRpc;
 import io.yupiik.fusion.framework.build.api.jsonrpc.JsonRpcParam;
 
-import java.util.concurrent.CompletionStage;
 import java.util.function.Supplier;
-
-import static java.util.concurrent.CompletableFuture.completedFuture;
 
 public class JsonRpcEnumParam implements Supplier<String> {
     public static String last = null;

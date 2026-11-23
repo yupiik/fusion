@@ -16,7 +16,6 @@
 package io.yupiik.fusion.cli.internal;
 
 import java.util.List;
-import java.util.Locale;
 import java.util.function.Supplier;
 
 import static java.util.Locale.ROOT;

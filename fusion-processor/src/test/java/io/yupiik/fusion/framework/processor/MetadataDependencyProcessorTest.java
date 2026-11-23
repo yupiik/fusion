@@ -16,8 +16,8 @@
 package io.yupiik.fusion.framework.processor;
 
 import io.yupiik.fusion.framework.api.container.FusionBean;
-import io.yupiik.fusion.framework.processor.test.GeneratedFactories;
 import io.yupiik.fusion.framework.build.api.metadata.spi.MetadataContributor;
+import io.yupiik.fusion.framework.processor.test.GeneratedFactories;
 import io.yupiik.fusion.framework.processor.test.ProcessorInternals;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -35,8 +35,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.jar.JarEntry;
-import java.util.jar.JarOutputStream;
 import java.util.jar.JarFile;
+import java.util.jar.JarOutputStream;
 
 import static java.util.stream.Collectors.joining;
 import static org.junit.jupiter.api.Assertions.assertEquals;
