@@ -28,6 +28,10 @@
   <name>Fusion :: Processor</name>
   <description>Fusion annotation processor generating beans, JSON codecs, configuration binding and persistence models at build time.</description>
 
+  <properties>
+    <fusion.processor.test.parallelism>4</fusion.processor.test.parallelism>
+  </properties>
+
   <dependencies>
     <dependency>
       <groupId>org.eclipse.jdt</groupId>
@@ -199,8 +203,14 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
+          <!-- Set at JVM startup: the JDK caches its temporary directory before Surefire sets system properties. -->
+          <argLine>-Djava.io.tmpdir="${project.build.directory}"</argLine>
           <systemPropertyVariables>
             <fusion.http-server.start>false</fusion.http-server.start>
+            <!-- Bound concurrent compiler fixtures independently of the machine's CPU count. -->
+            <junit.jupiter.execution.parallel.config.strategy>fixed</junit.jupiter.execution.parallel.config.strategy>
+            <junit.jupiter.execution.parallel.config.fixed.parallelism>${fusion.processor.test.parallelism}</junit.jupiter.execution.parallel.config.fixed.parallelism>
+            <junit.jupiter.execution.parallel.config.fixed.max-pool-size>${fusion.processor.test.parallelism}</junit.jupiter.execution.parallel.config.fixed.max-pool-size>
           </systemPropertyVariables>
         </configuration>
       </plugin>

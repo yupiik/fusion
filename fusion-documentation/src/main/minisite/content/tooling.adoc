@@ -23,6 +23,13 @@ Beyond the core runtime, Fusion ships a set of standalone modules for building C
 * xref:handlebars.adoc[Handlebars templating] - a dependency-free Handlebars engine with helpers and partials.
 * xref:ai-skills.adoc[AI skills] - install Fusion coding-agent skills for opencode and Claude.
 
+== Building Fusion
+
+The Fusion processor's own Maven tests limit parallel execution to four workers and create temporary compiler fixtures under `fusion-processor/target` rather than the system temporary directory.
+Use `-Dfusion.processor.test.parallelism=1` to reduce concurrent compiler activity on constrained machines.
+JUnit removes temporary fixtures after each test; `mvn clean` also removes leftovers from interrupted runs.
+This bounds concurrency, not disk bytes: filesystem quotas still apply, including to unrelated files or Maven repositories on the same filesystem.
+
 [#generated-bindings]
 == Generated bindings
 
