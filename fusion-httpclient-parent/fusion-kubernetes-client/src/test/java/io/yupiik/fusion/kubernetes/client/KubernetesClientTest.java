@@ -20,14 +20,18 @@ import com.sun.net.httpserver.HttpsConfigurator;
 import com.sun.net.httpserver.HttpsServer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.TrustManagerFactory;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -36,9 +40,39 @@ import java.security.SecureRandom;
 
 import static java.util.Objects.requireNonNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.fail;
 
 class KubernetesClientTest {
+    @ParameterizedTest
+    @ValueSource(strings = {"true", "\"true\"", "false", "\"false\"", "absent"})
+    void kubeconfigTlsValidation(final String flag, @TempDir final Path work) throws Exception {
+        try (final var server = new Server(exchange -> {
+            exchange.sendResponseHeaders(200, -1);
+            exchange.close();
+        })) {
+            final var kubeconfig = work.resolve("config.json");
+            Files.writeString(kubeconfig, """
+                    {
+                      "current-context": "test",
+                      "contexts": [{"name": "test", "context": {"cluster": "local"}}],
+                      "clusters": [{"name": "local", "cluster": {"server": "%s"%s}}]
+                    }
+                    """.formatted(server.base(), "absent".equals(flag) ? "" : ", \"insecure-skip-tls-verify\": " + flag));
+            for (final var override : new boolean[]{false, true}) {
+                try (final var client = new KubernetesClient(new KubernetesClientConfiguration()
+                        .setKubeconfig(kubeconfig).setToken("none").setSkipTls(override))) {
+                    final var request = HttpRequest.newBuilder(URI.create("https://kubernetes.api/test")).build();
+                    if (override || flag.contains("true")) {
+                        assertEquals(200, client.send(request, HttpResponse.BodyHandlers.discarding()).statusCode());
+                    } else {
+                        assertThrows(SSLHandshakeException.class, () -> client.send(request, HttpResponse.BodyHandlers.discarding()));
+                    }
+                }
+            }
+        }
+    }
+
     @Test
     void call(@TempDir final Path work) throws IOException {
         final var token = work.resolve("token");

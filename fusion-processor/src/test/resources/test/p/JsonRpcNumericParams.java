@@ -15,8 +15,8 @@
  */
 package test.p;
 
-import io.yupiik.fusion.framework.build.api.jsonrpc.JsonRpc;
 import io.yupiik.fusion.framework.api.scope.ApplicationScoped;
+import io.yupiik.fusion.framework.build.api.jsonrpc.JsonRpc;
 
 import java.util.Arrays;
 import java.util.Collection;

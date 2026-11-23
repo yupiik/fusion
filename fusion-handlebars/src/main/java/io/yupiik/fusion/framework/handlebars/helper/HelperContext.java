@@ -17,7 +17,6 @@ package io.yupiik.fusion.framework.handlebars.helper;
 
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
 
 /**
  * Context passed to a helper.

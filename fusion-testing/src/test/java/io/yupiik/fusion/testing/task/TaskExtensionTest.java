@@ -15,7 +15,6 @@
  */
 package io.yupiik.fusion.testing.task;
 
-import io.yupiik.fusion.framework.api.scope.DefaultScoped;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;

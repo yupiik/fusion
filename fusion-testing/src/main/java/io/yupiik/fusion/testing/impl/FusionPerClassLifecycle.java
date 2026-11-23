@@ -27,7 +27,6 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.platform.commons.util.AnnotationUtils;
 
 import java.lang.reflect.InvocationTargetException;
-import java.util.Properties;
 import java.util.stream.Stream;
 
 import static java.util.Optional.ofNullable;

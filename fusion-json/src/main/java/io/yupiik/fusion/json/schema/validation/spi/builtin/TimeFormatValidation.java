@@ -20,11 +20,8 @@ import io.yupiik.fusion.json.schema.validation.spi.ValidationContext;
 import io.yupiik.fusion.json.schema.validation.spi.ValidationExtension;
 import io.yupiik.fusion.json.schema.validation.spi.builtin.type.TypeFilter;
 
-import java.time.Instant;
-import java.time.LocalTime;
 import java.time.OffsetTime;
 import java.time.format.DateTimeParseException;
-import java.time.temporal.Temporal;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Stream;

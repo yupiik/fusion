@@ -17,8 +17,8 @@ package io.yupiik.fusion.json.internal;
 
 import io.yupiik.fusion.framework.api.configuration.Configuration;
 import io.yupiik.fusion.framework.api.container.Types;
-import io.yupiik.fusion.json.JsonMapper;
 import io.yupiik.fusion.json.JsonException;
+import io.yupiik.fusion.json.JsonMapper;
 import io.yupiik.fusion.json.deserialization.AvailableCharArrayReader;
 import io.yupiik.fusion.json.internal.codec.BigDecimalJsonCodec;
 import io.yupiik.fusion.json.internal.codec.BooleanJsonCodec;
@@ -70,7 +70,6 @@ import java.util.stream.Stream;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.function.Function.identity;
-import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toMap;
 
 public class JsonMapperImpl implements JsonMapper {

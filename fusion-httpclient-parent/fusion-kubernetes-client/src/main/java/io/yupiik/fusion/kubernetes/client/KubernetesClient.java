@@ -17,7 +17,6 @@ package io.yupiik.fusion.kubernetes.client;
 
 import io.yupiik.fusion.json.JsonMapper;
 import io.yupiik.fusion.json.internal.JsonMapperImpl;
-import io.yupiik.fusion.json.internal.codec.ObjectJsonCodec;
 import io.yupiik.fusion.kubernetes.client.internal.LightYamlParser;
 import io.yupiik.fusion.kubernetes.client.internal.PrivateKeyReader;
 
@@ -28,16 +27,18 @@ import javax.net.ssl.SSLParameters;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.X509TrustManager;
-import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.Authenticator;
 import java.net.CookieHandler;
+import java.net.InetSocketAddress;
+import java.net.Proxy;
 import java.net.ProxySelector;
+import java.net.SocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URLDecoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -62,19 +63,21 @@ import java.time.OffsetDateTime;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
 
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Optional.empty;
 import static java.util.Optional.of;
@@ -91,11 +94,23 @@ public class KubernetesClient extends HttpClient implements AutoCloseable {
     private final Lock lock = new ReentrantLock();
     private volatile Instant lastRefresh;
     private volatile String authorization;
-    private JsonMapperImpl jsonMapper;
+    private JsonMapper jsonMapper;
 
-    public KubernetesClient(final KubernetesClientConfiguration configuration) {
-        final var ns = fillFromKubeConfig(configuration.getKubeconfig(), configuration);
-        this.base = URI.create(configuration.getMaster());
+    public KubernetesClient(final KubernetesClientConfiguration originalConfiguration) {
+        final var configuration = new KubernetesClientConfiguration()
+                .setClient(originalConfiguration.getClient())
+                .setClientWrapper(originalConfiguration.getClientWrapper())
+                .setClientCustomizer(originalConfiguration.getClientCustomizer())
+                .setMaster(originalConfiguration.getMaster())
+                .setToken(originalConfiguration.getToken())
+                .setTokenEvaluator(originalConfiguration.getTokenEvaluator())
+                .setCertificates(originalConfiguration.getCertificates())
+                .setPrivateKey(originalConfiguration.getPrivateKey())
+                .setPrivateKeyCertificate(originalConfiguration.getPrivateKeyCertificate())
+                .setSkipTls(originalConfiguration.isSkipTls())
+                .setKubeconfig(originalConfiguration.getKubeconfig());
+        final var ns = fillFromKubeConfig(configuration);
+        this.base = normalizeEndpoint(configuration.getMaster());
         this.delegate = ofNullable(configuration.getClient())
                 .orElseGet(() -> ofNullable(configuration.getClientWrapper()).orElseGet(Function::identity).apply(createClient(configuration)));
 
@@ -133,7 +148,7 @@ public class KubernetesClient extends HttpClient implements AutoCloseable {
         return base;
     }
 
-    private HttpClient createClient(final KubernetesClientConfiguration configuration) {
+    protected HttpClient createClient(final KubernetesClientConfiguration configuration) {
         final var builder = HttpClient.newBuilder();
         if (!"http".equals(base.getScheme())) {
             builder.sslContext(createSSLContext(
@@ -146,7 +161,38 @@ public class KubernetesClient extends HttpClient implements AutoCloseable {
         return builder.build();
     }
 
-    private SSLContext createSSLContext(final boolean skipTls, final String certificates, final String key, final String keyCertificate) {
+    protected void configureKubeconfigProxy(final String kubeconfigProxy, final HttpClient.Builder builder) {
+        final URI proxy;
+        try {
+            proxy = URI.create(kubeconfigProxy);
+        } catch (final IllegalArgumentException e) {
+            // Do not include the URL, which can contain credentials, in the exception.
+            throw new IllegalArgumentException("Invalid kubeconfig proxy-url");
+        }
+        if (!"http".equalsIgnoreCase(proxy.getScheme()) || proxy.getHost() == null ||
+                proxy.getPort() == 0 || proxy.getPort() > 65535 ||
+                proxy.getRawQuery() != null || proxy.getRawFragment() != null ||
+                !(proxy.getRawPath().isEmpty() || "/".equals(proxy.getRawPath()))) {
+            throw new IllegalArgumentException("Invalid kubeconfig proxy-url: expected an HTTP proxy URL without query, fragment or path");
+        }
+        final var host = proxy.getHost().startsWith("[") ? proxy.getHost().substring(1, proxy.getHost().length() - 1) : proxy.getHost();
+        final var port = proxy.getPort() < 0 ? 80 : proxy.getPort();
+        final var selector = ProxySelector.of(InetSocketAddress.createUnresolved(host, port));
+        final var userInfo = proxy.getRawUserInfo();
+        if (userInfo != null) {
+            final var separator = userInfo.indexOf(':');
+            // User info is URI encoded, not form encoded: a literal '+' must remain a plus.
+            final var username = URLDecoder.decode((separator < 0 ? userInfo : userInfo.substring(0, separator)).replace("+", "%2B"), UTF_8);
+            final var password = separator < 0 ? "" : URLDecoder.decode(userInfo.substring(separator + 1).replace("+", "%2B"), UTF_8);
+            final var authorization = "Basic " + Base64.getEncoder()
+                    .encodeToString((username + ':' + password).getBytes(ISO_8859_1));
+            builder.proxy(new KubeconfigProxySelector(selector, authorization));
+        } else {
+            builder.proxy(selector);
+        }
+    }
+
+    protected SSLContext createSSLContext(final boolean skipTls, final String certificates, final String key, final String keyCertificate) {
         byte[] data = null;
         if (certificates != null && certificates.contains("-BEGIN CERT")) {
             data = certificates.getBytes(StandardCharsets.UTF_8);
@@ -236,10 +282,20 @@ public class KubernetesClient extends HttpClient implements AutoCloseable {
                 builder.header("Authorization", auth);
             }
         }
+        if (request.headers().firstValue("Proxy-Authorization").isEmpty()) {
+            kubeconfigProxyAuthorization().ifPresent(auth -> builder.header("Proxy-Authorization", auth));
+        }
         return builder.build();
     }
 
-    private String authorization() {
+    private Optional<String> kubeconfigProxyAuthorization() {
+        // On JDK 21, installing an Authenticator strips the origin's bearer header.
+        // Only use the credentials while the original kubeconfig proxy selector is active.
+        return delegate.authenticator().isEmpty() && delegate.proxy().orElse(null) instanceof KubeconfigProxySelector proxy ?
+                of(proxy.authorization) : empty();
+    }
+
+    protected String authorization() {
         final var now = clock.instant();
         if (isExpired(now)) {
             lock.lock();
@@ -363,11 +419,15 @@ public class KubernetesClient extends HttpClient implements AutoCloseable {
     public WebSocket.Builder newWebSocketBuilder() {
         return new WebSocketBuilderDelegate(delegate.newWebSocketBuilder()) {
             private boolean authorization;
+            private boolean proxyAuthorization;
 
             @Override
             public WebSocket.Builder header(final String name, final String value) {
                 if (!authorization) {
                     authorization = "authorization".equalsIgnoreCase(name);
+                }
+                if (!proxyAuthorization) {
+                    proxyAuthorization = "proxy-authorization".equalsIgnoreCase(name);
                 }
                 return super.header(name, value);
             }
@@ -387,9 +447,32 @@ public class KubernetesClient extends HttpClient implements AutoCloseable {
                         header("Authorization", auth);
                     }
                 }
+                if (!proxyAuthorization) {
+                    kubeconfigProxyAuthorization().ifPresent(auth -> header("Proxy-Authorization", auth));
+                }
                 return super.buildAsync(actualUri, listener);
             }
         };
+    }
+
+    private static final class KubeconfigProxySelector extends ProxySelector {
+        private final ProxySelector delegate;
+        private final String authorization;
+
+        private KubeconfigProxySelector(final ProxySelector delegate, final String authorization) {
+            this.delegate = delegate;
+            this.authorization = authorization;
+        }
+
+        @Override
+        public List<Proxy> select(final URI uri) {
+            return delegate.select(uri);
+        }
+
+        @Override
+        public void connectFailed(final URI uri, final SocketAddress address, final IOException failure) {
+            delegate.connectFailed(uri, address, failure);
+        }
     }
 
     private TrustManager[] newNoopTrustManager() {
@@ -419,22 +502,47 @@ public class KubernetesClient extends HttpClient implements AutoCloseable {
                 uri;
     }
 
-    @SuppressWarnings("unchecked")
-    private String fillFromKubeConfig(final Path kubeconfig, final KubernetesClientConfiguration configuration) {
-        if (configuration.getKubeconfig() == null || Files.notExists(configuration.getKubeconfig())) {
-            return null;
+    private URI normalizeEndpoint(final String endpoint) {
+        if (endpoint == null || endpoint.isBlank()) {
+            throw new IllegalArgumentException("No Kubernetes API endpoint configured");
         }
+        final var parsed = URI.create(endpoint.contains("://") ? endpoint : "http://" + endpoint);
+        final var scheme = !endpoint.contains("://") && parsed.getPort() == 443 ? "https" : parsed.getScheme().toLowerCase(Locale.ROOT);
+        if (!("http".equals(scheme) || "https".equals(scheme)) || parsed.getHost() == null) {
+            throw new IllegalArgumentException("Invalid Kubernetes API endpoint: '" + endpoint + "'");
+        }
+        var path = parsed.getRawPath();
+        while (path.endsWith("/")) {
+            path = path.substring(0, path.length() - 1);
+        }
+        return URI.create(scheme + "://" + parsed.getRawAuthority() + path +
+                (parsed.getRawQuery() == null ? "" : "?" + parsed.getRawQuery()) +
+                (parsed.getRawFragment() == null ? "" : "#" + parsed.getRawFragment()));
+    }
 
+    private Path resolveKubeconfigFile(final Path kubeconfig, final String file) {
+        final var path = Path.of(file);
+        return path.isAbsolute() ? path : kubeconfig.toAbsolutePath().getParent().resolve(path).normalize();
+    }
+
+    @SuppressWarnings("unchecked")
+    private String fillFromKubeConfig(final KubernetesClientConfiguration configuration) {
+        final var kubeconfig = configuration.getKubeconfig();
         final var conf = loadKubeConfig(kubeconfig);
-        final var currentContext = conf.get("current-context");
-        if (!(currentContext instanceof String currentCtx)) {
-            Logger.getLogger(getClass().getName()).warning(() -> "No current-context in '" + kubeconfig + "' skipping autoconfiguration of k8s connection.");
+        if (conf == null) {
             return null;
         }
 
         final var contexts = conf.get("contexts");
-        if (!(contexts instanceof List<?> ctxs)) {
+        if (!(contexts instanceof List<?> ctxs) || ctxs.isEmpty()) {
             Logger.getLogger(getClass().getName()).warning(() -> "No contexts in '" + kubeconfig + "' skipping autoconfiguration of k8s connection.");
+            return null;
+        }
+        final var currentContext = conf.get("current-context");
+        final var selectedContext = currentContext == null || "".equals(currentContext) ?
+                (ctxs.get(0) instanceof Map<?, ?> first ? first.get("name") : null) : currentContext;
+        if (!(selectedContext instanceof String currentCtx) || currentCtx.isBlank()) {
+            Logger.getLogger(getClass().getName()).warning(() -> "No current-context in '" + kubeconfig + "' skipping autoconfiguration of k8s connection.");
             return null;
         }
 
@@ -452,16 +560,24 @@ public class KubernetesClient extends HttpClient implements AutoCloseable {
         final var namespace = ofNullable(ctx.get("namespace")).map(Object::toString).orElse(null);
         final var selectedCluster = findIn(ctx, "cluster", conf, "clusters");
         final var selectedUser = findIn(ctx, "user", conf, "users");
+        selectedCluster.map(it -> it.get("proxy-url"))
+                .map(Object::toString)
+                .filter(proxy -> !proxy.isBlank())
+                .ifPresent(proxy -> {
+                    final var customizer = configuration.getClientCustomizer();
+                    final Consumer<HttpClient.Builder> proxyCustomizer = builder -> configureKubeconfigProxy(proxy, builder);
+                    configuration.setClientCustomizer(customizer == null ? proxyCustomizer : proxyCustomizer.andThen(customizer));
+                });
 
         selectedCluster
                 .map(it -> it.get("server"))
                 .map(Object::toString)
-                .ifPresent(configuration::setMaster);
+                .ifPresent(endpoint -> configuration.setMaster(normalizeEndpoint(endpoint).toString()));
         selectedCluster
                 .map(it -> {
                     try {
                         if (it.get("certificate-authority") instanceof String filePath) {
-                            return Files.readString(Path.of(filePath));
+                            return Files.readString(resolveKubeconfigFile(kubeconfig, filePath));
                         }
                         if (it.get("certificate-authority-data") instanceof String data) {
                             return new String(Base64.getDecoder().decode(data), UTF_8);
@@ -473,15 +589,16 @@ public class KubernetesClient extends HttpClient implements AutoCloseable {
                 })
                 .ifPresent(configuration::setCertificates);
         selectedCluster
-                .map(it -> it.get("insecure-skip-tls-verify") instanceof String skip && Boolean.parseBoolean(skip))
-                .ifPresent(configuration::setSkipTls);
+                .map(it -> it.get("insecure-skip-tls-verify"))
+                .map(it -> Boolean.TRUE.equals(it) || it instanceof String skip && Boolean.parseBoolean(skip))
+                .ifPresent(skip -> configuration.setSkipTls(configuration.isSkipTls() || skip));
         selectedUser
                 .map(it -> {
                     if (it.get("token") instanceof String data) {
                         return data;
                     }
                     if (it.get("tokenFile") instanceof String path) {
-                        return path; // client is able to handle it
+                        return resolveKubeconfigFile(kubeconfig, path).toString(); // preserve file refresh
                     }
                     return null;
                 })
@@ -490,8 +607,11 @@ public class KubernetesClient extends HttpClient implements AutoCloseable {
                 "/var/run/secrets/kubernetes.io/serviceaccount/token"/*default*/.equals(configuration.getToken())) {  // aws cli for example
             selectedUser
                     .map(it -> {
-                        if (!(it.get("exec") instanceof Map<?, ?> exec &&
-                                exec.get("apiVersion") instanceof String apiVersion &&
+                        if (!(it.get("exec") instanceof Map<?, ?> exec)) {
+                            return null;
+                        }
+                        final var version = exec.get("apiVersion");
+                        if (version != null && !(version instanceof String apiVersion &&
                                 apiVersion.startsWith("client.authentication.k8s.io/v"))) {
                             return null;
                         }
@@ -619,7 +739,7 @@ public class KubernetesClient extends HttpClient implements AutoCloseable {
                 .map(it -> {
                     try {
                         if (it.get("client-key") instanceof String filePath) {
-                            return Files.readString(Path.of(filePath));
+                            return Files.readString(resolveKubeconfigFile(kubeconfig, filePath));
                         }
                         if (it.get("client-key-data") instanceof String data) {
                             return new String(Base64.getDecoder().decode(data), UTF_8);
@@ -635,7 +755,7 @@ public class KubernetesClient extends HttpClient implements AutoCloseable {
                 .map(it -> {
                     try {
                         if (it.get("client-certificate") instanceof String filePath) {
-                            return Files.readString(Path.of(filePath));
+                            return Files.readString(resolveKubeconfigFile(kubeconfig, filePath));
                         }
                         if (it.get("client-certificate-data") instanceof String data) {
                             return new String(Base64.getDecoder().decode(data), UTF_8);
@@ -651,7 +771,7 @@ public class KubernetesClient extends HttpClient implements AutoCloseable {
         return namespace;
     }
 
-    private void ensureJsonMapper() {
+    protected void ensureJsonMapper() {
         if (jsonMapper == null) {
             jsonMapper = new JsonMapperImpl(List.of(), c -> empty());
         }
@@ -660,23 +780,31 @@ public class KubernetesClient extends HttpClient implements AutoCloseable {
     @SuppressWarnings("unchecked")
     private Optional<Map<String, Object>> findIn(final Map<String, Object> ctx, final String attribute,
                                                  final Map<String, Object> conf, final String list) {
-        return ofNullable(ctx.get(attribute))
-                .map(Object::toString)
-                .flatMap(cluster -> ofNullable(conf.get(list))
-                        .map(it -> (List<Map<String, Object>>) it)
-                        .flatMap(it -> it.stream()
-                                .filter(c -> c.getOrDefault("name", "").equals(cluster))
-                                .findFirst()))
-                .map(it -> (Map<String, Object>) it.get(attribute));
+        final var name = ctx.get(attribute);
+        if (name == null || "".equals(name)) {
+            return empty();
+        }
+        if (conf.get(list) instanceof List<?> entries) {
+            for (final var entry : entries) {
+                if (entry instanceof Map<?, ?> named && name.equals(named.get("name")) &&
+                        named.get(attribute) instanceof Map<?, ?> value) {
+                    return of((Map<String, Object>) value);
+                }
+            }
+        }
+        Logger.getLogger(getClass().getName()).warning(() -> "No kubeconfig " + attribute + " '" + name + "', retaining configured " + attribute + " settings.");
+        return empty();
     }
 
     @SuppressWarnings("unchecked")
-    private Map<String, Object> loadKubeConfig(final Path kubeconfig) {
+    protected Map<String, Object> loadKubeConfig(final Path kubeconfig) {
+        if (kubeconfig == null || Files.notExists(kubeconfig)) {
+            return null;
+        }
         try (final var reader = Files.newBufferedReader(kubeconfig)) {
             if (kubeconfig.getFileName().toString().endsWith(".json")) {
-                try (final var jsonMapper = new JsonMapperImpl(List.of(), k -> empty())) {
-                    return (Map<String, Object>) jsonMapper.read(Object.class, reader);
-                }
+                ensureJsonMapper();
+                return (Map<String, Object>) jsonMapper.read(Object.class, reader);
             }
             return (Map<String, Object>) new LightYamlParser().parse(reader);
         } catch (final IOException e) {

@@ -15,10 +15,7 @@
  */
 package test.p.persistence;
 
-import io.yupiik.fusion.framework.build.api.persistence.Column;
 import io.yupiik.fusion.framework.build.api.persistence.Id;
-import io.yupiik.fusion.framework.build.api.persistence.OnInsert;
-import io.yupiik.fusion.framework.build.api.persistence.OnLoad;
 import io.yupiik.fusion.framework.build.api.persistence.Table;
 
 import java.util.List;

@@ -17,9 +17,6 @@ package test.p.json;
 
 import io.yupiik.fusion.framework.build.api.json.JsonModel;
 
-import java.util.List;
-import java.util.Map;
-
 @JsonModel
 public record Foo(int value) {
 }

@@ -19,8 +19,8 @@ import io.yupiik.fusion.framework.processor.internal.generator.JsonCodecGenerato
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
-import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.TypeElement;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;

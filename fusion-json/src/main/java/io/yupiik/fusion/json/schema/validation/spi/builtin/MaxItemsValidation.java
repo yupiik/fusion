@@ -16,9 +16,9 @@
 package io.yupiik.fusion.json.schema.validation.spi.builtin;
 
 import io.yupiik.fusion.json.schema.validation.ValidationResult;
-import io.yupiik.fusion.json.schema.validation.spi.builtin.type.TypeFilter;
 import io.yupiik.fusion.json.schema.validation.spi.ValidationContext;
 import io.yupiik.fusion.json.schema.validation.spi.ValidationExtension;
+import io.yupiik.fusion.json.schema.validation.spi.builtin.type.TypeFilter;
 
 import java.util.Collection;
 import java.util.Optional;

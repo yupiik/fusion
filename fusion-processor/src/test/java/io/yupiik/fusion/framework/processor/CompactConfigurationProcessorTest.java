@@ -19,13 +19,12 @@ import io.yupiik.fusion.framework.api.ConfiguringContainer;
 import io.yupiik.fusion.framework.api.configuration.Configuration;
 import io.yupiik.fusion.framework.api.configuration.MissingRequiredParameterException;
 import io.yupiik.fusion.framework.api.container.FusionModule;
-import io.yupiik.fusion.framework.processor.test.GeneratedFactories;
 import io.yupiik.fusion.framework.api.container.bean.FunctionalBean;
-
+import io.yupiik.fusion.framework.processor.test.GeneratedFactories;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.api.condition.EnabledForJreRange;
 import org.junit.jupiter.api.condition.JRE;
+import org.junit.jupiter.api.io.TempDir;
 
 import javax.tools.ToolProvider;
 import java.io.File;

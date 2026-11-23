@@ -17,7 +17,6 @@ package io.yupiik.fusion.httpclient.core.listener.impl.har;
 
 import io.yupiik.fusion.framework.api.configuration.Configuration;
 import io.yupiik.fusion.httpclient.core.listener.impl.FusionModule;
-import io.yupiik.fusion.httpclient.core.listener.impl.BaseHARDumperListener.Har;
 import io.yupiik.fusion.json.internal.JsonMapperImpl;
 import io.yupiik.fusion.json.internal.JsonStrings;
 import io.yupiik.fusion.json.serialization.JsonCodec;

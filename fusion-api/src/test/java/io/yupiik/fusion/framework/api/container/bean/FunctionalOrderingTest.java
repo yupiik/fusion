@@ -15,9 +15,8 @@
  */
 package io.yupiik.fusion.framework.api.container.bean;
 
-import io.yupiik.fusion.framework.api.container.listener.FunctionalListener;
-
 import io.yupiik.fusion.framework.api.container.Listeners;
+import io.yupiik.fusion.framework.api.container.listener.FunctionalListener;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;

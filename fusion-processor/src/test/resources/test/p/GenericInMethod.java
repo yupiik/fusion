@@ -18,7 +18,6 @@ package test.p;
 import io.yupiik.fusion.framework.api.scope.ApplicationScoped;
 
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 
 @ApplicationScoped
 public class GenericInMethod/*<X>*/ {

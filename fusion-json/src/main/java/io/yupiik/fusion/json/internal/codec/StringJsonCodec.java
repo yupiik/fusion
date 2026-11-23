@@ -15,15 +15,15 @@
  */
 package io.yupiik.fusion.json.internal.codec;
 
-import io.yupiik.fusion.json.internal.JsonStrings;
 import io.yupiik.fusion.json.JsonException;
+import io.yupiik.fusion.json.internal.JsonStrings;
 import io.yupiik.fusion.json.serialization.JsonCodec;
 
 import java.io.IOException;
 import java.lang.reflect.Type;
 
-import static io.yupiik.fusion.json.spi.Parser.Event.VALUE_STRING;
 import static io.yupiik.fusion.json.spi.Parser.Event.VALUE_NULL;
+import static io.yupiik.fusion.json.spi.Parser.Event.VALUE_STRING;
 
 public class StringJsonCodec implements JsonCodec<String> {
     @Override

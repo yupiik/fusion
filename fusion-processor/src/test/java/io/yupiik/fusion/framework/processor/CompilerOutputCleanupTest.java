@@ -20,10 +20,10 @@ import org.junit.jupiter.api.Test;
 
 import javax.annotation.processing.Filer;
 import javax.annotation.processing.ProcessingEnvironment;
+import javax.lang.model.util.Elements;
 import javax.tools.JavaFileManager;
 import javax.tools.SimpleJavaFileObject;
 import java.io.StringWriter;
-import javax.lang.model.util.Elements;
 import java.io.Writer;
 import java.lang.reflect.Proxy;
 import java.net.URI;

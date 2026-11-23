@@ -15,8 +15,8 @@
  */
 package io.yupiik.fusion.json.serialization;
 
-import io.yupiik.fusion.json.JsonMapper;
 import io.yupiik.fusion.json.JsonException;
+import io.yupiik.fusion.json.JsonMapper;
 import io.yupiik.fusion.json.internal.JsonMapperImpl;
 import io.yupiik.fusion.json.internal.codec.EnumJsonCodec;
 import io.yupiik.fusion.json.internal.codec.ObjectJsonCodec;

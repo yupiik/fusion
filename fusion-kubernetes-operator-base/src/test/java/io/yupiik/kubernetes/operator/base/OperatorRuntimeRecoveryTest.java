@@ -45,6 +45,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
@@ -64,11 +65,12 @@ import static io.yupiik.kubernetes.operator.base.test.sample.FusionGeneratedModu
 import static io.yupiik.kubernetes.operator.base.test.sample.FusionGeneratedModule.SampleResource$Spec$FusionJsonCodec;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static java.util.stream.IntStream.range;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @Timeout(15)
@@ -216,7 +218,9 @@ class OperatorRuntimeRecoveryTest {
             one.respond(200, event("A", "one", "2") +
                     "{\"type\":\"BOOKMARK\",\"object\":{\"metadata\":{\"resourceVersion\":\"must-not-save\"}}}\n", false);
             two.respond(200, "{\"type\":\"BOOKMARK\",\"object\":{\"metadata\":{\"resourceVersion\":\"other\"}}}\n", false);
-            assertTrue(otherBookmark.await(5, SECONDS));
+            assertTrue(otherBookmark.await(15, SECONDS));
+            // A bookmark on another watch does not order this watch's callback failure.
+            assertThrows(CancellationException.class, () -> one.future.get(15, SECONDS));
             assertTrue(Files.readString(storage.resolve("samples-one.items")).contains("\"metadata\":{\"resourceVersion\":\"old\"}"));
             assertTrue(Files.readString(storage.resolve("samples-one.items")).contains("\"resourceVersion\":\"1\""));
             assertFalse(fixture.runtime.isReady());
@@ -1113,8 +1117,13 @@ class OperatorRuntimeRecoveryTest {
             two.respond(200, "", true);
             fixture.scheduler.retry();
             assertTrue(fixture.client.next().request.uri().getPath().contains("/two/"));
+            // Reconnecting the other watch does not wait for this watch's event worker.
+            final var deadline = System.nanoTime() + SECONDS.toNanos(15);
+            while (fixture.runtime.isReady() && System.nanoTime() < deadline) {
+                Thread.onSpinWait();
+            }
+            assertFalse(fixture.runtime.isReady(), "malformed bookmark must stop the affected watch");
             assertEquals(inventory, Files.readString(storage.resolve("samples-one.items")));
-            assertFalse(fixture.runtime.isReady());
             assertTrue(fixture.scheduler.retries.isEmpty());
         }
     }

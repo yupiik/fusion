@@ -17,7 +17,6 @@ package io.yupiik.fusion.json.schema.validation.spi.builtin.type;
 
 import java.util.Collection;
 import java.util.Map;
-import java.util.StringJoiner;
 import java.util.function.Predicate;
 
 public sealed interface TypeFilter extends Predicate<Object> permits TypeFilter.ObjectFilter, TypeFilter.ArrayFilter, TypeFilter.NumberFilter, TypeFilter.BooleanFilter, TypeFilter.StringFilter, TypeFilter.NullFilter {

@@ -17,8 +17,8 @@ package io.yupiik.fusion.framework.processor;
 
 import io.yupiik.fusion.framework.api.container.bean.FunctionalBean;
 import io.yupiik.fusion.framework.api.container.listener.FunctionalListener;
-import io.yupiik.fusion.framework.processor.test.ProcessorInternals;
 import io.yupiik.fusion.framework.processor.test.GeneratedFactories;
+import io.yupiik.fusion.framework.processor.test.ProcessorInternals;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -27,14 +27,14 @@ import javax.annotation.processing.RoundEnvironment;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.TypeElement;
 import javax.tools.ToolProvider;
-import java.io.StringWriter;
 import java.io.DataInputStream;
+import java.io.StringWriter;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;

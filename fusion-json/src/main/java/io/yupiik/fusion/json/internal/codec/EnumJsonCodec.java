@@ -15,9 +15,9 @@
  */
 package io.yupiik.fusion.json.internal.codec;
 
+import io.yupiik.fusion.json.JsonException;
 import io.yupiik.fusion.json.internal.JsonStrings;
 import io.yupiik.fusion.json.serialization.JsonCodec;
-import io.yupiik.fusion.json.JsonException;
 
 import java.io.IOException;
 import java.lang.reflect.Type;
@@ -26,8 +26,8 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.function.Function;
 
-import static io.yupiik.fusion.json.spi.Parser.Event.VALUE_STRING;
 import static io.yupiik.fusion.json.spi.Parser.Event.VALUE_NULL;
+import static io.yupiik.fusion.json.spi.Parser.Event.VALUE_STRING;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toMap;
 

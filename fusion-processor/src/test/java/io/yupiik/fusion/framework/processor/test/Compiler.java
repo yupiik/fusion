@@ -38,12 +38,12 @@ import java.net.MalformedURLException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.Arrays;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.spi.ToolProvider;
-import java.util.Arrays;
 import java.util.stream.Stream;
 
 import static java.util.Objects.requireNonNull;

@@ -15,11 +15,11 @@
  */
 package io.yupiik.fusion.http.server.impl.tomcat;
 
+import io.yupiik.fusion.http.server.api.WebServer;
+import io.yupiik.fusion.http.server.spi.Endpoint;
 import jakarta.servlet.ServletContainerInitializer;
 import org.apache.catalina.core.StandardContext;
 import org.apache.catalina.startup.Tomcat;
-import io.yupiik.fusion.http.server.api.WebServer;
-import io.yupiik.fusion.http.server.spi.Endpoint;
 
 import java.util.List;
 import java.util.function.Consumer;

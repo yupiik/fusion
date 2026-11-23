@@ -15,7 +15,6 @@
  */
 package test.p.metadata;
 
-import io.yupiik.fusion.framework.build.api.metadata.BeanMetadata;
 import io.yupiik.fusion.framework.build.api.metadata.BeanMetadataAlias;
 
 @BeanMetadataAlias(name = "flag")

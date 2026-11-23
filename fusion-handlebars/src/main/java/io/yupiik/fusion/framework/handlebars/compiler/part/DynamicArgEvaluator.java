@@ -17,8 +17,6 @@ package io.yupiik.fusion.framework.handlebars.compiler.part;
 
 import io.yupiik.fusion.framework.handlebars.spi.Accessor;
 
-import java.util.Map;
-
 /**
  * Resolves a name (a simple, dotted, `this.` or `../` path) against the current data and the render
  * context frames. Block params (`as |a b|`) shadow data values, like in handlebars.js.

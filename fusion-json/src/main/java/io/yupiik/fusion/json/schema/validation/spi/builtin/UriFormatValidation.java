@@ -20,7 +20,6 @@ import io.yupiik.fusion.json.schema.validation.spi.ValidationContext;
 import io.yupiik.fusion.json.schema.validation.spi.ValidationExtension;
 import io.yupiik.fusion.json.schema.validation.spi.builtin.type.TypeFilter;
 
-import java.net.URI;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;

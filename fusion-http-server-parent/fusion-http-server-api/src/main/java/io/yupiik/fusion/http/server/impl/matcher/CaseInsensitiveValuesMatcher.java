@@ -15,7 +15,6 @@
  */
 package io.yupiik.fusion.http.server.impl.matcher;
 
-import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.function.Function;

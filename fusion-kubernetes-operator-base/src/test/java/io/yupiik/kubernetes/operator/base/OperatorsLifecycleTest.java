@@ -22,8 +22,8 @@ import io.yupiik.fusion.framework.api.configuration.ConfigurationSource;
 import io.yupiik.fusion.framework.api.container.bean.ProvidedInstanceBean;
 import io.yupiik.fusion.framework.api.scope.DefaultScoped;
 import io.yupiik.fusion.json.JsonMapper;
-import io.yupiik.kubernetes.operator.base.impl.OperatorsLifecycle;
 import io.yupiik.kubernetes.operator.base.impl.OperatorConfiguration;
+import io.yupiik.kubernetes.operator.base.impl.OperatorsLifecycle;
 import org.junit.jupiter.api.Test;
 
 import java.net.InetSocketAddress;
@@ -41,8 +41,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class OperatorsLifecycleTest {
     @Test

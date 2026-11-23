@@ -15,17 +15,13 @@
  */
 package io.yupiik.fusion.framework.api.container.bean;
 
-import io.yupiik.fusion.framework.api.Instance;
-import io.yupiik.fusion.framework.api.RuntimeContainer;
 import io.yupiik.fusion.framework.api.container.BaseLookup;
 import io.yupiik.fusion.framework.api.container.FusionBean;
 
 import java.lang.reflect.Type;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.Function;
 
 // intended to host utilities for generation if needed (to reduce generated code source size)
 public abstract class BaseBean<A> extends BaseLookup implements FusionBean<A> {

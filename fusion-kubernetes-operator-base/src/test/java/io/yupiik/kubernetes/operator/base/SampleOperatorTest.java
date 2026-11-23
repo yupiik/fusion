@@ -41,7 +41,6 @@ import static io.yupiik.fusion.testing.assertion.Asserts.waitUntil;
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SampleOperatorTest {
     @Test

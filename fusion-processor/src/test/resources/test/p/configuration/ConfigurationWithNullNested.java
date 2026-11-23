@@ -15,8 +15,6 @@
  */
 package test.p.configuration;
 
-import io.yupiik.fusion.framework.api.event.Emitter;
-import io.yupiik.fusion.framework.build.api.cli.Command;
 import io.yupiik.fusion.framework.build.api.configuration.Property;
 import io.yupiik.fusion.framework.build.api.configuration.RootConfiguration;
 

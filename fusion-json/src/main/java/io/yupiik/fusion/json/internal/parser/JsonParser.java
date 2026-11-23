@@ -18,7 +18,6 @@ package io.yupiik.fusion.json.internal.parser;
 import io.yupiik.fusion.json.JsonException;
 import io.yupiik.fusion.json.deserialization.AvailableCharArrayReader;
 import io.yupiik.fusion.json.internal.JsonStrings;
-import io.yupiik.fusion.json.spi.Parser;
 
 import java.io.IOException;
 import java.io.Reader;
