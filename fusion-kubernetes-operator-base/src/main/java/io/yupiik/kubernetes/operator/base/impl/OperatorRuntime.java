@@ -23,330 +23,471 @@ import io.yupiik.kubernetes.operator.base.spi.Operator;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URLEncoder;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.Flow;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.Consumer;
-import java.util.function.LongSupplier;
-import java.util.function.Supplier;
 import java.util.logging.Logger;
 
-import static java.net.http.HttpResponse.BodyHandlers.fromLineSubscriber;
 import static java.net.http.HttpResponse.BodyHandlers.ofString;
-import static java.util.Optional.ofNullable;
-import static java.util.logging.Level.SEVERE;
-import static java.util.stream.Collectors.joining;
+import static java.nio.file.StandardCopyOption.ATOMIC_MOVE;
+import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.logging.Level.WARNING;
 
 public class OperatorRuntime<T extends ObjectLike> extends SimpleController<T> implements Awaiter {
+    private static final int DRAIN_BATCH_SIZE = 32;
     private final Logger logger = Logger.getLogger(getClass().getName());
     private final OperatorConfiguration configuration;
     private final KubernetesClient kubernetes;
-    private final ExecutorService threads;
+    private final ScheduledExecutorService threads;
     private final JsonMapper jsonMapper;
-    private final Path storage;
-
-    private final List<URI> findAllUris;
-    private final ReentrantLock lock = new ReentrantLock();
+    private final List<Watch> watches;
+    private final ReentrantLock lifecycle = new ReentrantLock();
     private final CountDownLatch awaiter = new CountDownLatch(1);
-
-    private Flow.Subscription subscription;
-    private long lastResource;
+    private volatile boolean closing;
+    private final AtomicBoolean started = new AtomicBoolean();
+    private final AtomicBoolean stopped = new AtomicBoolean();
 
     public OperatorRuntime(final OperatorConfiguration configuration,
                            final KubernetesClient kubernetes,
                            final ScheduledExecutorService threads,
                            final JsonMapper jsonMapper,
                            final Operator<T> spec) {
-        super(threads, jsonMapper, configuration.eventThreadCount(), new OperatorWrapper<>(spec, configuration));
-
-        final var wrapper = (OperatorWrapper<T>) operator;
-        wrapper.onBookmark = this::onBookmark;
-        wrapper.lastResource = () -> lastResource;
-
+        super(threads, jsonMapper, configuration.eventThreadCount(), spec);
         this.configuration = configuration;
         this.kubernetes = kubernetes;
         this.threads = threads;
         this.jsonMapper = jsonMapper;
+        final var namespaces = spec.namespaced() ? spec.namespaces() : List.of("");
+        this.watches = namespaces.stream().distinct().map(namespace -> {
+            final var uri = URI.create("https://kubernetes.api/apis/" + spec.apiVersion() + "/" +
+                    (spec.namespaced() ? "namespaces/" + namespace + "/" : "") + spec.pluralName());
+            final var storage = configuration.storage() == null ? null :
+                    Path.of(configuration.storage()).resolve(spec.pluralName() +
+                            (namespaces.size() > 1 ? "-" + namespace : ""));
+            return new Watch(uri, storage);
+        }).toList();
+    }
 
-        this.storage = configuration.storage() == null ? null : Path.of(configuration.storage()).resolve(spec.pluralName());
-        if (storage != null && !Files.exists(storage.getParent())) {
-            logger.info(() -> "Creating '" + storage.getParent() + "'");
-            try {
-                Files.createDirectories(storage.getParent());
-            } catch (final IOException e) {
-                throw new IllegalStateException(e);
-            }
+    public CompletionStage<?> doStart() {
+        if (!started.compareAndSet(false, true)) {
+            return CompletableFuture.completedFuture(null);
         }
-
-        // note: potentially handle multiple namespaces or configure them in the controller
-        // /apis/$group/$version/namespaces/$namespace/$plural from crd.json (namespaces cause namespaced=true in crd.json)
-        this.findAllUris = spec.namespaces().stream()
-                .map(it -> URI.create("https://kubernetes.api/" +
-                        "apis/" + spec.apiVersion() + "/" +
-                        (spec.namespaced() ? "namespaces/" + it + "/" : "") +
-                        spec.pluralName()))
-                .toList();
-        logger.info(() -> "Will watch " + findAllUris.stream().map(URI::getPath).collect(joining(", ", "[", "]")));
+        return operator.onStart().thenRun(() -> {
+            if (!closing) {
+                init();
+                watches.forEach(watch -> {
+                    watch.resourceVersion = loadResourceVersion(watch);
+                    loadKnownItems(watch);
+                    connect(watch, true);
+                });
+            }
+        });
     }
 
     @Override
     public void stop() {
-        stopWatching();
-
-        // ensure http client request (watch) is done
-        await();
-    }
-
-    public CompletionStage<?> doStart() {
-        return operator.onStart().thenRunAsync(this::startListening, threads);
+        doStop();
     }
 
     public void doStop() {
+        if (!stopped.compareAndSet(false, true)) {
+            return;
+        }
+        final List<Runnable> cancellations;
+        lifecycle.lock();
         try {
-            stopWatching();
+            closing = true;
+            cancellations = watches.stream().<Runnable>map(watch -> {
+                final var retry = watch.retry;
+                final var subscription = watch.subscription;
+                final var request = watch.request;
+                return () -> {
+                    if (retry != null) {
+                        retry.cancel(false);
+                    }
+                    if (subscription != null) {
+                        subscription.cancel();
+                    }
+                    if (request != null) {
+                        request.cancel(true);
+                    }
+                };
+            }).toList();
+        } finally {
+            lifecycle.unlock();
+        }
+        // Cancellation can invoke HTTP callbacks: never call it under the lifecycle lock.
+        cancellations.forEach(Runnable::run);
+        try {
+            super.stop(); // bounded drain, then interrupt only our own workers
             operator.onStop();
         } finally {
-            if (awaiter.getCount() > 0) {
-                awaiter.countDown();
-            }
+            awaiter.countDown();
         }
     }
 
-    private void stopWatching() {
-        super.stop();
-
-        final var subscription = this.subscription;
-        if (subscription != null) {
-            subscription.cancel();
-        }
-    }
-
-    private void startListening() {
-        if (stopping) {
-            return;
-        }
-
-        findAllUris.forEach(uri -> validateResourceVersion(uri)
-                .thenRunAsync(this::init, threads)
-                .thenRunAsync(() -> watch(uri), threads)
-                .exceptionally(e -> {
-                    logger.log(SEVERE, e, () -> "Can't watch events: " + e.getMessage() + ", exiting");
-                    awaiter.countDown();
-                    throw e instanceof RuntimeException re ? re : new IllegalStateException(e);
-                }));
-    }
-
-    @Override
-    protected void onBookmark(final String resourceVersion) {
-        final var current = lastResource;
-        if (current > 0 && isHigher(current, resourceVersion)) {
-            return;
-        }
-        lock.lock();
+    private void connect(final Watch watch, final boolean list) {
+        lifecycle.lock();
         try {
-            lastResource = Long.parseLong(resourceVersion);
-            if (storage != null) {
-                try {
-                    Files.writeString(storage, jsonMapper.toString(new OperatorState(resourceVersion)));
-                } catch (final IOException | RuntimeException e) {
-                    logger.log(SEVERE, e, () -> "Can't write '" + storage + "': " + e.getMessage());
-                }
+            if (closing) {
+                return;
             }
-        } catch (final NumberFormatException nfe) {
-            logger.warning(() -> "Can't parse '" + resourceVersion + "'");
-        } finally {
-            lock.unlock();
-        }
-    }
-
-    private boolean isHigher(final long current, final String resourceVersion) {
-        try {
-            return current > Long.parseLong(resourceVersion);
-        } catch (final NumberFormatException nfe) {
-            return false;
-        }
-    }
-
-    private void watch(final URI uri) {
-        final var usedLastResource = lastResource;
-        final var originalUri = uri.toASCIIString();
-        final var watchUri = URI.create(originalUri + (originalUri.contains("?") ? "&" : "?") +
-                "watch=true" +
-                (configuration.useBookmarks() ? "&allowWatchBookmarks=true" : "") +
-                (usedLastResource > 0 ? "&resourceVersion=" + usedLastResource : ""));
-        logger.info(() -> "Starting to watch '" + watchUri + "'");
-        httpGet(watchUri, fromLineSubscriber(new Flow.Subscriber<>() {
-            @Override
-            public void onSubscribe(final Flow.Subscription subscription) {
-                OperatorRuntime.this.subscription = subscription;
-                logger.info(() -> "Starting to watch resources");
-                OperatorRuntime.this.subscription.request(1);
-            }
-
-            @Override
-            public void onNext(final String item) {
-                try {
-                    OperatorRuntime.super.onEvent(item);
-                } finally {
-                    subscription.request(1);
-                }
-            }
-
-            @Override
-            public void onError(final Throwable throwable) {
-                logger.log(SEVERE, throwable, throwable::getMessage);
-            }
-
-            @Override
-            public void onComplete() {
-                // no-op
-            }
-        })).exceptionally(e -> {
-            if (!stopping) {// restart
-                logger.log(SEVERE, e, () -> "Can't watch events: " + e.getMessage() + ", relaunching the watch");
-                watch(uri);
+            final var finished = new AtomicBoolean();
+            final var uri = list ? (watch.resourceVersion == null ? watch.uri : query(watch.uri, resume(watch).substring(1))) :
+                    query(watch.uri, "watch=true" +
+                            (configuration.useBookmarks() ? "&allowWatchBookmarks=true" : "") + resume(watch));
+            final CompletableFuture<?> completion;
+            if (list) {
+                final var responseFuture = kubernetes.sendAsync(request(uri), ofString());
+                watch.request = responseFuture;
+                completion = responseFuture.thenAccept(response -> {
+                            checkStatus(response.statusCode());
+                            final var data = jsonMapper.fromString(EventList.class, response.body());
+                            // A resumed list only validates the token. A fresh list establishes the snapshot.
+                            if (watch.resourceVersion == null) {
+                                dispatch(watch, () -> reconcile(watch, data));
+                            }
+                            dispatch(watch, () -> connect(watch, false));
+                        });
             } else {
-                logger.info(() -> "Application is shutting down, exiting");
+                watch.request = kubernetes.sendAsync(request(uri), response -> {
+                    if (response.statusCode() != 200) {
+                        return HttpResponse.BodySubscribers.mapping(HttpResponse.BodySubscribers.ofString(StandardCharsets.UTF_8), body -> {
+                            checkStatus(response.statusCode());
+                            return (Void) null;
+                        });
+                    }
+                    return HttpResponse.BodySubscribers.fromLineSubscriber(new Flow.Subscriber<String>() {
+                        private Flow.Subscription subscription;
+
+                        @Override
+                        public void onSubscribe(final Flow.Subscription subscription) {
+                            lifecycle.lock();
+                            try {
+                                this.subscription = subscription;
+                                watch.subscription = subscription;
+                                if (closing) {
+                                    subscription.cancel();
+                                } else {
+                                    subscription.request(1);
+                                }
+                            } finally {
+                                lifecycle.unlock();
+                            }
+                        }
+
+                        @Override
+                        public void onNext(final String line) {
+                            try {
+                                if (line.isBlank()) {
+                                    return;
+                                }
+                                final var event = jsonMapper.fromString(Event.class, line);
+                                if ("ERROR".equals(event.type()) && event.object() != null &&
+                                        event.object().get("code") instanceof Number code && code.intValue() == 410) {
+                                    subscription.cancel();
+                                    finish(watch, finished, new ClientHttpException(410), false);
+                                    return;
+                                }
+                                watch.delay = 100;
+                                dispatch(watch, () -> {
+                                    trackWatchEvent(watch, event);
+                                    handleEvent(line);
+                                    if (event.object() != null && ("BOOKMARK".equals(event.type()) ||
+                                            (!configuration.useBookmarks() && List.of("ADDED", "MODIFIED", "DELETED").contains(event.type())))) {
+                                        final var metadata = event.object().get("metadata");
+                                        if (metadata instanceof Map<?, ?> map) {
+                                            checkpoint(watch, (String) map.get("resourceVersion"));
+                                        }
+                                    }
+                                });
+                            } catch (final RuntimeException e) {
+                                logger.log(WARNING, "Invalid watch event", e);
+                            } finally {
+                                subscription.request(1);
+                            }
+                        }
+
+                        @Override
+                        public void onError(final Throwable error) {
+                            // The response future completes exceptionally too; reconnect only once.
+                        }
+
+                        @Override
+                        public void onComplete() {
+                            // The response future completes on normal EOF too.
+                        }
+                    });
+                });
+                completion = watch.request;
             }
-            return null;
+            completion.whenComplete((ignored, error) -> {
+                if (error != null || !list) {
+                    finish(watch, finished, error, list);
+                }
+            });
+        } catch (final RuntimeException e) {
+            logger.log(WARNING, "Can't connect to Kubernetes; retrying with bounded backoff", e);
+            schedule(watch, list);
+        } finally {
+            lifecycle.unlock();
+        }
+    }
+
+    private void finish(final Watch watch, final AtomicBoolean finished, final Throwable error, final boolean list) {
+        if (!finished.compareAndSet(false, true) || closing) {
+            return;
+        }
+        var cause = error;
+        while (cause != null && cause.getCause() != null &&
+                (cause instanceof CompletionException || cause instanceof IOException)) {
+            cause = cause.getCause();
+        }
+        final boolean expired = cause instanceof ClientHttpException http && http.status == 410;
+        dispatch(watch, () -> {
+            if (expired) {
+                watch.resourceVersion = null;
+                if (watch.storage != null) {
+                    try {
+                        Files.deleteIfExists(watch.storage);
+                    } catch (final IOException e) {
+                        logger.log(WARNING, "Can't remove expired resource version", e);
+                    }
+                }
+            }
+            schedule(watch, list || expired);
         });
     }
 
-    @SuppressWarnings("unchecked")
-    private CompletionStage<Long> validateResourceVersion(final URI base) {
-        final long resourceVersion = loadResourceVersion();
-        final var query = "limit=1"/* we just check the resource version */ + (resourceVersion > 0 ? "&resourceVersion=" + resourceVersion : "");
-        final var uri = URI.create(base.toASCIIString() + (base.getRawQuery() == null || base.getRawQuery().isBlank() ? "?" : "&") + query);
-        return httpGet(uri, ofString())
-                .exceptionallyCompose(err -> {
-                    logger.log(SEVERE, err, () -> "Can't load initial state: " + err.getMessage());
-
-                    var unwrapped = err instanceof CompletionException ce ? ce.getCause() : err;
-                    // there was a resource version and it is outdated, let's try to skip it to restart "clean"
-                    if (unwrapped instanceof ClientHttpException che && che.status == 410 /* gone */) {
-                        logger.info(() -> "Deleting state since load failed");
-                        try {
-                            Files.delete(storage);
-                        } catch (final IOException e) {
-                            logger.log(SEVERE, e, () -> "Can't delete state: " + e.getMessage());
-                        }
-                        return httpGet(base, ofString());
-                    }
-
-                    throw unwrapped instanceof RuntimeException re ? re : new IllegalStateException(unwrapped);
-                })
-                .thenApply(res -> { // capture last resource version
-                    final var simpleModel = (Map<String, Object>) jsonMapper.fromString(Object.class, res);
-                    if ("Status".equals(simpleModel.getOrDefault("kind", "")) &&
-                            200 != ofNullable(simpleModel.get("code"))
-                                    .filter(Number.class::isInstance)
-                                    .map(Number.class::cast)
-                                    .map(Number::intValue)
-                                    .orElse(200)) {
-                        throw new IllegalStateException("Can't GET '" + base + "': " + res);
-                    }
-
-                    final var meta = (Map<String, Object>) simpleModel.get("metadata");
-                    if (meta == null) { // unlikely
-                        return -1L;
-                    }
-
-                    final var newResourceVersion = ofNullable(meta.get("resourceVersion")).map(String::valueOf).orElse(null);
-                    if (newResourceVersion != null) {
-                        long newResourceVersionLong = -1;
-                        try {
-                            newResourceVersionLong = Long.parseLong(newResourceVersion);
-                        } catch (final NumberFormatException ignored) {
-                            logger.finest(() -> "Can't parse new resource version: '" + newResourceVersion + "'");
-                        }
-
-                        if (newResourceVersionLong < resourceVersion) { // something went wrong, go back in time, todo: should we delete it?
-                            logger.warning(() -> "Current actual resource version is before persisted resource version");
-                            onBookmark(newResourceVersion);
-                            return newResourceVersionLong;
-                        }
-                        return resourceVersion;
-                    }
-
-                    return -1L;
-                });
+    // Keep each watch in stream order even when different namespaces use multiple event workers.
+    private void dispatch(final Watch watch, final Runnable task) {
+        lifecycle.lock();
+        try {
+            if (closing) {
+                return;
+            }
+            watch.pending.add(task);
+            if (watch.running.compareAndSet(false, true)) {
+                enqueue(() -> drain(watch));
+            }
+        } finally {
+            lifecycle.unlock();
+        }
     }
 
-    private long loadResourceVersion() {
-        if (storage == null || !Files.exists(storage)) {
-            return -1;
-        }
+    private void drain(final Watch watch) {
         try {
-            final var state = jsonMapper.fromString(OperatorState.class, Files.readString(storage));
-            if (state.resourceVersion() != null) {
-                logger.info(() -> "Using resourceVersion=" + state.resourceVersion());
-                try {
-                    final long value = Long.parseLong(state.resourceVersion());
-                    lastResource = value;
-                    return value;
-                } catch (final NumberFormatException ignored) {
-                    logger.finest(() -> "Can't parse resource version: '" + state.resourceVersion() + "'");
+            for (int i = 0; i < DRAIN_BATCH_SIZE; i++) {
+                final var task = watch.pending.poll();
+                if (task == null) {
+                    break;
+                }
+                runEvent(task);
+                if (Thread.currentThread().isInterrupted()) {
+                    watch.pending.clear();
+                    return;
                 }
             }
-        } catch (final IOException e) {
-            logger.log(SEVERE, e, () -> "Can't load state: " + e.getMessage());
+        } finally {
+            watch.running.set(false);
+            if (!watch.pending.isEmpty() && watch.running.compareAndSet(false, true)) {
+                // This is already accepted work, including when stop has closed admission.
+                enqueueContinuation(() -> drain(watch));
+            }
         }
-        return -1;
     }
 
-    private <O> CompletionStage<O> httpGet(final URI uri, final HttpResponse.BodyHandler<O> handler) {
-        return kubernetes.sendAsync(
-                        HttpRequest.newBuilder()
-                                .GET()
-                                .uri(uri)
-                                .header("accept", "application/json")
-                                .build(),
-                        handler)
-                .thenApplyAsync(res -> {
-                    if (res.statusCode() != 200) {
-                        throw new ClientHttpException(() -> "Invalid response: " + res + "\n" + res.body(), res.statusCode());
-                    }
-                    return res.body();
-                }, threads);
+    private void runEvent(final Runnable task) {
+        try {
+            task.run();
+        } catch (final RuntimeException e) {
+            logger.log(WARNING, "Event handler failed; continuing with the next event", e);
+        }
+    }
+
+    private String uid(final Map<String, Object> item) {
+        return (String) ((Map<?, ?>) item.get("metadata")).get("uid");
+    }
+
+    private void handleWatchEvent(final Watch watch, final Event event) {
+        trackWatchEvent(watch, event);
+        handleEvent(jsonMapper.toString(event));
+    }
+
+    private void trackWatchEvent(final Watch watch, final Event event) {
+        if (event.object() != null && event.type() != null) {
+            switch (event.type()) {
+                case "ADDED", "MODIFIED" -> watch.known.put(uid(event.object()), event.object());
+                case "DELETED" -> watch.known.remove(uid(event.object()));
+                default -> { }
+            }
+        }
+    }
+
+    private void reconcile(final Watch watch, final EventList snapshot) {
+        final var items = snapshot.items() == null ? List.<Map<String, Object>>of() : snapshot.items();
+        final var present = new HashSet<String>();
+        items.forEach(item -> present.add(uid(item)));
+        // Compare only this watch's inventory, never clear another namespace's controller state.
+        final var missing = watch.known.entrySet().stream()
+                .filter(entry -> !present.contains(entry.getKey())).map(Map.Entry::getValue).toList();
+        final var reconciliation = new ArrayList<Runnable>();
+        missing.forEach(item -> reconciliation.add(() -> handleWatchEvent(watch, new Event("DELETED", item))));
+        items.forEach(item -> reconciliation.add(() -> handleWatchEvent(watch, new Event("ADDED", item))));
+        if (snapshot.metadata() != null) {
+            reconciliation.add(() -> checkpoint(watch, snapshot.metadata().resourceVersion()));
+        }
+        // Expand this accepted snapshot in place, ahead of the next watch connection.
+        // Each callback gets a separate batch slot, so a large relist also yields fairly.
+        for (int i = reconciliation.size() - 1; i >= 0; i--) {
+            watch.pending.addFirst(reconciliation.get(i));
+        }
+    }
+
+    private void loadKnownItems(final Watch watch) {
+        if (watch.inventory != null && Files.exists(watch.inventory)) {
+            try {
+                final var snapshot = jsonMapper.fromString(EventList.class, Files.readString(watch.inventory));
+                if (snapshot.items() != null) {
+                    snapshot.items().forEach(item -> dispatch(watch, () -> handleWatchEvent(watch, new Event("ADDED", item))));
+                }
+            } catch (final IOException | RuntimeException e) {
+                logger.log(WARNING, "Can't load known resources", e);
+            }
+        }
+    }
+
+    private void schedule(final Watch watch, final boolean list) {
+        lifecycle.lock();
+        try {
+            if (!closing) {
+                watch.retry = threads.schedule(() -> connect(watch, list), watch.delay, MILLISECONDS);
+                watch.delay = Math.min(5_000, watch.delay * 2);
+            }
+        } finally {
+            lifecycle.unlock();
+        }
+    }
+
+    private HttpRequest request(final URI uri) {
+        return HttpRequest.newBuilder(uri).GET().header("accept", "application/json").build();
+    }
+
+    private URI query(final URI uri, final String query) {
+        return URI.create(uri.toASCIIString() + "?" + query);
+    }
+
+    private String resume(final Watch watch) {
+        return watch.resourceVersion == null ? "" :
+                "&resourceVersion=" + URLEncoder.encode(watch.resourceVersion, StandardCharsets.UTF_8);
+    }
+
+    private void checkStatus(final int status) {
+        if (status != 200) {
+            throw new ClientHttpException(status);
+        }
+    }
+
+    private String loadResourceVersion(final Watch watch) {
+        if (watch.storage != null && Files.exists(watch.storage)) {
+            try {
+                return jsonMapper.fromString(OperatorState.class, Files.readString(watch.storage)).resourceVersion();
+            } catch (final IOException | RuntimeException e) {
+                logger.log(WARNING, "Can't load resource version", e);
+            }
+        }
+        return null;
+    }
+
+    private void checkpoint(final Watch watch, final String version) {
+        if (version == null || version.isBlank()) {
+            return;
+        }
+        watch.resourceVersion = version; // resource versions are opaque, never compare or parse them
+        if (watch.storage != null) {
+            try {
+                Files.createDirectories(watch.storage.getParent());
+                // Inventory first: a crash can replay work, but must not advance the cursor without it.
+                persist(watch.inventory, jsonMapper.toString(new EventList(
+                        new ListMetadata(version), List.copyOf(watch.known.values()))));
+                persist(watch.storage, jsonMapper.toString(new OperatorState(version)));
+            } catch (final IOException e) {
+                logger.log(WARNING, "Can't persist resource version", e);
+            }
+        }
+    }
+
+    private void persist(final Path target, final String content) throws IOException {
+        final var temporary = Files.createTempFile(target.getParent(), target.getFileName() + "-", ".tmp");
+        try {
+            Files.writeString(temporary, content);
+            try {
+                Files.move(temporary, target, ATOMIC_MOVE, REPLACE_EXISTING);
+            } catch (final AtomicMoveNotSupportedException e) {
+                Files.move(temporary, target, REPLACE_EXISTING);
+            }
+        } finally {
+            Files.deleteIfExists(temporary);
+        }
     }
 
     @Override
     public void await() {
-        if (!configuration.await()) {
-            return;
+        if (configuration.await()) {
+            try {
+                awaiter.await();
+            } catch (final InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
         }
+    }
 
-        // await process termination (kill sig)
-        try {
-            awaiter.await();
-        } catch (final InterruptedException e) {
-            Thread.currentThread().interrupt();
+    private static final class Watch {
+        private final URI uri;
+        private final Path storage;
+        private final Path inventory;
+        private final Map<String, Map<String, Object>> known = new LinkedHashMap<>();
+        private final ConcurrentLinkedDeque<Runnable> pending = new ConcurrentLinkedDeque<>();
+        private final AtomicBoolean running = new AtomicBoolean();
+        private volatile String resourceVersion;
+        private volatile long delay = 100;
+        private Flow.Subscription subscription;
+        private CompletableFuture<?> request;
+        private ScheduledFuture<?> retry;
+
+        private Watch(final URI uri, final Path storage) {
+            this.uri = uri;
+            this.storage = storage;
+            this.inventory = storage == null ? null : storage.resolveSibling(storage.getFileName() + ".items");
         }
     }
 
     private static class ClientHttpException extends RuntimeException {
         private final int status;
-        private final Supplier<String> message;
 
-        private ClientHttpException(final Supplier<String> message, final int status) {
-            super("");
-            this.message = message;
+        private ClientHttpException(final int status) {
+            super("Kubernetes HTTP status " + status);
             this.status = status;
-        }
-
-        @Override
-        public String getMessage() {
-            return message.get();
         }
     }
 
@@ -354,106 +495,11 @@ public class OperatorRuntime<T extends ObjectLike> extends SimpleController<T> i
     public record OperatorState(String resourceVersion) {
     }
 
-    private static class OperatorWrapper<T extends ObjectLike> implements Operator<T> {
-        private final Operator<T> spec;
-        private final OperatorConfiguration configuration;
-        private Consumer<String> onBookmark;
-        private LongSupplier lastResource;
+    @JsonModel
+    public record ListMetadata(String resourceVersion) {
+    }
 
-        private OperatorWrapper(final Operator<T> spec, OperatorConfiguration configuration) {
-            this.spec = spec;
-            this.configuration = configuration;
-        }
-
-        private void onEvent(final T resource, final OperatorConfiguration configuration, final Consumer<T> handler) {
-            if (notAlreadySeen(resource)) {
-                handler.accept(resource);
-            }
-            if (!configuration.useBookmarks()) {
-                onSeen(resource);
-            }
-        }
-
-        private void onSeen(final T resource) {
-            if (resource.metadata().resourceVersion() == null) {
-                return;
-            }
-            try {
-                onBookmark.accept(resource.metadata().resourceVersion());
-            } catch (final NumberFormatException nfe) {
-                // no-op
-            }
-        }
-
-        private boolean notAlreadySeen(final T resource) {
-            if (resource.metadata().resourceVersion() == null) {
-                return true;
-            }
-            try {
-                return lastResource.getAsLong() < Long.parseLong(resource.metadata().resourceVersion());
-            } catch (final NumberFormatException nfe) {
-                return false;
-            }
-        }
-
-        @Override
-        public void onAdd(final T resource) {
-            onEvent(resource, configuration, spec::onAdd);
-        }
-
-        @Override
-        public void onModify(final T resource) {
-            onEvent(resource, configuration, spec::onModify);
-        }
-
-        @Override
-        public void onDelete(final T resource) {
-            onEvent(resource, configuration, spec::onDelete);
-        }
-
-        @Override
-        public void onError(final String error) {
-            spec.onError(error);
-        }
-
-        @Override
-        public void onBookmark(final String resourceVersion) {
-            spec.onBookmark(resourceVersion);
-        }
-
-        @Override
-        public CompletionStage<?> onStart() {
-            return spec.onStart();
-        }
-
-        @Override
-        public void onStop() {
-            spec.onStop();
-        }
-
-        @Override
-        public Class<T> resourceType() {
-            return spec.resourceType();
-        }
-
-        @Override
-        public String pluralName() {
-            return spec.pluralName();
-        }
-
-        @Override
-        public String apiVersion() {
-            return spec.apiVersion();
-        }
-
-        @Override
-        public boolean namespaced() {
-            return spec.namespaced();
-        }
-
-        @Override
-        public List<String> namespaces() {
-            return spec.namespaces();
-        }
+    @JsonModel
+    public record EventList(ListMetadata metadata, List<Map<String, Object>> items) {
     }
 }

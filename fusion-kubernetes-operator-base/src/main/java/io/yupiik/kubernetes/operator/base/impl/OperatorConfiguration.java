@@ -22,6 +22,9 @@ import io.yupiik.fusion.framework.build.api.configuration.RootConfiguration;
 @ApplicationScoped
 @RootConfiguration("operator")
 public record OperatorConfiguration(
+        @Property(defaultValue = "false",
+                documentation = "Enable operator watches and probes. Must be explicitly enabled for operator startup; metadata containers remain inactive by default.")
+        boolean enabled,
         @Property(documentation = "Kubernetes client configuration.")
         Kubernetes kubernetes,
 

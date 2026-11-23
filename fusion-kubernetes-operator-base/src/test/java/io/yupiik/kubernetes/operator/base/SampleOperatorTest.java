@@ -136,7 +136,7 @@ class SampleOperatorTest {
             try (
                     final var kubernetes = new CapturingHttpServer(spec -> {
                         spec.map(
-                                "GET", "/apis/fusion.yupiik.io/v1/namespaces/default/samples?limit=1",
+                                "GET", "/apis/fusion.yupiik.io/v1/namespaces/default/samples",
                                 rs -> rs.send(
                                         200, Map.of(),
                                         """
@@ -145,7 +145,7 @@ class SampleOperatorTest {
                                                   "items": []
                                                 }"""));
                         spec.map(
-                                "GET", "/apis/fusion.yupiik.io/v1/namespaces/default/samples?watch=true",
+                                "GET", "/apis/fusion.yupiik.io/v1/namespaces/default/samples?watch=true&resourceVersion=1234",
                                 rs -> rs.send(
                                         200, Map.of(),
                                         new CapturingHttpServer.ResponseBodyHandler() {
@@ -188,7 +188,13 @@ class SampleOperatorTest {
                             .start()) {
                 final var tracker = storage.resolve("samples");
                 try {
-                    waitUntil(() -> Files.exists(tracker));
+                    waitUntil(() -> {
+                        try {
+                            return Files.exists(tracker) && Files.readString(tracker).contains("12346");
+                        } catch (final IOException e) {
+                            return false;
+                        }
+                    });
                     assertEquals("{\"resourceVersion\":\"12346\"}", Files.readString(tracker));
                 } finally {
                     end.countDown();
@@ -198,10 +204,10 @@ class SampleOperatorTest {
         { // restart with a state
             final var end = new CountDownLatch(1);
             try (
-                    final var logs = new SampleLoggingCapture(1, m -> m.startsWith("[") && m.contains("test2"));
+                    final var logs = new SampleLoggingCapture(4, m -> m.startsWith("[") && m.contains("test2"));
                     final var kubernetes = new CapturingHttpServer(spec -> {
                         spec.map(
-                                "GET", "/apis/fusion.yupiik.io/v1/namespaces/default/samples?limit=1&resourceVersion=12346",
+                                "GET", "/apis/fusion.yupiik.io/v1/namespaces/default/samples?resourceVersion=12346",
                                 rs -> rs.send(
                                         200, Map.of(),
                                         """
@@ -217,7 +223,7 @@ class SampleOperatorTest {
                                             @Override
                                             public HttpRequest.BodyPublisher publisher() {
                                                 return HttpRequest.BodyPublishers.concat(
-                                                        // too old
+                                                        // Numerically smaller tokens are still opaque and must be delivered
                                                         HttpRequest.BodyPublishers.ofString("""
                                                                 {
                                                                  "type":"ADDED",
@@ -232,7 +238,7 @@ class SampleOperatorTest {
                                                                    "spec": { "message": "hello" }
                                                                  }
                                                                 }""".replace("\n", "") + "\n"),
-                                                        // too old (limit)
+                                                        // Same token: delivery semantics belong to Kubernetes, not numeric comparisons
                                                         HttpRequest.BodyPublishers.ofString("""
                                                                 {
                                                                  "type":"ADDED",
@@ -281,7 +287,11 @@ class SampleOperatorTest {
                     .start()) {
                 try {
                     final var traces = logs.all();
-                    assertEquals(List.of("[ADD] SampleResource[metadata=Metadata[uid=null, resourceVersion=12347, name=test2, namespace=default, labels=null, annotations=null], spec=Spec[message=hello]]"), traces);
+                    // Restore the persisted inventory before replaying watch events.
+                    assertEquals(List.of("12346", "12345", "12346", "12347").stream()
+                            .map(version -> "[ADD] SampleResource[metadata=Metadata[uid=null, resourceVersion=" + version +
+                                    ", name=test2, namespace=default, labels=null, annotations=null], spec=Spec[message=hello]]")
+                            .toList(), traces);
                 } finally {
                     end.countDown();
                 }
@@ -291,6 +301,7 @@ class SampleOperatorTest {
 
     private ConfigurationSource configurationSource(final CapturingHttpServer kubernetes, final Path storage) {
         return key -> switch (key) {
+            case "operator.enabled" -> "true";
             case "operator.kubernetes.tls-skip" -> "true";
             case "operator.kubernetes.token" -> "target/____missing____";
             case "operator.kubernetes.master" -> kubernetes.base();

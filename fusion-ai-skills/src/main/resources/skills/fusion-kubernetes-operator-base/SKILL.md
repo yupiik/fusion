@@ -34,6 +34,7 @@ Generated from the annotation processor metadata (`META-INF/fusion/configuration
 | Name | Env variable | Description | Default | Required |
 |---|---|---|---|---|
 | `operator.await` | `OPERATOR_AWAIT` | Should operator await process termination, keep it `true` until you embed it. | `true` | no |
+| `operator.enabled` | `OPERATOR_ENABLED` | Enable operator watches and probes. Must be explicitly enabled for operator startup; metadata containers remain inactive by default. | `false` | no |
 | `operator.event-thread-count` | `OPERATOR_EVENT_THREAD_COUNT` | How many threads are handling events, take care that more than one require a specific concurrency handling. | `1` | no |
 | `operator.kubernetes.certificates` | `OPERATOR_KUBERNETES_CERTIFICATES` | Kubernetes certificate to connect to its API. | `"/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"` | no |
 | `operator.kubernetes.master` | `OPERATOR_KUBERNETES_MASTER` | The kubernetes API base URL. | `java.util.Optional.ofNullable(System.getenv("KUBERNETES_SERVICE_HOST")).map(host -> "https://" + host + ':' + java.util.Optional.ofNullable(System.getenv("KUBERNETES_SERVICE_PORT")).orElse("443")).orElse("https://kubernetes.default.svc")` | no |
