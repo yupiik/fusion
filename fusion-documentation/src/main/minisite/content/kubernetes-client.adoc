@@ -59,3 +59,34 @@ IMPORTANT: as you can see, there is no need to pass the token to the request, it
 * a `kubeconfig` for out-of-cluster usage,
 * a client customizer/wrapper to decorate the underlying `HttpClient`.
 
+=== Kubeconfig handling
+
+JSON kubeconfigs and the supported YAML subset can be passed directly to `setKubeconfig(Path)`.
+The client applies kubeconfig settings to a construction-local copy of `KubernetesClientConfiguration`, leaving the caller's configuration unchanged and reusable even if construction fails.
+Relative `certificate-authority`, `client-certificate`, `client-key`, and `tokenFile` paths are resolved against the kubeconfig's parent directory, not the process working directory.
+Absolute paths remain unchanged, and token files retain their normal refresh behavior.
+
+If `current-context` is missing or empty, the client uses the first declared context, whose name need not match its cluster's name.
+Missing or unusable contexts retain the existing warning-and-fallback behavior instead of making client construction fail.
+Unresolved cluster or user references produce a warning and retain the corresponding configured settings.
+A context can omit its user for unauthenticated access.
+
+Server endpoints without a scheme use HTTP, except when the port is exactly `443`, which selects HTTPS.
+Trailing slashes are removed from endpoint paths.
+The kubeconfig `insecure-skip-tls-verify` flag accepts both booleans and strings.
+An explicit `setSkipTls(true)` takes precedence over a missing or false kubeconfig flag; otherwise the selected cluster's flag applies.
+
+The selected cluster's `proxy-url`, when nonblank, configures an HTTP proxy for both HTTP and HTTPS API requests (HTTPS uses CONNECT).
+For example, set `proxy-url: http://proxy.example.com:3128` alongside the cluster's `server`; an omitted proxy port defaults to `80`.
+The proxy is applied before `clientCustomizer`, so the customizer can override it, while a supplied `HttpClient` is left unchanged.
+Without a kubeconfig proxy, the JDK client's normal proxy behavior is preserved.
+Invalid proxy URLs, HTTPS or SOCKS proxy schemes, and non-root paths, queries or fragments are rejected when Fusion creates the client.
+
+Proxy credentials can be included in the URL, for example `http://user:password@proxy.example.com:3128`.
+Username and password components are percent-decoded, while literal `+` characters remain unchanged; omit the password or leave it empty to use an empty password.
+Credentials are provided only for proxy authentication challenges matching the configured proxy host and port, never for origin-server authentication challenges.
+The proxy authenticator is applied before `clientCustomizer`, which can override it using the JDK builder's `authenticator` method.
+Proxy authentication follows the JDK's authentication policy; Fusion does not change global JVM authentication settings.
+IMPORTANT: The JDK disables Basic proxy authentication for HTTPS CONNECT by default; if your proxy requires it, explicitly enable it at JVM startup with `-Djdk.http.auth.tunneling.disabledSchemes=` after evaluating the security implications.
+
+Exec credential configurations without `apiVersion` are accepted and use the existing `client.authentication.k8s.io/v1` exec request format.

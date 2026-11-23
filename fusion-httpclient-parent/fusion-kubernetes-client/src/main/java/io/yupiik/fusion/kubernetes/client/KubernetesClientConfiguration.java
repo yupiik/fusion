@@ -44,6 +44,7 @@ public class KubernetesClientConfiguration {
 
     /**
      * Enables to customize the HTTP client before it is fully built, it generally has the SSL context already set.
+     * The kubeconfig proxy and its authenticator, if any, are already set and can be overridden by this customizer.
      * Ignored if client is provided.
      *
      * @param clientCustomizer customizer of the http client.
@@ -59,6 +60,8 @@ public class KubernetesClientConfiguration {
 
     /**
      * IMPORTANT: only a subset of YAML is supported so your kubeconfig can not be read properly, prefer json adding fusion-json if possible.
+     * Relative certificate, private key and token file paths are resolved against the kubeconfig directory.
+     * If current-context is absent or empty, the first declared context is used when available.
      *
      * @param kubeconfig path to a kubeconfig, if set the client configuration tries to be automatic from this file.
      * @return this.
@@ -72,6 +75,10 @@ public class KubernetesClientConfiguration {
         return skipTls;
     }
 
+    /**
+     * @param skipTls whether to skip TLS certificate validation; true takes precedence over the kubeconfig flag.
+     * @return this configuration.
+     */
     public KubernetesClientConfiguration setSkipTls(final boolean skipTls) {
         this.skipTls = skipTls;
         return this;
