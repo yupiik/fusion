@@ -16,93 +16,80 @@
 package io.yupiik.fusion.framework.processor.internal.metadata;
 
 import io.yupiik.fusion.framework.build.api.metadata.spi.MetadataContributor;
+import io.yupiik.fusion.framework.processor.internal.generator.MetadataContributorGenerator;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationValue;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
-import javax.lang.model.type.DeclaredType;
 import javax.lang.model.util.Elements;
-import javax.lang.model.util.Types;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
+import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
 import java.util.function.Supplier;
 
-import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toMap;
 
 public class MetadataContributorRegistry {
-    private final Map<Key, MetadataContributor> contributors;
+    private final Map<String, MetadataContributor> contributors = new HashMap<>();
     private final Elements elementUtils;
-    private final Types typeUtils;
 
     public MetadataContributorRegistry(final ProcessingEnvironment processingEnvironment) {
         elementUtils = processingEnvironment.getElementUtils();
-        typeUtils = processingEnvironment.getTypeUtils();
-        contributors = ServiceLoader.load(MetadataContributor.class).stream()
-                .map(it -> {
-                    try {
-                        return it.get();
-                    } catch (final Error e) { // likely incremental compilation (just tolerate it even in degraded mode)
-                        return null;
-                    }
-                })
-                .filter(Objects::nonNull)
-                .collect(toMap(this::toKey, identity()));
+        final var contextLoader = Thread.currentThread().getContextClassLoader();
+        final var loader = contextLoader == null ? MetadataContributorRegistry.class.getClassLoader() : contextLoader;
+        // Handwritten providers override dependency annotation metadata in provider-name order.
+        // Explicit current-compilation registrations win last.
+        final var providers = new ArrayList<MetadataContributor>();
+        final var iterator = ServiceLoader.load(MetadataContributor.class, loader).iterator();
+        while (true) {
+            try {
+                if (!iterator.hasNext()) {
+                    break;
+                }
+                providers.add(iterator.next());
+            } catch (final ServiceConfigurationError | LinkageError e) {
+                // Stale incremental service entries can fail during discovery, before instantiation.
+            }
+        }
+        providers.stream()
+                .sorted(Comparator.comparing(it -> it.getClass().getName()))
+                .forEach(this::register);
     }
 
     public void register(final MetadataContributor contributor) {
-        this.contributors.put(toKey(contributor), contributor);
+        // Legacy handwritten providers can use binary names for nested annotations.
+        final var declared = elementUtils.getTypeElement(contributor.annotationType());
+        final var type = declared == null ? elementUtils.getTypeElement(contributor.annotationType().replace('$', '.')) : declared;
+        contributors.put(type == null ? contributor.annotationType() : type.getQualifiedName().toString(), contributor);
     }
 
     public Map<String, String> compute(final Element element) {
-        if (contributors.isEmpty()) {
-            return Map.of();
-        }
-
         Map<String, String> values = null;
         for (final var it : element.getAnnotationMirrors()) {
             if (!(it.getAnnotationType().asElement() instanceof TypeElement te)) {
                 continue;
             }
-
-            final var conf = contributors.get(new Key(
-                    typeUtils, te.getQualifiedName().toString().hashCode(), it.getAnnotationType()));
+            final var registered = contributors.get(te.getQualifiedName().toString());
+            // Use javac's actual source/classpath selection, independent of the processor loader.
+            final var conf = registered == null ? new MetadataContributorGenerator(elementUtils, te).get() : registered;
             if (conf == null) {
                 continue;
             }
-
             if (values == null) {
                 values = new HashMap<>(2);
             }
             final var annotValues = elementUtils.getElementValuesWithDefaults(it).entrySet().stream()
                     .collect(toMap(m -> m.getKey().getSimpleName().toString(), Map.Entry::getValue));
-            values.put(
-                    valueOr(annotValues.get("name"), conf::name),
-                    valueOr(annotValues.get("value"), conf::value));
+            values.put(valueOr(annotValues.get("name"), conf::name), valueOr(annotValues.get("value"), conf::value));
         }
         return values == null ? Map.of() : values;
     }
 
     private String valueOr(final AnnotationValue value, final Supplier<String> fallback) {
         return value == null ? fallback.get() : value.toString();
-    }
-
-    private Key toKey(final MetadataContributor it) {
-        return new Key(typeUtils, it.annotationType().hashCode(), typeUtils.getDeclaredType(elementUtils.getTypeElement(it.annotationType())));
-    }
-
-    private record Key(Types types, int hash, DeclaredType type) {
-        @Override
-        public boolean equals(final Object obj) {
-            return obj instanceof Key k && types.isSameType(type, k.type());
-        }
-
-        @Override
-        public int hashCode() {
-            return hash;
-        }
     }
 }

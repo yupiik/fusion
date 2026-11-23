@@ -17,9 +17,8 @@ package io.yupiik.fusion.json.benchmarks;
 
 import io.yupiik.fusion.json.JsonMapper;
 import io.yupiik.fusion.json.benchmarks.model.Flat;
-import io.yupiik.fusion.json.benchmarks.model.Flat$FusionJsonCodec;
+import io.yupiik.fusion.json.benchmarks.model.FusionModule;
 import io.yupiik.fusion.json.benchmarks.model.WithList;
-import io.yupiik.fusion.json.benchmarks.model.WithList$FusionJsonCodec;
 import io.yupiik.fusion.json.internal.JsonMapperImpl;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -66,7 +65,7 @@ public class StreamRoundTripBenchmark {
     @Setup(Level.Trial)
     public void setup() throws Exception {
         fusion = new JsonMapperImpl(
-                List.of(new Flat$FusionJsonCodec(), new WithList$FusionJsonCodec()),
+                List.of(FusionModule.Flat$FusionJsonCodec(), FusionModule.WithList$FusionJsonCodec()),
                 key -> Optional.empty());
         jackson = new tools.jackson.databind.ObjectMapper();
 

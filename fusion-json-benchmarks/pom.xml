@@ -21,7 +21,7 @@
   <parent>
     <groupId>io.yupiik.fusion</groupId>
     <artifactId>fusion</artifactId>
-    <version>1.1.0-SNAPSHOT</version>
+    <version>1.3.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>fusion-json-benchmarks</artifactId>
@@ -69,6 +69,15 @@
 
   <build>
     <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <compilerArgs>
+            <compilerArg>-Afusion.moduleFqn=io.yupiik.fusion.json.benchmarks.model.FusionModule</compilerArg>
+          </compilerArgs>
+        </configuration>
+      </plugin>
       <plugin> <!-- build then run: java -jar fusion-json-benchmarks/target/benchmarks.jar [regex] -->
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>

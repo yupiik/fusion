@@ -15,13 +15,8 @@
  */
 package io.yupiik.fusion.framework.processor.internal.generator;
 
-import io.yupiik.fusion.cli.internal.BaseCliCommand;
 import io.yupiik.fusion.cli.internal.CliCommand;
-import io.yupiik.fusion.framework.api.Instance;
-import io.yupiik.fusion.framework.api.RuntimeContainer;
-import io.yupiik.fusion.framework.api.configuration.MissingRequiredParameterException;
 import io.yupiik.fusion.framework.api.container.FusionBean;
-import io.yupiik.fusion.framework.api.container.bean.BaseBean;
 import io.yupiik.fusion.framework.build.api.cli.Command;
 import io.yupiik.fusion.framework.processor.internal.Elements;
 import io.yupiik.fusion.framework.processor.internal.meta.Docs;
@@ -74,7 +69,6 @@ public class CliCommandGenerator extends BaseGenerator implements Supplier<CliCo
     @Override
     public Output get() {
         final var packagePrefix = packageName == null || packageName.isBlank() ? "" : (packageName + '.');
-        final var packageLine = packagePrefix.isBlank() ? "" : ("package " + packageName + ";\n\n");
         final var commandClassName = className + SUFFIX;
         final var constructorParameters = findConstructors(type)
                 .max(comparing(e -> {
@@ -107,44 +101,39 @@ public class CliCommandGenerator extends BaseGenerator implements Supplier<CliCo
         final var pathLiteral = "new String[]{" +
                 java.util.Arrays.stream(path).map(segment -> "\"" + escaped(segment) + "\"").collect(joining(", ")) + "}";
 
-        final String metadata = metadata(type);
-        return new Output(
-                new GeneratedClass(packagePrefix + commandClassName, packageLine +
-                        generationVersion() +
-                        "public class " + commandClassName + " extends " + BaseCliCommand.class.getName() + (hasInjections ? ".ContainerBaseCliCommand" : "") +
-                        "<" + (configurationType == null ? Void.class.getName() : configurationType.replace('$', '.')) + ", " + className.replace('$', '.') + "> {\n" +
-                        "  public " + commandClassName + "(" + (hasInjections ? "final " + RuntimeContainer.class.getName() + " container" : "") + ") {\n" +
-                        "    super(\n" +
-                        "      " + pathLiteral + ",\n" +
-                        "      \"" + command.description().replace("\"", "\\\"").replace("\n", "\\n") + "\",\n" +
-                        "      " + (constructorParameters.isEmpty() ?
-                        "c -> null" :
-                        "c -> {\n" +
-                                "        try {\n" +
-                                "          return new " + configurationType + ConfigurationFactoryGenerator.SUFFIX + "(c, " + commandClassName + "::keyMapper).get();\n" +
-                                "        } catch (final " + MissingRequiredParameterException.class.getName() + " e) {\n" +
-                                "          throw new " + MissingRequiredParameterException.class.getName() + "(e.getMessage() + " + commandClassName + ".CLI_HELP);\n" +
-                                "        }\n" +
-                                "      }") + ",\n" +
-                        "      (c, deps) -> new " + className.replace('$', '.') + "(" +
-                        (configurationType == null ? "" : "c") +
-                        (hasInjections ? constructorParameters.stream()
-                                .skip(1) // configuration by convention
-                                .map(param -> "lookup(container, " + toFqnName(processingEnv.getTypeUtils().asElement(param.asType())).replace('$', '.') + ".class, deps)")
-                                .collect(joining(", ", configurationType == null ? "" : ", ", "")) : "") + ")," +
-                        "      " + List.class.getName() + ".of(" + (configurationType == null ? "" : paramsResult.parameters()) + "),\n" +
-                        "      "+ metadata + ");\n" +
-                        "  }\n" +
-                        (paramsResult == null ? "" : paramsResult.keyMapperContent()) + "\n" +
-                        (paramsResult == null ? "" : "  @Override\n  public java.util.function.Function<String, String> keyMapper() {\n    return " + commandClassName + "::keyMapper;\n  }\n") + "\n" +
-                        (paramsResult == null ? "" : "  private static final String CLI_HELP = " + paramsResult.cliHelpContent() + ";\n") +
-                        (beanForCliCommands ?
-                                nestedBean(commandClassName, findScope(type), findPriority(type), metadata,
-                                        "      return new " + commandClassName + "(" + (hasInjections ? "container" : "") + ");\n") :
-                                "") +
-                        "}\n" +
-                        "\n"),
-                beanForCliCommands ? packagePrefix + commandClassName + '.' + FusionBean.class.getSimpleName() : null);
+        final var id = packagePrefix + commandClassName;
+        final var adapter = "io.yupiik.fusion.cli.internal.BaseCliCommand";
+        final var conf = configurationElt == null ? "java.lang.Void" : configurationElt.asType().toString();
+        final var commandType = type.getQualifiedName().toString();
+        final var methods = new ArrayList<Binding.Method>();
+        methods.add(new Binding.Method(5,
+                "private static io.yupiik.fusion.cli.internal.CliCommand<?> $method(io.yupiik.fusion.framework.api.RuntimeContainer container) { return new " + adapter + "<" + conf + ", " + commandType + ">(" + pathLiteral + ", \"" + escaped(command.description()) + "\", java.util.List.of(" +
+                        (paramsResult == null ? "" : paramsResult.parameters()) + "), " + metadata(type) + ", " + (paramsResult == null ? "\"\"" : paramsResult.cliHelpContent()) +
+                        ", $callback{8}, " + (configurationType == null ? "null" : "$callback{6}") + ", (configuration, deps) -> $helper{7}(configuration, container, deps)); }", ""));
+        if (configurationType != null) {
+            methods.add(new Binding.Method(6,
+                    "private static " + conf + " $method(io.yupiik.fusion.framework.api.configuration.Configuration configuration, java.util.function.Function<String, String> keyMapper) { return " +
+                            Binding.reference(configurationType + ConfigurationFactoryGenerator.SUFFIX) + ".apply(configuration, keyMapper); }", ""));
+        }
+        methods.add(new Binding.Method(7,
+                "private static " + commandType + " $method(" + conf + " configuration, io.yupiik.fusion.framework.api.RuntimeContainer container, java.util.List<io.yupiik.fusion.framework.api.Instance<?>> deps) { return new " + commandType + "(" +
+                        (configurationType == null ? "" : "configuration") +
+                        (hasInjections ? constructorParameters.stream().skip(1).map(param -> "lookup(container, " + processingEnv.getTypeUtils().erasure(param.asType()) + ".class, deps)")
+                                .collect(joining(", ", configurationType == null ? "" : ", ", "")) : "") + "); }", ""));
+        methods.add(new Binding.Method(8,
+                paramsResult == null ? "private static String $method(String key) { return \"--\" + key.replace('.', '-'); }" : paramsResult.keyMapperContent().replace("keyMapper(", "$method("), ""));
+        final var artifacts = new ArrayList<Binding.Artifact>();
+        artifacts.add(new Binding.Artifact(id, new Binding(packageName, null,
+                "java.util.function.Function<io.yupiik.fusion.framework.api.RuntimeContainer, io.yupiik.fusion.cli.internal.CliCommand<?>>", "(java.util.function.Function<io.yupiik.fusion.framework.api.RuntimeContainer, io.yupiik.fusion.cli.internal.CliCommand<?>>) " + Binding.helperReference(5), methods)));
+        final var beanId = id + ".FusionBean";
+        if (beanForCliCommands) {
+            artifacts.add(new Binding.Artifact(beanId, new Binding(packageName, "bean", FusionBean.class.getName() + "<?>",
+                    "new io.yupiik.fusion.framework.api.container.bean.FunctionalBean<>(new io.yupiik.fusion.framework.api.container.Types.ParameterizedTypeImpl(io.yupiik.fusion.cli.internal.CliCommand.class, " + commandType + ".class), " + findScope(type) + ".class, " + findPriority(type) + ", 0, " + metadata(type) + ", " + Binding.helperReference(0) + ", null, null, null, false)",
+                    List.of(Binding.Method.callback(0,
+                            "private static io.yupiik.fusion.cli.internal.CliCommand<?> $method(io.yupiik.fusion.framework.api.RuntimeContainer container, java.util.List<io.yupiik.fusion.framework.api.Instance<?>> dependents) { return " + Binding.reference(id) + ".apply(container); }",
+                            "(container, dependents) -> " + Binding.reference(id) + ".apply(container)")))));
+        }
+        return new Output(new GeneratedClass(id, null, artifacts), beanForCliCommands ? beanId : null);
     }
 
     // assume args are in this form:

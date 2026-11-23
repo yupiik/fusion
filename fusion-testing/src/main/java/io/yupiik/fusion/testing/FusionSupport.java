@@ -28,6 +28,10 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 @Retention(RUNTIME)
 @ExtendWith(FusionPerClassLifecycle.class)
 public @interface FusionSupport {
+    /**
+     * @return whether to disable automatic module discovery; defaults to {@code false} so annotation-processor
+     * registrations are available without explicitly listing their generated module.
+     */
     boolean disableDiscovery() default false;
     Class<?>[] modules() default {};
 }

@@ -30,17 +30,27 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.Objects;
 import java.util.function.BiPredicate;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
+/**
+ * Constructor-based fallback discovery for legacy or manually written descriptors.
+ * Ordinary annotation-processor registrations are provided by automatically discovered {@link FusionModule}s,
+ * independently of this module's filename predicates.
+ */
 public class ListingPredicateModule implements FusionModule {
     private final List<FusionBean<?>> beans = new CopyOnWriteArrayList<>();
     private final List<FusionListener<?>> listeners = new CopyOnWriteArrayList<>();
 
+    /**
+     * @param beanPredicate filter on legacy bean descriptor class filenames, not automatic module registrations.
+     * @param listenerPredicate filter on legacy listener descriptor class filenames, not automatic module registrations.
+     * @param dirs directories to scan; dependencies outside these directories are not scanned.
+     */
     public ListingPredicateModule(final Predicate<String> beanPredicate,
                                   final Predicate<String> listenerPredicate,
                                   final List<Path> dirs) {
@@ -48,7 +58,7 @@ public class ListingPredicateModule implements FusionModule {
     }
 
     @Override
-    public int priority() { // "last" - give some space in case of - to ensure we filter others before us to see all beans
+    public int priority() { // "last" - filter other modules before exposing our descriptors
         return Integer.MAX_VALUE - 100;
     }
 
@@ -84,11 +94,10 @@ public class ListingPredicateModule implements FusionModule {
     @Override
     public BiPredicate<RuntimeContainer, FusionBean<?>> beanFilter() {
         return (container, bean) -> {
-            if (beans.contains(bean)) {
-                return true;
+            if (beans.stream().noneMatch(discovered -> discovered == bean)) {
+                // A normal module owns its registrations; remove only our legacy fallback of the same class.
+                beans.removeIf(discovered -> discovered.getClass() == bean.getClass());
             }
-            // drop the beans we found but which were registered by another module
-            beans.removeIf(discovered -> Objects.equals(discovered.getClass(), bean.getClass()));
             return true;
         };
     }
@@ -96,17 +105,16 @@ public class ListingPredicateModule implements FusionModule {
     @Override
     public BiPredicate<RuntimeContainer, FusionListener<?>> listenerFilter() {
         return (container, listener) -> {
-            if (listeners.contains(listener)) {
-                return true;
+            if (listeners.stream().noneMatch(discovered -> discovered == listener)) {
+                listeners.removeIf(discovered -> discovered.getClass() == listener.getClass());
             }
-            // drop the listeners we found but which were registered by another module
-            listeners.removeIf(discovered -> Objects.equals(discovered.getClass(), listener.getClass()));
             return true;
         };
     }
 
     private void find(final Predicate<String> beanPredicate, final Predicate<String> listenerPredicate, final List<Path> dirs) {
         final var loader = Thread.currentThread().getContextClassLoader();
+        final var visited = new HashSet<String>();
         dirs.forEach(dir -> {
             try {
                 Files.walkFileTree(dir, new SimpleFileVisitor<>() {
@@ -116,29 +124,30 @@ public class ListingPredicateModule implements FusionModule {
                         if (!filename.endsWith(".class")) {
                             return super.visitFile(file, attrs);
                         }
-
                         final var relative = dir.relativize(file).normalize().toString();
-                        if (!relative.startsWith("META-INF")) {
-                            try {
-                                if (beanPredicate.test(filename)) {
-                                    final var clazz = load(loader, toClassName(relative));
-                                    if (clazz != null && FusionBean.class.isAssignableFrom(clazz)) {
-                                        beans.add(clazz.asSubclass(FusionBean.class).getConstructor().newInstance());
-                                    }
-                                }
-                                if (listenerPredicate.test(filename)) {
-                                    final var clazz = load(loader, toClassName(relative));
-                                    if (clazz != null && FusionListener.class.isAssignableFrom(clazz)) {
-                                        listeners.add(clazz.asSubclass(FusionListener.class).getConstructor().newInstance());
-                                    }
-                                }
-                            } catch (final InstantiationException | IllegalAccessException | NoSuchMethodException e) {
-                                throw new IllegalStateException(e);
-                            } catch (final InvocationTargetException e) {
-                                throw new IllegalStateException(e.getTargetException());
-                            }
+                        if (relative.startsWith("META-INF")) {
+                            return super.visitFile(file, attrs);
                         }
-
+                        final var className = toClassName(relative);
+                        if (!visited.add(className)) {
+                            return super.visitFile(file, attrs);
+                        }
+                        try {
+                            if (beanPredicate.test(filename)) {
+                                final var clazz = load(loader, className);
+                                if (clazz != null && FusionBean.class.isAssignableFrom(clazz)) {
+                                    beans.add(clazz.asSubclass(FusionBean.class).getConstructor().newInstance());
+                                }
+                            }
+                            if (listenerPredicate.test(filename)) {
+                                final var clazz = load(loader, className);
+                                if (clazz != null && FusionListener.class.isAssignableFrom(clazz)) {
+                                    listeners.add(clazz.asSubclass(FusionListener.class).getConstructor().newInstance());
+                                }
+                            }
+                        } catch (final ReflectiveOperationException e) {
+                            throw failure(e);
+                        }
                         return super.visitFile(file, attrs);
                     }
                 });
@@ -148,10 +157,14 @@ public class ListingPredicateModule implements FusionModule {
         });
     }
 
+    private IllegalStateException failure(final ReflectiveOperationException error) {
+        return new IllegalStateException(error instanceof InvocationTargetException invocation ? invocation.getTargetException() : error);
+    }
+
     private Class<?> load(final ClassLoader loader, final String name) {
         try {
             final var clazz = loader.loadClass(name);
-            clazz.getConstructor(); // ensure there is a constructor we can use
+            clazz.getConstructor(); // legacy/manual descriptors retain constructor-based discovery
             return clazz;
         } catch (final ClassNotFoundException | NoSuchMethodException e) {
             return null;

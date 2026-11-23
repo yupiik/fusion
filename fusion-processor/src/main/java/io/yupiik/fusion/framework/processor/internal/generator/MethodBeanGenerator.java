@@ -17,7 +17,7 @@ package io.yupiik.fusion.framework.processor.internal.generator;
 
 import io.yupiik.fusion.framework.api.Instance;
 import io.yupiik.fusion.framework.api.RuntimeContainer;
-import io.yupiik.fusion.framework.api.container.bean.BaseBean;
+import io.yupiik.fusion.framework.api.container.FusionBean;
 import io.yupiik.fusion.framework.build.api.lifecycle.Destroy;
 import io.yupiik.fusion.framework.processor.internal.Elements;
 import io.yupiik.fusion.framework.processor.internal.ParsedType;
@@ -25,27 +25,22 @@ import io.yupiik.fusion.framework.processor.internal.metadata.MetadataContributo
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.ExecutableElement;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Optional;
+import java.util.ArrayList;
 import java.util.function.Supplier;
 
-import static java.util.stream.Collectors.joining;
 import static javax.lang.model.element.Modifier.STATIC;
 import static javax.tools.Diagnostic.Kind.ERROR;
 
 public class MethodBeanGenerator extends BaseGenerator implements Supplier<BaseGenerator.GeneratedClass> {
-    private final String enclosingClass;
     private final String packageName;
     private final String beanClassName;
     private final ExecutableElement element;
 
     public MethodBeanGenerator(final ProcessingEnvironment processingEnvironment, final Elements elements,
                                final MetadataContributorRegistry metadataContributorRegistry,
-                               final String enclosingClass, final String packageName,
+                               final String packageName,
                                final String beanClassName, final ExecutableElement element) {
         super(processingEnvironment, elements, metadataContributorRegistry);
-        this.enclosingClass = enclosingClass;
         this.packageName = packageName;
         this.beanClassName = beanClassName;
         this.element = element;
@@ -53,116 +48,32 @@ public class MethodBeanGenerator extends BaseGenerator implements Supplier<BaseG
 
     @Override
     public GeneratedClass get() {
-        final var methodName = element.getSimpleName().toString();
-        final boolean isStatic = element.getModifiers().contains(STATIC);
-        final var scope = findScope(element);
-        final int priority = findPriority(element);
+        final var closeable = isAutocloseable(element.getReturnType());
         final var destroyAnnotation = element.getAnnotation(Destroy.class);
-        final var destroyPriority = destroyAnnotation == null ? 0 : destroyAnnotation.order();
-        if (destroyAnnotation != null && !isAutocloseable(element.getReturnType())) {
+        if (destroyAnnotation != null && !closeable) {
             processingEnv.getMessager().printMessage(ERROR,
-                    "@Destroy on a @Bean producer method requires the produced value to implement AutoCloseable to be closeable",
-                    element);
+                    "@Destroy on a @Bean producer method requires the produced value to implement AutoCloseable to be closeable", element);
         }
-        final var parsedType = ParsedType.of(element.getReturnType());
-        final var injections = element.getParameters().isEmpty() ? null : createExecutableInjections(element);
-
-        final var out = new StringBuilder();
-        if (!packageName.isBlank()) {
-            out.append("package ").append(packageName).append(";\n\n");
-        }
-
-        final var imports = new HashSet<String>();
-        switch (parsedType.type()) {
-            case CLASS -> {
-                if (!parsedType.className().startsWith("java.lang.")) {
-                    imports.add(parsedType.className());
-                }
-            }
-            case PARAMETERIZED_TYPE -> {
-                if (!parsedType.raw().startsWith("java.lang.")) {
-                    imports.add(parsedType.raw());
-                }
-                imports.addAll(parsedType.args().stream().filter(it -> !it.startsWith("java.lang.")).toList());
-            }
-        }
-        out.append(imports.stream()
-                .filter(this::needsImport) // same package top level classes don't need any import
-                .sorted()
-                .map(it -> "import " + it + ";")
-                .collect(joining("\n", "", "\n\n")));
-
-        final var type = switch (parsedType.type()) {
-            case CLASS -> parsedType.simpleName(parsedType.className());
-            case PARAMETERIZED_TYPE -> parsedType.args().stream()
-                    .map(parsedType::simpleName)
-                    .collect(joining(", ", parsedType.simpleName(parsedType.raw()) + "<", ">"));
+        final var parsed = ParsedType.of(element.getReturnType());
+        final var type = element.getReturnType().toString();
+        final var registration = switch (parsed.type()) {
+            case CLASS -> parsed.className() + ".class";
+            case PARAMETERIZED_TYPE -> parsed.createParameterizedTypeImpl();
         };
-
-        appendGenerationVersion(out);
-        out.append("public class ")
-                .append(beanClassName)
-                .append(" extends ").append(BaseBean.class.getName())
-                .append('<').append(type).append("> {\n");
-        out.append("  public ").append(beanClassName).append("() {\n");
-        out.append("    super(");
-        switch (parsedType.type()) {
-            case CLASS -> out.append(type).append(".class");
-            case PARAMETERIZED_TYPE -> out.append("new ")
-                    .append(ParsedType.PARAMETERIZED_TYPE_IMPL).append("(")
-                    .append(parsedType.simpleName(parsedType.raw())).append(".class").append(",")
-                    .append(parsedType.args().stream()
-                            .map(it -> parsedType.simpleName(it) + ".class")
-                            .collect(joining(", ")))
-                    .append(")");
-        }
-        out.append(", ")
-                .append(scope).append(".class, ")
-                .append(priority).append(", ")
-                .append(destroyPriority).append(", ")
-                .append(metadata(element)).append(");\n");
-        out.append("  }\n");
-        out.append("\n");
-        out.append("  @Override\n");
-        if (!isStatic && injections != null && ( // and has some cast
-                injections.contains("lookups(container, ") ||
-                        injections.contains("(" + Optional.class.getName() + "<"))) {
-            out.append("  @SuppressWarnings(\"unchecked\")\n");
-        }
-        out.append("  public ").append(type).append(" create(final ").append(RuntimeContainer.class.getName())
-                .append(" container, final ")
-                .append(List.class.getName()).append("<").append(Instance.class.getName()).append("<?>> dependents) {\n");
-        if (isStatic) {
-            out.append("    return ").append(enclosingClass);
-        } else {
-            out.append("    return lookup(container, ").append(enclosingClass).append(".class, dependents)\n");
-        }
-        out.append('.').append(methodName).append("(");
-        if (injections != null) {
-            out.append(injections);
-        }
-        out.append(");\n");
-        out.append("  }\n");
-
-        if (isAutocloseable(element.getReturnType())) {
-            out.append("\n");
-            out.append("  @Override\n");
-            out.append("  public void destroy(final ").append(RuntimeContainer.class.getName())
-                    .append(" container, final ").append(type).append(" instance) {\n");
-            out.append("    try {\n");
-            out.append("      instance.close();\n");
-            out.append("    } catch (final Exception e) {\n");
-            out.append("      throw new IllegalStateException(e);\n");
-            out.append("    }\n");
-            out.append("  }\n");
-        }
-        out.append("}\n\n");
-
-        return new GeneratedClass((!packageName.isBlank() ? packageName + '.' : "") + beanClassName, out.toString());
-    }
-
-    private boolean needsImport(final String name) {
-        final int lastDot = name.lastIndexOf('.');
-        return lastDot >= 0 && !name.substring(0, lastDot).equals(packageName);
+        final var name = (packageName.isBlank() ? "" : packageName + '.') + beanClassName;
+        final var signature = RuntimeContainer.class.getName() + " container, java.util.List<" + Instance.class.getName() + "<?>> dependents";
+        final var targetType = processingEnv.getTypeUtils().erasure(element.getEnclosingElement().asType()).toString();
+        final var target = element.getModifiers().contains(STATIC) ? targetType :
+                "lookup(container, " + targetType + ".class, dependents)";
+        final var methods = new ArrayList<Binding.Method>();
+        methods.add(new Binding.Method(0,
+                "private static " + type + " $method(" + signature + ") {\n    return " + target + '.' +
+                        element.getSimpleName() + '(' + createExecutableInjections(element) + ");\n  }\n",
+                ""));
+        return new GeneratedClass(name, new Binding(packageName, "bean", FusionBean.class.getName() + "<?>",
+                "new io.yupiik.fusion.framework.api.container.bean.FunctionalBean<>(" + registration + ", " +
+                        findScope(element) + ".class, " + findPriority(element) + ", " +
+                        (destroyAnnotation == null ? 0 : destroyAnnotation.order()) + ", " + metadata(element) + ", " + Binding.helperReference(0) +
+                        ", null, null, null, " + closeable + ")", methods));
     }
 }

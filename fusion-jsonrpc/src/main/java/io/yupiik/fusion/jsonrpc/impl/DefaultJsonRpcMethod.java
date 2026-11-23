@@ -15,9 +15,6 @@
  */
 package io.yupiik.fusion.jsonrpc.impl;
 
-import io.yupiik.fusion.jsonrpc.JsonRpcException;
-
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
@@ -73,37 +70,14 @@ public class DefaultJsonRpcMethod implements JsonRpcMethod {
                                          final String name, final int position,
                                          final boolean required,
                                          final Function<Object, T> mapper) {
-        final var params = context.params();
-        final var value = params == null ? null : doFindParameter(params, name, position);
-        if (value == null && required) {
-            throw new JsonRpcException(-32601, "Missing '" + name + "' parameter.");
-        }
-        return mapper.apply(value);
-    }
-
-    private static Object doFindParameter(final Object params, final String name, final int position) {
-        if (params instanceof List<?> list) {
-            return list.size() > position ? list.get(position) : null;
-        }
-        if (params instanceof Map<?, ?> map) {
-            return map.get(name);
-        }
-        throw new JsonRpcException(
-                -32700,
-                "Invalid parameter instance, expected an array or an object but got '" + (params == null ? "null" : params.getClass().getSimpleName()) + "'");
+        return mapper.apply(JsonRpcParameters.findParameter(context, name, position, required));
     }
 
     protected static Object failIfNot(final String name, final Object value, final Predicate<Object> validator) {
-        if (!validator.test(value)) {
-            throw new JsonRpcException(
-                    -32700,
-                    "Invalid parameter '" + name + "', got a " + value.getClass().getSimpleName());
-        }
-        return value;
+        return JsonRpcParameters.failIfNot(name, value, validator);
     }
 
-    @SuppressWarnings("unchecked")
     protected static Map<String, Object> failIfNotMap(final String name, final Object value) {
-        return (Map<String, Object>) failIfNot(name, value, it -> it instanceof Map<?, ?>);
+        return JsonRpcParameters.failIfNotMap(name, value);
     }
 }

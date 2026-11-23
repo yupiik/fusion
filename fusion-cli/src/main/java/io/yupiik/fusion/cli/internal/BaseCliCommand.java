@@ -18,6 +18,7 @@ package io.yupiik.fusion.cli.internal;
 import io.yupiik.fusion.framework.api.Instance;
 import io.yupiik.fusion.framework.api.RuntimeContainer;
 import io.yupiik.fusion.framework.api.configuration.Configuration;
+import io.yupiik.fusion.framework.api.configuration.MissingRequiredParameterException;
 import io.yupiik.fusion.framework.api.container.DefaultInstance;
 
 import java.util.List;
@@ -33,6 +34,7 @@ public class BaseCliCommand<CF, C extends Runnable> implements CliCommand<C> {
     private final BiFunction<CF, List<Instance<?>>, C> constructor;
     private final List<Parameter> parameters;
     private final Map<String, String> metadata;
+    private final Function<String, String> keyMapper;
 
     public BaseCliCommand(final String name, final String description,
                           final Function<Configuration, CF> configurationProvider,
@@ -66,6 +68,29 @@ public class BaseCliCommand<CF, C extends Runnable> implements CliCommand<C> {
                            final Function<Configuration, CF> configurationProvider,
                            final BiFunction<CF, List<Instance<?>>, C> constructor,
                            final List<Parameter> parameters, final Map<String, String> metadata) {
+        this(name, path, description, configurationProvider, constructor, parameters, metadata, Function.identity());
+    }
+
+    /** Direct command callbacks, with key mapping available during configuration construction. */
+    public BaseCliCommand(final String[] path, final String description,
+                          final List<Parameter> parameters, final Map<String, String> metadata,
+                          final String cliHelp, final Function<String, String> keyMapper,
+                          final BiFunction<Configuration, Function<String, String>, CF> configurationProvider,
+                          final BiFunction<CF, List<Instance<?>>, C> constructor) {
+        this(String.join("/", path), path, description, configuration -> {
+            try {
+                return configurationProvider == null ? null : configurationProvider.apply(configuration, keyMapper);
+            } catch (final MissingRequiredParameterException e) {
+                throw new MissingRequiredParameterException(e.getMessage() + cliHelp);
+            }
+        }, constructor, parameters, metadata, keyMapper);
+    }
+
+    private BaseCliCommand(final String name, final String[] path, final String description,
+                           final Function<Configuration, CF> configurationProvider,
+                           final BiFunction<CF, List<Instance<?>>, C> constructor,
+                           final List<Parameter> parameters, final Map<String, String> metadata,
+                           final Function<String, String> keyMapper) {
         this.name = name;
         this.path = path;
         this.description = description;
@@ -73,6 +98,12 @@ public class BaseCliCommand<CF, C extends Runnable> implements CliCommand<C> {
         this.constructor = constructor;
         this.parameters = parameters;
         this.metadata = metadata;
+        this.keyMapper = keyMapper;
+    }
+
+    @Override
+    public Function<String, String> keyMapper() {
+        return keyMapper;
     }
 
     @Override

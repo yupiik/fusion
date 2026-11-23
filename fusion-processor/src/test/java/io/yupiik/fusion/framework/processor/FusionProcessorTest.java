@@ -36,8 +36,10 @@ import io.yupiik.fusion.framework.api.container.context.subclass.SupplierDelegat
 import io.yupiik.fusion.framework.api.main.Args;
 import io.yupiik.fusion.framework.api.scope.ApplicationScoped;
 import io.yupiik.fusion.framework.api.scope.DefaultScoped;
+import io.yupiik.fusion.framework.processor.test.GeneratedFactories;
 import io.yupiik.fusion.framework.processor.test.CompilationClassLoader;
 import io.yupiik.fusion.framework.processor.test.Compiler;
+import io.yupiik.fusion.framework.processor.test.ProcessorInternals;
 import io.yupiik.fusion.http.server.api.Body;
 import io.yupiik.fusion.http.server.api.Cookie;
 import io.yupiik.fusion.http.server.api.Request;
@@ -48,6 +50,8 @@ import io.yupiik.fusion.json.JsonMapper;
 import io.yupiik.fusion.json.internal.JsonMapperImpl;
 import io.yupiik.fusion.json.internal.codec.ObjectJsonCodec;
 import io.yupiik.fusion.json.internal.formatter.SimplePrettyFormatter;
+import io.yupiik.fusion.json.serialization.JsonCodec;
+import io.yupiik.fusion.json.serialization.MetadataJsonCodec;
 import io.yupiik.fusion.jsonrpc.JsonRpcEndpoint;
 import io.yupiik.fusion.jsonrpc.impl.JsonRpcMethod;
 import io.yupiik.fusion.persistence.api.Database;
@@ -70,18 +74,24 @@ import java.io.StringReader;
 import java.io.StringWriter;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Field;
+import java.lang.reflect.Proxy;
 import java.io.File;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.ServiceLoader;
 import java.util.TreeMap;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Flow;
@@ -261,29 +271,12 @@ class FusionProcessorTest {
         final var compiler = new Compiler(work, "Bean1", "Bean2");
         compiler.compileAndAsserts((loader, container) -> {
             try {
-                assertEquals("""
-                        package test.p;
-                        
-                        @io.yupiik.fusion.framework.api.container.Generation(version = 1)
-                        public class Bean1$FusionBean extends io.yupiik.fusion.framework.api.container.bean.BaseBean<Bean1> {
-                          public Bean1$FusionBean() {
-                            super(Bean1.class, io.yupiik.fusion.framework.api.scope.ApplicationScoped.class, 1000, 0, java.util.Map.of("fusion.framework.subclasses.delegate", (java.util.function.Function<io.yupiik.fusion.framework.api.container.context.subclass.DelegatingContext<Bean1>, Bean1>) context -> new test.p.Bean1$FusionSubclass(context)));
-                          }
-                        
-                          @Override
-                          public Bean1 create(final io.yupiik.fusion.framework.api.RuntimeContainer container, final java.util.List<io.yupiik.fusion.framework.api.Instance<?>> dependents) {
-                            final var instance = new Bean1();
-                            inject(container, dependents, instance);
-                            return instance;
-                          }
-                        
-                          @Override
-                          public void inject(final io.yupiik.fusion.framework.api.RuntimeContainer container, final java.util.List<io.yupiik.fusion.framework.api.Instance<?>> dependents, final Bean1 instance) {
-                            instance.bean2 = lookup(container, test.p.Bean2.class, dependents);
-                          }
-                        }
-                        
-                        """, Files.readString(compiler.getGeneratedSources().resolve("test/p/Bean1$FusionBean.java")));
+                final var bean = GeneratedFactories.bean(Thread.currentThread().getContextClassLoader(), loader.apply("test.p.Bean1"));
+                assertEquals(loader.apply("test.p.Bean1"), bean.type());
+                assertEquals(ApplicationScoped.class, bean.scope());
+                assertEquals(1000, bean.priority());
+                assertInstanceOf(Function.class, bean.data().get("fusion.framework.subclasses.delegate"));
+                assertFalse(Files.exists(compiler.getClasses().resolve("test/p/Bean1$FusionBean.class")));
                 assertEquals("""
                         package test.p;
                         
@@ -302,26 +295,12 @@ class FusionProcessorTest {
                         }
                         
                         """, Files.readString(compiler.getGeneratedSources().resolve("test/p/Bean1$FusionSubclass.java")));
-                assertEquals("""
-                        package test.p;
-                        
-                        import java.util.stream.Stream;
-                        import io.yupiik.fusion.framework.api.container.FusionBean;
-                        import io.yupiik.fusion.framework.api.container.FusionModule;
-                        
-                        public class FusionGeneratedModule implements FusionModule {
-                            @Override
-                            public Stream<FusionBean<?>> beans() {
-                                return Stream.of(
-                                    new test.p.Bean1$FusionBean(),
-                                    new test.p.Bean2$FusionBean()
-                                );
-                            }
-                        
-                        }
-                        
-                        """, Files.readString(compiler.getGeneratedSources().resolve("test/p/FusionGeneratedModule.java")));
-                assertEquals("test.p.FusionGeneratedModule", Files.readString(compiler.getClasses().resolve("META-INF/services/" + FusionModule.class.getName())));
+                assertEquals(List.of("test.p.Bean1", "test.p.Bean2"),
+                        ServiceLoader.load(FusionModule.class).stream()
+                                .map(ServiceLoader.Provider::get)
+                                .filter(module -> module.getClass().getClassLoader() == Thread.currentThread().getContextClassLoader())
+                                .flatMap(FusionModule::beans)
+                                .map(beanEntry -> beanEntry.type().getTypeName()).toList());
             } catch (final IOException ioe) {
                 fail(ioe);
             }
@@ -382,14 +361,15 @@ class FusionProcessorTest {
         new Compiler(work, "NestedJsonRpc").compileAndAsserts((loader, container) -> {
             assertEquals(
                     List.of(
-                            "test.p.NestedJsonRpc$MyInput$FusionJsonCodec",
-                            "test.p.NestedJsonRpc$MyResult$FusionJsonCodec",
-                            "test.p.NestedJsonRpc$Rpc",
-                            "test.p.NestedJsonRpc$Rpc$asynResult$FusionJsonRpcMethod"),
+                            "io.yupiik.fusion.json.serialization.JsonCodec<test.p.NestedJsonRpc$MyInput>",
+                            "io.yupiik.fusion.json.serialization.JsonCodec<test.p.NestedJsonRpc$MyResult>",
+                            "io.yupiik.fusion.jsonrpc.impl.DefaultJsonRpcMethod",
+                            "test.p.NestedJsonRpc$Rpc"),
                     container.getBeans().getBeans().values().stream()
                             .flatMap(Collection::stream)
                             .map(it -> it.type().getTypeName())
-                            .filter(it -> it.startsWith("test.p."))
+                            .filter(it -> it.contains("test.p.NestedJsonRpc") ||
+                                    it.equals("io.yupiik.fusion.jsonrpc.impl.DefaultJsonRpcMethod"))
                             .sorted()
                             .toList());
         });
@@ -850,9 +830,10 @@ class FusionProcessorTest {
                     instance.instance().toString());
 
             // the generated factory reads the plain property names, without any "-." prefix
-            final var factory = compiler.readGeneratedSource("NoPrefixConfiguration$FusionConfigurationFactory");
-            assertTrue(factory.contains("configuration.get(\"name\")"), factory);
-            assertTrue(factory.contains("configuration.get(\"port\")"), factory);
+            final var factory = compiler.readGeneratedSources();
+            assertTrue(factory.contains("ConfigurationValues.scalar(configuration, \"name\", keyMapper, false,"), factory);
+            assertTrue(factory.contains("ConfigurationValues.scalar(configuration, \"port\", keyMapper, false,"), factory);
+            assertTrue(factory.contains("ConfigurationValues.list(configuration, \"list\", keyMapper, false,"), factory);
             assertTrue(factory.contains("keyMapper, \"nested\""), factory);
             assertFalse(factory.contains("\"-."), factory);
 
@@ -1722,80 +1703,22 @@ class FusionProcessorTest {
 
     @Test
     void jsonGeneratedCodec(@TempDir final Path work) throws IOException {
-        // assert the exact generated codec: KEYS__ sorted by length, dense KEYS_OFFSETS__ switch driving
-        // matchString (no sparse table, no runtime search) and @JsonOthers slot indices following the
-        // constructor declaration order (here: others=0, name=1 although KEYS__/FIELDS__ list name first)
-        final var compiler = new Compiler(work, "JsonOthersOrder");
-        compiler.assertCompiles(0);
-        assertEquals("""
-                package test.p;
-
-                import java.util.function.Function;
-                import java.util.function.IntUnaryOperator;
-
-                @io.yupiik.fusion.framework.api.container.Generation(version = 1)
-                public class JsonOthersOrder$OthersFirst$FusionJsonCodec extends io.yupiik.fusion.json.internal.codec.BaseJsonCodec<test.p.JsonOthersOrder.OthersFirst> {
-                  private static final char[][] KEYS__ = {
-                    "name".toCharArray()
-                  };
-
-                  private static final java.util.function.IntUnaryOperator KEYS_OFFSETS__ = length -> switch (length) {
-                    case 4 -> 0;
-                    default -> -1;
-                  };
-
-                  @SuppressWarnings({"unchecked", "rawtypes"})
-                  private static final io.yupiik.fusion.json.internal.codec.BaseJsonCodec.FieldMeta<test.p.JsonOthersOrder.OthersFirst>[] FIELDS__ = new io.yupiik.fusion.json.internal.codec.BaseJsonCodec.FieldMeta[] {
-                    new io.yupiik.fusion.json.internal.codec.BaseJsonCodec.FieldMeta<>(
-                      "name".toCharArray(), 1, io.yupiik.fusion.json.internal.codec.BaseJsonCodec.ContainerKind.VALUE, io.yupiik.fusion.json.internal.codec.BaseJsonCodec.ValueKind.STRING, true, false, null, m -> ((test.p.JsonOthersOrder.OthersFirst) m).name(), -2147483648, ("\\"" + "name" + "\\":").toCharArray()),
-                    new io.yupiik.fusion.json.internal.codec.BaseJsonCodec.FieldMeta<>(
-                      null, 0, io.yupiik.fusion.json.internal.codec.BaseJsonCodec.ContainerKind.MAP, io.yupiik.fusion.json.internal.codec.BaseJsonCodec.ValueKind.GENERIC_OBJECT, false, true, java.lang.Object.class, m -> ((test.p.JsonOthersOrder.OthersFirst) m).others(), -2147483648, null)
-                  };
-
-                  @SuppressWarnings({"unchecked", "rawtypes"})
-                  private static final io.yupiik.fusion.json.internal.codec.BaseJsonCodec.FieldMeta<test.p.JsonOthersOrder.OthersFirst>[] FIELDS_WRITE__ = new io.yupiik.fusion.json.internal.codec.BaseJsonCodec.FieldMeta[] {
-                    FIELDS__[0],
-                    new io.yupiik.fusion.json.internal.codec.BaseJsonCodec.FieldMeta<>(
-                      "others".toCharArray(), 0, io.yupiik.fusion.json.internal.codec.BaseJsonCodec.ContainerKind.MAP, io.yupiik.fusion.json.internal.codec.BaseJsonCodec.ValueKind.GENERIC_OBJECT, false, true, java.lang.Object.class, m -> ((test.p.JsonOthersOrder.OthersFirst) m).others(), -2147483648, ("\\"" + "others" + "\\":").toCharArray())
-                  };
-
-                  @SuppressWarnings("unchecked")
-                  private static test.p.JsonOthersOrder.OthersFirst createFromSlots(final Object[] args) {
-                    return new test.p.JsonOthersOrder.OthersFirst(
-                      (java.util.Map<java.lang.String,java.lang.Object>) args[0],
-                      (java.lang.String) args[1]
-                    );
-                  }
-
-                  private static final Function<Object[], test.p.JsonOthersOrder.OthersFirst> FACTORY__ = JsonOthersOrder$OthersFirst$FusionJsonCodec::createFromSlots;
-
-                  public JsonOthersOrder$OthersFirst$FusionJsonCodec() {
-                    super(test.p.JsonOthersOrder.OthersFirst.class);
-                  }
-
-                  @Override
-                  public test.p.JsonOthersOrder.OthersFirst read(final io.yupiik.fusion.json.serialization.JsonCodec.DeserializationContext context) throws java.io.IOException {
-                    return readObject(context, KEYS__, KEYS_OFFSETS__, FIELDS__, FACTORY__);
-                  }
-
-                  @Override
-                  public void write(final test.p.JsonOthersOrder.OthersFirst instance, final io.yupiik.fusion.json.serialization.JsonCodec.SerializationContext context) throws java.io.IOException {
-                    writeObject(instance, context, FIELDS_WRITE__);
-                  }
-
-                  public static class FusionBean extends io.yupiik.fusion.framework.api.container.bean.BaseBean<JsonOthersOrder$OthersFirst$FusionJsonCodec> {
-                    public FusionBean() {
-                      super(JsonOthersOrder$OthersFirst$FusionJsonCodec.class, io.yupiik.fusion.framework.api.scope.DefaultScoped.class, 1000, java.util.Map.of());
-                    }
-
-                    @Override
-                    public JsonOthersOrder$OthersFirst$FusionJsonCodec create(final io.yupiik.fusion.framework.api.RuntimeContainer container, final java.util.List<io.yupiik.fusion.framework.api.Instance<?>> dependents) {
-                      return new JsonOthersOrder$OthersFirst$FusionJsonCodec();
-                    }
-                  }
-                }
-
-                """, compiler.readGeneratedSource("JsonOthersOrder$OthersFirst$FusionJsonCodec"));
+        final var compiler = new Compiler(work, "JsonOthersOrder").assertCompiles(0);
+        try (final var loader = new CompilationClassLoader(compiler.getClasses())) {
+            final var codec = (MetadataJsonCodec<?>) GeneratedFactories.invoke(loader, "test.p", "JsonOthersOrder$OthersFirst$FusionJsonCodec", JsonCodec.class);
+            assertEquals(loader.loadClass("test.p.JsonOthersOrder$OthersFirst"), codec.type());
+            assertEquals(2, ((Object[]) codecMetadata(codec, "readFields")).length);
+            assertEquals(2, ((Object[]) codecMetadata(codec, "writeFields")).length);
+            assertEquals("name", new String(((char[][]) codecMetadata(codec, "keys"))[0]));
+            assertThrows(ClassNotFoundException.class, () -> loader.loadClass("test.p.JsonOthersOrder$OthersFirst$FusionJsonCodec"));
+            try (final var mapper = new JsonMapperImpl(List.of(codec), c -> Optional.empty())) {
+                final var instance = mapper.fromString(codec.type(), "{\"name\":\"root\",\"unknown\":42}");
+                assertEquals("OthersFirst[others={unknown=42}, name=root]", instance.toString());
+                assertEquals("{\"name\":\"root\",\"unknown\":42}", mapper.toString(instance));
+            }
+        } catch (final ClassNotFoundException e) {
+            fail(e);
+        }
     }
 
     @Test
@@ -1916,43 +1839,37 @@ class FusionProcessorTest {
     @Test
     void jsonIgnoreCodegen(@TempDir final Path work) throws IOException {
         final var compiler = new Compiler(work, "JsonIgnoreModel");
-        compiler.compileAndJsonAsserts((loader, mapper) -> { /* compilation must succeed */ });
-        final var generated = compiler.readGeneratedSource("JsonIgnoreModel$AllPrimitives$FusionJsonCodec");
-        // KEYS__ (used to match incoming JSON) must not contain the ignored parameter names
-        final var keys = between(generated, "char[][] KEYS__ =", "KEYS_OFFSETS__");
-        for (final var hidden : List.of("hiddenBoolean", "hiddenInt", "hiddenLong", "hiddenDouble")) {
-            assertFalse(keys.contains("\"" + hidden + "\""), hidden);
-        }
-        // FIELDS__ addresses every record component (8) so the slot array covers the ignored slots with defaults
-        assertEquals(8, countFieldMeta(between(generated, "[] FIELDS__ =", "};")), generated);
-        // FIELDS_WRITE__ (used to serialize) only references the 4 visible fields
-        assertEquals(4, countToken(between(generated, "[] FIELDS_WRITE__ =", "};"), "FIELDS__["), generated);
-        // the factory still constructs the record with all components, populating the ignored slots
-        for (final var slot : List.of("args[1]", "args[3]", "args[5]", "args[7]")) {
-            assertTrue(generated.contains(slot), slot);
-        }
+        compiler.compileAndJsonAsserts((loader, mapper) -> {
+            final var model = loader.apply("test.p.JsonIgnoreModel$AllPrimitives");
+            final var instance = mapper.fromString(model,
+                    "{\"visibleBoolean\":true,\"hiddenBoolean\":true,\"visibleInt\":5,\"hiddenInt\":6," +
+                            "\"visibleLong\":7,\"hiddenLong\":8,\"visibleDouble\":1.5,\"hiddenDouble\":2.5}");
+            assertEquals("AllPrimitives[visibleBoolean=true, hiddenBoolean=false, visibleInt=5, hiddenInt=0, " +
+                    "visibleLong=7, hiddenLong=0, visibleDouble=1.5, hiddenDouble=0.0]", instance.toString());
+            final var json = mapper.toString(instance);
+            assertEquals(Map.of("visibleBoolean", true, "visibleInt", new BigDecimal("5"),
+                            "visibleLong", new BigDecimal("7"), "visibleDouble", new BigDecimal("1.5")),
+                    mapper.fromString(Object.class, json));
+            final var codec = (MetadataJsonCodec<?>) GeneratedFactories.invoke(model.getClassLoader(), "test.p", "JsonIgnoreModel$AllPrimitives$FusionJsonCodec", JsonCodec.class);
+            assertEquals(model, codec.type());
+            // Retain the old generated metadata size contract: all constructor slots are
+            // represented for reading, but ignored names are neither matched nor written.
+            assertEquals(8, ((Object[]) codecMetadata(codec, "readFields")).length);
+            assertEquals(4, ((Object[]) codecMetadata(codec, "writeFields")).length);
+            final var keys = (char[][]) codecMetadata(codec, "keys");
+            assertEquals(4, keys.length);
+            assertTrue(Stream.of(keys).map(String::new).allMatch(it -> it.startsWith("visible")));
+        });
     }
 
-    private static int countToken(final String block, final String token) {
-        int count = 0;
-        int idx = 0;
-        while ((idx = block.indexOf(token, idx)) >= 0) {
-            count++;
-            idx += token.length();
+    private static Object codecMetadata(final MetadataJsonCodec<?> codec, final String name) {
+        try {
+            final var field = MetadataJsonCodec.class.getDeclaredField(name);
+            field.setAccessible(true);
+            return field.get(codec);
+        } catch (final ReflectiveOperationException e) {
+            return fail(e);
         }
-        return count;
-    }
-
-    private static int countFieldMeta(final String block) {
-        return countToken(block, ".FieldMeta<>(");
-    }
-
-    private static String between(final String source, final String marker, final String end) {
-        final var from = source.indexOf(marker);
-        assertTrue(from >= 0, () -> "marker not found: " + marker);
-        final var to = source.indexOf(end, from);
-        assertTrue(to >= 0, () -> "end not found after: " + marker);
-        return source.substring(from, to);
     }
 
     @Test
@@ -2015,9 +1932,10 @@ class FusionProcessorTest {
     @Test
     void incrementalCompilationKeepsLocalJsonSchemasOnly(@TempDir final Path work) throws IOException {
         final var state = work.resolve("fusion").toString();
-        final var workdir = Path.of(state).resolve("json_schema");
         final var compiler = new Compiler(work, "JsonEnumCustomMapping", "EmptyRecord").workdir(state);
         compiler.assertCompiles(0);
+        final var workdir = ProcessorInternals.stateDirectory(Path.of(state), work.resolve("classes"), "")
+                .resolve("json_schema");
 
         // cold build: the module bundle and the workdir cache only hold local schemas (record AND enum)
         final var bundle = work.resolve("classes").resolve("META-INF").resolve("fusion").resolve("json").resolve("schemas.json");
@@ -2297,8 +2215,7 @@ class FusionProcessorTest {
             loader.close();
         };
         return Stream.of(
-                lockedDynamicTest(lockForConcurrency, counter, "jsonRpc_generatedMethods", () -> assertEquals(
-                        List.of(
+                lockedDynamicTest(lockForConcurrency, counter, "jsonRpc_generatedMethods", () -> assertRegisteredFactories(container, List.of(
                                 "test.p.JsonRpcEndpoints$arg$FusionJsonRpcMethod",
                                 "test.p.JsonRpcEndpoints$asynResult$FusionJsonRpcMethod",
                                 "test.p.JsonRpcEndpoints$completableFutureResult$FusionJsonRpcMethod",
@@ -2306,14 +2223,7 @@ class FusionProcessorTest {
                                 "test.p.JsonRpcEndpoints$offsetDateTime$FusionJsonRpcMethod",
                                 "test.p.JsonRpcEndpoints$paramTypes$FusionJsonRpcMethod",
                                 "test.p.JsonRpcEndpoints$req$FusionJsonRpcMethod",
-                                "test.p.JsonRpcEndpoints$result$FusionJsonRpcMethod"),
-                        container.getBeans().getBeans().keySet().stream()
-                                .filter(Class.class::isInstance)
-                                .map(it -> (Class<?>) it)
-                                .map(Class::getName)
-                                .filter(it -> it.endsWith("$FusionJsonRpcMethod"))
-                                .sorted()
-                                .toList()), release),
+                                "test.p.JsonRpcEndpoints$result$FusionJsonRpcMethod")), release),
                 lockedDynamicTest(lockForConcurrency, counter, "jsonRpc_offsetDateTime", () -> assertJsonRpc(instance,
                         "{\"jsonrpc\":\"2.0\",\"method\":\"offsetDateTime\",\"params\":{\"date\":\"2023-07-31T15:06:37Z\"}}",
                         "{\"jsonrpc\":\"2.0\",\"result\":{\"name\":\"2023-07-31T15:06:37Z\"}}"), release),
@@ -2826,36 +2736,20 @@ class FusionProcessorTest {
                 .classpathFilter(c -> !c.getName().contains("json") &&
                         !c.getName().contains("cli") &&
                         !c.getName().contains("persistence"))
-                .compileAndAsserts((loader, container) -> assertEquals(
-                        List.of(
+                .compileAndAsserts((loader, container) -> assertRegisteredFactories(container, List.of(
                                 "test.p.HttpNoJson$all$FusionHttpEndpoint",
                                 "test.p.HttpNoJson$get$FusionHttpEndpoint",
                                 "test.p.HttpNoJson$getAndEndsWithFooPath$FusionHttpEndpoint",
                                 "test.p.HttpNoJson$getAndFooPath$FusionHttpEndpoint",
                                 "test.p.HttpNoJson$getAndRegexFooPath$FusionHttpEndpoint",
-                                "test.p.HttpNoJson$getAndStartsWithFooPath$FusionHttpEndpoint"),
-                        container.getBeans().getBeans().keySet().stream()
-                                .filter(Class.class::isInstance)
-                                .map(it -> (Class<?>) it)
-                                .map(Class::getName)
-                                .filter(it -> it.endsWith("$FusionHttpEndpoint"))
-                                .sorted()
-                                .toList()));
+                                "test.p.HttpNoJson$getAndStartsWithFooPath$FusionHttpEndpoint")));
     }
 
     @Test
     void command(@TempDir final Path work) throws IOException {
         final var compiler = new Compiler(work, "Commands");
         compiler.compileAndAsserts((loader, container) -> {
-            assertEquals(
-                    List.of("test.p.Commands$C1$FusionCliCommand"),
-                    container.getBeans().getBeans().keySet().stream()
-                            .filter(Class.class::isInstance)
-                            .map(it -> (Class<?>) it)
-                            .map(Class::getName)
-                            .filter(it -> it.endsWith("$FusionCliCommand"))
-                            .sorted()
-                            .toList());
+            assertRegisteredFactories(container, List.of("test.p.Commands$C1$FusionCliCommand"));
 
             System.clearProperty("test.p.Commands$C1");
             withInstance(container, loader, "io.yupiik.fusion.cli.CliAwaiter", CliAwaiter.class, CliAwaiter::await);
@@ -2973,15 +2867,7 @@ class FusionProcessorTest {
     void commandNoArg(@TempDir final Path work) throws IOException {
         final var compiler = new Compiler(work, "NoArgCommand");
         compiler.compileAndAsserts((loader, container) -> {
-            assertEquals(
-                    List.of("test.p.NoArgCommand$FusionCliCommand"),
-                    container.getBeans().getBeans().keySet().stream()
-                            .filter(Class.class::isInstance)
-                            .map(it -> (Class<?>) it)
-                            .map(Class::getName)
-                            .filter(it -> it.endsWith("$FusionCliCommand"))
-                            .sorted()
-                            .toList());
+            assertRegisteredFactories(container, List.of("test.p.NoArgCommand$FusionCliCommand"));
 
             System.clearProperty("test.p.NoArgCommand");
             withInstance(container, loader, "io.yupiik.fusion.cli.CliAwaiter", CliAwaiter.class, CliAwaiter::await);
@@ -3181,86 +3067,7 @@ class FusionProcessorTest {
         final var entity = "persistence.SimpleFlatEntity";
         final var compiler = new Compiler(work, entity);
         compiler.compileAndAsserts((loader, container) -> {
-            assertEquals(
-                    """
-                            package test.p.persistence;
-                            
-                            
-                            @io.yupiik.fusion.framework.api.container.Generation(version = 1)
-                            public class SimpleFlatEntity$FusionPersistenceEntity extends io.yupiik.fusion.persistence.impl.BaseEntity<SimpleFlatEntity, java.lang.String> {
-                                public SimpleFlatEntity$FusionPersistenceEntity(final io.yupiik.fusion.persistence.impl.DatabaseConfiguration configuration) {
-                                    super(
-                                      configuration,
-                                      SimpleFlatEntity.class,
-                                      "SIMPLE_FLAT_ENTITY",
-                                      java.util.List.of(
-                                        new io.yupiik.fusion.persistence.impl.ColumnMetadataImpl("id", java.lang.String.class, "id", 0, false),
-                                        new io.yupiik.fusion.persistence.impl.ColumnMetadataImpl("name", java.lang.String.class, "name"),
-                                        new io.yupiik.fusion.persistence.impl.ColumnMetadataImpl("arr", byte[].class, "arr"),
-                                        new io.yupiik.fusion.persistence.impl.ColumnMetadataImpl("age", int.class, "SIMPLE_AGE"),
-                                        new io.yupiik.fusion.persistence.impl.ColumnMetadataImpl("kind", test.p.persistence.SimpleFlatEntity.Kind.class, "kind")
-                                      ),
-                                      false,
-                                      (entity, statement) -> {
-                                        final var instance = entity.onInsert();
-                                        if (instance.id() == null) { statement.setNull(1, java.sql.Types.VARCHAR); } else { statement.setString(1, instance.id()); }
-                                        if (instance.name() == null) { statement.setNull(2, java.sql.Types.VARCHAR); } else { statement.setString(2, instance.name()); }
-                                        if (instance.arr() == null) { statement.setNull(3, java.sql.Types.VARBINARY); } else { statement.setBytes(3, instance.arr()); }
-                                        statement.setInt(4, instance.age());
-                                        if (instance.kind() == null) { statement.setNull(5, java.sql.Types.VARCHAR); } else { statement.setString(5, instance.kind().name()); }
-                                        return instance;
-                                      },
-                                      (instance, statement) -> {
-                                        if (instance.name() == null) { statement.setNull(1, java.sql.Types.VARCHAR); } else { statement.setString(1, instance.name()); }
-                                        if (instance.arr() == null) { statement.setNull(2, java.sql.Types.VARBINARY); } else { statement.setBytes(2, instance.arr()); }
-                                        statement.setInt(3, instance.age());
-                                        if (instance.kind() == null) { statement.setNull(4, java.sql.Types.VARCHAR); } else { statement.setString(4, instance.kind().name()); }
-                                        if (instance.id() == null) { statement.setNull(5, java.sql.Types.VARCHAR); } else { statement.setString(5, instance.id()); }
-                                        return instance;
-                                      },
-                                      (instance, statement) -> {
-                                        if (instance.id() == null) { statement.setNull(1, java.sql.Types.VARCHAR); } else { statement.setString(1, instance.id()); }
-                                      },
-                                      (id, statement) -> {
-                                        if (id == null) { statement.setNull(1, java.sql.Types.VARCHAR); } else { statement.setString(1, id); }
-                                      },
-                                      (entity, rset) -> entity,
-                                      columns -> {
-                                        final var id = stringOf(columns.indexOf("id"));
-                                        final var name = stringOf(columns.indexOf("name"));
-                                        final var arr = bytesOf(columns.indexOf("arr"));
-                                        final var age = intOf(columns.indexOf("simple_age"), true);
-                                        final var kind = enumOf(columns.indexOf("kind"), test.p.persistence.SimpleFlatEntity.Kind.class);
-                                        return rset -> {
-                                          try {
-                                            final var entity = new test.p.persistence.SimpleFlatEntity(id.apply(rset), name.apply(rset), arr.apply(rset), age.apply(rset), kind.apply(rset));
-                                            entity.onLoad();
-                                            return entity;
-                                          } catch (final java.sql.SQLException e) {
-                                            throw new io.yupiik.fusion.persistence.api.PersistenceException(e);
-                                          }
-                                        };
-                                      });
-                                }
-
-                              public static class FusionBean extends io.yupiik.fusion.framework.api.container.bean.BaseBean<SimpleFlatEntity$FusionPersistenceEntity> {
-                                public FusionBean() {
-                                  super(
-                                    SimpleFlatEntity$FusionPersistenceEntity.class,
-                                    io.yupiik.fusion.framework.api.scope.DefaultScoped.class,
-                                    1000,
-                                    java.util.Map.of());
-                                }
-
-                                @Override
-                                public SimpleFlatEntity$FusionPersistenceEntity create(final io.yupiik.fusion.framework.api.RuntimeContainer container, final java.util.List<io.yupiik.fusion.framework.api.Instance<?>> dependents) {
-                                  return new SimpleFlatEntity$FusionPersistenceEntity(lookup(container, io.yupiik.fusion.persistence.impl.DatabaseConfiguration.class, dependents));
-                                }
-                              }
-                            }
-                            
-                            """,
-                    compiler.readGeneratedSource(entity + "$FusionPersistenceEntity"));
+            assertPersistenceOperations(loader, container, "test.p." + entity);
 
             final var databaseConfiguration = container.lookup(DatabaseConfiguration.class);
             assertNotNull(databaseConfiguration.instance());
@@ -3286,13 +3093,16 @@ class FusionProcessorTest {
         final var entity = "persistence.AutoIdEntity";
         final var compiler = new Compiler(work, entity);
         compiler.compileAndAsserts((loader, container) -> {
-            final var generated = compiler.readGeneratedSource(entity + "$FusionPersistenceEntity");
-            // auto incremented entity: the unified onAfterInsert reads the generated id back from column 1
-            // (result set already positioned by DatabaseImpl#insert) and copies the other (post @OnInsert)
-            // fields onto the returned instance.
-            assertTrue(generated.contains(
-                    "new AutoIdEntity(rset.getLong(1), entity.name(), entity.age())"),
-                    () -> generated);
+            final var model = persistenceEntity(loader, container, "test.p." + entity);
+            final var input = construct(loader.apply("test.p." + entity), null, "created", 0);
+            final var bindings = new TreeMap<Integer, Object>();
+            try (final var statement = statement(bindings); final var keys = row(42L)) {
+                final var inserted = model.onInsert(input, statement);
+                assertEquals(Map.of(1, "created", 2, 1), bindings);
+                assertEquals("AutoIdEntity[id=42, name=created, age=1]", model.onAfterInsert(inserted, keys).toString());
+            } catch (final SQLException e) {
+                fail(e);
+            }
         });
     }
 
@@ -3300,152 +3110,51 @@ class FusionProcessorTest {
     void persistenceOnDelete(@TempDir final Path work) throws IOException {
         final var entity = "persistence.OnDeleteEntity";
         final var compiler = new Compiler(work, entity);
-        compiler.compileAndAsserts((loader, container) -> assertEquals(
-                """
-                        package test.p.persistence;
-                        
-                        
-                        @io.yupiik.fusion.framework.api.container.Generation(version = 1)
-                        public class OnDeleteEntity$FusionPersistenceEntity extends io.yupiik.fusion.persistence.impl.BaseEntity<OnDeleteEntity, java.lang.String> {
-                            public OnDeleteEntity$FusionPersistenceEntity(final io.yupiik.fusion.persistence.impl.DatabaseConfiguration configuration) {
-                                super(
-                                  configuration,
-                                  OnDeleteEntity.class,
-                                  "ON_DELETE",
-                                  java.util.List.of(
-                                    new io.yupiik.fusion.persistence.impl.ColumnMetadataImpl("id", java.lang.String.class, "id", 0, false)
-                                  ),
-                                  false,
-                                  (instance, statement) -> {
-                                    if (instance.id() == null) { statement.setNull(1, java.sql.Types.VARCHAR); } else { statement.setString(1, instance.id()); }
-                                    return instance;
-                                  },
-                                  (instance, statement) -> {
-                        
-                                    if (instance.id() == null) { statement.setNull(1, java.sql.Types.VARCHAR); } else { statement.setString(1, instance.id()); }
-                                    return instance;
-                                  },
-                                  (instance, statement) -> {
-                                    instance.deleted();
-                                    if (instance.id() == null) { statement.setNull(1, java.sql.Types.VARCHAR); } else { statement.setString(1, instance.id()); }
-                                  },
-                                  (id, statement) -> {
-                                    if (id == null) { statement.setNull(1, java.sql.Types.VARCHAR); } else { statement.setString(1, id); }
-                                  },
-                                  (entity, rset) -> entity,
-                                  columns -> {
-                                    final var id = stringOf(columns.indexOf("id"));
-                                    return rset -> {
-                                      try {
-                                        return new test.p.persistence.OnDeleteEntity(id.apply(rset));
-                                      } catch (final java.sql.SQLException e) {
-                                        throw new io.yupiik.fusion.persistence.api.PersistenceException(e);
-                                      }
-                                    };
-                                  });
-                            }
-
-                          public static class FusionBean extends io.yupiik.fusion.framework.api.container.bean.BaseBean<OnDeleteEntity$FusionPersistenceEntity> {
-                            public FusionBean() {
-                              super(
-                                OnDeleteEntity$FusionPersistenceEntity.class,
-                                io.yupiik.fusion.framework.api.scope.DefaultScoped.class,
-                                1000,
-                                java.util.Map.of());
-                            }
-
-                            @Override
-                            public OnDeleteEntity$FusionPersistenceEntity create(final io.yupiik.fusion.framework.api.RuntimeContainer container, final java.util.List<io.yupiik.fusion.framework.api.Instance<?>> dependents) {
-                              return new OnDeleteEntity$FusionPersistenceEntity(lookup(container, io.yupiik.fusion.persistence.impl.DatabaseConfiguration.class, dependents));
-                            }
-                          }
-                        }
-                        
-                        """,
-                compiler.readGeneratedSource(entity + "$FusionPersistenceEntity")));
+        compiler.compileAndAsserts((loader, container) -> {
+            final var model = persistenceEntity(loader, container, "test.p." + entity);
+            final var input = construct(loader.apply("test.p." + entity), "key");
+            final var bindings = new TreeMap<Integer, Object>();
+            try (final var statement = statement(bindings); final var row = row("key")) {
+                assertEquals(input, model.onInsert(input, statement));
+                assertEquals(Map.of(1, "key"), bindings);
+                bindings.clear();
+                assertEquals(input, model.onUpdate(input, statement));
+                assertEquals(Map.of(1, "key"), bindings);
+                bindings.clear();
+                model.onDelete(input, statement);
+                assertEquals(Map.of(1, "key"), bindings);
+                assertEquals(input, model.mapper(List.of("id")).apply(row));
+                assertEquals(1, staticField(loader.apply("test.p." + entity), "deleteCount"));
+            } catch (final SQLException e) {
+                fail(e);
+            }
+        });
     }
 
     @Test
     void persistenceInjectionOnCallbacks(@TempDir final Path work) throws IOException {
         final var entity = "persistence.CallbackWithInjections";
         final var compiler = new Compiler(work, entity, "Bean2");
-        compiler.compileAndAsserts((loader, container) -> assertEquals(
-                """
-                        package test.p.persistence;
-                        
-                        
-                        @io.yupiik.fusion.framework.api.container.Generation(version = 1)
-                        public class CallbackWithInjections$FusionPersistenceEntity extends io.yupiik.fusion.persistence.impl.BaseEntity<CallbackWithInjections, java.lang.String> {
-                            public CallbackWithInjections$FusionPersistenceEntity(final io.yupiik.fusion.persistence.impl.DatabaseConfiguration configuration, final io.yupiik.fusion.framework.api.RuntimeContainer main__container) {
-                                super(
-                                  configuration,
-                                  CallbackWithInjections.class,
-                                  "CB_INJECTION",
-                                  java.util.List.of(
-                                    new io.yupiik.fusion.persistence.impl.ColumnMetadataImpl("id", java.lang.String.class, "id", 0, false)
-                                  ),
-                                  false,
-                                  (entity, statement) -> {
-                                    var instance = entity;
-                                    try (final var bean = main__container.lookup(test.p.Bean2.class)) {
-                                      instance = entity.onInsert(bean.instance());
-                                    }
-                                    if (instance.id() == null) { statement.setNull(1, java.sql.Types.VARCHAR); } else { statement.setString(1, instance.id()); }
-                                    return instance;
-                                  },
-                                  (entity, statement) -> {
-                                    var instance = entity;
-                                    try (final var bean = main__container.lookup(test.p.Bean2.class)) {
-                                      instance = entity.onUpdate(bean.instance());
-                                    }
-                        
-                                    if (instance.id() == null) { statement.setNull(1, java.sql.Types.VARCHAR); } else { statement.setString(1, instance.id()); }
-                                    return instance;
-                                  },
-                                  (instance, statement) -> {
-                                    try (final var bean = main__container.lookup(test.p.Bean2.class)) {
-                                      instance.onDelete(bean.instance());
-                                    }
-                                    if (instance.id() == null) { statement.setNull(1, java.sql.Types.VARCHAR); } else { statement.setString(1, instance.id()); }
-                                  },
-                                  (id, statement) -> {
-                                    if (id == null) { statement.setNull(1, java.sql.Types.VARCHAR); } else { statement.setString(1, id); }
-                                  },
-                                  (entity, rset) -> entity,
-                                  columns -> {
-                                    final var id = stringOf(columns.indexOf("id"));
-                                    return rset -> {
-                                      try {
-                                        final var entity = new test.p.persistence.CallbackWithInjections(id.apply(rset));
-                                        try (final var bean = main__container.lookup(test.p.Bean2.class)) {
-                                      entity.onLoad(bean.instance());
-                                    }
-                                        return entity;
-                                      } catch (final java.sql.SQLException e) {
-                                        throw new io.yupiik.fusion.persistence.api.PersistenceException(e);
-                                      }
-                                    };
-                                  });
-                            }
-
-                          public static class FusionBean extends io.yupiik.fusion.framework.api.container.bean.BaseBean<CallbackWithInjections$FusionPersistenceEntity> {
-                            public FusionBean() {
-                              super(
-                                CallbackWithInjections$FusionPersistenceEntity.class,
-                                io.yupiik.fusion.framework.api.scope.DefaultScoped.class,
-                                1000,
-                                java.util.Map.of());
-                            }
-
-                            @Override
-                            public CallbackWithInjections$FusionPersistenceEntity create(final io.yupiik.fusion.framework.api.RuntimeContainer container, final java.util.List<io.yupiik.fusion.framework.api.Instance<?>> dependents) {
-                              return new CallbackWithInjections$FusionPersistenceEntity(lookup(container, io.yupiik.fusion.persistence.impl.DatabaseConfiguration.class, dependents), container);
-                            }
-                          }
-                        }
-                        
-                        """,
-                compiler.readGeneratedSource(entity + "$FusionPersistenceEntity")));
+        compiler.compileAndAsserts((loader, container) -> {
+            final var model = persistenceEntity(loader, container, "test.p." + entity);
+            final var input = construct(loader.apply("test.p." + entity), "key");
+            final var bindings = new TreeMap<Integer, Object>();
+            try (final var statement = statement(bindings); final var row = row("key")) {
+                assertEquals(input, model.onInsert(input, statement));
+                assertEquals(Map.of(1, "key"), bindings);
+                bindings.clear();
+                assertEquals(input, model.onUpdate(input, statement));
+                assertEquals(Map.of(1, "key"), bindings);
+                bindings.clear();
+                model.onDelete(input, statement);
+                assertEquals(Map.of(1, "key"), bindings);
+                assertEquals(input, model.mapper(List.of("id")).apply(row));
+                assertEquals(List.of("insert:bean2[]", "update:bean2[]", "delete:bean2[]", "load:bean2[]"),
+                        staticField(loader.apply("test.p." + entity), "callbacks"));
+            } catch (final SQLException e) {
+                fail(e);
+            }
+        });
     }
 
     @Test
@@ -3463,90 +3172,7 @@ class FusionProcessorTest {
         final var entity = "persistence.NestedEntity";
         final var compiler = new Compiler(work, entity);
         compiler.compileAndAsserts((loader, container) -> {
-            assertEquals(
-                    """
-                            package test.p.persistence;
-                            
-                            
-                            @io.yupiik.fusion.framework.api.container.Generation(version = 1)
-                            public class NestedEntity$FusionPersistenceEntity extends io.yupiik.fusion.persistence.impl.BaseEntity<NestedEntity, java.lang.String> {
-                                public NestedEntity$FusionPersistenceEntity(final io.yupiik.fusion.persistence.impl.DatabaseConfiguration configuration) {
-                                    super(
-                                      configuration,
-                                      NestedEntity.class,
-                                      "NESTED_ENTITY",
-                                      java.util.List.of(
-                                        new io.yupiik.fusion.persistence.impl.ColumnMetadataImpl("id", java.lang.String.class, "id", 0, false),
-                                        new io.yupiik.fusion.persistence.impl.ColumnMetadataImpl("name", java.lang.String.class, "name"),
-                                        new io.yupiik.fusion.persistence.impl.ColumnMetadataImpl("arr", byte[].class, "arr"),
-                                        new io.yupiik.fusion.persistence.impl.ColumnMetadataImpl("age", int.class, "SIMPLE_AGE"),
-                                        new io.yupiik.fusion.persistence.impl.ColumnMetadataImpl("kind", test.p.persistence.NestedEntity.Kind.class, "kind")
-                                      ),
-                                      false,
-                                      (instance, statement) -> {
-                                        if (instance.id() == null) { statement.setNull(1, java.sql.Types.VARCHAR); } else { statement.setString(1, instance.id()); }
-                                        if (instance.name() == null) { statement.setNull(2, java.sql.Types.VARCHAR); } else { statement.setString(2, instance.name()); }
-                                        if (instance.arr() == null) { statement.setNull(3, java.sql.Types.VARBINARY); } else { statement.setBytes(3, instance.arr()); }
-                                        statement.setInt(4, instance.nested().age());
-                                        if (instance.nested() == null || instance.nested().kind() == null) { statement.setNull(5, java.sql.Types.VARCHAR); } else { statement.setString(5, instance.nested().kind().name()); }
-                                        return instance;
-                                      },
-                                      (instance, statement) -> {
-                                        if (instance.name() == null) { statement.setNull(1, java.sql.Types.VARCHAR); } else { statement.setString(1, instance.name()); }
-                                        if (instance.arr() == null) { statement.setNull(2, java.sql.Types.VARBINARY); } else { statement.setBytes(2, instance.arr()); }
-                                        statement.setInt(3, instance.nested().age());
-                                        if (instance.nested() == null || instance.nested().kind() == null) { statement.setNull(4, java.sql.Types.VARCHAR); } else { statement.setString(4, instance.nested().kind().name()); }
-                                        if (instance.id() == null) { statement.setNull(5, java.sql.Types.VARCHAR); } else { statement.setString(5, instance.id()); }
-                                        return instance;
-                                      },
-                                      (instance, statement) -> {
-                                        if (instance.id() == null) { statement.setNull(1, java.sql.Types.VARCHAR); } else { statement.setString(1, instance.id()); }
-                                      },
-                                      (id, statement) -> {
-                                        if (id == null) { statement.setNull(1, java.sql.Types.VARCHAR); } else { statement.setString(1, id); }
-                                      },
-                                      (entity, rset) -> entity,
-                                      columns -> {
-                                        final var id = stringOf(columns.indexOf("id"));
-                                        final var name = stringOf(columns.indexOf("name"));
-                                        final var arr = bytesOf(columns.indexOf("arr"));
-                                        final var age = intOf(columns.indexOf("simple_age"), true);
-                                        final var kind = enumOf(columns.indexOf("kind"), test.p.persistence.NestedEntity.Kind.class);
-                                        final var nested = (java.util.function.Function<java.sql.ResultSet, test.p.persistence.NestedEntity.Nested>)  rset -> {
-                                          try {
-                                            return new test.p.persistence.NestedEntity.Nested(age.apply(rset), kind.apply(rset));
-                                          } catch (final java.sql.SQLException e) {
-                                            throw new io.yupiik.fusion.persistence.api.PersistenceException(e);
-                                          }
-                                        };
-                                        return rset -> {
-                                          try {
-                                            return new test.p.persistence.NestedEntity(id.apply(rset), name.apply(rset), arr.apply(rset), nested.apply(rset));
-                                          } catch (final java.sql.SQLException e) {
-                                            throw new io.yupiik.fusion.persistence.api.PersistenceException(e);
-                                          }
-                                        };
-                                      });
-                                }
-
-                              public static class FusionBean extends io.yupiik.fusion.framework.api.container.bean.BaseBean<NestedEntity$FusionPersistenceEntity> {
-                                public FusionBean() {
-                                  super(
-                                    NestedEntity$FusionPersistenceEntity.class,
-                                    io.yupiik.fusion.framework.api.scope.DefaultScoped.class,
-                                    1000,
-                                    java.util.Map.of());
-                                }
-
-                                @Override
-                                public NestedEntity$FusionPersistenceEntity create(final io.yupiik.fusion.framework.api.RuntimeContainer container, final java.util.List<io.yupiik.fusion.framework.api.Instance<?>> dependents) {
-                                  return new NestedEntity$FusionPersistenceEntity(lookup(container, io.yupiik.fusion.persistence.impl.DatabaseConfiguration.class, dependents));
-                                }
-                              }
-                            }
-                            
-                            """,
-                    compiler.readGeneratedSource(entity + "$FusionPersistenceEntity"));
+            assertPersistenceOperations(loader, container, "test.p." + entity);
 
             final var databaseConfiguration = container.lookup(DatabaseConfiguration.class);
             assertNotNull(databaseConfiguration.instance());
@@ -3567,12 +3193,187 @@ class FusionProcessorTest {
         });
     }
 
+    private static void assertRegisteredFactories(final RuntimeContainer container, final List<String> names) {
+        final var expectedTypes = names.stream().map(name -> {
+            if (name.endsWith("$FusionCliCommand")) {
+                return CliCommand.class.getName() + "<" + name.substring(0, name.length() - "$FusionCliCommand".length()) + ">";
+            }
+            if (name.endsWith("$FusionJsonRpcMethod")) {
+                return "io.yupiik.fusion.jsonrpc.impl.DefaultJsonRpcMethod";
+            }
+            return "io.yupiik.fusion.http.server.impl.DefaultEndpoint";
+        }).sorted().toList();
+        final var registeredTypes = container.getBeans().getBeans().values().stream().flatMap(Collection::stream)
+                .map(bean -> bean.type().getTypeName()).filter(expectedTypes::contains).sorted().toList();
+        assertEquals(expectedTypes, registeredTypes);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Entity<Object, Object> persistenceEntity(final Function<String, Class<?>> loader,
+                                                           final RuntimeContainer container, final String name) {
+        final var configuration = container.lookup(DatabaseConfiguration.class);
+        configuration.instance().setTranslation(new DefaultTranslation());
+        // Initialize the database's entity lookup just as an application does.
+        container.lookup(Database.class).instance();
+        return (Entity<Object, Object>) configuration.instance().getInstanceLookup().apply(loader.apply(name));
+    }
+
+    private static Object staticField(final Class<?> type, final String name) {
+        try {
+            return type.getField(name).get(null);
+        } catch (final ReflectiveOperationException e) {
+            return fail(e);
+        }
+    }
+
+    private static Object construct(final Class<?> type, final Object... values) {
+        try {
+            return type.getConstructors()[0].newInstance(values);
+        } catch (final ReflectiveOperationException e) {
+            return fail(e);
+        }
+    }
+
+    private static PreparedStatement statement(final Map<Integer, Object> bindings) {
+        return (PreparedStatement) Proxy.newProxyInstance(FusionProcessorTest.class.getClassLoader(),
+                new Class<?>[]{PreparedStatement.class}, (proxy, method, args) -> {
+                    if (method.getName().equals("close")) {
+                        return null;
+                    }
+                    if (method.getName().startsWith("set")) {
+                        bindings.put((Integer) args[0], method.getName().equals("setNull") ? null : args[1]);
+                        return null;
+                    }
+                    throw new UnsupportedOperationException(method.toString());
+                });
+    }
+
+    private static ResultSet row(final Object... values) {
+        final var wasNull = new AtomicReference<>(false);
+        return (ResultSet) Proxy.newProxyInstance(FusionProcessorTest.class.getClassLoader(),
+                new Class<?>[]{ResultSet.class}, (proxy, method, args) -> {
+                    if (method.getName().equals("close")) {
+                        return null;
+                    }
+                    if (method.getName().equals("wasNull")) {
+                        return wasNull.get();
+                    }
+                    if (method.getName().startsWith("get") && args != null && args[0] instanceof Integer index) {
+                        final var value = values[index - 1];
+                        wasNull.set(value == null);
+                        return switch (method.getName()) {
+                            case "getInt" -> value == null ? 0 : ((Number) value).intValue();
+                            case "getLong" -> value == null ? 0L : ((Number) value).longValue();
+                            default -> value;
+                        };
+                    }
+                    throw new UnsupportedOperationException(method.toString());
+                });
+    }
+
+    private static void assertPersistenceOperations(final Function<String, Class<?>> loader,
+                                                    final RuntimeContainer container, final String name) {
+        final var model = persistenceEntity(loader, container, name);
+        assertEquals(List.of("id", "name", "arr", "SIMPLE_AGE", "kind"),
+                model.getOrderedColumns().stream().map(Entity.ColumnMetadata::columnName).toList());
+        final var kind = loader.apply(name + "$Kind").getEnumConstants()[0];
+        final var bytes = new byte[]{1, 2};
+        final var nested = name.endsWith("NestedEntity");
+        final var input = nested ?
+                construct(loader.apply(name), "key", "value", bytes, construct(loader.apply(name + "$Nested"), 7, kind)) :
+                construct(loader.apply(name), "key", "value", bytes, 7, kind);
+        final var bindings = new TreeMap<Integer, Object>();
+        try (final var statement = statement(bindings); final var row = row("key", "value", bytes, 7, "SIMPLE")) {
+            assertSame(input, model.onInsert(input, statement));
+            assertEquals(Map.of(1, "key", 2, "value", 3, bytes, 4, 7, 5, "SIMPLE"), bindings);
+            bindings.clear();
+            assertSame(input, model.onUpdate(input, statement));
+            assertEquals(Map.of(1, "value", 2, bytes, 3, 7, 4, "SIMPLE", 5, "key"), bindings);
+            bindings.clear();
+            model.onDelete(input, statement);
+            assertEquals(Map.of(1, "key"), bindings);
+            bindings.clear();
+            model.onFindById("key", statement);
+            assertEquals(Map.of(1, "key"), bindings);
+            final var mapped = model.mapper(List.of("id", "name", "arr", "simple_age", "kind")).apply(row);
+            assertEquals(input, mapped);
+            if (!nested) {
+                assertEquals(1, staticField(loader.apply(name), "loadCount"));
+            }
+            assertSame(input, model.onAfterInsert(input, row));
+            // All nullable columns bind SQL NULL, while primitive defaults stay typed.
+            final var nullInput = nested ?
+                    construct(loader.apply(name), null, null, null, construct(loader.apply(name + "$Nested"), 0, null)) :
+                    construct(loader.apply(name), null, null, null, 0, null);
+            bindings.clear();
+            model.onUpdate(nullInput, statement);
+            assertEquals(5, bindings.size());
+            assertNull(bindings.get(1));
+            assertNull(bindings.get(2));
+            assertEquals(0, bindings.get(3));
+            assertNull(bindings.get(4));
+            assertNull(bindings.get(5));
+            if (!nested) {
+                final var inserted = model.onInsert(construct(loader.apply(name), null, "generated", bytes, 0, kind), statement);
+                assertEquals("generated", loader.apply(name).getMethod("id").invoke(inserted));
+                assertEquals(1, loader.apply(name).getMethod("age").invoke(inserted));
+            }
+        } catch (final SQLException | ReflectiveOperationException e) {
+            fail(e);
+        }
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
     private <A> void withInstance(final RuntimeContainer container, final Function<String, Class<?>> loader,
                                   final String name,
                                   final Class<A> type, final Consumer<A> consumer) {
-        try (final var instance = container.lookup(loader.apply(name))) {
+        if (!name.contains("$Fusion")) {
+            try (final var instance = container.lookup(loader.apply(name))) {
+                consumer.accept(type.cast(instance.instance()));
+            }
+            return;
+        }
+        final var beanType = new Types.ParameterizedTypeImpl(CliCommand.class,
+                loader.apply(name.substring(0, name.length() - "$FusionCliCommand".length())));
+        final var matches = container.getBeans().getBeans().get(beanType);
+        assertNotNull(matches, "Missing command registration for " + beanType);
+        assertEquals(1, matches.size());
+        final var bean = matches.get(0);
+        try (final var instance = container.getContexts().findContext(bean.scope()).orElseThrow()
+                .getOrCreate(container, (FusionBean) bean)) {
             consumer.accept(type.cast(instance.instance()));
         }
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private void withEndpoint(final RuntimeContainer container, final String method, final Consumer<Endpoint> consumer) {
+        final var beans = container.getBeans().getBeans().values().stream().flatMap(Collection::stream)
+                .filter(bean -> bean.type().getTypeName().equals("io.yupiik.fusion.http.server.impl.DefaultEndpoint")).toList();
+        int matches = 0;
+        for (final var bean : beans) {
+            try (final var instance = container.getContexts().findContext(bean.scope()).orElseThrow()
+                    .getOrCreate(container, (FusionBean) bean)) {
+                final var endpoint = (Endpoint) instance.instance();
+                final var probe = switch (method) {
+                    case "greet", "greetStage" -> new SimpleRequest("POST", "/" + method.toLowerCase(Locale.ROOT),
+                            new HashMap<>(), new BytesPublisher("{\"name\":\"probe\"}"));
+                    case "getAndRegexFooPath" -> new SimpleRequest("GET", "/foo/bar/foo", new HashMap<>());
+                    default -> new SimpleRequest();
+                };
+                if (!endpoint.matches(probe)) {
+                    continue;
+                }
+                final var response = endpoint.handle(probe).toCompletableFuture().join();
+                final var selected = method.startsWith("greet") ? response.status() == 200 :
+                        List.of(method).equals(response.headers().get("java-method"));
+                if (selected) {
+                    matches++;
+                    assertEquals("all".equals(method) ? 0 : 1000, endpoint.priority());
+                    consumer.accept(endpoint);
+                }
+            }
+        }
+        assertEquals(1, matches, "Expected one endpoint with observable fixture behavior " + method);
     }
 
     private void assertJsonRpc(final JsonRpcEndpoint instance, final String request, final String response) {
@@ -3592,8 +3393,7 @@ class FusionProcessorTest {
     }
 
     private void assertHttpEndpoints(final Function<String, Class<?>> loader, final RuntimeContainer container, final String marker) {
-        assertEquals(
-                List.of(
+        assertRegisteredFactories(container, List.of(
                         "test.p.Http" + marker + "Endpoints$all$FusionHttp"+marker+"Endpoint",
                         "test.p.Http" + marker + "Endpoints$get$FusionHttp" + marker + "Endpoint",
                         "test.p.Http" + marker + "Endpoints$getAndEndsWithFooPath$FusionHttp" + marker + "Endpoint",
@@ -3601,41 +3401,34 @@ class FusionProcessorTest {
                         "test.p.Http" + marker + "Endpoints$getAndRegexFooPath$FusionHttp" + marker + "Endpoint",
                         "test.p.Http" + marker + "Endpoints$getAndStartsWithFooPath$FusionHttp" + marker + "Endpoint",
                         "test.p.Http" + marker + "Endpoints$greet$FusionHttp" + marker + "Endpoint",
-                        "test.p.Http" + marker + "Endpoints$greetStage$FusionHttp" + marker + "Endpoint"),
-                container.getBeans().getBeans().keySet().stream()
-                        .filter(Class.class::isInstance)
-                        .map(it -> (Class<?>) it)
-                        .map(Class::getName)
-                        .filter(it -> it.endsWith("$FusionHttp" + marker + "Endpoint"))
-                        .sorted()
-                        .toList());
+                        "test.p.Http" + marker + "Endpoints$greetStage$FusionHttp" + marker + "Endpoint"));
 
-        withInstance(container, loader, "test.p.Http" + marker + "Endpoints$all$FusionHttp" + marker + "Endpoint", Endpoint.class, instance -> {
+        withEndpoint(container, "all", instance -> {
             assertTrue(instance.matches(new SimpleRequest()));
             assertTrue(instance.matches(new SimpleRequest("POST", "/foo", Map.of())));
             assertTrue(instance.matches(new SimpleRequest("POST", "/whatever", Map.of())));
         });
-        withInstance(container, loader, "test.p.Http" + marker + "Endpoints$get$FusionHttp" + marker + "Endpoint", Endpoint.class, instance -> {
+        withEndpoint(container, "get", instance -> {
             assertTrue(instance.matches(new SimpleRequest()));
             assertFalse(instance.matches(new SimpleRequest("POST", "/foo", Map.of())));
             assertTrue(instance.matches(new SimpleRequest("GET", "/whatever", Map.of())));
         });
-        withInstance(container, loader, "test.p.Http" + marker + "Endpoints$getAndFooPath$FusionHttp" + marker + "Endpoint", Endpoint.class, instance -> {
+        withEndpoint(container, "getAndFooPath", instance -> {
             assertTrue(instance.matches(new SimpleRequest()));
             assertFalse(instance.matches(new SimpleRequest("POST", "/foo", Map.of())));
             assertFalse(instance.matches(new SimpleRequest("GET", "/whatever", Map.of())));
         });
-        withInstance(container, loader, "test.p.Http" + marker + "Endpoints$getAndEndsWithFooPath$FusionHttp" + marker + "Endpoint", Endpoint.class, instance -> {
+        withEndpoint(container, "getAndEndsWithFooPath", instance -> {
             assertTrue(instance.matches(new SimpleRequest()));
             assertFalse(instance.matches(new SimpleRequest("GET", "/foo/bar", Map.of())));
             assertTrue(instance.matches(new SimpleRequest("GET", "/whatever/foo", Map.of())));
         });
-        withInstance(container, loader, "test.p.Http" + marker + "Endpoints$getAndStartsWithFooPath$FusionHttp" + marker + "Endpoint", Endpoint.class, instance -> {
+        withEndpoint(container, "getAndStartsWithFooPath", instance -> {
             assertTrue(instance.matches(new SimpleRequest()));
             assertTrue(instance.matches(new SimpleRequest("GET", "/foo/bar", Map.of())));
             assertFalse(instance.matches(new SimpleRequest("GET", "/whatever/foo", Map.of())));
         });
-        withInstance(container, loader, "test.p.Http" + marker + "Endpoints$getAndRegexFooPath$FusionHttp" + marker + "Endpoint", Endpoint.class, instance -> {
+        withEndpoint(container, "getAndRegexFooPath", instance -> {
             assertFalse(instance.matches(new SimpleRequest()));
 
             final var attributes = new HashMap<String, Object>();
@@ -3644,7 +3437,7 @@ class FusionProcessorTest {
             final var matcher = attributes.get("fusion.http.matcher");
             assertInstanceOf(Matcher.class, matcher);
         });
-        withInstance(container, loader, "test.p.Http" + marker + "Endpoints$greet$FusionHttp" + marker + "Endpoint", Endpoint.class, instance -> {
+        withEndpoint(container, "greet", instance -> {
             assertFalse(instance.matches(new SimpleRequest()));
             assertTrue(instance.matches(new SimpleRequest("POST", "/greet", Map.of())));
 
@@ -3655,7 +3448,7 @@ class FusionProcessorTest {
             assertEquals(Map.of("content-type", List.of("application/json;charset=utf-8")), response.headers());
             assertEquals("{\"message\":\"Hello fusion!\"}", assertDoesNotThrow(() -> new String(new RequestBodyAggregator(response.body(), UTF_8).promise().toCompletableFuture().get())));
         });
-        withInstance(container, loader, "test.p.Http" + marker + "Endpoints$greetStage$FusionHttp" + marker + "Endpoint", Endpoint.class, instance -> {
+        withEndpoint(container, "greetStage", instance -> {
             assertFalse(instance.matches(new SimpleRequest()));
             assertTrue(instance.matches(new SimpleRequest("POST", "/greetstage", Map.of())));
 

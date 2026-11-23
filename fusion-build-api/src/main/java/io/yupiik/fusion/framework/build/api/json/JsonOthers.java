@@ -19,7 +19,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 
 import static java.lang.annotation.ElementType.PARAMETER;
-import static java.lang.annotation.RetentionPolicy.SOURCE;
+import static java.lang.annotation.RetentionPolicy.CLASS;
 
 /**
  * Mark a record member as the sink for unmapped data by other members.
@@ -35,8 +35,10 @@ import static java.lang.annotation.RetentionPolicy.SOURCE;
  * </ul>
  * <p>
  * Important: you can only use it once per record.
+ * Retained in class files for compiler-side discovery of implicit JSON models in dependencies;
+ * it does not require the build API at runtime.
  */
-@Retention(SOURCE)
+@Retention(CLASS)
 @Target(PARAMETER)
 public @interface JsonOthers {
 }

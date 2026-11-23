@@ -16,23 +16,8 @@
 package io.yupiik.fusion.httpclient.core.listener.impl.har;
 
 import io.yupiik.fusion.framework.api.configuration.Configuration;
-import io.yupiik.fusion.httpclient.core.listener.impl.BaseHARDumperListener$Har$Cache$FusionJsonCodec;
-import io.yupiik.fusion.httpclient.core.listener.impl.BaseHARDumperListener$Har$CacheRequest$FusionJsonCodec;
-import io.yupiik.fusion.httpclient.core.listener.impl.BaseHARDumperListener$Har$Content$FusionJsonCodec;
-import io.yupiik.fusion.httpclient.core.listener.impl.BaseHARDumperListener$Har$Cookie$FusionJsonCodec;
-import io.yupiik.fusion.httpclient.core.listener.impl.BaseHARDumperListener$Har$Entry$FusionJsonCodec;
-import io.yupiik.fusion.httpclient.core.listener.impl.BaseHARDumperListener$Har$FusionJsonCodec;
-import io.yupiik.fusion.httpclient.core.listener.impl.BaseHARDumperListener$Har$Header$FusionJsonCodec;
-import io.yupiik.fusion.httpclient.core.listener.impl.BaseHARDumperListener$Har$Identity$FusionJsonCodec;
-import io.yupiik.fusion.httpclient.core.listener.impl.BaseHARDumperListener$Har$Log$FusionJsonCodec;
-import io.yupiik.fusion.httpclient.core.listener.impl.BaseHARDumperListener$Har$Page$FusionJsonCodec;
-import io.yupiik.fusion.httpclient.core.listener.impl.BaseHARDumperListener$Har$PageTiming$FusionJsonCodec;
-import io.yupiik.fusion.httpclient.core.listener.impl.BaseHARDumperListener$Har$Param$FusionJsonCodec;
-import io.yupiik.fusion.httpclient.core.listener.impl.BaseHARDumperListener$Har$PostData$FusionJsonCodec;
-import io.yupiik.fusion.httpclient.core.listener.impl.BaseHARDumperListener$Har$Query$FusionJsonCodec;
-import io.yupiik.fusion.httpclient.core.listener.impl.BaseHARDumperListener$Har$Request$FusionJsonCodec;
-import io.yupiik.fusion.httpclient.core.listener.impl.BaseHARDumperListener$Har$Response$FusionJsonCodec;
-import io.yupiik.fusion.httpclient.core.listener.impl.BaseHARDumperListener$Har$Timings$FusionJsonCodec;
+import io.yupiik.fusion.httpclient.core.listener.impl.FusionModule;
+import io.yupiik.fusion.httpclient.core.listener.impl.BaseHARDumperListener.Har;
 import io.yupiik.fusion.json.internal.JsonMapperImpl;
 import io.yupiik.fusion.json.internal.JsonStrings;
 import io.yupiik.fusion.json.serialization.JsonCodec;
@@ -51,23 +36,23 @@ public class HarJsonMapper extends JsonMapperImpl {
     public HarJsonMapper() {
         super(
                 List.of(
-                        new BaseHARDumperListener$Har$Cache$FusionJsonCodec(),
-                        new BaseHARDumperListener$Har$Header$FusionJsonCodec(),
-                        new BaseHARDumperListener$Har$PostData$FusionJsonCodec(),
-                        new BaseHARDumperListener$Har$CacheRequest$FusionJsonCodec(),
-                        new BaseHARDumperListener$Har$Identity$FusionJsonCodec(),
-                        new BaseHARDumperListener$Har$Query$FusionJsonCodec(),
-                        new BaseHARDumperListener$Har$Content$FusionJsonCodec(),
-                        new BaseHARDumperListener$Har$Log$FusionJsonCodec(),
-                        new BaseHARDumperListener$Har$Request$FusionJsonCodec(),
-                        new BaseHARDumperListener$Har$Cookie$FusionJsonCodec(),
-                        new BaseHARDumperListener$Har$Page$FusionJsonCodec(),
-                        new BaseHARDumperListener$Har$Response$FusionJsonCodec(),
-                        new BaseHARDumperListener$Har$Entry$FusionJsonCodec(),
-                        new BaseHARDumperListener$Har$PageTiming$FusionJsonCodec(),
-                        new BaseHARDumperListener$Har$Timings$FusionJsonCodec(),
-                        new BaseHARDumperListener$Har$FusionJsonCodec(),
-                        new BaseHARDumperListener$Har$Param$FusionJsonCodec()),
+                        FusionModule.BaseHARDumperListener$Har$Cache$FusionJsonCodec(),
+                        FusionModule.BaseHARDumperListener$Har$Header$FusionJsonCodec(),
+                        FusionModule.BaseHARDumperListener$Har$PostData$FusionJsonCodec(),
+                        FusionModule.BaseHARDumperListener$Har$CacheRequest$FusionJsonCodec(),
+                        FusionModule.BaseHARDumperListener$Har$Identity$FusionJsonCodec(),
+                        FusionModule.BaseHARDumperListener$Har$Query$FusionJsonCodec(),
+                        FusionModule.BaseHARDumperListener$Har$Content$FusionJsonCodec(),
+                        FusionModule.BaseHARDumperListener$Har$Log$FusionJsonCodec(),
+                        FusionModule.BaseHARDumperListener$Har$Request$FusionJsonCodec(),
+                        FusionModule.BaseHARDumperListener$Har$Cookie$FusionJsonCodec(),
+                        FusionModule.BaseHARDumperListener$Har$Page$FusionJsonCodec(),
+                        FusionModule.BaseHARDumperListener$Har$Response$FusionJsonCodec(),
+                        FusionModule.BaseHARDumperListener$Har$Entry$FusionJsonCodec(),
+                        FusionModule.BaseHARDumperListener$Har$PageTiming$FusionJsonCodec(),
+                        FusionModule.BaseHARDumperListener$Har$Timings$FusionJsonCodec(),
+                        FusionModule.BaseHARDumperListener$Har$FusionJsonCodec(),
+                        FusionModule.BaseHARDumperListener$Har$Param$FusionJsonCodec()),
                 Configuration.of(Map.of()));
     }
 

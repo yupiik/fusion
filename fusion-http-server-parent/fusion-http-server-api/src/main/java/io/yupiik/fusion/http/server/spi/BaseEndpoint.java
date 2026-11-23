@@ -21,6 +21,13 @@ import io.yupiik.fusion.http.server.api.Response;
 import java.util.concurrent.CompletionStage;
 
 public interface BaseEndpoint {
+    /**
+     * Routing priority: higher values are tested first. Equal priorities retain the supplied endpoint order.
+     * The first matching endpoint handles the request, without any path-specificity ranking.
+     * This is independent of the priority of the bean supplying this endpoint.
+     *
+     * @return the routing priority (default: 1000).
+     */
     default int priority() {
         return 1000;
     }

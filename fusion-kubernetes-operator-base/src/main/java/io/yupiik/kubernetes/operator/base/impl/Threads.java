@@ -18,14 +18,20 @@ package io.yupiik.kubernetes.operator.base.impl;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.logging.Logger;
 
-import static java.util.concurrent.TimeUnit.MINUTES;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 public record Threads(ScheduledExecutorService executor) implements AutoCloseable {
     @Override
     public void close() throws Exception {
-        executor.shutdownNow().forEach(Runnable::run);
-        if (!executor.awaitTermination(1, MINUTES)) {
-            Logger.getLogger(getClass().getName()).warning("Can't stop thread pool in 1mn, giving up");
+        executor.shutdown();
+        try {
+            if (!executor.awaitTermination(5, SECONDS)) {
+                executor.shutdownNow();
+                Logger.getLogger(getClass().getName()).warning("Thread pool drain exceeded 5 seconds; interrupting tasks");
+            }
+        } catch (final InterruptedException e) {
+            executor.shutdownNow();
+            Thread.currentThread().interrupt();
         }
     }
 }

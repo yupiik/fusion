@@ -15,23 +15,18 @@
  */
 package io.yupiik.fusion.framework.processor.internal.generator;
 
-import io.yupiik.fusion.framework.api.Instance;
-import io.yupiik.fusion.framework.api.RuntimeContainer;
 import io.yupiik.fusion.framework.api.container.FusionBean;
-import io.yupiik.fusion.framework.api.container.bean.BaseBean;
 import io.yupiik.fusion.framework.api.scope.DefaultScoped;
 import io.yupiik.fusion.framework.build.api.configuration.Property;
 import io.yupiik.fusion.framework.build.api.json.JsonIgnore;
-import io.yupiik.fusion.framework.build.api.json.JsonModel;
 import io.yupiik.fusion.framework.build.api.json.JsonOthers;
 import io.yupiik.fusion.framework.build.api.json.JsonProperty;
 import io.yupiik.fusion.framework.processor.internal.Elements;
 import io.yupiik.fusion.framework.processor.internal.ParsedType;
 import io.yupiik.fusion.framework.processor.internal.meta.JsonSchema;
 import io.yupiik.fusion.framework.processor.internal.metadata.MetadataContributorRegistry;
-import io.yupiik.fusion.json.internal.codec.BaseJsonCodec;
 import io.yupiik.fusion.json.serialization.JsonCodec;
-import io.yupiik.fusion.json.spi.Parser;
+import io.yupiik.fusion.json.serialization.MetadataJsonCodec;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
@@ -39,23 +34,19 @@ import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.IntUnaryOperator;
-import java.util.Objects;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
-import java.util.stream.Stream;
 
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.joining;
@@ -63,8 +54,9 @@ import static java.util.stream.Collectors.toMap;
 import static javax.lang.model.element.ElementKind.RECORD;
 
 public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGenerator.GeneratedClass> {
+    // Persistent identity only, no class with this name is emitted.
     public static final String SUFFIX = "$FusionJsonCodec";
-
+    private static final String RUNTIME = MetadataJsonCodec.class.getName();
     private static final String LIST_PREFIX = List.class.getName() + "<";
     private static final String COLLECTION_PREFIX = Collection.class.getName() + "<";
     private static final String SET_PREFIX = Set.class.getName() + "<";
@@ -93,539 +85,195 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
 
     @Override
     public GeneratedClass get() {
-        final var packagePrefix = !packageName.isBlank() ? packageName + '.' : "";
+        final var packagePrefix = packageName.isBlank() ? "" : packageName + '.';
         final var modelClass = element.asType().toString();
         final var params = selectConstructor(element)
-                .map(constructor -> constructor.getParameters().stream()
-                        .map(it -> {
-                            final var javaName = it.getSimpleName().toString();
-                            final var typeMirror = it.asType();
-                            return new Param(
-                                    it.getSimpleName().toString(),
-                                    ofNullable(it.getAnnotation(JsonProperty.class))
-                                            .map(JsonProperty::value)
-                                            .filter(Predicate.not(String::isBlank))
-                                            .orElse(javaName),
-                                    typeMirror,
-                                    typeOf(typeMirror.toString(), typeMirror),
-                                    it.getAnnotation(JsonOthers.class) != null,
-                                    it.getAnnotation(JsonIgnore.class) != null,
-                                    ofNullable(it.getAnnotation(Property.class))
-                                            .map(i -> i.documentation() + (i.required() ? " This attribute is required." : ""))
-                                            .orElse(null),
-                                    ofNullable(it.getAnnotation(JsonProperty.class))
-                                            .map(JsonProperty::order)
-                                            .orElse(Integer.MIN_VALUE));
-                        })
-                        .peek(a -> {
-                            if (a.others() && !(
-                                    a.types().paramType() == ParamType.MAP &&
-                                            a.types().paramTypeDef() == ParamTypeDef.GENERIC_OBJECT &&
-                                            Object.class.getName().equals(a.types().argTypeIfNotValue().toString()))) {
-                                throw new IllegalArgumentException("" +
-                                        "Unsupported attribute: '" + a.javaName() + "' in '" + modelClass + "', " +
-                                        "should be Map<String, Object> due to @JsonOthers annotation.");
-                            }
-                        })
-                        .toList())
-                .orElse(List.of());
-
-        final var out = generateCodec(modelClass, params);
-        if (jsonSchemas != null) {
-            // we are only responsible to generate the "self" schema since we assume relationships/other models
-            // got their own generated schema using the same $id/$ref convention
-            final var fqn = (packagePrefix + className).replace('$', '.');
-            jsonSchemas.put(fqn, generateSchema(fqn, params));
+                .map(constructor -> constructor.getParameters().stream().map(it -> {
+                    final var javaName = it.getSimpleName().toString();
+                    final var type = it.asType();
+                    return new Param(javaName,
+                            ofNullable(it.getAnnotation(JsonProperty.class)).map(JsonProperty::value)
+                                    .filter(Predicate.not(String::isBlank)).orElse(javaName),
+                            type, typeOf(type.toString(), type),
+                            it.getAnnotation(JsonOthers.class) != null, it.getAnnotation(JsonIgnore.class) != null,
+                            ofNullable(it.getAnnotation(Property.class))
+                                    .map(i -> i.documentation() + (i.required() ? " This attribute is required." : "")).orElse(null),
+                            ofNullable(it.getAnnotation(JsonProperty.class)).map(JsonProperty::order).orElse(Integer.MIN_VALUE));
+                }).toList()).orElse(List.of());
+        for (final var param : params) {
+            if (param.others() && !(param.types().paramType() == ParamType.MAP &&
+                    param.types().paramTypeDef() == ParamTypeDef.GENERIC_OBJECT &&
+                    Object.class.getName().equals(param.types().argTypeIfNotValue().toString()))) {
+                throw new IllegalArgumentException("Unsupported attribute: '" + param.javaName() + "' in '" + modelClass +
+                        "', should be Map<String, Object> due to @JsonOthers annotation.");
+            }
         }
-        return new GeneratedClass(packagePrefix + className + SUFFIX, out.toString());
+        if (jsonSchemas != null) {
+            final var fqn = element.getQualifiedName().toString();
+            jsonSchemas.put(fqn, new JsonSchema(null, fqn, "object", null, null, null, null,
+                    params.stream().collect(toMap(Param::jsonName, Param::schema)), null,
+                    fqn.substring(Math.max(fqn.lastIndexOf('$'), fqn.lastIndexOf('.')) + 1), null, null));
+        }
+        final var id = packagePrefix + className + SUFFIX;
+        final var artifacts = new ArrayList<Binding.Artifact>();
+        artifacts.add(new Binding.Artifact(id, codecBinding(modelClass, params)));
+        if (generateBean) {
+            final var beanId = id + "." + FusionBean.class.getSimpleName();
+            artifacts.add(new Binding.Artifact(beanId, codecBean(packageName, modelClass, id)));
+        }
+        return new GeneratedClass(id, null, artifacts);
     }
 
-    private JsonSchema generateSchema(final String fqn, final List<Param> params) {
-        return new JsonSchema(
-                null,
-                fqn,
-                "object",
-                null, null, null, null,
-                params.stream().collect(toMap(Param::jsonName, Param::schema)),
-                null,
-                fqn.substring(Math.max(fqn.lastIndexOf('$'), fqn.lastIndexOf('.')) + 1),
-                // todo: add a @JsonSchema annotation which can be set on params or record?
-                null, null);
-    }
-
-    private StringBuilder generateCodec(final String modelClass, final List<Param> params) {
-        final var fallbacks = params.stream().filter(Param::others).toList();
-        if (fallbacks.size() > 1) {
+    private Binding codecBinding(final String modelClass, final List<Param> params) {
+        if (params.stream().filter(Param::others).count() > 1) {
             throw new IllegalArgumentException("You can only get a single @JsonOthers per @JsonModel record");
         }
         if (params.stream().anyMatch(p -> p.ignored() && p.others())) {
             throw new IllegalArgumentException("A @JsonModel attribute cannot be both @JsonIgnore and @JsonOthers");
         }
-
-        final var pckPrefix = packageName.isBlank() ? "" : packageName + '.';
-        final var out = new StringBuilder();
-        if (!packageName.isBlank()) {
-            out.append("package ").append(packageName).append(";\n\n");
-        }
-        out.append("import java.util.function.Function;\n");
-        out.append("import java.util.function.IntUnaryOperator;\n\n");
-
-        appendGenerationVersion(out);
-        out.append("public class ")
-                .append(className).append(SUFFIX)
-                .append(" extends ").append(BaseJsonCodec.class.getName())
-                .append('<').append(modelClass).append("> {\n");
-
-        // read keys sorted by length so matchString can use the key length as a first discriminator,
-        // see Parser.matchString(char[][], IntUnaryOperator) contract (stable sort keeps the declaration
-        // order for equal lengths)
-        final var namedParams = params.stream()
-                .filter(p -> !p.others() && !p.ignored())
-                .sorted(Comparator.comparingInt(p -> p.jsonName().length()))
-                .toList();
-
-        // KEYS__ array for parser.matchString()
-        out.append("  private static final char[][] KEYS__ = {\n").append(namedParams.stream()
-                .map(p -> "    \"" + p.stringEscapedJsonName() + "\".toCharArray()")
-                .collect(joining(",\n"))).append("\n  };\n\n");
-
-        // KEYS_OFFSETS__ discriminator for parser.matchString(): a generated switch on the key length
-        // returning the index of the first key with that length in KEYS__ (-1 when absent) - no
-        // sparse array, no runtime search, the codec is built once at compile time
-        out.append("  private static final ").append(IntUnaryOperator.class.getName()).append(" KEYS_OFFSETS__ = length -> switch (length) {\n");
-        for (int i = 0; i < namedParams.size(); i++) {
-            final var p = namedParams.get(i);
-            final var length = p.jsonName().length();
-            if (i == 0 || length != namedParams.get(i - 1).jsonName().length()) {
-                out.append("    case ").append(length).append(" -> ").append(i).append(";\n");
-            }
-        }
-        out.append("    default -> -1;\n  };\n\n");
-
-        // FIELDS__ array (KEYS__ order, @JsonOthers then @JsonIgnore params appended at the end so the slot
-        // array built in readObject is sized for every record component and defaults are preinitialized)
-        final var ignoredParams = params.stream().filter(Param::ignored).toList();
-        final boolean hasIgnored = !ignoredParams.isEmpty();
-        if (hasIgnored) {
-            out.append("  private static final java.util.Set<String> IGNORED_NAMES__ = java.util.Set.of(")
-                    .append(ignoredParams.stream().map(p -> "\"" + p.stringEscapedJsonName() + "\"").distinct().collect(joining(", ")))
-                    .append(");\n\n");
-        }
-        out.append("  @SuppressWarnings({\"unchecked\", \"rawtypes\"})\n")
-                .append("  private static final ").append(BaseJsonCodec.class.getName()).append(".FieldMeta<").append(modelClass).append(">[] FIELDS__ = new ")
-                .append(BaseJsonCodec.class.getName()).append(".FieldMeta[] {\n");
-        for (int i = 0; i < namedParams.size(); i++) {
-            final var p = namedParams.get(i);
-            out.append("    new ").append(BaseJsonCodec.class.getName()).append(".FieldMeta<>(\n")
-                    .append("      \"").append(p.stringEscapedJsonName()).append("\".toCharArray(), ")
-                    .append(params.indexOf(p)).append(", ")
-                    .append(BaseJsonCodec.class.getName()).append(".ContainerKind.").append(containerKind(p.types().paramType())).append(", ")
-                    .append(BaseJsonCodec.class.getName()).append(".ValueKind.").append(valueKind(p.types().paramTypeDef())).append(", ")
-                    .append(isJavaLangWrapper(p.type())).append(", ")
-                    .append(p.others()).append(", ")
-                    .append(delegateTypeExpr(p)).append(", ")
-                    .append("m -> ((").append(modelClass).append(") m).").append(p.javaName()).append("(), ")
-                    .append(p.order()).append(", ")
-                    .append("(\"\\\"\" + ").append("\"").append(p.stringEscapedJsonName()).append("\"").append(" + \"\\\":\").toCharArray()")
-                    .append(")");
-            if (i < namedParams.size() - 1 || !fallbacks.isEmpty() || hasIgnored) {
-                out.append(',');
-            }
-            out.append('\n');
-        }
-        // append @JsonOthers field at the end of FIELDS__ (slotIndex = record declaration position)
-        if (!fallbacks.isEmpty()) {
-            final var othersParam = fallbacks.get(0);
-            final var othersSlot = params.indexOf(othersParam);
-            out.append("    new ").append(BaseJsonCodec.class.getName()).append(".FieldMeta<>(\n")
-                    .append("      null, ")
-                    .append(othersSlot).append(", ")
-                    .append(BaseJsonCodec.class.getName()).append(".ContainerKind.").append(containerKind(othersParam.types().paramType())).append(", ")
-                    .append(BaseJsonCodec.class.getName()).append(".ValueKind.").append(valueKind(othersParam.types().paramTypeDef())).append(", ")
-                    .append("false, true, ")
-                    .append(delegateTypeExpr(othersParam)).append(", ")
-                    .append("m -> ((").append(modelClass).append(") m).").append(othersParam.javaName()).append("(), ")
-                    .append(othersParam.order()).append(", ")
-                    .append("null")
-                    .append(")");
-            if (hasIgnored) {
-                out.append(',');
-            }
-            out.append('\n');
-        }
-        // append @JsonIgnore params (still addressable in the slot array, but never matched nor serialized)
-        for (int i = 0; i < ignoredParams.size(); i++) {
-            final var p = ignoredParams.get(i);
-            out.append("    new ").append(BaseJsonCodec.class.getName()).append(".FieldMeta<>(\n")
-                    .append("      \"").append(p.stringEscapedJsonName()).append("\".toCharArray(), ")
-                    .append(params.indexOf(p)).append(", ")
-                    .append(BaseJsonCodec.class.getName()).append(".ContainerKind.").append(containerKind(p.types().paramType())).append(", ")
-                    .append(BaseJsonCodec.class.getName()).append(".ValueKind.").append(valueKind(p.types().paramTypeDef())).append(", ")
-                    .append(isJavaLangWrapper(p.type())).append(", ")
-                    .append("false, ")
-                    .append(delegateTypeExpr(p)).append(", ")
-                    .append("m -> ((").append(modelClass).append(") m).").append(p.javaName()).append("(), ")
-                    .append(p.order()).append(", ")
-                    .append("null")
-                    .append(")");
-            if (i < ignoredParams.size() - 1) {
-                out.append(',');
-            }
-            out.append('\n');
-        }
-        out.append("  };\n\n");
-
-        // FIELDS_WRITE__ array (write order = @JsonProperty.order then javaName)
-        final var othersIndex = fallbacks.isEmpty() ? -1 : params.indexOf(fallbacks.get(0));
-        final var writeOrdered = params.stream()
-                .filter(p -> !p.ignored())
-                .sorted(Comparator.<Param, Integer>comparing(p -> p.order() != Integer.MIN_VALUE ?
-                                p.order() :
+        // Three independent orders: constructor slots, parser key lengths, and explicit serialization order.
+        final var named = params.stream().filter(p -> !p.others() && !p.ignored())
+                .sorted(Comparator.comparingInt(p -> p.jsonName().length())).toList();
+        final var read = new ArrayList<>(named);
+        params.stream().filter(p -> p.others() || p.ignored()).forEach(read::add);
+        final var write = params.stream().filter(p -> !p.ignored())
+                .sorted(Comparator.<Param, Integer>comparing(p -> p.order() != Integer.MIN_VALUE ? p.order() :
                                 (p.others() ? Integer.MIN_VALUE + 2 : Integer.MIN_VALUE + 1))
-                        .thenComparing(Param::javaName))
-                .toList();
-        out.append("  @SuppressWarnings({\"unchecked\", \"rawtypes\"})\n")
-                .append("  private static final ").append(BaseJsonCodec.class.getName()).append(".FieldMeta<").append(modelClass).append(">[] FIELDS_WRITE__ = new ")
-                .append(BaseJsonCodec.class.getName()).append(".FieldMeta[] {\n");
-        for (int i = 0; i < writeOrdered.size(); i++) {
-            final var p = writeOrdered.get(i);
-            if (p.others()) {
-                out.append("    new ").append(BaseJsonCodec.class.getName()).append(".FieldMeta<>(\n")
-                        .append("      \"").append(p.stringEscapedJsonName()).append("\".toCharArray(), ")
-                        .append(othersIndex).append(", ")
-                        .append(BaseJsonCodec.class.getName()).append(".ContainerKind.").append(containerKind(p.types().paramType())).append(", ")
-                        .append(BaseJsonCodec.class.getName()).append(".ValueKind.").append(valueKind(p.types().paramTypeDef())).append(", ")
-                        .append(isJavaLangWrapper(p.type())).append(", true, ")
-                        .append(delegateTypeExpr(p)).append(", ")
-                        .append("m -> ((").append(modelClass).append(") m).").append(p.javaName()).append("(), ")
-                        .append(p.order()).append(", ")
-                        .append("(\"\\\"\" + ").append("\"").append(p.stringEscapedJsonName()).append("\"").append(" + \"\\\":\").toCharArray()")
-                        .append(")");
-            } else {
-                final var fieldArrayIndex = namedParams.indexOf(p);
-                out.append("    FIELDS__[").append(fieldArrayIndex).append("]");
+                        .thenComparing(Param::javaName)).toList();
+        final var properties = read.stream().map(p -> {
+            final var slot = params.indexOf(p);
+            return "new " + RUNTIME + ".Property(" + slot + ", " + literal(p.jsonName()) + ", " + slot + ", " +
+                    RUNTIME + ".ContainerKind." + p.types().paramType().name() + ", " +
+                    RUNTIME + ".ValueKind." + p.types().paramTypeDef().name() + ", " + isJavaLangWrapper(p.type()) + ", " +
+                    p.others() + ", " + p.ignored() + ", " + delegateTypeExpr(p) + ")";
+        }).collect(joining(",\n"));
+        final var factory = "new " + RUNTIME + "<" + modelClass + ">(" + modelClass + ".class, java.util.List.of(" +
+                properties + "), new int[]{" +
+                write.stream().map(p -> Integer.toString(params.indexOf(p))).collect(joining(", ")) +
+                "}, java.util.Arrays.<java.util.function.Function<" + modelClass + ", Object>>asList(" +
+                params.stream().map(p -> p.ignored() ? "(java.util.function.Function<" + modelClass + ", Object>) null" :
+                        modelClass + "::" + p.javaName()).collect(joining(", ")) +
+                "), " + Binding.helperReference(12) + ", " + Binding.helperReference(10) + ")";
+        final var methods = new ArrayList<Binding.Method>();
+        methods.add(new Binding.Method(10,
+                (params.stream().anyMatch(p -> p.type().toString().contains("<")) ? "@SuppressWarnings(\"unchecked\")\n" : "") +
+                        "private static " + modelClass + " $method(Object[] args) { return new " + modelClass + "(" +
+                        params.stream().map(p -> (Object.class.getName().equals(p.type().toString()) ? "" : "(" + p.type() + ") ") +
+                                "args[" + params.indexOf(p) + "]").collect(joining(", ")) + "); }", ""));
+        final var offsets = new StringBuilder("private static int $method(int length) { return switch (length) {\n");
+        for (int i = 0; i < named.size(); i++) {
+            if (i == 0 || named.get(i).jsonName().length() != named.get(i - 1).jsonName().length()) {
+                offsets.append("case ").append(named.get(i).jsonName().length()).append(" -> ").append(i).append(";\n");
             }
-            if (i < writeOrdered.size() - 1) {
-                out.append(',');
-            }
-            out.append('\n');
         }
-        out.append("  };\n\n");
-
-        // factory method with @SuppressWarnings("unchecked")
-        final boolean hasUnchecked = params.stream().anyMatch(p -> p.type().toString().contains("<"));
-        if (hasUnchecked) {
-            out.append("  @SuppressWarnings(\"unchecked\")\n");
-        }
-        out.append("  private static ").append(modelClass.replace('$', '.')).append(" createFromSlots(final Object[] args) {\n");
-        out.append("    return new ").append(modelClass.replace('$', '.')).append("(\n");
-        for (int i = 0; i < params.size(); i++) {
-            final var p = params.get(i);
-            final var typeStr = p.type().toString();
-            final boolean isObject = typeStr.equals(Object.class.getName()) ||
-                    (p.types().paramTypeDef() == ParamTypeDef.GENERIC_OBJECT && p.types().paramType() == ParamType.VALUE);
-            if (isObject) {
-                out.append("      args[").append(i).append("]");
-            } else {
-                out.append("      (").append(typeStr.replace('$', '.')).append(") args[").append(i).append("]");
-            }
-            if (i < params.size() - 1) {
-                out.append(',');
-            }
-            out.append('\n');
-        }
-        out.append("    );\n  }\n\n");
-
-        // FACTORY__ field
-        out.append("  private static final Function<Object[], ").append(modelClass.replace('$', '.')).append("> FACTORY__ = ")
-                .append(className).append(SUFFIX).append("::createFromSlots;\n\n");
-
-        // constructor
-        out.append("  public ").append(className).append(SUFFIX).append("() {\n");
-        out.append("    super(").append(modelClass).append(".class);\n");
-        out.append("  }\n\n");
-
-        // read()
-        out.append("  @Override\n");
-        out.append("  public ").append(modelClass.replace('$', '.')).append(" read(final ")
-                .append(JsonCodec.DeserializationContext.class.getName().replace('$', '.')).append(" context)")
-                .append(" throws ").append(IOException.class.getName()).append(" {\n");
-        out.append("    return readObject(context, KEYS__, KEYS_OFFSETS__, FIELDS__, FACTORY__")
-                .append(hasIgnored ? ", IGNORED_NAMES__" : "").append(");\n");
-        out.append("  }\n\n");
-
-        // write()
-        out.append("  @Override\n");
-        out.append("  public void write(final ").append(modelClass.replace('$', '.')).append(" instance, final ")
-                .append(JsonCodec.SerializationContext.class.getName().replace('$', '.')).append(" context")
-                .append(") throws ").append(IOException.class.getName()).append(" {\n");
-        out.append("    writeObject(instance, context, FIELDS_WRITE__);\n");
-        out.append("  }\n");
-
-        // nested bean
-        if (generateBean) {
-            final var codecName = className + SUFFIX;
-            out.append("\n");
-            out.append("  public static class ").append(FusionBean.class.getSimpleName()).append(" extends ")
-                    .append(BaseBean.class.getName()).append("<").append(codecName).append("> {\n");
-            out.append("    public ").append(FusionBean.class.getSimpleName()).append("() {\n");
-            out.append("      super(")
-                    .append(codecName).append(".class, ")
-                    .append(DefaultScoped.class.getName()).append(".class, ")
-                    .append("1000, ")
-                    .append(Map.class.getName()).append(".of());\n");
-            out.append("    }\n\n");
-            out.append("    @Override\n");
-            out.append("    public ").append(codecName).append(" create(final ").append(RuntimeContainer.class.getName())
-                    .append(" container, final ")
-                    .append(List.class.getName()).append("<").append(Instance.class.getName()).append("<?>> dependents) {\n");
-            out.append("      return new ").append(codecName).append("();\n");
-            out.append("    }\n");
-            out.append("  }\n");
-        }
-        out.append("}\n\n");
-        return out;
+        offsets.append("default -> -1; }; }");
+        methods.add(new Binding.Method(12, offsets.toString(), ""));
+        return new Binding(packageName, null, JsonCodec.class.getName() + "<" + modelClass + ">", factory, methods);
     }
 
-    private static String containerKind(final ParamType type) {
-        return switch (type) {
-            case VALUE -> "VALUE";
-            case LIST -> "LIST";
-            case SET -> "SET";
-            case MAP -> "MAP";
-            case MAP_LIST -> "MAP_LIST";
-        };
+    // Shared with enum codecs; the registration type is JsonCodec<Model>, never the runtime adapter class.
+    public static Binding codecBean(final String packageName, final String modelClass, final String codecId) {
+        final var codec = JsonCodec.class.getName() + "<" + modelClass + ">";
+        return new Binding(packageName, "bean", FusionBean.class.getName() + "<?>",
+                "new io.yupiik.fusion.framework.api.container.bean.FunctionalBean<>(new " +
+                        ParsedType.PARAMETERIZED_TYPE_IMPL + "(" + JsonCodec.class.getName() + ".class, " + modelClass + ".class), " +
+                        DefaultScoped.class.getName() + ".class, 1000, 0, java.util.Map.of(), " + Binding.helperReference(0) +
+                        ", null, null, null, false)",
+                List.of(Binding.Method.callback(0, "@SuppressWarnings(\"cast\")\nprivate static " + codec + " $method(" +
+                        "io.yupiik.fusion.framework.api.RuntimeContainer container, " +
+                        "java.util.List<io.yupiik.fusion.framework.api.Instance<?>> dependents) { return " +
+                        Binding.reference(codecId) + "; }", "(container, dependents) -> " + Binding.reference(codecId))));
     }
 
-    private static String valueKind(final ParamTypeDef def) {
-        return switch (def) {
-            case BOOLEAN -> "BOOLEAN";
-            case BIG_DECIMAL -> "BIG_DECIMAL";
-            case NUMBER -> "NUMBER";
-            case INTEGER -> "INTEGER";
-            case LONG -> "LONG";
-            case DOUBLE -> "DOUBLE";
-            case STRING -> "STRING";
-            case ENUM -> "ENUM";
-            case LOCAL_DATE -> "LOCAL_DATE";
-            case LOCAL_DATE_TIME -> "LOCAL_DATE_TIME";
-            case OFFSET_DATE_TIME -> "OFFSET_DATE_TIME";
-            case ZONED_DATE_TIME -> "ZONED_DATE_TIME";
-            case GENERIC_OBJECT -> "GENERIC_OBJECT";
-            case MODEL -> "MODEL";
-        };
+    private static String literal(final String value) {
+        return '"' + value.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n")
+                .replace("\r", "\\r").replace("\t", "\\t").replace("\b", "\\b").replace("\f", "\\f") + '"';
     }
 
     private static boolean isJavaLangWrapper(final TypeMirror type) {
-        return type instanceof DeclaredType dt &&
-                dt.asElement() instanceof TypeElement te &&
+        return type instanceof DeclaredType dt && dt.asElement() instanceof TypeElement te &&
                 te.getQualifiedName().toString().startsWith("java.lang.");
     }
 
     private String delegateTypeExpr(final Param param) {
-        final var pt = param.types().paramType();
-        final var ptd = param.types().paramTypeDef();
-        if (pt != ParamType.VALUE && param.types().argTypeIfNotValue() != null) {
-            final var raw = rawTypeString(param.types().argTypeIfNotValue().toString());
-            return raw + ".class";
+        if (param.types().paramType() != ParamType.VALUE && param.types().argTypeIfNotValue() != null) {
+            final var type = param.types().argTypeIfNotValue().toString();
+            final var generics = type.indexOf('<');
+            return (generics < 0 ? type : type.substring(0, generics)) + ".class";
         }
-        return switch (ptd) {
+        return switch (param.types().paramTypeDef()) {
             case STRING, INTEGER, LONG, DOUBLE, BOOLEAN -> "null";
-            case ENUM -> ParsedType.of(param.type()).className() + ".class";
+            case ENUM, MODEL -> param.type() + ".class";
             case BIG_DECIMAL -> BigDecimal.class.getName() + ".class";
             case NUMBER -> Number.class.getName() + ".class";
             case LOCAL_DATE -> LocalDate.class.getName() + ".class";
             case LOCAL_DATE_TIME -> LocalDateTime.class.getName() + ".class";
             case OFFSET_DATE_TIME -> OffsetDateTime.class.getName() + ".class";
             case ZONED_DATE_TIME -> ZonedDateTime.class.getName() + ".class";
-            case MODEL -> param.type().toString().replace('$', '.') + ".class";
             case GENERIC_OBJECT -> Object.class.getName() + ".class";
         };
     }
 
-    private static String rawTypeString(final String type) {
-        final var generics = type.indexOf('<');
-        return generics < 0 ? type : type.substring(0, generics);
-    }
-
-    private ParamTypes typeOf(final String typeString, final TypeMirror raw) { // todo: enhance error cases
-        if (typeString.startsWith(LIST_PREFIX) && typeString.endsWith(">")) {
+    private ParamTypes typeOf(final String typeString, final TypeMirror raw) {
+        if ((typeString.startsWith(LIST_PREFIX) || typeString.startsWith(COLLECTION_PREFIX) || typeString.startsWith(SET_PREFIX)) && typeString.endsWith(">")) {
             final var arg = ((DeclaredType) raw).getTypeArguments().get(0);
-            return new ParamTypes(ParamType.LIST, ParamTypeDef.of(
-                    typeString.substring(LIST_PREFIX.length(), typeString.length() - ">".length()),
-                    processingEnv.getTypeUtils().asElement(arg),
-                    models), arg);
-        }
-        if (typeString.startsWith(COLLECTION_PREFIX) && typeString.endsWith(">")) {
-            final var arg = ((DeclaredType) raw).getTypeArguments().get(0);
-            return new ParamTypes(ParamType.LIST, ParamTypeDef.of(
-                    typeString.substring(COLLECTION_PREFIX.length(), typeString.length() - ">".length()),
-                    processingEnv.getTypeUtils().asElement(arg),
-                    models), arg);
-        }
-        if (typeString.startsWith(SET_PREFIX) && typeString.endsWith(">")) {
-            final var arg = ((DeclaredType) raw).getTypeArguments().get(0);
-            return new ParamTypes(ParamType.SET, ParamTypeDef.of(
-                    typeString.substring(SET_PREFIX.length(), typeString.length() - ">".length()),
-                    processingEnv.getTypeUtils().asElement(arg),
-                    models), arg);
+            return new ParamTypes(typeString.startsWith(SET_PREFIX) ? ParamType.SET : ParamType.LIST,
+                    ParamTypeDef.of(arg.toString(), processingEnv.getTypeUtils().asElement(arg), models), arg);
         }
         if (typeString.startsWith(MAP_STRING_PREFIX) && typeString.endsWith(">")) {
             final var arg = ((DeclaredType) raw).getTypeArguments().get(1);
-            final var nestedType = typeString.substring(MAP_STRING_PREFIX.length(), typeString.length() - ">".length()).strip();
+            final var nestedType = typeString.substring(MAP_STRING_PREFIX.length(), typeString.length() - 1).strip();
             if (nestedType.contains("<")) {
                 final var nested = typeOf(nestedType, arg);
                 if (nested.paramType() == ParamType.LIST) {
                     return new ParamTypes(ParamType.MAP_LIST, nested.paramTypeDef(), nested.argTypeIfNotValue());
                 }
             }
-            return new ParamTypes(ParamType.MAP, ParamTypeDef.of(
-                    nestedType,
-                    processingEnv.getTypeUtils().asElement(arg),
-                    models), arg);
+            return new ParamTypes(ParamType.MAP, ParamTypeDef.of(nestedType, processingEnv.getTypeUtils().asElement(arg), models), arg);
         }
         return new ParamTypes(ParamType.VALUE, ParamTypeDef.of(typeString, processingEnv.getTypeUtils().asElement(raw), models), null);
     }
 
-    // the read() switch matches keys by their index in KEYS__ (sorted by length), see Parser.matchString(char[][], IntUnaryOperator)
-    private String keyCase(final List<Param> params, final Param param) {
-        return "            case " + params.indexOf(param) + ": // " + param.stringEscapedJsonName() + "\n";
-    }
-
-    private String dateClassOf(final Param it) {
-        return switch (it.types().paramTypeDef()) {
-            case LOCAL_DATE -> LocalDate.class.getName();
-            case LOCAL_DATE_TIME -> LocalDateTime.class.getName();
-            case OFFSET_DATE_TIME -> OffsetDateTime.class.getName();
-            case ZONED_DATE_TIME -> ZonedDateTime.class.getName();
-            default -> throw new IllegalStateException("Unsupported parameter: " + it + " from " + element);
-        };
-    }
-
     private record Param(String javaName, String jsonName, TypeMirror type,
-                         ParamTypes types, boolean others, boolean ignored, String doc, int order,
-                         String stringEscapedJsonName) {
-        private Param(final String javaName, final String jsonName, final TypeMirror type,
-                      final ParamTypes types, final boolean others, final boolean ignored, final String doc, final int order) {
-            this(javaName, jsonName, type, types, others, ignored, doc, order, escapeJsonName(jsonName));
-        }
-
-        // computed once, it is used by most generation branches
-        private static String escapeJsonName(final String jsonName) {
-            return jsonName
-                    .replace("\"", "\\\"")
-                    .replace("\\", "\\\\")
-                    .replace("\b", "\\\b")
-                    .replace("\f", "\\\f")
-                    .replace("\n", "\\\n")
-                    .replace("\r", "\\\r");
-        }
-
-        public String defaultValue() {
-            return switch (types.paramType()) {
-                case VALUE -> switch (types.paramTypeDef()) {
-                    case LONG -> isWrapper() ? "null" : "0L";
-                    case DOUBLE -> isWrapper() ? "null" : "0.";
-                    case INTEGER -> isWrapper() ? "null" : "0";
-                    case BOOLEAN -> isWrapper() ? "null" : "false";
-                    default -> "null";
-                };
-                case MAP, LIST, SET, MAP_LIST -> "null";
-            };
-        }
-
-        private boolean isWrapper() {
-            return type instanceof DeclaredType dt &&
-                    dt.asElement() instanceof TypeElement te &&
-                    te.getQualifiedName().toString().startsWith("java.lang.");
-        }
-
+                         ParamTypes types, boolean others, boolean ignored, String doc, int order) {
         public JsonSchema schema() {
             return switch (types.paramType()) {
                 case VALUE -> valueSchema();
-                case MAP -> new JsonSchema(
-                        null, null, "object", true, null, null,
-                        valueSchema().asMap(), null, null, null, description(), null);
-                case LIST, SET -> new JsonSchema(
-                        null, null, "array", null, null, null,
-                        null, null, valueSchema(), null, description(), null);
-                case MAP_LIST -> new JsonSchema(
-                        null, null, "object", true, null, null,
-                        new JsonSchema(
-                                null, null, "array", null, null, null,
-                                null, null, valueSchema()).asMap(), null, null,
-                        null, description(), null);
+                case MAP -> new JsonSchema(null, null, "object", true, null, null, valueSchema().asMap(), null, null, null, doc, null);
+                case LIST, SET -> new JsonSchema(null, null, "array", null, null, null, null, null, valueSchema(), null, doc, null);
+                case MAP_LIST -> new JsonSchema(null, null, "object", true, null, null,
+                        new JsonSchema(null, null, "array", null, null, null, null, null, valueSchema()).asMap(), null, null, null, doc, null);
             };
-        }
-
-        private String description() {
-            return doc;
         }
 
         private JsonSchema valueSchema() {
-            final var testedType = ofNullable(types.argTypeIfNotValue()).orElse(type()).toString().replace('$', '.');
+            final var testedType = ofNullable(types.argTypeIfNotValue()).orElse(type()).toString();
             return switch (types.paramTypeDef()) {
-                case BOOLEAN ->
-                        new JsonSchema(null, null, "boolean", !"boolean".equals(testedType), null, null, null, null, null, null, description(), null);
-                case INTEGER ->
-                        new JsonSchema(null, null, "integer", !"int".equals(testedType), "int32", null, null, null, null, null, description(), null);
-                case LONG ->
-                        new JsonSchema(null, null, "integer", !"long".equals(testedType), "int64", null, null, null, null, null, description(), null);
-                case DOUBLE ->
-                        new JsonSchema(null, null, "number", !"double".equals(testedType), "double", null, null, null, null, null, description(), null);
-                case NUMBER ->
-                        new JsonSchema(null, null, "number", true, null, null, null, null, null, null, description(), null);
-                // there is not yet a "decimal" format but number is not safe enough for big_decimal
-                case BIG_DECIMAL ->
-                        new JsonSchema(null, null, "string", true, null, null, null, null, null, null, description(), null);
-                case STRING ->
-                        new JsonSchema(null, null, "string", true, null, null, null, null, null, null, description(), null);
-                case ENUM -> new JsonSchema(
-                        null, null, "string", true,
-                        null, null, null, null, null, null, description(),
+                case BOOLEAN -> new JsonSchema(null, null, "boolean", !"boolean".equals(testedType), null, null, null, null, null, null, doc, null);
+                case INTEGER -> new JsonSchema(null, null, "integer", !"int".equals(testedType), "int32", null, null, null, null, null, doc, null);
+                case LONG -> new JsonSchema(null, null, "integer", !"long".equals(testedType), "int64", null, null, null, null, null, doc, null);
+                case DOUBLE -> new JsonSchema(null, null, "number", !"double".equals(testedType), "double", null, null, null, null, null, doc, null);
+                case NUMBER -> new JsonSchema(null, null, "number", true, null, null, null, null, null, null, doc, null);
+                case BIG_DECIMAL, STRING -> new JsonSchema(null, null, "string", true, null, null, null, null, null, null, doc, null);
+                case ENUM -> new JsonSchema(null, null, "string", true, null, null, null, null, null, null, doc,
                         type == null ? null : ParsedType.of(type).enumValues());
-                case LOCAL_DATE ->
-                        new JsonSchema(null, null, "string", true, "date", null, null, null, null, null, description(), null);
-                case LOCAL_DATE_TIME ->
-                        new JsonSchema(null, null, "string", true, null, "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?(\\.[0-9]*)?$", null, null, null, null, description(), null);
-                case OFFSET_DATE_TIME ->
-                        new JsonSchema(null, null, "string", true, null, "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?(\\\\.[0-9]*)?([+-]?[0-9]{2}:[0-9]{2})?Z?$", null, null, null, null, description(), null);
-                case ZONED_DATE_TIME ->
-                        new JsonSchema(null, null, "string", true, null, "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?(\\.[0-9]*)?([+-]?[0-9]{2}:[0-9]{2})?Z?(\\[.*\\])?$", null, null, null, null, description(), null);
-                case MODEL ->
-                        new JsonSchema("#/schemas/" + testedType, null, null, true, null, null, null, null, null, null, description(), null);
-                case GENERIC_OBJECT ->
-                        new JsonSchema(null, null, "object", true, null, null, true, null, null, null, description(), null);
+                case LOCAL_DATE -> new JsonSchema(null, null, "string", true, "date", null, null, null, null, null, doc, null);
+                case LOCAL_DATE_TIME -> new JsonSchema(null, null, "string", true, null, "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?(\\.[0-9]*)?$", null, null, null, null, doc, null);
+                case OFFSET_DATE_TIME -> new JsonSchema(null, null, "string", true, null, "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?(\\\\.[0-9]*)?([+-]?[0-9]{2}:[0-9]{2})?Z?$", null, null, null, null, doc, null);
+                case ZONED_DATE_TIME -> new JsonSchema(null, null, "string", true, null, "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?(\\.[0-9]*)?([+-]?[0-9]{2}:[0-9]{2})?Z?(\\[.*\\])?$", null, null, null, null, doc, null);
+                case MODEL -> new JsonSchema("#/schemas/" + testedType, null, null, true, null, null, null, null, null, null, doc, null);
+                case GENERIC_OBJECT -> new JsonSchema(null, null, "object", true, null, null, true, null, null, null, doc, null);
             };
         }
     }
 
-    private record ParamTypes(ParamType paramType, ParamTypeDef paramTypeDef, TypeMirror argTypeIfNotValue) {
-    }
+    private record ParamTypes(ParamType paramType, ParamTypeDef paramTypeDef, TypeMirror argTypeIfNotValue) {}
 
-    private enum ParamType {
-        VALUE,
-        LIST,
-        SET,
-        MAP,
-        MAP_LIST // tolerated
-    }
+    private enum ParamType { VALUE, LIST, SET, MAP, MAP_LIST }
 
-    private enum ParamTypeDef { // a codec exists
-        BOOLEAN,
-        BIG_DECIMAL,
-        NUMBER,
-        INTEGER,
-        LONG,
-        DOUBLE,
-        STRING,
-        ENUM, // todo: create a codec implicitly or enable to use one if any?
-        LOCAL_DATE,
-        LOCAL_DATE_TIME,
-        OFFSET_DATE_TIME,
-        ZONED_DATE_TIME,
-        GENERIC_OBJECT,
-        MODEL; // Map<String, Object> indirectly
+    private enum ParamTypeDef {
+        BOOLEAN, BIG_DECIMAL, NUMBER, INTEGER, LONG, DOUBLE, STRING, ENUM,
+        LOCAL_DATE, LOCAL_DATE_TIME, OFFSET_DATE_TIME, ZONED_DATE_TIME, GENERIC_OBJECT, MODEL;
 
         public static ParamTypeDef of(final String name, final Element type, final Collection<String> models) {
             return switch (name) {
@@ -642,11 +290,11 @@ public class JsonCodecGenerator extends BaseGenerator implements Supplier<BaseGe
                 case "java.time.ZonedDateTime" -> ZONED_DATE_TIME;
                 case "java.lang.Object", "java.util.Map<java.lang.String,java.lang.Object>" -> GENERIC_OBJECT;
                 default -> {
-                    if (type.getKind() == RECORD &&
-                            (type.getAnnotation(JsonModel.class) != null || models.contains(((TypeElement) type).getQualifiedName().toString()))) {
+                    if (type != null && type.getKind() == RECORD &&
+                            models.contains(((TypeElement) type).getQualifiedName().toString())) {
                         yield MODEL;
                     }
-                    if (type.getKind() == ElementKind.ENUM) {
+                    if (type != null && type.getKind() == ElementKind.ENUM) {
                         yield ENUM;
                     }
                     throw new IllegalArgumentException("Unsupported type: '" + name + "', known models: " + models);

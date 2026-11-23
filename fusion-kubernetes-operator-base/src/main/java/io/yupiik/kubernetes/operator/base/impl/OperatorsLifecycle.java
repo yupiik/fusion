@@ -16,6 +16,9 @@
 package io.yupiik.kubernetes.operator.base.impl;
 
 import com.sun.net.httpserver.HttpServer;
+import io.yupiik.fusion.framework.api.Instance;
+import io.yupiik.fusion.framework.api.RuntimeContainer;
+import io.yupiik.fusion.framework.api.configuration.Configuration;
 import io.yupiik.fusion.framework.api.lifecycle.Start;
 import io.yupiik.fusion.framework.api.lifecycle.Stop;
 import io.yupiik.fusion.framework.api.main.Awaiter;
@@ -30,6 +33,7 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -37,47 +41,62 @@ import static java.util.concurrent.CompletableFuture.allOf;
 
 @ApplicationScoped
 public class OperatorsLifecycle implements Awaiter {
-    private final List<Operator<?>> operatorSpecs;
-    private final OperatorConfiguration configuration;
-    private final KubernetesClient kubernetes;
-    private final ScheduledExecutorService threads;
-    private final JsonMapper jsonMapper;
-
-    private final List<OperatorRuntime<?>> operators = new ArrayList<>();
+    private final RuntimeContainer container;
+    private final List<Instance<?>> handles = new ArrayList<>();
+    private final List<OperatorRuntime<?>> operators = new CopyOnWriteArrayList<>();
     private HttpServer probes;
 
-    public OperatorsLifecycle(final List<Operator<?>> operatorSpecs,
-                              final OperatorConfiguration configuration,
-                              final KubernetesClient kubernetes,
-                              final ScheduledExecutorService threads,
-                              final JsonMapper jsonMapper) {
-        this.operatorSpecs = operatorSpecs;
-        this.configuration = configuration;
-        this.kubernetes = kubernetes;
-        this.threads = threads;
-        this.jsonMapper = jsonMapper;
+    public OperatorsLifecycle(final RuntimeContainer container) {
+        this.container = container;
     }
 
-    @SuppressWarnings("unchecked")
-    public void onStart(@OnEvent final Start ignored) { // force init
-        startProbeIfNeeded();
-        operators.addAll(operatorSpecs.stream()
-                .map(spec -> new OperatorRuntime<>(configuration, kubernetes, threads, jsonMapper, spec))
-                .toList());
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public void onStart(@OnEvent final Start ignored) {
+        // Do not even parse runtime configuration or instantiate producers in metadata containers.
+        try (final var configuration = container.lookup(Configuration.class)) {
+            if (!configuration.instance().get("operator.enabled").map(Boolean::parseBoolean).orElse(true)) {
+                return;
+            }
+        }
         try {
+            final var configuration = lookup(OperatorConfiguration.class);
+            final var kubernetes = lookup(KubernetesClient.class);
+            final var threads = lookup(ScheduledExecutorService.class);
+            final var jsonMapper = lookup(JsonMapper.class);
+            final var specs = container.lookups(Operator.class);
+            handles.add(specs);
+            specs.instance().forEach(spec -> operators.add(new OperatorRuntime<>(configuration, kubernetes, threads, jsonMapper, spec)));
+            startProbeIfNeeded(configuration, threads);
             allOf(operators.stream()
                     .map(OperatorRuntime::doStart)
                     .toArray(CompletableFuture<?>[]::new))
                     .get();
         } catch (final InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new IllegalStateException(e);
+            throw cleanup(new IllegalStateException(e));
         } catch (final ExecutionException e) {
-            throw new IllegalStateException(e.getCause());
+            throw cleanup(new IllegalStateException(e.getCause()));
+        } catch (final RuntimeException e) {
+            throw cleanup(e);
         }
     }
 
-    private void startProbeIfNeeded() {
+    private <T> T lookup(final Class<T> type) {
+        final var handle = container.lookup(type);
+        handles.add(handle);
+        return handle.instance();
+    }
+
+    private RuntimeException cleanup(final RuntimeException failure) {
+        try {
+            onStop(new Stop());
+        } catch (final RuntimeException cleanupFailure) {
+            failure.addSuppressed(cleanupFailure);
+        }
+        return failure;
+    }
+
+    private void startProbeIfNeeded(final OperatorConfiguration configuration, final ScheduledExecutorService threads) {
         if (configuration.probePort() < 0) {
             return;
         }
@@ -90,8 +109,9 @@ public class OperatorsLifecycle implements Awaiter {
                         exchange.sendResponseHeaders(404, 0);
                         return;
                     }
-                    switch (exchange.getRequestURI().getPath()) { // TODO
+                    switch (exchange.getRequestURI().getPath()) {
                         case "/health" -> exchange.sendResponseHeaders(200, 0);
+                        case "/ready" -> exchange.sendResponseHeaders(operators.stream().allMatch(OperatorRuntime::isReady) ? 200 : 503, 0);
                         case "/metrics" -> exchange.sendResponseHeaders(200, 0);
                         default -> exchange.sendResponseHeaders(404, 0);
                     }
@@ -103,7 +123,7 @@ public class OperatorsLifecycle implements Awaiter {
         }
     }
 
-    // @Destroy // stop earlier to stop watching before the http client is closed and avoid exception at shutdown
+    // Stop watches before the container closes application-owned HTTP clients and executors.
     public void onStop(@OnEvent final Stop stop) {
         final var errors = new IllegalStateException("Some error occurred");
         operators.forEach(o -> {
@@ -113,9 +133,20 @@ public class OperatorsLifecycle implements Awaiter {
                 errors.addSuppressed(re);
             }
         });
+        operators.clear();
         if (probes != null) {
             probes.stop(0);
+            probes = null;
         }
+        // Release lookup handles only after runtimes stop. Application resources remain container-owned.
+        for (int i = handles.size() - 1; i >= 0; i--) {
+            try {
+                handles.get(i).close();
+            } catch (final RuntimeException re) {
+                errors.addSuppressed(re);
+            }
+        }
+        handles.clear();
         if (errors.getSuppressed().length > 0) {
             throw errors;
         }
@@ -123,6 +154,6 @@ public class OperatorsLifecycle implements Awaiter {
 
     @Override
     public void await() {
-        operators.forEach(OperatorRuntime::await);
+        List.copyOf(operators).forEach(OperatorRuntime::await);
     }
 }

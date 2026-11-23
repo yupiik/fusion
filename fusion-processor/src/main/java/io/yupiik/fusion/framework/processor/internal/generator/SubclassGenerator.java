@@ -78,7 +78,7 @@ public class SubclassGenerator extends BaseGenerator implements Supplier<BaseGen
                 .toArray(TypeMirror[]::new));
 
         appendGenerationVersion(out);
-        final var selfType = className.replace('$', '.') +
+        final var selfType = typeElement.getQualifiedName().toString().substring(packageName.isBlank() ? 0 : packageName.length() + 1) +
                 (typeArgs.isEmpty() ? "" : typeArgs.stream().map(String::valueOf).collect(joining(", ", "<", ">")));
         out.append("class ").append(className).append(DELEGATING_CLASS_SUFFIX).append(templatesDef.strip())
                 .append(" extends ").append(selfType)

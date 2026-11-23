@@ -179,14 +179,29 @@ public class AfterTask implements Task.Supplier<String> {
 
 What is interesting is that, since tasks are beans, you can use an `@ApplicationScoped` bean to link both before/after tasks and for example store the before identifiers to delete in the after phase.
 
-== Replacing beans in tests
+== Test registrations and legacy fallback discovery
 
-`fusion-testing` ships `TestingModule` and `ListingPredicateModule` which let you replace application beans with test doubles. `TestingModule` scans the generated `$FusionBean` classes of the current project (from `target/classes` and `target/test-classes`) and swaps the matched bean for your replacement, so you can override any `@ApplicationScoped`/`@DefaultScoped` bean without reflection.
+Test beans use the normal container registration and priority rules to provide test doubles.
+With annotation processing enabled, generated `FusionModule` registrations are loaded by normal automatic discovery; `@FusionSupport` enables this by default.
+No descriptor factory scan is needed for these registrations, and distinct beans or listeners sharing an adapter class or business type remain distinct.
+`TestingModule` is only a fallback for legacy generated or handwritten descriptor classes with public no-argument constructors in local output directories, normally `target/classes` and `target/test-classes`.
+Override these directories with the `io.yupiik.fusion.testing.module.TestingModule.dirs` JVM property, separating paths with the platform path separator.
+`ListingPredicateModule` accepts explicit directories and predicates on descriptor class filenames.
+Its `beanPredicate` and `listenerPredicate` select only legacy fallback descriptors; they do not filter ordinary automatic module registrations or invoke factory methods.
+NOTE: `@FusionSupport(disableDiscovery = true)` disables automatic module discovery, including annotation-processor registrations; explicitly list the required modules in `modules` in that case, since legacy scanning cannot reconstruct inline registrations.
+Use registered business types and normal container selection rules rather than a generated descriptor's implementation class.
 
 [source,java]
 ----
 final var container = ConfiguringContainer.of()
-    .disableModule(/**/ TestingModule.class) <1>
+    .disableModule(TestingModule.class) <1>
+    .register(new ListingPredicateModule(
+        name -> name.endsWith("Mock$FusionBean.class"),
+        name -> false,
+        List.of(Path.of("target/test-classes"))))
     .start();
 ----
-<.> Register your own `TestingModule` instance (or a `ListingPredicateModule`) to replace the matching beans before the container starts.
+<.> Replace the default legacy fallback scan with a narrower one; normal automatic module registrations are unchanged.
+
+See xref:tooling.adoc#manual-binding-lookup[standalone factories] when writing custom test integrations.
+Use `@FusionSupport` or `@MonoFusionSupport` for container lifecycle, `@Fusion` for injection, `@FusionCLITest` for CLI behavior and `TestClient` for HTTP behavior.

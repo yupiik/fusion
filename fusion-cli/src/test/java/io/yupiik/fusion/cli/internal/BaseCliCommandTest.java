@@ -72,6 +72,7 @@ class BaseCliCommandTest {
         assertEquals("deploy/run", command.name());
         assertArrayEquals(new String[]{"deploy", "run"}, command.path());
         assertEquals("--deploy-run-", command.cliPrefix());
+        assertEquals("model.name", command.keyMapper().apply("model.name"));
     }
 
     @Test
@@ -85,6 +86,7 @@ class BaseCliCommandTest {
         assertEquals("single", command.name());
         assertArrayEquals(new String[]{"single"}, command.path());
         assertEquals("--single-", command.cliPrefix());
+        assertEquals("model.name", command.keyMapper().apply("model.name"));
     }
 
     @Test

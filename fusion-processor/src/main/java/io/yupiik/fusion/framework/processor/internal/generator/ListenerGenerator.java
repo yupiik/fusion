@@ -23,6 +23,7 @@ import io.yupiik.fusion.framework.processor.internal.metadata.MetadataContributo
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.ExecutableElement;
+import java.util.List;
 import java.util.function.Supplier;
 
 import static java.util.stream.Collectors.joining;
@@ -56,18 +57,8 @@ public class ListenerGenerator extends BaseGenerator implements Supplier<BaseGen
         final var eventType = param.asType().toString();
 
         final var out = new StringBuilder(1024);
-        if (!packageName.isBlank()) {
-            out.append("package ").append(packageName).append(";\n\n");
-        }
-
         final var injections = createExecutableFieldInjections(element.getParameters().stream().skip(1).toList()).toList();
-        appendGenerationVersion(out);
-        out.append("public class ")
-                .append(className).append(suffix)
-                .append(" implements ").append(FusionListener.class.getName())
-                .append('<').append(eventType).append("> {\n");
-        out.append("  @Override\n");
-        out.append("  public void onEvent(final ").append(RuntimeContainer.class.getName()).append(" main__container, final ").append(eventType).append(" event) {\n");
+        out.append("  private static void $method(final ").append(RuntimeContainer.class.getName()).append(" main__container, final ").append(eventType).append(" event) {\n");
         out.append("    try (final var root__instance = main__container.lookup(").append(enclosing.asType().toString()).append(".class)");
         if (!injections.isEmpty()) {
             out.append(injections.stream()
@@ -85,20 +76,9 @@ public class ListenerGenerator extends BaseGenerator implements Supplier<BaseGen
         out.append(");\n");
         out.append("    }\n");
         out.append("  }\n");
-        out.append("\n");
-        out.append("  @Override\n");
-        out.append("  public Class<").append(eventType).append("> eventType() {\n");
-        out.append("    return ").append(eventType).append(".class;\n");
-        out.append("  }\n");
-        if (priority != 1000) {
-            out.append("\n");
-            out.append("  @Override\n");
-            out.append("  public int priority() {\n");
-            out.append("    return ").append(priority).append(";\n");
-            out.append("  }\n");
-        }
-        out.append("}\n\n");
-
-        return new GeneratedClass((!packageName.isBlank() ? packageName + '.' : "") + className + suffix, out.toString());
+        final var name = (!packageName.isBlank() ? packageName + '.' : "") + className + suffix;
+        return new GeneratedClass(name, new Binding(packageName, "listener", FusionListener.class.getName() + "<?>",
+                "new io.yupiik.fusion.framework.api.container.listener.FunctionalListener<" + eventType + ">(" + eventType + ".class, " + priority + ", " + Binding.helperReference(3) + ")",
+                List.of(new Binding.Method(3, out.toString(), ""))));
     }
 }

@@ -19,37 +19,45 @@ import io.yupiik.fusion.framework.build.api.persistence.OnDelete;
 import io.yupiik.fusion.framework.build.api.persistence.OnUpdate;
 
 import test.p.Bean2;
-import io.yupiik.fusion.framework.build.api.persistence.Column;
 import io.yupiik.fusion.framework.build.api.persistence.Id;
 import io.yupiik.fusion.framework.build.api.persistence.OnInsert;
 import io.yupiik.fusion.framework.build.api.persistence.OnLoad;
 import io.yupiik.fusion.framework.build.api.persistence.Table;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import static java.util.Objects.requireNonNull;
 
 @Table("CB_INJECTION")
 public record CallbackWithInjections(@Id String id) {
+    public static final List<String> callbacks = new ArrayList<>();
+
     @OnInsert
     public CallbackWithInjections onInsert(final Bean2 bean) {
         assertNotNull(bean);
+        callbacks.add("insert:" + bean);
         return this;
     }
 
     @OnLoad
     public CallbackWithInjections onLoad(final Bean2 bean) {
         assertNotNull(bean);
+        callbacks.add("load:" + bean);
         return this;
     }
 
     @OnUpdate
     public CallbackWithInjections onUpdate(final Bean2 bean) {
         assertNotNull(bean);
+        callbacks.add("update:" + bean);
         return this;
     }
 
     @OnDelete
     public void onDelete(final Bean2 bean) {
         assertNotNull(bean);
+        callbacks.add("delete:" + bean);
     }
 
     private void assertNotNull(final Object value) {

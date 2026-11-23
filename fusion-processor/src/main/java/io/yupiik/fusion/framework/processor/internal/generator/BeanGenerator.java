@@ -18,12 +18,9 @@ package io.yupiik.fusion.framework.processor.internal.generator;
 import io.yupiik.fusion.framework.api.Instance;
 import io.yupiik.fusion.framework.api.RuntimeContainer;
 import io.yupiik.fusion.framework.api.container.FusionBean;
-import io.yupiik.fusion.framework.api.container.Types;
-import io.yupiik.fusion.framework.api.container.bean.BaseBean;
 import io.yupiik.fusion.framework.build.api.lifecycle.Destroy;
 import io.yupiik.fusion.framework.processor.internal.Bean;
 import io.yupiik.fusion.framework.processor.internal.Elements;
-import io.yupiik.fusion.framework.processor.internal.ParsedType;
 import io.yupiik.fusion.framework.processor.internal.metadata.MetadataContributorRegistry;
 
 import javax.annotation.processing.ProcessingEnvironment;
@@ -33,7 +30,7 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
+import java.util.ArrayList;
 import java.util.function.Supplier;
 
 import static java.util.Optional.ofNullable;
@@ -81,76 +78,36 @@ public class BeanGenerator extends BaseGenerator implements Supplier<BaseGenerat
                 0 : optionalDestroyOrder(lifecycle.get(destroy).get(0));
         final var constructorInjections = constructorInjectionsFor(element);
 
-        final var out = new StringBuilder(2048);
-        if (!packageName.isBlank()) {
-            out.append("package ").append(packageName).append(";\n\n");
-        }
-
-        appendGenerationVersion(out);
-        out.append("public class ")
-                .append(className).append('$').append(FusionBean.class.getSimpleName())
-                .append(" extends ").append(BaseBean.class.getName())
-                .append('<').append(className.replace('$', '.')).append("> {\n");
-        if (element instanceof TypeElement te && !te.getTypeParameters().isEmpty() && !data.isEmpty()) {
-            // the subclass delegate instantiates the subclass of a generic class as a raw type
-            out.append("  @SuppressWarnings(\"unchecked\")\n");
-        }
-        out.append("  public ").append(className).append('$').append(FusionBean.class.getSimpleName()).append("() {\n");
-        out.append("    super(")
-                .append(className.replace('$', '.')).append(".class, ")
-                .append(scope).append(".class, ")
-                .append(priority).append(", ")
-                .append(destroyOrder).append(", ")
-                .append(metadata(element, data)).append(");\n");
-        out.append("  }\n");
-        out.append("\n");
-        out.append("  @Override\n");
-        if (constructorInjections != null && ( // and has some cast
-                constructorInjections.contains("lookups(container, ") ||
-                        constructorInjections.contains("(" + List.class.getName() + "<?>) ") ||
-                        constructorInjections.contains("(" + Optional.class.getName() + "<") ||
-                        // parameterized lookups go through lookup(container, Type, deps) which returns Object and needs a cast
-                        constructorInjections.contains(ParsedType.PARAMETERIZED_TYPE_IMPL))) {
-            out.append("  @SuppressWarnings(\"unchecked\")\n");
-        }
-        out.append("  public ").append(className.replace('$', '.')).append(" create(final ").append(RuntimeContainer.class.getName())
-                .append(" container, final ")
-                .append(List.class.getName()).append("<").append(Instance.class.getName()).append("<?>> dependents) {\n");
-        out.append("    final var instance = new ").append(className.replace('$', '.')).append("(")
-                .append(constructorInjections == null ? "" : constructorInjections).append(");\n");
-        out.append("    inject(container, dependents, instance);\n");
-        out.append(postConstruct);
-        out.append("    return instance;\n");
-        out.append("  }\n");
-
+        final var type = ((TypeElement) element).getQualifiedName().toString();
+        final var signature = RuntimeContainer.class.getName() + " container, java.util.List<" +
+                Instance.class.getName() + "<?>> dependents";
+        final var fields = injections.stream().map(this::setField).collect(joining("\n"));
+        final var methods = new ArrayList<Binding.Method>();
+        final var constructorDeclaration = "private static " + type + " $method(" + signature + ") {\n" +
+                "    return new " + type + "(" + (constructorInjections == null ? "" : constructorInjections) + ");\n  }\n";
+        methods.add(constructorInjections == null || constructorInjections.isBlank() ?
+                Binding.Method.callback(0, constructorDeclaration, "(container, dependents) -> new " + type + "()") :
+                new Binding.Method(0, constructorDeclaration));
         if (!injections.isEmpty()) {
-            out.append("\n");
-            out.append("  @Override\n");
-            if (injections.stream().anyMatch(i -> i.list() || i.set() || i.optional() || i.type().toString().contains("<"))) {
-                out.append("  @SuppressWarnings(\"unchecked\")\n");
-            }
-            out.append("  public void inject(final ").append(RuntimeContainer.class.getName()).append(" container, final ")
-                    .append(List.class.getName()).append("<")
-                    .append(Instance.class.getName()).append("<?>> dependents, final ")
-                    .append(className.replace('$', '.')).append(" instance) {\n");
-            out.append(injections.stream()
-                    .map(this::setField)
-                    .collect(joining("\n")));
-            out.append("  }\n");
+            methods.add(new Binding.Method(1,
+                    "private static void $method(" + signature + ", " + type + " instance) {\n" + fields + "  }\n", ""));
         }
-
+        if (!postConstruct.isBlank()) {
+            methods.add(new Binding.Method(5,
+                    "private static void $method(" + RuntimeContainer.class.getName() + " container, " + type + " instance) {\n" + postConstruct + "  }\n", ""));
+        }
         if (!preDestroy.isBlank()) {
-            out.append("\n");
-            out.append("  @Override\n");
-            out.append("  public void destroy(final ").append(RuntimeContainer.class.getName())
-                    .append(" container, final ").append(className.replace('$', '.')).append(" instance) {\n");
-            out.append(preDestroy);
-            out.append("  }\n");
+            methods.add(new Binding.Method(2,
+                    "private static void $method(" + RuntimeContainer.class.getName() + " container, " + type + " instance) {\n" + preDestroy + "  }\n", ""));
         }
-
-        out.append("}\n\n");
-
-        return new GeneratedClass((!packageName.isBlank() ? packageName + '.' : "") + className + "$" + FusionBean.class.getSimpleName(), out.toString());
+        final var name = (!packageName.isBlank() ? packageName + '.' : "") + className + "$" + FusionBean.class.getSimpleName();
+        final var factory = "new io.yupiik.fusion.framework.api.container.bean.FunctionalBean<" + type + ">(" +
+                type + ".class, " + scope + ".class, " + priority + ", " + destroyOrder + ", " +
+                metadata(element, data) + ", " + Binding.helperReference(0) + ", " +
+                (injections.isEmpty() ? "null" : Binding.helperReference(1)) + ", " +
+                (postConstruct.isBlank() ? "null" : Binding.helperReference(5)) + ", " +
+                (preDestroy.isBlank() ? "null" : Binding.helperReference(2)) + ", false)";
+        return new GeneratedClass(name, new Binding(packageName, "bean", FusionBean.class.getName() + "<?>", factory, methods));
     }
 
     private String constructorInjectionsFor(final Element element) {

@@ -100,7 +100,7 @@ class JsonNumberCodecGeneratorTest {
             assertNull(field(mapper.fromString(type, "{}"), "number"));
             assertNull(field(mapper.fromString(type, "{\"number\":null}"), "number"));
 
-            final var source = compiler.readGeneratedSource("JsonNumberModel$FusionJsonCodec");
+            final var source = compiler.readGeneratedSources();
             assertTrue(source.contains("ValueKind.NUMBER"));
             assertTrue(source.contains("java.lang.Number.class"));
             try {

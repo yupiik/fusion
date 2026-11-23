@@ -17,12 +17,11 @@ package io.yupiik.fusion.tracing.zipkin;
 
 import com.sun.net.httpserver.HttpServer;
 import io.yupiik.fusion.framework.api.ConfiguringContainer;
+import io.yupiik.fusion.framework.api.configuration.ConfigurationSource;
+import io.yupiik.fusion.framework.api.container.bean.ProvidedInstanceBean;
+import io.yupiik.fusion.framework.api.scope.DefaultScoped;
 import io.yupiik.fusion.json.JsonMapper;
-import io.yupiik.fusion.json.internal.framework.JsonMapperBean;
 import io.yupiik.fusion.tracing.span.Span;
-import io.yupiik.fusion.tracing.span.Span$Annotation$FusionJsonCodec;
-import io.yupiik.fusion.tracing.span.Span$Endpoint$FusionJsonCodec;
-import io.yupiik.fusion.tracing.span.Span$FusionJsonCodec;
 import org.junit.jupiter.api.Test;
 
 import java.net.InetSocketAddress;
@@ -59,12 +58,8 @@ class ZipkinFlusherTest {
         configuration.setUrls(List.of("http://localhost:" + server.getAddress().getPort() + "/zipkin"));
 
         try (final var container = ConfiguringContainer.of()
-                .disableAutoDiscovery(true)
-                .register(
-                        new JsonMapperBean(),
-                        new Span$FusionJsonCodec.FusionBean(),
-                        new Span$Annotation$FusionJsonCodec.FusionBean(),
-                        new Span$Endpoint$FusionJsonCodec.FusionBean())
+                .register(new ProvidedInstanceBean<>(DefaultScoped.class, ConfigurationSource.class,
+                        () -> key -> "fusion.http-server.start".equals(key) ? "false" : null))
                 .start();
              final var json = container.lookup(JsonMapper.class)) {
             new ZipkinFlusher(json.instance(), HttpClient.newHttpClient(), configuration)

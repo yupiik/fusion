@@ -18,13 +18,10 @@ package io.yupiik.fusion.json.benchmarks;
 import tools.jackson.databind.ObjectMapper;
 import io.yupiik.fusion.json.JsonMapper;
 import io.yupiik.fusion.json.benchmarks.model.Flat;
-import io.yupiik.fusion.json.benchmarks.model.Flat$FusionJsonCodec;
+import io.yupiik.fusion.json.benchmarks.model.FusionModule;
 import io.yupiik.fusion.json.benchmarks.model.Metrics;
-import io.yupiik.fusion.json.benchmarks.model.Metrics$FusionJsonCodec;
 import io.yupiik.fusion.json.benchmarks.model.Nested;
-import io.yupiik.fusion.json.benchmarks.model.Nested$FusionJsonCodec;
 import io.yupiik.fusion.json.benchmarks.model.WithList;
-import io.yupiik.fusion.json.benchmarks.model.WithList$FusionJsonCodec;
 import io.yupiik.fusion.json.internal.JsonMapperImpl;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -73,8 +70,8 @@ public class RecordRoundTripBenchmark {
     @Setup(Level.Trial)
     public void setup() throws Exception {
         fusion = new JsonMapperImpl(
-                List.of(new Flat$FusionJsonCodec(), new Nested$FusionJsonCodec(), new WithList$FusionJsonCodec(),
-                        new Metrics$FusionJsonCodec()),
+                List.of(FusionModule.Flat$FusionJsonCodec(), FusionModule.Nested$FusionJsonCodec(),
+                        FusionModule.WithList$FusionJsonCodec(), FusionModule.Metrics$FusionJsonCodec()),
                 key -> Optional.empty());
         jackson = new ObjectMapper();
 

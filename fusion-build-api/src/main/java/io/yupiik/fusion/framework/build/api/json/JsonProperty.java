@@ -19,12 +19,14 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 
 import static java.lang.annotation.ElementType.PARAMETER;
-import static java.lang.annotation.RetentionPolicy.SOURCE;
+import static java.lang.annotation.RetentionPolicy.CLASS;
 
 /**
  * Can be used on a record parameter to refine the name of a JSON parameter serialization.
+ * Retained in class files for compiler-side discovery of implicit JSON models in dependencies;
+ * it does not require the build API at runtime.
  */
-@Retention(SOURCE)
+@Retention(CLASS)
 @Target(PARAMETER)
 public @interface JsonProperty {
     /**

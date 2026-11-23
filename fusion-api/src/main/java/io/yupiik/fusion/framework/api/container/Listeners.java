@@ -22,7 +22,7 @@ import io.yupiik.fusion.framework.api.lifecycle.Stop;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -67,7 +67,7 @@ public class Listeners {
     // for now not needed and enable more runtime features but can be an option if too slow when abusing of the event bus
     private List<FusionListener<?>> resolveListeners(final Class<?> type) {
         List<FusionListener<?>> listeners;
-        final var all = new HashSet<FusionListener<?>>();
+        final var all = new LinkedHashSet<FusionListener<?>>();
         var current = type;
         while (current != null) {
             final var lookup = this.listeners.get(current);
