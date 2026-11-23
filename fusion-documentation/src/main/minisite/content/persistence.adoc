@@ -328,3 +328,14 @@ public class MyPersistingService {
 }
 ----
 
+== Entity lifecycle and manual registration
+
+Each bound accessor is evaluated once, and a null embeddable binds null for its columns, including primitive fields.
+Injected callback dependencies are closed in reverse lookup order even on failure.
+SQL callback failures preserve the original `SQLException`; non-auto-incremented after-insert operations return the original instance.
+Translated bindings and projection readers remain isolated to the active configuration and mapper.
+Use the entity model type with `Database`, or the returned `Entity` contract in manual integrations.
+`fusion.generateBeanForPersistenceEntities=false` disables bean registration without removing standalone entity factories, even when `fusion.generateModule=false`.
+Use xref:tooling.adoc#manual-binding-lookup[typed generated factories] rather than looking up the former generated entity class.
+Injected lifecycle dependencies still require a container, and their handles are closed after the callback.
+When using a standalone entity factory, supply a container if its callbacks require injections; do not assume manual registration supplies one automatically.

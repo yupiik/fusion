@@ -90,6 +90,10 @@
                 <requireMavenVersion>
                   <version>3.6.3</version>
                 </requireMavenVersion>
+                <requireJavaVersion>
+                  <version>[21,)</version>
+                  <message>Building Fusion requires JDK 21 or newer; its runtime baseline remains Java 17.</message>
+                </requireJavaVersion>
               </rules>
             </configuration>
           </execution>

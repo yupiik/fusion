@@ -64,7 +64,13 @@ TIP: the exact `arthur-maven-plugin` and `graalVersion` to use depend on the Gra
 
 == Native-image metadata
 
-When native image generation is enabled (`fusion.generateNativeImage`, on by default), the Fusion annotation processor generates a `META-INF/native-image/<group>/<artifact>/reachability-metadata.json` globbing `META-INF/fusion/**/*.json` so the generated JSON metadata (configuration, JSON schemas, OpenRPC partials, generated CRDs) is reachable in the native binary. `fusion-http-server` additionally ships its own reachability metadata for its GraalVM-friendly Tomcat wiring.
+When native image generation is enabled (`fusion.generateNativeImage`, on by default), the Fusion annotation processor generates `META-INF/native-image/<group>/<artifact>/reachability-metadata.json`.
+It registers the existing runtime `FusionModule` service descriptor and the configured JSON Schema and OpenRPC resource paths, including custom paths outside `META-INF/fusion`.
+Disabled schema or OpenRPC generation does not register the corresponding resource.
+Only the module descriptor and enabled schema/OpenRPC resources are included automatically; register other application resources explicitly when needed.
+Generated CRDs are deployment documents, not automatically registered native runtime inputs; register them explicitly if application code reads them as resources.
+Resource data remains at its configured location; only native-image configuration belongs under `META-INF/native-image`.
+`fusion-http-server` additionally ships its own reachability metadata for its GraalVM-friendly Tomcat wiring.
 
 If you write your own GraalVM reachability metadata, point the Arthur plugin (or `native-image` options) at your jar's `META-INF/native-image` directory so the generator and the plugin metadata are merged.
 
@@ -90,3 +96,10 @@ if you want a JUL implementation which is GraalVM friendly you can use link:http
 </customOptions>
 ----
 --
+
+== Application assembly
+
+Preserve and merge the `FusionModule` ServiceLoader descriptor when shading or assembling the application.
+Native-image ServiceLoader analysis must remain enabled so provider classes and constructors are retained; resource registration alone does not instantiate providers.
+Processor work state does not belong in native-image inputs or the application JAR.
+See xref:setup.adoc[compiler setup] and xref:tooling.adoc#manual-binding-lookup[standalone factories] for packaging requirements.

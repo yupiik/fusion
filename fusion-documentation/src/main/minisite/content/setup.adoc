@@ -14,6 +14,8 @@ This page details Setup your project.
 
 The simplest is to just add the API (scope `compile`) and processor (scope `provided`):
 
+NOTE: See xref:processor-internals.adoc[annotation processor internals] for implementation choices and generated-output composition.
+
 [source,xml]
 ----
 <dependencies>
@@ -98,6 +100,15 @@ If it happens (`java: java.lang.IllegalArgumentException: Unsupported type: 'com
 Ultimately just drop the `target`/`out` folder if it is not about adding a file but more about removing a file (incremental support of such a change is not great as of today - but this is not specific to this project ;)).
 
 === Use ECJ compiler (Eclipse)
+
+The processor supports ECJ without requiring javac source-tree integration.
+Source locations use the standard `Elements.getFileObjectOf` API directly through a multi-release JAR implementation on Java 18 and newer, or ECJ's public source-filename API on Java 17 when available.
+Building Fusion requires JDK 21 or newer and remains compatible with Maven 3; its Java 17 runtime baseline is unchanged.
+Use clean compilations when changing or deleting sources with a compiler that cannot expose verifiable source origins.
+Class-output discovery supports ECJ's requirement that resource-read targets exist without retaining a probe resource in the output.
+An explicit external `-Afusion.workdir=...` also enables retained build state with compiler file managers that do not expose a file-backed class-output location.
+Partial recompilation that would reuse unverifiable cached source origins fails with clean-rebuild guidance instead of retaining potentially deleted models or bindings.
+For strict ECJ builds, `-failOnWarning` is the equivalent of javac's `-Werror`; ECJ's additional `warningToken` lint can report shared generated suppressions as unnecessary even when javac needs them.
 
 For ECJ to work you need to ensure the argument `-sourcepath` is set in compiler configuration and import `plexus-compiler-eclipse` (Maven):
 
@@ -198,3 +209,12 @@ The fusion annotation processor (`FusionProcessor`) accepts a set of compile-tim
 | `fusion.debug.timeTracking` | Log the generation time of each phase.
 |===
 
+== Compilation and packaging
+
+Use a matching version of the processor, build API and runtime modules, and enable annotation processing in both main and test compilations when those compilations contain annotated sources.
+When upgrading from the former generated classes, clean generated sources, class output and processor work state together before recompiling all consumers.
+An explicit `-Afusion.workdir=...` must point outside class output and should be distinct for each compilation output.
+Processor work state is not an application resource and must not be packaged in the JAR.
+If required incremental state is missing, perform a full clean rebuild rather than compiling a partial source set against stale output.
+Preserve and merge the `FusionModule` ServiceLoader descriptor and required schema/OpenRPC resources when assembling the application.
+See xref:tooling.adoc#manual-binding-lookup[standalone factories] for manual construction without automatic registration.

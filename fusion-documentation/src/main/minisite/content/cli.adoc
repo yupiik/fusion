@@ -111,3 +111,8 @@ The application name used in the scripts defaults to `app` and can be overridden
 Completion proposes subcommand segments while the command path is incomplete, then the `--options` of the resolved leaf command.
 For testing, `completion/bash` also reads the `comp.line` and `comp.point` configuration keys (the `COMP_LINE`/`COMP_POINT` environment variables set by the shell completer) to report the candidates for an arbitrary cursor position instead of printing the script.
 
+== Command invocation lifecycle
+
+Command configuration key mapping is preserved, and command dependencies are acquired and closed for each invocation rather than when a descriptor is created.
+`fusion.generateBeanForCliCommands=false` omits the generated bean companions without removing standalone command factories, including with `fusion.generateModule=false`.
+Use xref:tooling.adoc#manual-binding-lookup[standalone binding lookup] for manual integration instead of constructing a generated command class.

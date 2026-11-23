@@ -17,100 +17,54 @@ package io.yupiik.fusion.framework.processor.internal.generator;
 
 import io.yupiik.fusion.framework.build.api.metadata.BeanMetadataAlias;
 import io.yupiik.fusion.framework.build.api.metadata.spi.MetadataContributor;
-import io.yupiik.fusion.framework.processor.internal.Elements;
 
-import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.util.ElementFilter;
+import javax.lang.model.util.Elements;
 import java.util.function.Supplier;
 
+import static java.util.stream.Collectors.toMap;
 import static java.util.stream.Collectors.toSet;
 
-public class MetadataContributorGenerator extends BaseGenerator implements Supplier<MetadataContributorGenerator.ContributorOutput> {
-    private static final String SUFFIX = "$MetadataContributor";
-
-    private final String packageName;
-    private final String className;
-    private final BeanMetadataAlias alias;
+/** Reads and validates compile-time aliases without generating classes or resources. */
+public class MetadataContributorGenerator implements Supplier<MetadataContributor> {
+    private final Elements elements;
     private final TypeElement type;
 
-    public MetadataContributorGenerator(final ProcessingEnvironment processingEnv,
-                                        final Elements elements,
-                                        final String packageName,
-                                        final String className,
-                                        final BeanMetadataAlias alias,
-                                        final TypeElement type) {
-        super(processingEnv, elements, null);
-        this.packageName = packageName;
-        this.className = className;
-        this.alias = alias;
+    public MetadataContributorGenerator(final Elements elements, final TypeElement type) {
+        this.elements = elements;
         this.type = type;
     }
 
     @Override
-    public ContributorOutput get() {
-        final var packagePrefix = packageName == null || packageName.isBlank() ? "" : (packageName + '.');
-        final var packageLine = packagePrefix.isBlank() ? "" : ("package " + packageName + ";\n\n");
-
-        final var generatedClassName = className + SUFFIX;
-
-        final var defaultName = alias.name().equals(BeanMetadataAlias.UNSET) ? "" : alias.name();
-        final var defaultValue = alias.value().equals(BeanMetadataAlias.UNSET) ? "" : alias.value();
-
-        final var overrides = ElementFilter.methodsIn(processingEnv.getElementUtils().getAllMembers(type)).stream()
-                .filter(it -> it.getSimpleName().contentEquals("name") || it.getSimpleName().contentEquals("value"))
-                .map(it -> it.getSimpleName().subSequence(0, it.getSimpleName().length()).toString())
+    public MetadataContributor get() {
+        final var alias = type.getAnnotationMirrors().stream()
+                .filter(it -> ((TypeElement) it.getAnnotationType().asElement()).getQualifiedName()
+                        .contentEquals(BeanMetadataAlias.class.getName()))
+                .findFirst();
+        if (alias.isEmpty()) {
+            return null;
+        }
+        final var values = elements.getElementValuesWithDefaults(alias.orElseThrow()).entrySet().stream()
+                .collect(toMap(it -> it.getKey().getSimpleName().toString(), it -> (String) it.getValue().getValue()));
+        final var defaultName = defaultValue(values.get("name"));
+        final var defaultValue = defaultValue(values.get("value"));
+        final var overrides = ElementFilter.methodsIn(elements.getAllMembers(type)).stream()
+                .map(it -> it.getSimpleName().toString())
                 .collect(toSet());
-
         if (defaultName.isBlank() && !overrides.contains("name")) {
-            throw new IllegalArgumentException(packagePrefix + className + " does not define name(), either set it in @BeanMetadataAlias or define `String name()` method.");
+            throw new IllegalArgumentException(type.getQualifiedName() + " does not define name(), either set it in @BeanMetadataAlias or define `String name()` method.");
         }
         if (defaultValue.isBlank() && !overrides.contains("value")) {
-            throw new IllegalArgumentException(packagePrefix + className + " does not define value(), either set it in @BeanMetadataAlias or define `String value()` method.");
+            throw new IllegalArgumentException(type.getQualifiedName() + " does not define value(), either set it in @BeanMetadataAlias or define `String value()` method.");
         }
-
-        final var fqn = packagePrefix + className;
-        return new ContributorOutput(
-                new GeneratedClass(
-                        packagePrefix + generatedClassName,
-                        packageLine +
-                                generationVersion() +
-                                "public class " + generatedClassName + " implements " + MetadataContributor.class.getName() + " {\n" +
-                                "    @Override\n" +
-                                "    public String name() {\n" +
-                                "        return \"" + defaultName.replace("\"", "\\\"").replace("\n", "\\n") + '"' +
-                                ";\n" +
-                                "    }\n" +
-                                "\n" +
-                                "    @Override\n" +
-                                "    public String value() {\n" +
-                                "        return \"" + defaultValue.replace("\"", "\\\"").replace("\n", "\\n") + '"' +
-                                ";\n" +
-                                "    }\n" +
-                                "\n" +
-                                "    @Override\n" +
-                                "    public String annotationType() {\n" +
-                                "        return \"" + fqn + "\";\n" +
-                                "    }\n" +
-                                "}\n" +
-                                "\n"),
-                new MetadataContributor() {
-                    @Override
-                    public String name() {
-                        return defaultName;
-                    }
-
-                    @Override
-                    public String value() {
-                        return defaultValue;
-                    }
-
-                    @Override
-                    public String annotationType() {
-                        return packagePrefix + className;
-                    }
-                });
+        return new Alias(type.getQualifiedName().toString(), defaultName, defaultValue);
     }
 
-    public record ContributorOutput(GeneratedClass generatedClass, MetadataContributor contributor) {}
+    private String defaultValue(final String value) {
+        return BeanMetadataAlias.UNSET.equals(value) ? "" : value;
+    }
+
+    private record Alias(String annotationType, String name, String value) implements MetadataContributor {
+    }
 }

@@ -91,3 +91,10 @@ public OpenRPCEndpoint openrpc() {
 
 OpenRPC metadata (`META-INF/fusion/jsonrpc/openrpc.json`) from all jars is merged, and partial documents are aggregated at startup. You can review the xref:tooling.adoc[documentation] page to see how to render OpenRPC as Asciidoc, OpenAPI or Postman content.
 
+== Parameter numbering
+
+Both named and positional JSON-RPC parameters are supported.
+Injected HTTP `Request` arguments are excluded from positional parameter numbering and OpenRPC parameter metadata.
+`fusion.generateBeanForJsonRpcEndpoints=false` disables only bean companions; standalone method factories remain available with `fusion.generateModule=false` too.
+Use xref:tooling.adoc#manual-binding-lookup[the supported binding lookup] instead of the former generated method class names.
+Handwritten `JsonRpcMethod` implementations remain supported.

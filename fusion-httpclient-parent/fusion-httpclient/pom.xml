@@ -50,6 +50,7 @@
         <artifactId>maven-compiler-plugin</artifactId>
         <configuration>
           <compilerArgs>
+            <compilerArg>-Afusion.moduleFqn=io.yupiik.fusion.httpclient.core.listener.impl.FusionModule</compilerArg>
             <compilerArg>-Afusion.generateBeanForJsonCodec=false</compilerArg>
           </compilerArgs>
         </configuration>

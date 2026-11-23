@@ -21,8 +21,10 @@ import io.yupiik.fusion.framework.build.api.persistence.Table;
 
 @Table("ON_DELETE")
 public record OnDeleteEntity(@Id String id) {
+    public static int deleteCount;
+
     @OnDelete
     void deleted() {
-        // no-op
+        deleteCount++;
     }
 }

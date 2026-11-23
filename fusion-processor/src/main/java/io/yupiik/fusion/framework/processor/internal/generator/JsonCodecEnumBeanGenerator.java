@@ -15,16 +15,11 @@
  */
 package io.yupiik.fusion.framework.processor.internal.generator;
 
-import io.yupiik.fusion.framework.api.Instance;
-import io.yupiik.fusion.framework.api.RuntimeContainer;
 import io.yupiik.fusion.framework.api.container.FusionBean;
-import io.yupiik.fusion.framework.api.container.Types;
-import io.yupiik.fusion.framework.api.container.bean.BaseBean;
-import io.yupiik.fusion.framework.api.scope.DefaultScoped;
 import io.yupiik.fusion.framework.processor.internal.Elements;
-import io.yupiik.fusion.framework.processor.internal.ParsedType;
 import io.yupiik.fusion.framework.processor.internal.metadata.MetadataContributorRegistry;
 import io.yupiik.fusion.json.internal.codec.EnumJsonCodec;
+import io.yupiik.fusion.json.serialization.JsonCodec;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Name;
@@ -32,8 +27,8 @@ import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Supplier;
 
 import static java.util.stream.Collectors.joining;
@@ -55,53 +50,24 @@ public class JsonCodecEnumBeanGenerator extends BaseGenerator implements Supplie
 
     @Override
     public GeneratedClass get() {
-        final var pckPrefix = packageName.isBlank() ? "" : (packageName + '.');
-        final var simpleName = className + "$" + FusionBean.class.getSimpleName();
-        final var javaClassName = className.replace('$', '.');
-        final var confBeanClassName = pckPrefix + simpleName;
-        final var elements = ((DeclaredType) type).asElement().getEnclosedElements();
-        final var toJsonFn = ElementFilter.methodsIn(elements).stream()
-                .filter(it -> "toJsonString".equals(it.getSimpleName().toString()))
-                .findAny()
-                .isEmpty() ?
-                "name()" : "toJsonString()";
-        final var values = ElementFilter.fieldsIn(elements).stream()
-                .filter(variableElement -> variableElement.getKind() == ENUM_CONSTANT)
-                .map(VariableElement::getSimpleName)
-                .map(Name::toString)
-                .sorted()
-                .toList();
-
-        final var out = new StringBuilder();
-        if (!packageName.isBlank()) {
-            out.append("package ").append(packageName).append(";\n\n");
+        final var prefix = packageName.isBlank() ? "" : packageName + '.';
+        final var model = type.toString();
+        final var beanId = prefix + className + "$" + FusionBean.class.getSimpleName();
+        final var codecId = prefix + className + JsonCodecGenerator.SUFFIX;
+        final var members = ((DeclaredType) type).asElement().getEnclosedElements();
+        final var conversion = ElementFilter.methodsIn(members).stream()
+                .anyMatch(it -> "toJsonString".contentEquals(it.getSimpleName())) ? "toJsonString" : "name";
+        final var values = ElementFilter.fieldsIn(members).stream()
+                .filter(it -> it.getKind() == ENUM_CONSTANT).map(VariableElement::getSimpleName)
+                .map(Name::toString).sorted().map(it -> model + "." + it).collect(joining(", "));
+        final var codec = new Binding(packageName, null, JsonCodec.class.getName() + "<" + model + ">",
+                "new " + EnumJsonCodec.class.getName() + "<>(" + model + ".class, java.util.List.of(" + values +
+                        "), " + model + "::" + conversion + ")", List.of());
+        final var artifacts = new ArrayList<Binding.Artifact>();
+        artifacts.add(new Binding.Artifact(codecId, codec));
+        if (Boolean.parseBoolean(processingEnv.getOptions().getOrDefault("fusion.generateBeanForJsonCodec", "true"))) {
+            artifacts.add(new Binding.Artifact(beanId, JsonCodecGenerator.codecBean(packageName, model, codecId)));
         }
-        out.append("public class ").append(simpleName).append(" extends ")
-                .append(BaseBean.class.getName()).append("<").append(EnumJsonCodec.class.getName()).append('<').append(pckPrefix).append(javaClassName).append(">> {\n");
-        out.append("  public ").append(className).append('$').append(FusionBean.class.getSimpleName()).append("() {\n");
-        out.append("    super(")
-                .append("new ").append(ParsedType.PARAMETERIZED_TYPE_IMPL)
-                .append("(").append(EnumJsonCodec.class.getName()).append(".class, ").append(javaClassName).append(".class), ")
-                .append(DefaultScoped.class.getName()).append(".class, ") // will be a singleton in json mapper anyway
-                .append("1000, ")
-                .append(Map.class.getName()).append(".of());\n");
-        out.append("  }\n");
-        out.append("\n");
-        out.append("  @Override\n");
-        out.append("  public ").append(EnumJsonCodec.class.getName()).append('<').append(javaClassName).append("> create(final ").append(RuntimeContainer.class.getName())
-                .append(" container, final ")
-                .append(List.class.getName()).append("<").append(Instance.class.getName()).append("<?>> dependents) {\n");
-        out.append("    return new ").append(EnumJsonCodec.class.getName()).append('<')
-                .append(javaClassName).append(">(")
-                .append(javaClassName).append(".class, ")
-                .append(List.class.getName()).append(".of(")
-                .append(values.stream().map(it -> javaClassName + "." + it).collect(joining(", ")))
-                .append("), ")
-                .append("v -> v.").append(toJsonFn)
-                .append(");\n");
-        out.append("  }\n");
-        out.append("}\n\n");
-
-        return new GeneratedClass(confBeanClassName, out.toString());
+        return new GeneratedClass(beanId, null, artifacts);
     }
 }

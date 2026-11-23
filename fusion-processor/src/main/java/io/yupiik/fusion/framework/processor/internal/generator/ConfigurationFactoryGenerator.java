@@ -29,25 +29,20 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.QualifiedNameable;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.DeclaredType;
-import java.io.StringReader;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Properties;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import java.util.regex.Pattern;
 
 import static java.util.Optional.empty;
 import static java.util.Optional.of;
@@ -59,6 +54,9 @@ import static javax.tools.Diagnostic.Kind.ERROR;
 
 public class ConfigurationFactoryGenerator extends BaseGenerator implements Supplier<ConfigurationFactoryGenerator.Output> {
     static final String SUFFIX = "$FusionConfigurationFactory";
+    private static final String VALUES = "io.yupiik.fusion.framework.api.configuration.internal.ConfigurationValues";
+    private static final Pattern STRING_LITERAL = Pattern.compile("\"(?:[^\"\\\\\r\n]|\\\\.)*+\"");
+    private static final Pattern DECIMAL_LITERAL = Pattern.compile("[-+]?(?:[0-9][0-9_]*(?:\\.[0-9_]*)?|\\.[0-9][0-9_]*)(?:[eE][-+]?[0-9][0-9_]*)?[fFdDlL]?");
 
     private final String packageName;
     private final String className;
@@ -68,6 +66,9 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
     private final Collection<Docs.ClassDoc> docs = new ArrayList<>();
     private final LinkedList<Docs.ClassDoc> docStack = new LinkedList<>();
     private final Map<String, String> enumValueOfCache;
+    private final StringBuilder propertyMethods = new StringBuilder();
+    private final StringBuilder defaultMethods = new StringBuilder();
+    private int propertyIndex;
     private final Set<String> listUsages = new HashSet<>();
     private final Set<String> mapUsages = new HashSet<>();
 
@@ -108,50 +109,20 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
                 .orElse(element.getSimpleName().toString());
 
         final var nestedClasses = new HashMap<String, NestedFragment>();
-        final var body = createRecordInstance(element, pckPrefix + className.replace('$', '.'), propPrefix, propPrefix, nestedClasses);
-        final var usesConfiguration = body.contains("configuration");
-        final var usesKeyMapper = body.contains("keyMapper");
-
-        final var out = new StringBuilder();
-        if (!packageName.isBlank()) {
-            out.append("package ").append(packageName).append(";\n\n");
-        }
-        out.append("public class ").append(confClassName).append(" implements ")
-                .append(Supplier.class.getName()).append("<").append(pckPrefix).append(className.replace('$', '.')).append("> {\n");
-        if (usesConfiguration) {
-            out.append("  private final ").append(Configuration.class.getName()).append(" configuration;\n");
-        }
-        if (usesKeyMapper) {
-            out.append("  private final ").append(Function.class.getName()).append("<String, String> keyMapper;\n");
-        }
-        out.append("\n");
-        out.append("  public ").append(confClassName).append("(final ").append(Configuration.class.getName()).append(" configuration) {\n");
-        out.append("    this(configuration, ").append(Function.class.getName()).append(".identity());\n");
-        out.append("  }\n");
-        out.append("\n");
-        out.append("  public ").append(confClassName).append("(final ").append(Configuration.class.getName()).append(" configuration, final ").append(Function.class.getName()).append("<String, String> keyMapper) {\n");
-        if (usesConfiguration) {
-            out.append("    this.configuration = configuration;\n");
-        }
-        if (usesKeyMapper) {
-            out.append("    this.keyMapper = keyMapper;\n");
-        }
-        out.append("  }\n");
-        out.append("\n");
-        out.append("  @Override\n");
-        out.append("  public ").append(pckPrefix).append(className.replace('$', '.')).append(" get() {\n");
-        out.append(body);
-        out.append("  }\n");
-        if (!nestedClasses.isEmpty()) {
-            out.append("\n").append(nestedClasses.entrySet().stream()
-                            .sorted(Map.Entry.comparingByKey())
-                            .map(it -> it.getValue().render(listUsages.contains(it.getKey()), mapUsages.contains(it.getKey())))
-                            .collect(joining("\n")))
-                    .append("\n");
-        }
-        out.append("}\n\n");
-
-        return new Output(new GeneratedClass(pckPrefix + confClassName, out.toString()), docs);
+        final var body = createRecordInstance(element, element.getQualifiedName().toString(), propPrefix, propPrefix, nestedClasses);
+        final var type = element.getQualifiedName().toString();
+        final var declaration = new StringBuilder("private static " + type + " $method(final " +
+                Configuration.class.getName() + " configuration, final java.util.function.Function<String, String> keyMapper) {\n")
+                .append(body).append("}\n");
+        nestedClasses.entrySet().stream().sorted(Map.Entry.comparingByKey())
+                .forEach(it -> declaration.append(it.getValue().render(listUsages.contains(it.getKey()), mapUsages.contains(it.getKey()))));
+        declaration.append(propertyMethods);
+        declaration.append(defaultMethods);
+        final var binding = new Binding(packageName, null,
+                "java.util.function.BiFunction<" + Configuration.class.getName() + ", java.util.function.Function<String, String>, " + type + ">",
+                "(java.util.function.BiFunction<" + Configuration.class.getName() + ", java.util.function.Function<String, String>, " + type + ">) " + Binding.helperReference(5),
+                List.of(new Binding.Method(5, declaration.toString(), "")));
+        return new Output(new GeneratedClass(pckPrefix + confClassName, binding), docs);
     }
 
     private NestedFragment generateNestedClass(final TypeElement element, final String typeName, final String docPrefix, final Map<String, NestedFragment> nested) {
@@ -160,7 +131,7 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
         docStack.add(doc);
         docs.add(doc);
         try {
-            return new NestedFragment(name, typeName, createRecordInstance(element, typeName, null, docPrefix, nested).indent(2));
+            return new NestedFragment(name, typeName, createRecordInstance(element, typeName, null, docPrefix, nested));
         } finally {
             docStack.removeLast();
         }
@@ -271,7 +242,7 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
 
             this.docStack.getLast().items().add(new Docs.DocItem(javaName, docName + ".$index", desc, required, itemString, defaultValue, itemString));
             listUsages.add(itemString);
-            return nestedFactory(itemString) + ".list(configuration, keyMapper, " + name + ", " + (defaultValue == null ? "null" : ("() -> " + defaultValue)) + ")";
+            return indexed(nestedFactory(itemString), "list", typeStr, name, defaultValue, propPrefix);
         }
 
         //
@@ -328,7 +299,7 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
                 new Docs.DocItem(javaName + ".$key", docName + ".$index.key", desc + " (Key).", required, "java.lang.String", "null", "java.lang.String"),
                 new Docs.DocItem(javaName +  ".$value", docName + ".$index.value", desc + " (Value).", required, valueTypeString, "null", valueTypeString)));
             mapUsages.add(valueTypeString);
-            return nestedFactory(valueTypeString) + ".map(configuration, keyMapper, " + name + ", " + (defaultValue == null ? "null" : ("() -> " + defaultValue)) + ")";
+            return indexed(nestedFactory(valueTypeString), "map", typeStr, name, defaultValue, propPrefix);
         }
 
         if (typeStr.startsWith("java.")) { // unsupported
@@ -345,13 +316,13 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
         this.docStack.getLast().items().add(new Docs.DocItem(javaName, docName, desc, required, typeStr, defaultValue, typeStr));
         if (defaultValue != null) {
             nestedFactory(typeStr); // visit doc
-            return defaultValue;
+            return appendDefault("$method_property" + propertyIndex++, typeStr, defaultValue, propPrefix == null);
         }
-        return "new " + nestedFactory(typeStr) + "(configuration, keyMapper, " + name + ").get()";
+        return nestedFactory(typeStr) + "(configuration, keyMapper, " + name + ")";
     }
 
     private Optional<Property> findKnownProperty(final String parentType, final String javaName) {
-        final var knownType = knownDocs.get(parentType.replace('$', '.'));
+        final var knownType = knownDocs.get(parentType);
         if (knownType == null) {
             return Optional.empty();
         }
@@ -387,41 +358,144 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
                           final String name, final boolean required, final String mapper, final String defaultValue,
                           final String docName, final String desc, final String type) {
         this.docStack.getLast().items().add(new Docs.DocItem(javaName, docName, desc, required, null, defaultValue, type));
-        return "configuration.get(" + name + ")" +
-                mapper +
-                (required ?
-                        ".orElseThrow(() -> " +
-                                "new io.yupiik.fusion.framework.api.configuration.MissingRequiredParameterException(" +
-                                "\"No value for '\" + keyMapper.apply(" + name + ") + \"'\"))" :
-                        ".orElse(" + defaultValue + ")");
+        final var method = "$method_property" + propertyIndex++;
+        final var operation = mapper.startsWith("LIST:") ? "list" : mapper.startsWith("MAP:") ? "map" : "scalar";
+        final var valueMapper = "list".equals(operation) ? mapper.substring(5) : "map".equals(operation) ? mapper.substring(4) : mapper;
+        final var conversion = sharedConversion(valueMapper, type);
+        if (conversion != null) {
+            // Lookup and conversion must precede evaluation of the eager default.
+            return VALUES + "." + operation + "(configuration, " + name + ", keyMapper, " + required + ", " + VALUES + "." + conversion + ")" +
+                    (required ? ".orElseThrow()" : ".orElse(" + appendDefault(method, type, defaultValue, name.startsWith("prefix")) + ")");
+        }
+        final var boxedType = switch (type) {
+            case "boolean" -> "Boolean";
+            case "int" -> "Integer";
+            case "long" -> "Long";
+            case "float" -> "Float";
+            case "double" -> "Double";
+            default -> type;
+        };
+        final var defaultCall = required ? null : appendDefault(method, type, defaultValue, name.startsWith("prefix"));
+        propertyMethods.append("private static ").append(type).append(' ').append(method)
+                .append("(final ").append(Configuration.class.getName())
+                .append(" configuration, final java.util.function.Function<String, String> keyMapper, final String prefix) {\n")
+                .append("final var raw = ").append(VALUES).append(".raw(configuration, ").append(name).append(", keyMapper, ").append(required).append(");\n");
+        propertyMethods.append("final java.util.Optional<").append(boxedType).append("> converted;\n")
+                .append("if (raw.isPresent()) {\nfinal var value = raw.get();\n");
+        if (mapper.startsWith("LIST:")) {
+            propertyMethods.append("final var values = ").append(VALUES).append(".split(value);\n")
+                    .append("final var items = new java.util.ArrayList<").append(type.substring(type.indexOf('<') + 1, type.lastIndexOf('>'))).append(">();\n")
+                    .append("for (final var item : values) { final var stripped = item.strip(); if (!stripped.isBlank()) { items.add(")
+                    .append(convert(mapper.substring(5), "stripped")).append("); } }\n")
+                    .append("converted = java.util.Optional.of(items.stream().toList());\n");
+        } else if (mapper.startsWith("MAP:")) {
+            propertyMethods.append("final var props = ").append(VALUES).append(".properties(value);\n")
+                    .append("final var items = new java.util.HashMap<String, ")
+                    .append(type.substring(type.indexOf(',') + 1, type.lastIndexOf('>')).strip()).append(">();\n")
+                    .append("for (final var key : props.stringPropertyNames()) { items.put(key, java.util.Objects.requireNonNull(")
+                    .append(convert(mapper.substring(4), "props.getProperty(key)")).append(")); }\n")
+                    .append("converted = java.util.Optional.of(items);\n");
+        } else {
+            propertyMethods.append("converted = java.util.Optional.ofNullable(").append(convert(mapper, "value")).append(");\n");
+        }
+        propertyMethods.append("} else { converted = java.util.Optional.empty(); }\nreturn ")
+                .append(required ? "converted.orElseThrow()" : "converted.orElse(" + defaultCall + ")").append(";\n}\n");
+        return method + "(configuration, keyMapper, " + (name.startsWith("prefix") ? "prefix" : "null") + ")";
+    }
+
+    private String sharedConversion(final String mapper, final String type) {
+        return switch (mapper) {
+            case "" -> type.contains("java.lang.CharSequence") ? "CHAR_SEQUENCE" : "STRING";
+            case ".map(Boolean::parseBoolean)" -> "BOOLEAN";
+            case ".map(Integer::parseInt)" -> "INTEGER";
+            case ".map(Long::parseLong)" -> "LONG";
+            case ".map(Float::parseFloat)" -> "FLOAT";
+            case ".map(Double::parseDouble)" -> "DOUBLE";
+            case ".map(java.math.BigInteger::new)" -> "BIG_INTEGER";
+            case ".map(java.math.BigDecimal::new)" -> "BIG_DECIMAL";
+            default -> null; // User enums stay statically typed in the holder.
+        };
+    }
+
+    private String convert(final String mapper, final String value) {
+        if (mapper.isEmpty()) {
+            return value;
+        }
+        final var reference = mapper.substring(5, mapper.length() - 1);
+        final var separator = reference.indexOf("::");
+        final var owner = reference.substring(0, separator);
+        final var operation = reference.substring(separator + 2);
+        return "new".equals(operation) ? "new " + owner + "(" + value + ")" : owner + "." + operation + "(" + value + ")";
     }
 
     private String listOf(final String valueMapper) {
-        // if value starts with sep=x,... then we split on "x" instead of ","
-        return ".map(value -> " + Stream.class.getName() + ".of(value.startsWith(\"sep=\") ? value.substring(6).split(value.substring(4, 5)) : value.split(\",\"))" +
-                ".map(String::strip)" +
-                ".filter(" + Predicate.class.getName() + ".not(String::isBlank))" +
-                valueMapper +
-                ".toList())";
+        return "LIST:" + valueMapper;
     }
 
     private String mapOf(final String valueMapper) {
-        // if value starts with sep=x,... then we split on "x" instead of ","
-        return ".map(value -> {\n" +
-                "            var props = new " + Properties.class.getName() + "();\n" +
-                "            try (final var reader = new " + StringReader.class.getName() + "(value)) {\n" +
-                "                props.load(reader);\n" +
-                "            } catch (Exception e) { /* ignore for now */ }\n" +
-                "            return props;\n" +
-                "        })\n" +
-                "        .map(it -> it.stringPropertyNames().stream()\n" +
-                "           .collect(" + Collectors.class.getName() + ".toMap(\n" +
-                "             " + Function.class.getName() + ".identity()," +
-                "             " + (valueMapper.isEmpty() ? "it::getProperty" : Function.class.getName() + ".identity().andThen(it::getProperty).andThen(" + valueMapper + ")") + ")))";
+        return "MAP:" + valueMapper;
     }
 
     private String nestedFactory(final String typeStr) {
-        return typeStr.substring(typeStr.lastIndexOf('.') + 1) + "__NestedFactory";
+        // Encode the full type name to avoid same-simple-name nested models colliding.
+        return "$method_nested_" + typeStr.replace("_", "_u").replace(".", "_d").replace("$", "_s");
+    }
+
+    private String indexed(final String factory, final String operation, final String type,
+                           final String name, final String defaultValue, final String propPrefix) {
+        final var method = "$method_property" + propertyIndex++;
+        final var defaultCall = appendDefault(method, type, defaultValue == null ? "null" : defaultValue, propPrefix == null);
+        propertyMethods.append("private static ").append(type).append(' ').append(method)
+                .append("(final ").append(Configuration.class.getName())
+                .append(" configuration, final java.util.function.Function<String, String> keyMapper, final String prefix) {\n")
+                .append("final int length = ").append(VALUES).append(".length(configuration, ").append(name).append(");\n")
+                .append("if (length < 0) { return ").append(defaultCall).append("; }\n")
+                .append("return ").append(factory).append('_').append(operation)
+                .append("(configuration, keyMapper, ").append(name).append(", length);\n}\n");
+        return method + "(configuration, keyMapper, " + (propPrefix == null ? "prefix" : "null") + ")";
+    }
+
+    private String appendDefault(final String method, final String type, final String expression, final boolean nested) {
+        // Arbitrary expressions retain a separate lexical scope, even when context-free.
+        // Unicode escapes are translated before tokenization and can turn quoted-looking
+        // text into an arbitrary expression. Keep those expressions in isolated helpers.
+        if (Set.of("null", "true", "false").contains(expression) ||
+                (STRING_LITERAL.matcher(expression).matches() && !expression.contains("\\u")) ||
+                (DECIMAL_LITERAL.matcher(expression).matches() && wideningLiteral(type, expression))) {
+            return Set.of("int", "long", "float", "double").contains(type) && !type.equals(literalType(expression)) ?
+                    "(" + type + ") (" + expression + ")" : expression;
+        }
+        // Instance fields preserve Java's own name binding, including this references,
+        // lambda/local shadows and flow-scoped patterns, without parsing user code.
+        defaultMethods.append("private ").append(type).append(' ').append(method)
+                .append("_default() { return ").append(expression).append("; }\n");
+        return "new $holder(configuration, keyMapper, " + (nested ? "prefix" : "null") + ")." + method + "_default()";
+    }
+
+    private boolean wideningLiteral(final String type, final String expression) {
+        // A cast adapts Optional's boxed argument, but must not legalize a default
+        // which a typed return statement would reject (for example int = 1.5).
+        final char suffix = Character.toLowerCase(expression.charAt(expression.length() - 1));
+        final int source = suffix == 'f' ? 2 :
+                suffix == 'd' || expression.contains(".") || expression.contains("e") || expression.contains("E") ? 3 :
+                        suffix == 'l' ? 1 : 0;
+        return switch (type) {
+            case "int" -> source == 0;
+            case "long" -> source <= 1;
+            case "float" -> source <= 2;
+            default -> true;
+        };
+    }
+
+    private String literalType(final String expression) {
+        final char suffix = Character.toLowerCase(expression.charAt(expression.length() - 1));
+        if (suffix == 'f') {
+            return "float";
+        }
+        if (suffix == 'd' || expression.contains(".") || expression.contains("e") || expression.contains("E")) {
+            return "double";
+        }
+        return suffix == 'l' ? "long" : "int";
     }
 
     private String createRecordInstance(final TypeElement element, final String fqn,
@@ -441,66 +515,26 @@ public class ConfigurationFactoryGenerator extends BaseGenerator implements Supp
     public record Output(GeneratedClass generatedClass, Collection<Docs.ClassDoc> docs) {
     }
 
-    // the get() body is generated eagerly (docs are collected in encounter order) but the class is rendered
-    // once all usages are known so only the needed members are emitted (no unused code in the generated sources)
     private record NestedFragment(String factoryName, String typeName, String getBody) {
         private String render(final boolean withList, final boolean withMap) {
-            final var usesConfiguration = getBody.contains("configuration");
-            final var usesKeyMapper = getBody.contains("keyMapper");
-            final var usesPrefix = getBody.contains("prefix");
-            return "" +
-                    "  private static final class " + factoryName + " implements " + Supplier.class.getName() + "<" + typeName + "> {\n" +
-                    (usesConfiguration ? "    private final " + Configuration.class.getName() + " configuration;\n" : "") +
-                    (usesKeyMapper ? "    private final " + Function.class.getName() + "<String, String> keyMapper;\n" : "") +
-                    (usesPrefix ? "    private final String prefix;\n" : "") +
-                    "\n" +
-                    "    private " + factoryName + "(final " + Configuration.class.getName() + " configuration, final " + Function.class.getName() + "<String, String> keyMapper, final String prefix) {\n" +
-                    (usesConfiguration ? "      this.configuration = configuration;\n" : "") +
-                    (usesKeyMapper ? "      this.keyMapper = keyMapper;\n" : "") +
-                    (usesPrefix ? "      this.prefix = prefix;\n" : "") +
-                    "    }\n" +
-                    "\n" +
-                    "    @Override\n" +
-                    "    public " + typeName + " get() {\n" +
-                    getBody +
-                    "    }\n" +
-                    (withList ? list() : "") +
-                    (withMap ? map() : "") +
-                    "  }\n";
-        }
-
-        private String list() {
-            return "" +
-                    "\n" +
-                    "    private static " + List.class.getName() + "<" + typeName + "> list(final " +
-                    Configuration.class.getName() + " configuration, final " + Function.class.getName() + "<String, String> keyMapper, final String prefix, final " + Supplier.class.getName() + "<" + List.class.getName() + "<" + typeName + ">> defaultProvider) {\n" +
-                    "        final int length = configuration.get(prefix + \".length\").map(Integer::parseInt).orElse(-1);\n" +
-                    "        if (length < 0) {\n" +
-                    "          return defaultProvider == null ? null : defaultProvider.get();\n" +
-                    "        }\n" +
-                    "        final var list = new " + ArrayList.class.getName() + "<" + typeName + ">(length);\n" +
-                    "        for (int index = 0; index < length; index++) {\n" +
-                    "          list.add(new " + factoryName + "(configuration, keyMapper, prefix + \".\" + index).get());\n" +
-                    "        }\n" +
-                    "        return list;\n" +
-                    "    }\n";
-        }
-
-        private String map() {
-            return "" +
-                    "\n" +
-                    "    private static " + Map.class.getName() + "<String, " + typeName + "> map(final " +
-                    Configuration.class.getName() + " configuration, final " + Function.class.getName() + "<String, String> keyMapper, final String prefix, final " + Supplier.class.getName() + "<" + Map.class.getName() + "<String, " + typeName + ">> defaultProvider) {\n" +
-                    "        final int length = configuration.get(prefix + \".length\").map(Integer::parseInt).orElse(-1);\n" +
-                    "        if (length < 0) {\n" +
-                    "          return defaultProvider == null ? null : defaultProvider.get();\n" +
-                    "        }\n" +
-                    "        final var map = new " + LinkedHashMap.class.getName() + "<String, " + typeName + ">(length);\n" +
-                    "        for (int index = 0; index < length; index++) {\n" +
-                    "          map.put(configuration.get(prefix + \".\" + index + \".key\").orElseThrow(), new " + factoryName + "(configuration, keyMapper, prefix + \".\" + index + \".value\").get());\n" +
-                    "        }\n" +
-                    "        return map;\n" +
-                    "    }\n";
+            final var parameters = "final " + Configuration.class.getName() +
+                    " configuration, final java.util.function.Function<String, String> keyMapper, final String prefix";
+            final var out = new StringBuilder("private static " + typeName + " " + factoryName + "(" + parameters + ") {\n" + getBody + "}\n");
+            if (withList) {
+                out.append("private static java.util.List<").append(typeName).append("> ").append(factoryName)
+                        .append("_list(").append(parameters).append(", final int length) {\n")
+                        .append("final var items = new java.util.ArrayList<").append(typeName).append(">(length);\n")
+                        .append("for (int index = 0; index < length; index++) { items.add(").append(factoryName)
+                        .append("(configuration, keyMapper, prefix + \".\" + index)); }\nreturn items;\n}\n");
+            }
+            if (withMap) {
+                out.append("private static java.util.Map<String, ").append(typeName).append("> ").append(factoryName)
+                        .append("_map(").append(parameters).append(", final int length) {\n")
+                        .append("final var items = new java.util.LinkedHashMap<String, ").append(typeName).append(">(length);\n")
+                        .append("for (int index = 0; index < length; index++) { items.put(configuration.get(prefix + \".\" + index + \".key\").orElseThrow(), ")
+                        .append(factoryName).append("(configuration, keyMapper, prefix + \".\" + index + \".value\")); }\nreturn items;\n}\n");
+            }
+            return out.toString();
         }
     }
 }

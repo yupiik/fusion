@@ -15,12 +15,7 @@
  */
 package io.yupiik.fusion.framework.processor.internal.generator;
 
-import io.yupiik.fusion.framework.api.Instance;
-import io.yupiik.fusion.framework.api.RuntimeContainer;
-import io.yupiik.fusion.framework.api.container.FusionBean;
 import io.yupiik.fusion.framework.api.container.Generation;
-import io.yupiik.fusion.framework.api.container.Types;
-import io.yupiik.fusion.framework.api.container.bean.BaseBean;
 import io.yupiik.fusion.framework.api.scope.DefaultScoped;
 import io.yupiik.fusion.framework.build.api.metadata.BeanMetadata;
 import io.yupiik.fusion.framework.build.api.order.Order;
@@ -36,14 +31,12 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
-import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.ExecutableType;
 import javax.lang.model.type.IntersectionType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
-import javax.lang.model.type.WildcardType;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -51,13 +44,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static java.util.Comparator.comparing;
 import static java.util.Map.entry;
 import static java.util.Optional.ofNullable;
-import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.joining;
 import static javax.lang.model.element.ElementKind.CONSTRUCTOR;
 import static javax.lang.model.element.Modifier.PRIVATE;
@@ -165,28 +156,6 @@ public abstract class BaseGenerator {
         return processingEnv.getTypeUtils().isAssignable(type, elements.asElement(AutoCloseable.class).asType());
     }
 
-    // generates the bean of a generated artifact as a nested class of it to keep a single compilation unit,
-    // the binary name stays the same as when it was a standalone class (owner$FusionBean)
-    protected String nestedBean(final String owner, final String scope, final int priority, final String metadata,
-                                final String createBody) {
-        return "\n" +
-                "  public static class " + FusionBean.class.getSimpleName() + " extends " + BaseBean.class.getName() + "<" + owner + "> {\n" +
-                "    public " + FusionBean.class.getSimpleName() + "() {\n" +
-                "      super(\n" +
-                "        " + owner + ".class,\n" +
-                "        " + scope + ".class,\n" +
-                "        " + priority + ",\n" +
-                "        " + metadata + ");\n" +
-                "    }\n" +
-                "\n" +
-                "    @Override\n" +
-                "    public " + owner + " create(final " + RuntimeContainer.class.getName() + " container, final " +
-                List.class.getName() + "<" + Instance.class.getName() + "<?>> dependents) {\n" +
-                createBody +
-                "    }\n" +
-                "  }\n";
-    }
-
     protected Optional<ExecutableElement> selectConstructor(final TypeElement te) {
         return findConstructors(te)
                 .filter(e -> !e.getParameters().isEmpty())
@@ -278,7 +247,7 @@ public abstract class BaseGenerator {
                 case CLASS -> parsed.className();
                 case PARAMETERIZED_TYPE -> parsed.raw();
             };
-            return "(" + instanceTypeOf(injection) + ") lookups(container, " + clazz + ".class, " + Collectors.class.getName() + "toSet(), dependents)";
+            return "(" + instanceTypeOf(injection) + ") (java.util.Set<?>) io.yupiik.fusion.framework.api.container.internal.DependencyLookups.set(container, " + clazz + ".class, dependents)";
         }
         if (injection.optional()) { // only supports classes - todo: cache type
             return "(" + instanceTypeOf(injection) + ") " +
@@ -296,18 +265,11 @@ public abstract class BaseGenerator {
 
     protected String eventLookup(final Bean.FieldInjection injection) { // outside a bean
         if (injection.list()) { // only supports classes
-            return "main__container.lookups(" +
-                    injection.type() + ".class, instances -> " +
-                    String.join("",
-                            "instances.stream()",
-                            isComparable(injection.type()) ?
-                                    ".map(" + Instance.class.getName() + "::instance).sorted()" :
-                                    ".sorted(java.util.Comparator.comparing(i -> i.bean().priority())).map(" + Instance.class.getName() + "::instance)",
-                            ".map(" + injection.type() + ".class::cast).collect(" + Collectors.class.getName() + ".toList())") +
-                    ")";
+            return "io.yupiik.fusion.framework.api.container.internal.DependencyLookups.list(main__container, " +
+                    injection.type() + ".class, " + isComparable(injection.type()) + ")";
         }
         if (injection.set()) { // only supports classes
-            return "main__container.lookups(" + injection.type() + ".class, " + Collectors.class.getName() + "toSet())";
+            return "io.yupiik.fusion.framework.api.container.internal.DependencyLookups.set(main__container, " + injection.type() + ".class)";
         }
         if (injection.optional()) { // only supports classes - todo: cache type
             return "main__container.<" + instanceTypeOf(injection) + ">lookup(new " + ParsedType.PARAMETERIZED_TYPE_IMPL + "(" +
@@ -422,6 +384,14 @@ public abstract class BaseGenerator {
                 alreadyHandled.add(type);
     }
 
-    public record GeneratedClass(String name, String content) {
+    public record GeneratedClass(String name, String content, List<Binding.Artifact> artifacts) {
+        public GeneratedClass(final String name, final String content) {
+            this(name, content, List.of());
+        }
+
+        public GeneratedClass(final String name, final Binding binding) {
+            this(name, null, List.of(new Binding.Artifact(name, binding)));
+        }
+
     }
 }

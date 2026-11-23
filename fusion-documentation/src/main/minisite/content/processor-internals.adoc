@@ -1,0 +1,238 @@
+= Annotation processor internals
+
+[abstract]
+This page describes the current implementation choices behind `fusion-processor`, rather than an application-facing generated-class contract.
+Use xref:setup.adoc[setup] for compiler options and xref:tooling.adoc#manual-binding-lookup[standalone factories] for manual construction.
+
+== Construction and registration ownership
+
+The processor composes typed construction expressions and their private helpers directly into the generated module's bean and listener registration streams.
+Shared runtime adapters call business constructors, injection fields, lifecycle methods and listener methods through typed callbacks, without reflective business-member lookup or runtime artifact-ID and numeric operation dispatch.
+This composition applies to beans, producer methods, listeners, JSON codecs, configuration factories, HTTP endpoints, JSON-RPC methods, CLI commands and persistence entities.
+Optional lifecycle operations use null callbacks and shared runtime defaults instead of empty generated methods.
+Lazy business subclasses required for application-scoped delegation and the ServiceLoader module are still generated where needed.
+Adapter implementation classes are not bean identities: registration types, scopes, priorities and distinct registrations retain their container semantics.
+
+Same-package standalone construction expressions and colocated helpers belong to the root module while its aggregate source budget permits.
+Separate package owners are generated only for package-access boundaries, actual size overflow, or standalone construction when module generation is disabled.
+A configuration default requiring instance context is not by itself a reason to create another owner.
+For same-package size overflow, the root module retains the public typed manual construction method and delegates only to the actual bounded owner.
+Cross-package construction methods are not forwarded onto the root module, since their signatures can expose types inaccessible outside the owning package.
+Configure the module in the models' package when a stable manual entry point is needed.
+Ordinary bean and listener registrations have no standalone descriptor factory; their descriptors are constructed by module registration.
+There is no module singleton, descriptor prototype, descriptor-copy API, package-wide factory facade or universal standalone loader.
+Construction does not retain a container globally or cache business instances outside the normal container lifecycle.
+
+== Deferred source fragments
+
+Each family generator contributes an immutable `Binding` source fragment containing its package, optional registration kind, typed result, construction expression and helper declarations.
+The helper list is defensively copied, and a null registration kind identifies standalone construction rather than a bean or listener registration.
+A generator result can contribute multiple fragments, such as a codec and its bean registration.
+The result name supplies a compile-time ordering and reference key; it is not a runtime identity protocol.
+Fragments remain deferred because generators can reference other families before all construction owners have been assigned, and incremental compilation must preserve their source.
+The fragment representation is neither runtime metadata nor an operation dispatcher.
+
+Symbolic factory references are resolved after all families contribute and every standalone fragment has an actual owner.
+Helper ordinals identify source-local declarations, not runtime operations.
+The emitter replaces only its reserved factory, holder, callback and helper tokens in Java code, leaving literals, comments and unrelated dollar-containing Java identifiers unchanged.
+Generators supply explicit inline callback expressions for trivial bodies; the emitter does not infer them by parsing arbitrary Java method declarations.
+Callback expressions are inlined only into construction expressions, not into retained helper declarations.
+Helpers still referenced directly or transitively are retained even if their callback can otherwise be inlined.
+Duplicate fragment keys, duplicate helper ordinals, unknown construction references and invalid construction cycles are rejected rather than silently producing ambiguous wiring.
+
+Construction expressions are expanded only inside their assigned actual owner.
+References from another owner call the owning typed method, preserving real size splits rather than duplicating helpers across owners.
+Per-owner, per-fragment expression memoization emits helpers on the first expansion and reuses the expression for manual and descriptor construction in that owner.
+This is source-composition reuse, not runtime descriptor or business-instance caching.
+
+== Source budgets and generated names
+
+The emitter uses deterministic sorted fragment ordering and groups separate owners by package and registration kind.
+The current aggregate source-weight budget is 48,000 characters for module-owned fragments and separate owner batches.
+Separate owner batches also split at 32 fragments.
+The weight includes construction expressions, helper declarations, explicit inline callbacks and conservative transitive construction references.
+Shared or repeated references can be overcounted, intentionally favoring conservative splitting over a more complex accounting model.
+A single fragment larger than the batch budget is not divided by this batching rule, so these thresholds are not universal bytecode-size guarantees.
+Trivial callback inlining is limited by an 8,000-character construction-expression budget.
+Module registration methods split into private chunks at 64 registration statements or 8,000 statement characters to limit individual method growth.
+These are internal source heuristics, not user-tunable performance promises or exact JVM class-file limits.
+
+Separate owners use the `FusionBindings_` prefix with a namespace and local shard suffixes.
+Their namespace incorporates the configured module name and portable project/output-layout identity, not an absolute checkout prefix.
+The namespace is the first 12 bytes of a SHA-256 digest rendered in hexadecimal.
+This separates modules and main/test outputs while avoiding machine-specific generated names for conventional layouts.
+Holder suffixes, helper ordinals and grouping can change as the application source set changes and are not importable API contracts.
+Public manual method names derive from the local standalone artifact name, with nested-type separators represented by `$`.
+The supported calling pattern is documented under xref:tooling.adoc#manual-binding-lookup[standalone factories], not a reflective search for implementation classes.
+
+== Configuration construction and defaults
+
+Configuration record constructors and custom enum conversions are typed generated helpers rather than separate supplier implementations for each root and nested record.
+Built-in scalar, delimited-list and properties-map conversions share runtime implementations instead of duplicating conversion methods for each property.
+Only context-free literal defaults are inlined, and numeric literals must remain assignment-compatible with the property type.
+Arbitrary Java defaults retain an independent lexical scope and are compiled unchanged by the application's compiler at its configured language level.
+This avoids a separate Java-expression parser and preserves shadowing in lambdas, blocks, loops, catch clauses and try-with-resources declarations.
+
+An owner needing arbitrary-default context has private final `configuration`, `keyMapper` and `prefix` fields and a private three-argument constructor.
+The module also has a public no-argument constructor for service discovery, delegating with null context.
+Actual default evaluation creates an owner with the real configuration context, rather than using static mutable state.
+The generated owner can therefore hold an invocation's default-expression context without becoming a retained container or application singleton.
+Scalar and collection conversion/default evaluation order and the distinction between eager scalar defaults and lazy indexed-object defaults are user-visible contracts documented on the xref:configuration.adoc[configuration page].
+
+== Runtime adapter families
+
+=== Beans and listeners
+
+Bean construction, field injection, lifecycle handling and producer invocation use typed callbacks bound to shared descriptors.
+Listeners likewise bind their event type, priority and invocation callback without generating a separate implementation for each listener method.
+The module supplies registration streams directly, or includes ordered streams from real package owners when splitting is required.
+A shared descriptor class or business type does not collapse distinct registrations into one registration.
+Lazy delegation still needs a generated business subclass, independently of descriptor composition.
+
+=== JSON
+
+Record codecs use the shared `MetadataJsonCodec` runtime implementation with property metadata and typed constructor, key-length lookup and accessor callbacks.
+Each non-ignored property contributes a direct accessor callback; ignored properties contribute no accessor callback.
+Enum serialization uses a direct `name()` or `toJsonString()` callback, with typed conversion for input.
+Constructor slots, parser key-length ordering and serialization ordering remain independent.
+The runtime copies property and accessor metadata at construction and resolves nested codecs from each read or write context.
+Sharing a generated codec therefore does not share mapper-specific delegate overrides.
+A codec's `type()` identifies the model; the shared adapter class does not.
+The xref:json.adoc[JSON page] retains the observable null, duplicate-key, ignored-property and extension-map rules.
+
+=== HTTP, JSON-RPC and CLI
+
+HTTP endpoint adapters bind static typed matcher and handler methods, while preserving the distinction between route priority and container bean priority.
+JSON body handling prefers an unwrapped input stream, then a reader, then reactive UTF-8 aggregation.
+JSON-RPC adapters use typed parameter conversion and invocation helpers for both named and positional parameters.
+Injected HTTP `Request` arguments are excluded from positional numbering and OpenRPC parameter metadata.
+CLI descriptors bind configuration and invocation helpers while acquiring and closing runnable dependencies per invocation, not at descriptor creation.
+Configuration key mapping remains part of command behavior.
+These adapters do not need a separate generated implementation and nested bean class for every endpoint, method or command.
+
+=== Persistence
+
+Entity metadata uses shared `FunctionalEntity` instances with typed helpers for record construction, row mapping, JDBC binding and lifecycle callbacks.
+The implementation lives in `io.yupiik.fusion.persistence.impl`; manual construction uses the `Entity.Factory` API rather than its concrete implementation.
+Container callbacks use `container.bean.FunctionalBean` and `container.listener.FunctionalListener`, with generated dependency lookups delegated to `container.internal.DependencyLookups`.
+CLI callbacks use the existing `BaseCliCommand`, and JSON-RPC parameter validation is shared by the internal `JsonRpcParameters` utility.
+Record accessors, constructors and lifecycle methods are called directly, and the shared runtime implementation is not an entity identity.
+Nullable JDBC setter and null-type handling is shared instead of repeated in every generated binding.
+Each bound accessor is evaluated once, including when a null embeddable binds null for all its columns.
+Concrete entity descriptors receive checked direct method references, with null callbacks for absent logical operations and shared runtime defaults.
+SQL callbacks declare `SQLException` directly, preserving its identity without an unchecked bridge wrapper.
+Non-auto-incremented after-insert operations return the original instance.
+Injected callback dependencies close in reverse lookup order even on failure.
+Translated bindings and projection readers remain isolated to the active configuration and mapper.
+Manual integrations still use the returned `Entity` contract and must supply a container when callbacks require injections.
+
+== Compiler metadata discovery
+
+=== JSON models
+
+JSON model discovery uses the compiler-selected type and annotation mirrors, independently of optional schema documents and processor-classloader visibility.
+`@JsonModel` has `CLASS` retention so the compiler can discover models through dependencies on the effective compilation classpath, including transitive dependencies and a separate processor path.
+It is build metadata rather than a runtime reflection annotation API.
+Retained `@JsonProperty` and `@JsonOthers` mirrors on constructor parameters or record components also identify implicit dependency models.
+Compiler type lookup can also recognize published dependency models with named codecs.
+Current source replacements and local output are checked against local model state so obsolete dependency codecs or class files cannot restore an annotation removed from current source.
+Optional schema caches are not evidence that a currently compiled type remains a model.
+
+Local model state is kept in `json-models-v1.properties` in the external work directory.
+It tracks model binary names and source origins, replacing touched origins and pruning deleted sources or absent local class output.
+Nested type resolution uses compiler elements rather than assuming every `$` denotes nesting, since Java identifiers may contain literal dollar signs.
+Only positive type resolutions are cached; misses remain retryable when another processor introduces a type in a later round.
+No dependency model resource is required in an application JAR or native image.
+
+=== Bean metadata aliases
+
+`@BeanMetadataAlias` has `CLASS` retention for compiler-model discovery from the actual annotation definition chosen by the compilation classpath.
+Dependency aliases do not require the annotation-defining JAR on a separately configured processor path.
+Compiler selection governs duplicate dependency types and current source shadowing.
+The processor reads alias defaults directly from annotation metadata rather than generating a per-alias contributor implementation or packaged alias descriptor.
+There is no separate alias incremental cache to prune when the annotation loses its alias marker.
+Handwritten `MetadataContributor` ServiceLoader providers on the processor path remain supported and override dependency defaults in provider-class-name order.
+Explicit current-compilation registrations take precedence over those providers, and annotation members named `name` and `value` override contributor defaults.
+This discovery requires no runtime reflection or native-image resource registration.
+
+== Incremental state and processing rounds
+
+The external fragment cache preserves wiring for source origins omitted from a partial compilation.
+Touching a source origin removes its previous fragments before the current generators contribute replacements, and deleted source origins are pruned.
+The versioned binary cache retains typed source fragments, helper declarations and explicit inline expressions, not runtime descriptors.
+Only the current cache format is accepted; incompatible or corrupt data produces clean-rebuild guidance instead of speculative migration.
+Cache persistence writes a temporary file beside the cache, replaces the cache and cleans up the temporary file.
+
+Maven work directories default to `target/fusion` and `target/fusion-test`.
+Gradle outputs use `build/fusion/<relative-output-layout>`, and other layouts use a `.fusion-<output-name>/cache` sibling of class output.
+An explicit `fusion.workdir` must be outside packaged class output.
+`fusion.workdir=false` disables fragment persistence but does not disable the external origin manifest guarding partial rebuilds.
+Origin manifests, holder inventories and generated-module inventory remain beside class output rather than inside it.
+The emitter can inspect known holder outputs when inventory state is missing, including guarding inline-only module output through its external module inventory.
+Missing required origins or state produce a full-clean-rebuild error rather than silently omitting unseen beans or listeners.
+Obsolete processor-owned holder sources and class files are deleted without deleting business classes.
+Generated sources, class output and work state must be cleaned together when a full rebuild is required.
+
+Composition waits for source-producing processing rounds to settle before emitting owners and the module.
+An unannotated temporary package-only source requests another round without declaring a runtime type.
+The file deliberately is not named `package-info.java`, since ECJ can emit a class for that filename even without annotations.
+File-backed coordination sources are removed when processing finishes and are not packaged marker resources.
+Foreign package-only sources count as activity, and two consecutive quiet rounds allow a peer processor to introduce a source while consuming the first quiet round.
+JSR 269 does not expose other processors' pending writes, so this is not a guarantee for processors that deliberately wait through an arbitrary number of otherwise quiet rounds.
+Artifacts arriving after owner emission fail explicitly rather than silently disappearing from registration.
+
+== Compiler portability and named modules
+
+Source ownership starts with the standard processing-round roots and compiler element enclosure, not the presence of javac trees.
+On Java 18 and newer, the processor's multi-release JAR selects an implementation that calls the standard `Elements.getFileObjectOf` API directly, without reflection.
+The Java 17 base and Java 18 override are always built together using Maven 3 and JDK 21 or newer; the processor still runs on Java 17.
+Relocated internal classes retain the `META-INF/versions/18` resource prefix so the processor's classloader receives the correct implementation from the packaged JAR.
+On Java 17, its factory selects ECJ's public source-filename API when the element utilities belong to `org.eclipse.jdt`, or optional javac `Trees` integration otherwise.
+ECJ's `getFileObjectOf` implementation itself calls a Java 18 default method, so the Java 17 fallback obtains the outermost type's filename and accepts only existing `.java` files.
+Binary file objects returned by the standard API are not source origins, and ECJ's Java 17 fallback rejects non-source filenames.
+An unavailable or unsupported source-location API supplies no URI, which is never treated as proof that a type is an external dependency.
+Class-output discovery also supports compilers that require resource-read targets to exist by reserving an unopened Filer probe and immediately removing its file; no probe content is written or packaged.
+Without verifiable file origins, cached origins omitted from a subsequent compilation trigger full-clean-rebuild guidance rather than guessing whether their sources were deleted.
+Configure an explicit external `fusion.workdir` when the compiler cannot infer class output from a resource lookup.
+If class output cannot be located, holder inventories and origin guards use that work directory, and obsolete generated outputs are removed through the compiler's Filer.
+A previously generated Fusion module whose class output cannot be verified requires cleaning class output and work state together before recompilation, including when module generation is being disabled.
+File-backed outputs use filesystem deletion; non-file outputs delegate deletion to their file objects.
+If the compiler refuses `FileObject.delete()`, it retains ownership of those source buffers; JSR 269 supplies no portable way to force their removal through the Filer.
+In particular, javac's output wrapper can refuse deletion even when its underlying in-memory file manager supports it.
+The package-only coordination sources still declare no runtime type, and compiler-managed source retention does not add runtime marker classes or resources.
+
+A compilation containing named modules is partitioned into independent processor contexts by the owning `ModuleElement`.
+Each context resolves local types in its own module first, qualifies generated source and resource names with that module, and isolates work state by module name.
+This includes invented coordination sources and aggregate construction owners, which have no single business type from which the Filer could infer ownership.
+Identical package and model names in different modules therefore do not share fragment identities or generated owners.
+This partition applies with automatic Fusion module generation enabled or disabled.
+Normal Java module readability and service-provider declarations remain the application's responsibility.
+
+== Runtime discovery, packaging and native images
+
+Runtime registration uses the normal `FusionModule` ServiceLoader descriptor, not a second standalone-factory registry or packaged build-only discovery index.
+Required JSON Schema and OpenRPC resources remain at their configured paths, including paths outside `META-INF/fusion`.
+Generated native-image metadata registers the module descriptor and enabled schema/OpenRPC paths exactly rather than using a broad JSON resource glob.
+Disabled schema or OpenRPC generation does not register the corresponding resource.
+Configuration documentation, metadata-contributor discovery and external processor caches are not native runtime resource inputs.
+Generated CRDs are deployment documents and require explicit resource registration if application code reads them at runtime.
+Service descriptor merging and ServiceLoader provider analysis must be preserved when shading or building native images; resource inclusion alone does not instantiate providers.
+See xref:graalvm.adoc[native-image setup] for application packaging requirements.
+
+Current test registrations use normal automatic module discovery, enabled by default by `@FusionSupport`.
+`TestingModule` and `ListingPredicateModule` retain a local-output fallback for legacy or handwritten descriptors with public no-argument constructors.
+Explicit filename predicates apply only to that fallback and do not scan typed construction methods or filter ordinary module registrations.
+The fallback suppresses its own duplicate descriptor instance when an earlier module already registered that descriptor class, without removing that module's registrations.
+A shared adapter class is not used to deduplicate ordinary module registrations.
+See xref:testing.adoc[testing] for directory overrides and discovery controls.
+
+== Callback costs and measurement
+
+Typed lambdas and method references can create JVM hidden implementation classes when their call sites are linked.
+Non-capturing callback reuse does not imply that no callback implementation class exists.
+Fewer named generated application class files therefore does not imply fewer total loaded classes, smaller total bytecode or lower memory usage.
+Bean factory callbacks and per-property JSON accessors can increase callback-site and hidden-class costs even when named output is consolidated.
+Persistence checked method references have the same distinction between compiler-emitted owner classes and runtime callback classes.
+Source budgets limit composition growth but do not establish native-image size, startup, memory or throughput improvements.
+Measure these separately for the application and target toolchain, and distinguish generated source bytes, named class files, callback sites and linked hidden classes when comparing output.
+Tests of application behavior should use registered types and supported contracts rather than helper names, shard counts or adapter-class identity.

@@ -19,7 +19,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 
 import static java.lang.annotation.ElementType.ANNOTATION_TYPE;
-import static java.lang.annotation.RetentionPolicy.SOURCE;
+import static java.lang.annotation.RetentionPolicy.CLASS;
 
 /**
  * Marks an annotation which will behave exactly as {@link BeanMetadata} but hardcoding
@@ -28,8 +28,8 @@ import static java.lang.annotation.RetentionPolicy.SOURCE;
  * <p>
  * This enables to expose a more specialized API.
  * <p>
- * Concretely it will generate a {@link io.yupiik.fusion.framework.build.api.metadata.spi.MetadataContributor}.
- * It is recommended to make it a build time only module (scope provided) but not required.
+ * The annotation processor reads this metadata from annotation types in sources or dependency class files.
+ * No contributor implementation or alias resource is generated.
  * It is only consumed by the annotation processor (fusion-processor) and not the runtime.
  * <p>
  * Common examples are:
@@ -38,7 +38,7 @@ import static java.lang.annotation.RetentionPolicy.SOURCE;
  *     <li>Fixed name to have a {@code @MyName(value)} API</li>
  * </ul>
  */
-@Retention(SOURCE)
+@Retention(CLASS)
 @Target(ANNOTATION_TYPE)
 public @interface BeanMetadataAlias {
     String UNSET = "__io.yupiik.fusion.framework.build.api.metadata.BeanMetadataAlias__";
@@ -49,7 +49,7 @@ public @interface BeanMetadataAlias {
     String name() default UNSET;
 
     /**
-     * @return the default value of the metadata if {@code name()} is not defined in the decorated annotation.
+     * @return the default value of the metadata if {@code value()} is not defined in the decorated annotation.
      */
     String value() default UNSET;
 }

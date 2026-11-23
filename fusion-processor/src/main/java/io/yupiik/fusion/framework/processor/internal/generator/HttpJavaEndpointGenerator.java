@@ -15,32 +15,15 @@
  */
 package io.yupiik.fusion.framework.processor.internal.generator;
 
-import io.yupiik.fusion.framework.api.Instance;
-import io.yupiik.fusion.framework.api.RuntimeContainer;
-import io.yupiik.fusion.framework.api.container.FusionBean;
-import io.yupiik.fusion.framework.api.container.bean.BaseBean;
 import io.yupiik.fusion.framework.build.api.http.HttpJavaMatcher;
-import io.yupiik.fusion.framework.build.api.http.HttpMatcher;
-import io.yupiik.fusion.framework.build.api.json.JsonModel;
 import io.yupiik.fusion.framework.processor.internal.Elements;
-import io.yupiik.fusion.framework.processor.internal.ParsedType;
 import io.yupiik.fusion.framework.processor.internal.metadata.MetadataContributorRegistry;
-import io.yupiik.fusion.http.server.api.Request;
-import io.yupiik.fusion.http.server.api.Response;
-import io.yupiik.fusion.http.server.impl.DefaultEndpoint;
-import io.yupiik.fusion.http.server.impl.matcher.CaseInsensitiveValuesMatcher;
-import io.yupiik.fusion.http.server.impl.matcher.PatternMatcher;
-import io.yupiik.fusion.http.server.impl.matcher.ValueMatcher;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.ExecutableElement;
-import java.util.List;
-import java.util.Objects;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
-import java.util.stream.Stream;
 
-import static java.util.stream.Collectors.joining;
 
 public class HttpJavaEndpointGenerator extends BaseHttpEndpointGenerator implements Supplier<BaseHttpEndpointGenerator.Generation> {
     private static final String SUFFIX = "$FusionHttpJavaEndpoint";
@@ -54,64 +37,8 @@ public class HttpJavaEndpointGenerator extends BaseHttpEndpointGenerator impleme
 
     @Override
     public Generation get() {
-        final var packagePrefix = packageName == null || packageName.isBlank() ? "" : (packageName + '.');
-        final var packageLine = packagePrefix.isBlank() ? "" : ("package " + packageName + ";\n\n");
         final var matcher = method.getAnnotation(HttpJavaMatcher.class);
-        final var endpointClassName = className + SUFFIX;
-
-        // drop the method name to get the enclosing one
-        final var enclosingClassName = className.substring(0, className.lastIndexOf('$')).replace('$', '.');
-        final var returnType = ParsedType.of(method.getReturnType());
-        final var params = prepareParams();
-        final boolean isReturnTypeJson = isJson(returnType) || method.getReturnType().getAnnotation(JsonModel.class) != null;
-
-        final var nestedBean = generateBean ?
-                nestedBean(endpointClassName, findScope(method), findPriority(method), metadata(method),
-                        createBeanInstance(isReturnTypeJson, endpointClassName, enclosingClassName, params)) :
-                null;
-        return new Generation(
-                new GeneratedClass(packagePrefix + endpointClassName, packageLine +
-                        generationVersion() +
-                        "public class " + endpointClassName + " extends " + DefaultEndpoint.class.getName() + " {\n" +
-                        declareConstructor(endpointClassName, enclosingClassName, params, isReturnTypeJson) +
-                        "    super(\n" +
-                        "      " + matcher.priority() + ",\n" +
-                        "      req -> " + matcher.value() + ",\n" +
-                        "      " + handler(params, returnType, isReturnTypeJson) + ");\n" +
-                        "  }\n" +
-                        (nestedBean == null ? "" : nestedBean) +
-                        "}\n" +
-                        "\n"),
-                nestedBean == null ? null : packagePrefix + endpointClassName + '.' + FusionBean.class.getSimpleName());
-    }
-
-    private String handler(final List<Param> params, final ParsedType returnType, final boolean returnJson) {
-        final var asyncParams = params.stream().filter(p -> p.promiseName() != null).toList();
-        final var out = new StringBuilder();
-        int indent = 0;
-        for (final var param : asyncParams) {
-            out.append((param.invocation() + "\n          .thenCompose(" + param.promiseName() + " ->\n").indent(indent));
-            indent += 2;
-        }
-
-        out.append(forceCompletionStageResult(returnType, "" +
-                "root." + method.getSimpleName() + "(" +
-                params.stream()
-                        .map(it -> it.promiseName() != null ? it.promiseName() : it.invocation())
-                        .collect(joining(", ")) +
-                ")").indent(indent + "          ".length()).stripTrailing());
-
-        if (!asyncParams.isEmpty()) {
-            out.append(")".repeat(asyncParams.size()));
-        }
-
-        final var body = out +
-                (!returnJson ? "" : "\n" +
-                        "          .thenApply(jsonResult -> " + Response.class.getName() + ".of()\n" +
-                        "            .status(200)\n" +
-                        "            .header(\"content-type\", \"application/json;charset=utf-8\")\n" +
-                        "            .body(jsonMapper.toString(jsonResult))\n" +
-                        "            .build())");
-        return requestParameterName(body) + " -> " + body;
+        final var body = matcher.value().strip();
+        return compactHttp(SUFFIX, matcher.priority(), body.startsWith("{") ? body : "return " + body + ";", "null");
     }
 }

@@ -31,13 +31,20 @@ public final class PreparePackaging {
 
     public static void main(final String... args) throws IOException {
         final var classes = Path.of(args[0]);
-        final var newOutBase = classes.resolve("fusion/annotationprocessor/precompiled");
         Files.walkFileTree(classes, new SimpleFileVisitor<>() {
             @Override
             public FileVisitResult visitFile(final Path file, final BasicFileAttributes attrs) throws IOException {
                 final var relative = classes.relativize(file).toString().replace(File.separatorChar, '/');
                 if (file.getFileName().toString().endsWith(".class") && relative.contains("/internal/")) {
-                    final var target = newOutBase.resolve(relative + 'F' /* don't let the IDE think it is a class */);
+                    final String relocated;
+                    if (relative.startsWith("META-INF/versions/")) {
+                        final var versionEnd = relative.indexOf('/', "META-INF/versions/".length());
+                        relocated = relative.substring(0, versionEnd + 1) + "fusion/annotationprocessor/precompiled/" +
+                                relative.substring(versionEnd + 1);
+                    } else {
+                        relocated = "fusion/annotationprocessor/precompiled/" + relative;
+                    }
+                    final var target = classes.resolve(relocated + 'F' /* don't let the IDE think it is a class */);
                     Files.createDirectories(target.getParent());
                     Files.move(file, target, StandardCopyOption.REPLACE_EXISTING);
                 }

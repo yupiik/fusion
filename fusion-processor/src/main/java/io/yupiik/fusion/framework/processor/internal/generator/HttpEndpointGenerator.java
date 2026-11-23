@@ -15,27 +15,12 @@
  */
 package io.yupiik.fusion.framework.processor.internal.generator;
 
-import io.yupiik.fusion.framework.api.Instance;
-import io.yupiik.fusion.framework.api.RuntimeContainer;
-import io.yupiik.fusion.framework.api.container.FusionBean;
-import io.yupiik.fusion.framework.api.container.bean.BaseBean;
 import io.yupiik.fusion.framework.build.api.http.HttpMatcher;
-import io.yupiik.fusion.framework.build.api.json.JsonModel;
 import io.yupiik.fusion.framework.processor.internal.Elements;
-import io.yupiik.fusion.framework.processor.internal.ParsedType;
 import io.yupiik.fusion.framework.processor.internal.metadata.MetadataContributorRegistry;
-import io.yupiik.fusion.http.server.api.Request;
-import io.yupiik.fusion.http.server.api.Response;
-import io.yupiik.fusion.http.server.impl.DefaultEndpoint;
-import io.yupiik.fusion.http.server.impl.matcher.CaseInsensitiveValuesMatcher;
-import io.yupiik.fusion.http.server.impl.matcher.PatternMatcher;
-import io.yupiik.fusion.http.server.impl.matcher.ValueMatcher;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.ExecutableElement;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
@@ -54,94 +39,31 @@ public class HttpEndpointGenerator extends BaseHttpEndpointGenerator implements 
 
     @Override
     public Generation get() {
-        final var packagePrefix = packageName == null || packageName.isBlank() ? "" : (packageName + '.');
-        final var packageLine = packagePrefix.isBlank() ? "" : ("package " + packageName + ";\n\n");
         final var matcher = method.getAnnotation(HttpMatcher.class);
-        final var endpointClassName = className + SUFFIX;
-
-        // drop the method name to get the enclosing one
-        final var enclosingClassName = className.substring(0, className.lastIndexOf('$')).replace('$', '.');
-        final var returnType = ParsedType.of(method.getReturnType());
-        final var params = prepareParams();
-        final boolean isReturnTypeJson = isJson(returnType) || method.getReturnType().getAnnotation(JsonModel.class) != null;
-
-        final var nestedBean = generateBean ?
-                nestedBean(endpointClassName, findScope(method), findPriority(method), metadata(method),
-                        createBeanInstance(isReturnTypeJson, endpointClassName, enclosingClassName, params)) :
-                null;
-        return new Generation(
-                new GeneratedClass(packagePrefix + endpointClassName, packageLine +
-                        generationVersion() +
-                        "public class " + endpointClassName + " extends " + DefaultEndpoint.class.getName() + " {\n" +
-                        declareConstructor(endpointClassName, enclosingClassName, params, isReturnTypeJson) +
-                        "    super(\n" +
-                        "      " + matcher.priority() + ",\n" +
-                        "      " + matcherOf(matcher) + ",\n" +
-                        "      " + handler(params, returnType, isReturnTypeJson) + ");\n" +
-                        "  }\n" +
-                        (nestedBean == null ? "" : nestedBean) +
-                        "}\n" +
-                        "\n"),
-                nestedBean == null ? null : packagePrefix + endpointClassName + '.' + FusionBean.class.getSimpleName());
-    }
-
-    private String handler(final List<Param> params, final ParsedType returnType, final boolean returnJson) {
-        final var asyncParams = params.stream().filter(p -> p.promiseName() != null).toList();
         final var out = new StringBuilder();
-        int indent = 0;
-        for (final var param : asyncParams) {
-            out.append((param.invocation() + "\n          .thenCompose(" + param.promiseName() + " ->\n").indent(indent));
-            indent += 2;
+        if (matcher.methods().length > 0) {
+            out.append("if (!(").append(Stream.of(matcher.methods())
+                    .map(m -> "\"" + escape(m) + "\".equalsIgnoreCase(req.method())").collect(joining(" || ")))
+                    .append(")) { return false; }\n");
         }
-
-        out.append(forceCompletionStageResult(returnType, "" +
-                "root." + method.getSimpleName() + "(" +
-                params.stream()
-                        .map(it -> it.promiseName() != null ? it.promiseName() : it.invocation())
-                        .collect(joining(", ")) +
-                ")").indent(indent + "          ".length()).stripTrailing());
-
-        if (!asyncParams.isEmpty()) {
-            out.append(")".repeat(asyncParams.size()));
+        if (!"IGNORED".equals(matcher.pathMatching().name())) {
+            out.append("if (req.path() == null) { return false; }\n");
         }
-
-        final var body = out +
-                (!returnJson ? "" : "\n" +
-                        "          .thenApply(jsonResult -> " + Response.class.getName() + ".of()\n" +
-                        "            .status(200)\n" +
-                        "            .header(\"content-type\", \"application/json;charset=utf-8\")\n" +
-                        "            .body(jsonMapper.toString(jsonResult))\n" +
-                        "            .build())");
-        return requestParameterName(body) + " -> " + body;
+        final var path = "\"" + escape(matcher.path()) + "\"";
+        switch (matcher.pathMatching()) {
+            case IGNORED -> out.append("return true;");
+            case EXACT -> out.append("return ").append(path).append(".equals(req.path());");
+            case STARTS_WITH -> out.append("return req.path().startsWith(").append(path).append(");");
+            case ENDS_WITH -> out.append("return req.path().endsWith(").append(path).append(");");
+            case REGEX -> out.append("final var matcher = pattern.matcher(req.path());\n")
+                    .append("if (!matcher.matches()) { return false; }\n")
+                    .append("req.setAttribute(\"fusion.http.matcher\", matcher);\nreturn true;");
+        }
+        return compactHttp(SUFFIX, matcher.priority(), out.toString(),
+                "REGEX".equals(matcher.pathMatching().name()) ? "java.util.regex.Pattern.compile(" + path + ")" : "null");
     }
 
-    private String matcherOf(final HttpMatcher matcher) {
-        final var matchers = Stream.of(
-                        // optimised method matcher
-                        switch (matcher.methods().length) {
-                            case 0 -> null;
-                            case 1 -> "new " + ValueMatcher.class.getName() + "<>(" +
-                                    Request.class.getName() + "::method, \"" + matcher.methods()[0] + "\", String::equalsIgnoreCase)";
-                            default -> "new " + CaseInsensitiveValuesMatcher.class.getName() + "<>(" +
-                                    Request.class.getName() + "::method, " +
-                                    Stream.of(matcher.methods()).map(it -> "\"" + it + "\"").collect(joining(", ")) + ")";
-                        },
-                        // optimised path matcher
-                        switch (matcher.pathMatching()) {
-                            case IGNORED -> null;
-                            case EXACT -> "new " + ValueMatcher.class.getName() + "<>(" +
-                                    Request.class.getName() + "::path, \"" + matcher.path() + "\")";
-                            case REGEX -> "new " + PatternMatcher.class.getName() + "<>(" +
-                                    Request.class.getName() + "::path,  \"" + matcher.path() + "\", (req, matcher) -> req.setAttribute(\"fusion.http.matcher\", matcher))";
-                            case STARTS_WITH -> "new " + ValueMatcher.class.getName() + "<>(" +
-                                    Request.class.getName() + "::path, \"" + matcher.path() + "\", String::startsWith)";
-                            case ENDS_WITH -> "new " + ValueMatcher.class.getName() + "<>(" +
-                                    Request.class.getName() + "::path, \"" + matcher.path() + "\", String::endsWith)";
-                        })
-                .filter(Objects::nonNull)
-                .toList();
-        return matchers.isEmpty() ?
-                requestParameterName("true") + " -> true" :
-                matchers.stream().collect(joining(")\n          .and(", "(", ")"));
+    private static String escape(final String value) {
+        return value.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r");
     }
 }

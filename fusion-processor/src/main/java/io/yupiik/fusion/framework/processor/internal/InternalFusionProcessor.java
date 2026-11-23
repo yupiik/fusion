@@ -18,7 +18,6 @@ package io.yupiik.fusion.framework.processor.internal;
 import io.yupiik.fusion.framework.api.container.FusionBean;
 import io.yupiik.fusion.framework.api.container.FusionListener;
 import io.yupiik.fusion.framework.api.container.FusionModule;
-import io.yupiik.fusion.framework.api.container.context.subclass.DelegatingContext;
 import io.yupiik.fusion.framework.api.scope.ApplicationScoped;
 import io.yupiik.fusion.framework.api.scope.DefaultScoped;
 import io.yupiik.fusion.framework.build.api.cli.Command;
@@ -37,7 +36,6 @@ import io.yupiik.fusion.framework.build.api.kubernetes.crd.CustomResourceDefinit
 import io.yupiik.fusion.framework.build.api.lifecycle.Destroy;
 import io.yupiik.fusion.framework.build.api.lifecycle.Init;
 import io.yupiik.fusion.framework.build.api.metadata.BeanMetadataAlias;
-import io.yupiik.fusion.framework.build.api.metadata.spi.MetadataContributor;
 import io.yupiik.fusion.framework.build.api.order.Order;
 import io.yupiik.fusion.framework.build.api.persistence.OnDelete;
 import io.yupiik.fusion.framework.build.api.persistence.OnInsert;
@@ -49,6 +47,7 @@ import io.yupiik.fusion.framework.processor.internal.Bean.FieldInjection;
 import io.yupiik.fusion.framework.processor.internal.generator.BaseGenerator;
 import io.yupiik.fusion.framework.processor.internal.generator.BeanConfigurationGenerator;
 import io.yupiik.fusion.framework.processor.internal.generator.BeanGenerator;
+import io.yupiik.fusion.framework.processor.internal.generator.BindingEmitter;
 import io.yupiik.fusion.framework.processor.internal.generator.CliCommandGenerator;
 import io.yupiik.fusion.framework.processor.internal.generator.ConfigurationFactoryGenerator;
 import io.yupiik.fusion.framework.processor.internal.generator.CrdDescriptorGenerator;
@@ -88,10 +87,8 @@ import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 import javax.tools.JavaFileObject;
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.lang.reflect.InvocationTargetException;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
@@ -109,13 +106,11 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
-import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.time.Clock.systemUTC;
-import static java.util.Collections.list;
 import static java.util.Comparator.comparing;
 import static java.util.Optional.empty;
 import static java.util.Optional.of;
@@ -124,7 +119,6 @@ import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.mapping;
-import static java.util.stream.Collectors.toCollection;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 import static java.util.stream.Collectors.toSet;
@@ -165,6 +159,7 @@ import static javax.tools.StandardLocation.CLASS_OUTPUT;
         "fusion.debug.timeTracking" // debug generation time reporting
 })
 @SupportedAnnotationTypes({
+        "*",
         // CLI
         "io.yupiik.fusion.framework.build.api.cli.Command",
         // JSON
@@ -247,7 +242,6 @@ public class InternalFusionProcessor extends AbstractProcessor {
     private final Collection<String> allBeans = new HashSet<>();
     private final Collection<String> allListeners = new HashSet<>();
     private final Collection<Docs.ClassDoc> allConfigurationsDocs = new HashSet<>();
-    private final Collection<String> metadataContributors = new HashSet<>();
     private Map<String, GeneratedJsonSchema> allJsonSchemas; // if null don't store them
     private Set<String> localJsonSchemas; // subset of allJsonSchemas keys owned by the compiled module (not loaded from dependencies)
     private PartialOpenRPC partialOpenRPC; // if null don't store them
@@ -257,6 +251,11 @@ public class InternalFusionProcessor extends AbstractProcessor {
     private String module;
     private Path outputRoot;
     private Path workdir;
+    private BindingEmitter bindings;
+    private JsonModelIndex modelIndex;
+    private boolean moduleGenerated;
+    private int quietRounds;
+    private final Map<String, InternalFusionProcessor> moduleProcessors = new TreeMap<>();
     private TypeMirror objectType;
 
     @Override
@@ -272,6 +271,8 @@ public class InternalFusionProcessor extends AbstractProcessor {
         clock = debugTime ? systemUTC() : null;
         outputRoot = findOutput().orElse(null);
         workdir = findWorkdir(outputRoot);
+        bindings = new BindingEmitter(processingEnv, workdir, outputRoot);
+        modelIndex = new JsonModelIndex(processingEnv, workdir, outputRoot);
 
         final var start = debugStart();
 
@@ -319,29 +320,13 @@ public class InternalFusionProcessor extends AbstractProcessor {
                 .map(it -> "true".equals(it) ? "META-INF/fusion/kubernetes/crd/" : it)
                 .orElse(null);
 
-        knownJsonModels = Boolean.parseBoolean(processingEnv.getOptions().getOrDefault("fusion.skipLoadingModules", "false")) ?
-                Set.of() :
-                Stream.concat(
-                                outputRoot != null && Files.exists(outputRoot) ? findAlreadyBuiltJsonModels(outputRoot) : Stream.empty(),
-                                findAvailableModules()
-                                        .flatMap(it -> {
-                                            try {
-                                                return it.beans();
-                                            } catch (final Error | RuntimeException error) {
-                                                // likely the module we are building - incremental compile which breaks the compile
-                                                return Stream.empty();
-                                            }
-                                        })
-                                        // we just use the naming convention to match
-                                        .map(it -> it.type().getTypeName())
-                                        .filter(it -> it.endsWith(JsonCodecGenerator.SUFFIX))
-                                        .map(name -> name.substring(0, name.length() - JsonCodecGenerator.SUFFIX.length())))
-                        .collect(toCollection(() -> new HashSet<>() {
-                            @Override
-                            public boolean contains(final Object key) {
-                                return containsInnerClass(super::contains, key);
-                            }
-                        }));
+        knownJsonModels = new HashSet<>(modelIndex.discover()) {
+            @Override
+            public boolean contains(final Object key) {
+                return containsInnerClass(super::contains, key) ||
+                        (key instanceof String name && modelIndex.isDependencyModel(name));
+            }
+        };
 
         if (docsMetadataLocation != null) {
             loadKnownDocs(processingEnv);
@@ -462,48 +447,138 @@ public class InternalFusionProcessor extends AbstractProcessor {
     }
 
     private Path findWorkdir(final Path outputRoot) {
+        // explicit option wins even when a compiler cannot locate a nonexistent output resource.
+        final var option = processingEnv.getOptions().get("fusion.workdir");
+        if ("false".equals(option)) {
+            return null;
+        }
+        if (option != null && !option.isBlank()) {
+            return processingEnv instanceof ModuleProcessingEnvironment scoped ?
+                    Path.of(option).resolve(scoped.moduleName()) : Path.of(option);
+        }
         if (outputRoot == null) {
             return null;
         }
+        if (processingEnv instanceof ModuleProcessingEnvironment scoped) {
+            return defaultWorkdir(outputRoot.getParent()).resolve(scoped.moduleName());
+        }
+        return defaultWorkdir(outputRoot);
+    }
+
+    private Path defaultWorkdir(final Path outputRoot) {
         final var outputName = outputRoot.getFileName();
         final var parentName = outputRoot.getParent() == null ? null : outputRoot.getParent().getFileName();
-        // explicit option wins; `false` disables the persistent state
-        final var option = processingEnv.getOptions().get("fusion.workdir");
-        if (option != null && !option.isBlank() && !"false".equals(option)) {
-            return Path.of(option);
-        }
         // maven: <project>/target/classes -> <project>/target/fusion (volatile, aligned with the maven lifecycle)
-        if (outputName != null && "classes".equals(outputName.toString()) &&
+        if (outputName != null && ("classes".equals(outputName.toString()) || "test-classes".equals(outputName.toString())) &&
                 parentName != null && "target".equals(parentName.toString())) {
-            return outputRoot.getParent().resolve("fusion");
+            return outputRoot.getParent().resolve("test-classes".equals(outputName.toString()) ? "fusion-test" : "fusion");
         }
         // gradle: <project>/build/classes/java/Main -> <project>/build/fusion (volatile, aligned with the gradle lifecycle)
-        if (outputName != null && "classes".equals(outputName.toString()) && outputRoot.getParent() != null) {
+        if (outputRoot.getParent() != null) {
             var p = outputRoot.getParent();
             while (p != null) {
                 final var segment = p.getFileName();
                 if (segment != null && "build".equals(segment.toString())) {
-                    return p.resolve("fusion");
+                    return p.resolve("fusion").resolve(p.relativize(outputRoot));
                 }
                 p = p.getParent();
             }
         }
-        return null;
+        return outputRoot.resolveSibling(".fusion-" + outputRoot.getFileName()).resolve("cache");
     }
 
     @Override
     public boolean process(final Set<? extends TypeElement> annotations, final RoundEnvironment roundEnv) {
+        if (!(processingEnv instanceof ModuleProcessingEnvironment) && processNamedModules(annotations, roundEnv)) {
+            return false;
+        }
+        return processRound(roundEnv, roundEnv.getRootElements().stream().anyMatch(it -> !isCoordinationSource(it)));
+    }
+
+    private boolean processRound(final RoundEnvironment roundEnv, final boolean sourceActivity) {
         if (roundEnv.processingOver()) {
+            bindings.deleteRoundSources();
             final var start = debugStart();
             generateMetadata();
             debugEnd("generateMeta", processingEnv, start);
         } else {
             final var start = debugStart();
+            roundEnv.getRootElements().forEach(bindings::touch);
+            roundEnv.getRootElements().forEach(modelIndex::touch);
+            knownJsonModels.clear();
+            knownJsonModels.addAll(modelIndex.discover());
             doProcess(roundEnv);
             debugEnd("doProcess", processingEnv, start);
-            generateImplicitModuleIfNeeded();
+            // Wait for source-producing rounds to settle. Package-only coordination
+            // sources request rounds without producing runtime classes or processor warnings.
+            if (sourceActivity) {
+                quietRounds = 0;
+                bindings.defer();
+            } else if (++quietRounds < 2) {
+                // A peer processor can produce a source while consuming our first quiet round.
+                bindings.defer();
+            } else {
+                generateImplicitModuleIfNeeded();
+            }
         }
         return false;
+    }
+
+    private boolean isCoordinationSource(final Element element) {
+        return bindings.isRoundSource(element);
+    }
+
+    private boolean processNamedModules(final Set<? extends TypeElement> annotations, final RoundEnvironment round) {
+        for (final var root : round.getRootElements()) {
+            final var owner = processingEnv.getElementUtils().getModuleOf(root);
+            if (owner != null && !owner.isUnnamed()) {
+                moduleProcessors.computeIfAbsent(owner.getQualifiedName().toString(), ignored -> {
+                    final var processor = new InternalFusionProcessor();
+                    processor.init(new ModuleProcessingEnvironment(processingEnv, owner));
+                    return processor;
+                });
+            }
+        }
+        if (moduleProcessors.isEmpty()) {
+            return false;
+        }
+        // Settling is invocation-wide: a peer's work in another module can still produce local artifacts.
+        final boolean sourceActivity = round.getRootElements().stream().anyMatch(root ->
+                moduleProcessors.values().stream().noneMatch(processor -> processor.isCoordinationSource(root)));
+        moduleProcessors.forEach((name, processor) -> processor.processRound(new RoundEnvironment() {
+            @Override
+            public boolean processingOver() {
+                return round.processingOver();
+            }
+
+            @Override
+            public boolean errorRaised() {
+                return round.errorRaised();
+            }
+
+            private Set<? extends Element> owned(final Set<? extends Element> elements) {
+                return elements.stream().filter(it -> {
+                    final var owner = processingEnv.getElementUtils().getModuleOf(it);
+                    return owner != null && owner.getQualifiedName().contentEquals(name);
+                }).collect(toSet());
+            }
+
+            @Override
+            public Set<? extends Element> getRootElements() {
+                return owned(round.getRootElements());
+            }
+
+            @Override
+            public Set<? extends Element> getElementsAnnotatedWith(final TypeElement annotation) {
+                return owned(round.getElementsAnnotatedWith(annotation));
+            }
+
+            @Override
+            public Set<? extends Element> getElementsAnnotatedWith(final Class<? extends java.lang.annotation.Annotation> annotation) {
+                return owned(round.getElementsAnnotatedWith(annotation));
+            }
+        }, sourceActivity));
+        return true;
     }
 
     private void doProcess(final RoundEnvironment roundEnv) {
@@ -561,6 +636,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
                 .filter(it -> it.getKind() == RECORD || it.getKind() == ENUM)
                 .map(it -> ((TypeElement) it).getQualifiedName().toString())
                 .toList());
+        jsonModels.forEach(modelIndex::add);
 
         // find configurations
         final var configurations = roundEnv.getElementsAnnotatedWith(RootConfiguration.class);
@@ -609,7 +685,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
 
         final var startJsonRpc = debugStart();
         if (!jsonRpcEndpoints.isEmpty()) { // after json models to get schemas - the projection is shared by all endpoints of the round
-            final var identifiedJsonSchemas = allJsonSchemas.entrySet().stream()
+            final var identifiedJsonSchemas = allJsonSchemas == null ? Map.<String, GeneratedJsonSchema>of() : allJsonSchemas.entrySet().stream()
                     .filter(it -> it.getValue().raw() != null || it.getValue().content().id() != null)
                     .collect(toMap(
                             it -> it.getValue().raw() != null ? it.getKey() : it.getValue().content().id(),
@@ -657,83 +733,14 @@ public class InternalFusionProcessor extends AbstractProcessor {
         debugEnd("generate", processingEnv, startGenerate);
     }
 
-    private Stream<? extends FusionModule> findAvailableModules() {
-        // we want ServiceLoader.load(FusionModule.class).stream() but this one would reload the generated one with incr compile
-        // so we do it programmatically - old style
-        try {
-            final var loader = Thread.currentThread().getContextClassLoader();
-            final var res = loader.getResources("META-INF/services/" + FusionModule.class.getName());
-            return list(res).stream()
-                    .flatMap(it -> {
-                        try (final var in = new BufferedReader(new InputStreamReader(it.openStream()))) {
-                            return in.lines()
-                                    .map(String::strip)
-                                    .filter(l -> !l.isBlank() && !l.startsWith("#"))
-                                    .map(l -> {
-                                        // only the module we are generating can be legitimately missing on an
-                                        // incremental compile (it is compiled at the end of the round); for any
-                                        // other failure surface it instead of silently dropping the module
-                                        final var beingBuilt = module != null && module.equals(l);
-                                        try {
-                                            final var constructor = loader.loadClass(l)
-                                                    .asSubclass(FusionModule.class)
-                                                    .getConstructor();
-                                            constructor.setAccessible(true);
-                                            return constructor.newInstance();
-                                        } catch (final NoClassDefFoundError | ClassNotFoundException |
-                                                       NoSuchMethodException | InstantiationException |
-                                                       IllegalAccessException | InvocationTargetException e) {
-                                            if (!beingBuilt) {
-                                                processingEnv.getMessager().printMessage(WARNING,
-                                                        "Cannot load FusionModule '" + l + "': " + e.getMessage());
-                                            }
-                                            return null;
-                                        }
-                                    })
-                                    .filter(Objects::nonNull)
-                                    .toList() // materialize before the close
-                                    .stream();
-                        } catch (final IOException e) {
-                            throw new IllegalStateException(e);
-                        }
-                    })
-                    .collect(toSet())
-                    .stream();
-        } catch (final IOException e) {
-            processingEnv.getMessager().printMessage(ERROR, e.getMessage());
-            return Stream.empty();
-        }
-    }
-
     private void generateMetadata() {
         try {
             generateConfMetadata();
             generateOpenRPCMetadata(); // before json metadata since we do use them
             generateJsonMetadata();
             generateNativeImageProperties();
-            generateMetadataContributorSPI();
         } catch (final IOException | RuntimeException e) {
             processingEnv.getMessager().printMessage(ERROR, e.getMessage());
-        }
-    }
-
-    private void generateMetadataContributorSPI() throws IOException {
-        if (metadataContributors.isEmpty()) {
-            return;
-        }
-
-        final var file = "META-INF/services/" + MetadataContributor.class.getName();
-        final var nativeImageProperties = processingEnv
-                .getFiler()
-                .createResource(CLASS_OUTPUT, "", file);
-        try (final var out = nativeImageProperties.openWriter()) {
-            out.write(metadataContributors.stream()
-                    .sorted()
-                    .collect(joining("\n")));
-        }
-
-        if (emitNotes) {
-            processingEnv.getMessager().printMessage(NOTE, "Generated '" + file + "'");
         }
     }
 
@@ -806,23 +813,43 @@ public class InternalFusionProcessor extends AbstractProcessor {
 
         final var filer = processingEnv.getFiler();
         final var lastDot = identifier.lastIndexOf('.');
-        final var base = "META-INF/native-image/" + identifier.substring(0, lastDot) + '/' + identifier.substring(lastDot + 1) + "__fusion/";
+        final var base = "META-INF/native-image/" + (lastDot < 0 ? "" : identifier.substring(0, lastDot) + '/') +
+                identifier.substring(lastDot + 1) + "__fusion/";
 
+        // Only runtime data and provider descriptors belong here. Configuration documentation,
+        // metadata contributors and incremental processor state are compile-time inputs.
+        final var resources = new TreeSet<String>();
+        resources.add("META-INF/services/io.yupiik.fusion.framework.api.container.FusionModule");
+        if (jsonSchemaLocation != null) {
+            resources.add(jsonSchemaLocation);
+        }
+        if (openrpcLocation != null) {
+            resources.add(openrpcLocation);
+        }
         final var reachabilityMetadata = filer.createResource(CLASS_OUTPUT, "", base + "reachability-metadata.json");
         try (final var out = reachabilityMetadata.openWriter()) {
-            out.write("""
-                    {
-                      "resources": [
-                        {
-                          "glob": "META-INF/fusion/**/*.json"
-                        }
-                      ]
-                    }""");
+            out.write(resources.stream()
+                    .map(this::nativeResourceGlob)
+                    .map(JsonStrings::escape)
+                    .map(it -> "{\"glob\":" + it + "}")
+                    .collect(joining(",", "{\"resources\":[", "]}")));
         }
 
         if (emitNotes) {
             processingEnv.getMessager().printMessage(NOTE, "Generated 'reachability-metadata.json'.");
         }
+    }
+
+    private String nativeResourceGlob(final String resource) {
+        final var glob = new StringBuilder(resource.length());
+        for (int i = 0; i < resource.length(); i++) {
+            final var character = resource.charAt(i);
+            if ("\\*?[]{}".indexOf(character) != -1) {
+                glob.append('\\');
+            }
+            glob.append(character);
+        }
+        return glob.toString();
     }
 
     private void generateConfMetadata() throws IOException {
@@ -1046,13 +1073,15 @@ public class InternalFusionProcessor extends AbstractProcessor {
         final var names = ParsedName.of(element);
         try {
             if (element.getKind() == ENUM) {
-                if (!beanForJsonCodecs) {
-                    return;
-                }
                 final var generation = new JsonCodecEnumBeanGenerator(
                         processingEnv, elements, metadataContributorRegistry, names.packageName(), names.className(), element.asType()).get();
                 writeGeneratedClass(element, generation);
-                allBeans.add(generation.name());
+                if (beanForJsonCodecs) {
+                    allBeans.add(generation.name());
+                }
+                if (allJsonSchemas == null) {
+                    return;
+                }
 
                 final var descriptions = element.getEnclosedElements().stream()
                         .filter(e -> e.getKind() == ENUM_CONSTANT)
@@ -1063,7 +1092,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
                                 .orElse(null))
                         .filter(Objects::nonNull)
                         .collect(joining(", "));
-                final var schemaKey = names.packageName() + '.' + names.className().replace('$', '.');
+                final var schemaKey = element.getQualifiedName().toString();
                 allJsonSchemas.put(schemaKey,
                         new GeneratedJsonSchema(
                                 new JsonSchema(
@@ -1090,7 +1119,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
             }
             writeGeneratedClass(model, generation);
             jsonModels.put(generation.name(), element);
-            if (beanForJsonCodecs) { // the bean is a nested class of the codec to keep a single compilation unit
+            if (beanForJsonCodecs) { // Keep the former nested bean name as its stable artifact identity.
                 allBeans.add(generation.name() + '.' + FusionBean.class.getSimpleName());
             }
         } catch (final IOException | RuntimeException e) {
@@ -1098,7 +1127,6 @@ public class InternalFusionProcessor extends AbstractProcessor {
         }
     }
 
-    // todo: make it faster by bypassing class generation?
     private void generateReusableConfigurationDoc(final Element confElt) {
         if (docsMetadataLocation == null) {
             processingEnv.getMessager().printMessage(ERROR, "'" + confElt + "' but metadata generation not enabled for the doc models.");
@@ -1111,7 +1139,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
 
         final var names = ParsedName.of(element);
         try {
-            // reuse root configuration generator but ignore the generated class
+            // Reuse root configuration parsing, discarding the binding fragments.
             final var generation = new ConfigurationFactoryGenerator(
                     processingEnv, elements, metadataContributorRegistry, names.packageName(), names.className(), element,
                     configurationEnumValueOfCache, false, knownDocs).get();
@@ -1129,15 +1157,11 @@ public class InternalFusionProcessor extends AbstractProcessor {
             return;
         }
 
-        final var names = ParsedName.of(element);
         try {
             final var generation = new MetadataContributorGenerator(
-                    processingEnv, elements, names.packageName(), names.className(),
-                    elt.getAnnotation(BeanMetadataAlias.class), element).get();
-            writeGeneratedClass(elt, generation.generatedClass());
-            metadataContributors.add(generation.generatedClass().name());
-            metadataContributorRegistry.register(generation.contributor());
-        } catch (final IOException | RuntimeException e) {
+                    processingEnv.getElementUtils(), element).get();
+            metadataContributorRegistry.register(generation);
+        } catch (final RuntimeException e) {
             processingEnv.getMessager().printMessage(ERROR, e.getMessage());
         }
     }
@@ -1183,7 +1207,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
                     .get();
             writeGeneratedClass(method, generation.endpoint());
 
-            if (generation.beanClassName() != null) { // the bean is nested in the generated class
+            if (generation.beanClassName() != null) { // Stable identity of the optional bean companion.
                 allBeans.add(generation.beanClassName());
             }
         } catch (final IOException | RuntimeException e) {
@@ -1208,7 +1232,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
                     .get();
             writeGeneratedClass(entity, generation.entity());
 
-            if (generation.beanClassName() != null) { // the bean is nested in the generated class
+            if (generation.beanClassName() != null) { // Stable identity of the optional bean companion.
                 allBeans.add(generation.beanClassName());
             }
         } catch (final IOException | RuntimeException e) {
@@ -1231,7 +1255,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
             writeGeneratedClass(method, generation.endpoint());
             // todo: openapi?
 
-            if (generation.beanClassName() != null) { // the bean is nested in the generated class
+            if (generation.beanClassName() != null) { // Stable identity of the optional bean companion.
                 allBeans.add(generation.beanClassName());
             }
         } catch (final IOException | RuntimeException e) {
@@ -1254,7 +1278,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
             writeGeneratedClass(method, generation.endpoint());
             // todo: openapi?
 
-            if (generation.beanClassName() != null) { // the bean is nested in the generated class
+            if (generation.beanClassName() != null) { // Stable identity of the optional bean companion.
                 allBeans.add(generation.beanClassName());
             }
         } catch (final IOException | RuntimeException e) {
@@ -1280,7 +1304,7 @@ public class InternalFusionProcessor extends AbstractProcessor {
                     .get();
             writeGeneratedClass(runnable, generation.command());
 
-            if (generation.beanClassName() != null) { // the bean is nested in the generated class
+            if (generation.beanClassName() != null) { // Stable identity of the optional bean companion.
                 allBeans.add(generation.beanClassName());
             }
         } catch (final IOException | RuntimeException e) {
@@ -1304,13 +1328,39 @@ public class InternalFusionProcessor extends AbstractProcessor {
     }
 
     private void generateImplicitModuleIfNeeded() {
-        if ((allBeans.isEmpty() && allListeners.isEmpty()) ||
-                !Boolean.parseBoolean(processingEnv.getOptions().getOrDefault("fusion.generateModule", "true"))) {
+        if (moduleGenerated) {
             return;
         }
-
-        final var moduleName = findOrCreateModuleName();
         try {
+            if (outputRoot == null && workdir != null && Files.exists(workdir.resolve("generated-module")) &&
+                    !Files.readString(workdir.resolve("generated-module"), UTF_8).isBlank()) {
+                throw new IllegalStateException("Cannot verify previous generated module output with this compiler; perform a full clean rebuild (including class output and work state)");
+            }
+            if (outputRoot != null && bindings.hadArtifacts() &&
+                    !Files.exists(outputRoot.resolveSibling(".fusion-" + outputRoot.getFileName()).resolve("generated-module"))) {
+                final var index = outputRoot.resolve("META-INF/services/" + FusionModule.class.getName());
+                if (Files.exists(index) && !Files.readString(index, UTF_8).isBlank()) {
+                    throw new IllegalStateException("Missing generated module build state beside existing output; perform a full clean rebuild");
+                }
+            }
+            modelIndex.emit();
+            final boolean generateModule = Boolean.parseBoolean(processingEnv.getOptions().getOrDefault("fusion.generateModule", "true"));
+            final var moduleName = generateModule ? findOrCreateModuleName() : null;
+            bindings.emit(generated -> {
+                try {
+                    doWriteGeneratedClass(generated, processingEnv.getFiler().createSourceFile(generated.name()));
+                } catch (final IOException e) {
+                    throw new IllegalStateException(e);
+                }
+            }, moduleName);
+            allBeans.addAll(bindings.registrations("bean"));
+            allListeners.addAll(bindings.registrations("listener"));
+            if ((allBeans.isEmpty() && allListeners.isEmpty() && !bindings.hadArtifacts() && !bindings.hasModuleConstruction()) ||
+                    !generateModule) {
+                retireGeneratedModule(null);
+                moduleGenerated = true;
+                return;
+            }
             final var spiLocation = "META-INF/services/" + FusionModule.class.getName();
             // A processor runs per compilation unit/round: on incremental builds (IDE, Gradle, maven useIncrementalCompilation)
             // only a subset of the sources is ever seen by one invocation, so the current round state is NOT the whole
@@ -1319,6 +1369,8 @@ public class InternalFusionProcessor extends AbstractProcessor {
             // prune entries whose generated class no longer exists on the classpath (deletions).
             final var beans = loadModuleBeans(moduleName);
             final var listeners = loadModuleListeners(moduleName);
+            beans.removeIf(it -> bindings.wasBinding(it) && !bindings.contains(it));
+            listeners.removeIf(it -> bindings.wasBinding(it) && !bindings.contains(it));
             prune(beans, listeners);
             beans.addAll(allBeans);
             listeners.addAll(allListeners);
@@ -1334,13 +1386,15 @@ public class InternalFusionProcessor extends AbstractProcessor {
                     .toList();
             final var names = ParsedName.of(moduleName);
             final var module = new ModuleGenerator(processingEnv, elements, metadataContributorRegistry, names.packageName(), names.className(),
-                    sortedBeans, sortedListeners)
+                    bindings.registrationCalls(sortedBeans), bindings.registrationCalls(sortedListeners), bindings.moduleHelpers())
                     .get();
             doWriteGeneratedClass(module, processingEnv.getFiler().createSourceFile(module.name()));
+            retireGeneratedModule(moduleName);
 
             // clean internal state
             allBeans.clear();
             allListeners.clear();
+            moduleGenerated = true;
         } catch (final IOException | RuntimeException e) {
             processingEnv.getMessager().printMessage(ERROR, e.getMessage());
         }
@@ -1371,6 +1425,28 @@ public class InternalFusionProcessor extends AbstractProcessor {
         if (emitNotes) {
             processingEnv.getMessager().printMessage(NOTE, "Generated '" + spiLocation + "'");
         }
+    }
+
+    private void retireGeneratedModule(final String current) throws IOException {
+        if (outputRoot == null) {
+            if (workdir != null) {
+                Files.createDirectories(workdir);
+                Files.writeString(workdir.resolve("generated-module"), current == null ? "" : current, UTF_8);
+            }
+            return;
+        }
+        final var state = outputRoot.resolveSibling(".fusion-" + outputRoot.getFileName()).resolve("generated-module");
+        final var previous = Files.exists(state) ? Files.readString(state, UTF_8).strip() : "";
+        if (!previous.isEmpty() && !previous.equals(current)) {
+            final var index = outputRoot.resolve("META-INF/services/" + FusionModule.class.getName());
+            if (Files.exists(index)) {
+                final var retained = Files.readAllLines(index, UTF_8).stream().filter(it -> !it.strip().equals(previous)).toList();
+                Files.write(index, retained, UTF_8);
+            }
+            BindingEmitter.deleteGeneratedClass(processingEnv, outputRoot, previous);
+        }
+        Files.createDirectories(state.getParent());
+        Files.writeString(state, current == null ? "" : current, UTF_8);
     }
 
     private Path moduleStateFile(final String moduleName) {
@@ -1437,6 +1513,9 @@ public class InternalFusionProcessor extends AbstractProcessor {
     }
 
     private boolean isGeneratedClassGone(final String name) {
+        if (bindings.contains(name)) {
+            return false;
+        }
         // a FusionBean/FusionListener generated class lives next to the owner type in the classes dir;
         // if it is gone the source was deleted (or never generated) so we must not reference it anymore.
         // we can only state that reliably when the class output is reachable: otherwise (embedded javac, forked
@@ -1454,24 +1533,37 @@ public class InternalFusionProcessor extends AbstractProcessor {
     }
 
     private boolean isJsonModelKnown(final String name) { // works thanks containsInnerClass() wiring
-        return knownJsonModels.contains(name) || allJsonSchemas.containsKey(name) || jsonModels.containsKey(name);
+        // Optional schema caches may outlive a model's annotation; they are not discovery metadata.
+        return knownJsonModels.contains(name) || jsonModels.containsKey(name);
     }
 
     private String findOrCreateModuleName() {
         if (module == null) {
-            module = ofNullable(processingEnv.getOptions().get("fusion.moduleFqn")).orElseGet(this::findModuleName);
+            module = processingEnv.getOptions().get("fusion.moduleFqn");
+            if (module == null && outputRoot != null) {
+                final var spi = outputRoot.resolve("META-INF/services/" + FusionModule.class.getName());
+                if (Files.exists(spi)) {
+                    try (final var lines = Files.lines(spi)) {
+                        module = lines.filter(it -> it.endsWith("FusionGeneratedModule")).findFirst().orElse(null);
+                    } catch (final IOException e) {
+                        throw new IllegalStateException(e);
+                    }
+                }
+            }
+            if (module == null) {
+                module = findModuleName();
+            }
         }
         return module;
     }
 
     private void generateProducerBean(final ExecutableElement method) {
         final var enclosingElement = (TypeElement) method.getEnclosingElement();
-        final var enclosingName = enclosingElement.getQualifiedName().toString();
         final var names = ParsedName.of(enclosingElement);
         final var suffix = "$" + FusionBean.class.getSimpleName() + "$" + method.getSimpleName().toString();
 
         try {
-            final var bean = new MethodBeanGenerator(processingEnv, elements, metadataContributorRegistry, enclosingName, names.packageName(), names.className() + suffix, method).get();
+            final var bean = new MethodBeanGenerator(processingEnv, elements, metadataContributorRegistry, names.packageName(), names.className() + suffix, method).get();
             writeGeneratedClass(method, bean);
             allBeans.add(bean.name());
         } catch (final IOException | RuntimeException e) {
@@ -1487,9 +1579,11 @@ public class InternalFusionProcessor extends AbstractProcessor {
                 final var subclass = new SubclassGenerator(processingEnv, elements, metadataContributorRegistry, names.packageName(), names.className(), te).get();
                 writeGeneratedClass(src.enclosing(), subclass);
                 data = Map.of("fusion.framework.subclasses.delegate",
-                        "(" + Function.class.getName() + "<" + DelegatingContext.class.getName() + "<" +
-                                names.className().replace('$', '.') + ">, " + names.className().replace('$', '.') + ">)" +
-                                " context -> new " + subclass.name() + "(context)");
+                        "(java.util.function.Function<io.yupiik.fusion.framework.api.container.context.subclass.DelegatingContext" +
+                                (te.getTypeParameters().isEmpty() ? "<" + te.getQualifiedName() + ">" : "") +
+                                ", " + te.getQualifiedName() + ">) " +
+                                (names.packageName().isBlank() ? "" : names.packageName() + '.') +
+                                names.className() + "$FusionSubclass::new");
             } else {
                 data = Map.of();
             }
@@ -1545,6 +1639,12 @@ public class InternalFusionProcessor extends AbstractProcessor {
     }
 
     private void writeGeneratedClass(final Element relatedTo, final BaseGenerator.GeneratedClass generated) throws IOException {
+        if (!generated.artifacts().isEmpty()) {
+            bindings.add(relatedTo, generated);
+            if (generated.content() == null) {
+                return;
+            }
+        }
         doWriteGeneratedClass(generated, processingEnv.getFiler().createSourceFile(generated.name(), relatedTo));
     }
 
@@ -1601,45 +1701,24 @@ public class InternalFusionProcessor extends AbstractProcessor {
 
     private Optional<Path> findOutput() {
         try {
-            final var uri = processingEnv.getFiler().getResource(CLASS_OUTPUT, "", "fusion_marker_not_used_anywhere").toUri();
+            URI uri;
+            try {
+                uri = processingEnv.getFiler().getResource(CLASS_OUTPUT, "", "fusion_marker_not_used_anywhere").toUri();
+            } catch (final IOException missingResource) {
+                // ECJ requires getResource's target to exist. Reserve an unopened probe instead;
+                // no content is written and no build-only resource is retained in class output.
+                uri = processingEnv.getFiler().createResource(CLASS_OUTPUT, "", "fusion_marker_not_used_anywhere").toUri();
+                if ("file".equals(uri.getScheme())) {
+                    Files.deleteIfExists(Path.of(uri));
+                }
+            }
             if (!"file".equals(uri.getScheme())) {
                 return Optional.empty();
             }
-            final var outputRoot = Path.of(uri.getPath()).getParent();
+            final var outputRoot = Path.of(uri).getParent();
             return of(outputRoot);
         } catch (final RuntimeException | IOException re) {
             return Optional.empty();
-        }
-    }
-
-    private Stream<String> findAlreadyBuiltJsonModels(final Path outputRoot) {
-        try {
-            final var path = outputRoot.resolve("META-INF/fusion/json/schemas.json");
-            if (Files.notExists(path)) {
-                return Stream.empty();
-            }
-
-            final var content = Files.readString(path);
-            int start = 0;
-            final var out = new HashSet<String>();
-            while (true) {
-                final int next = content.indexOf("\"$id\":\"", start);
-                if (next < 0) {
-                    return out.stream();
-                }
-
-                start = next + "\"$id\":\"".length();
-                final int end = content.indexOf("\"", start);
-                if (end < 0) {
-                    return out.stream();
-                }
-
-                out.add(content.substring(start, end));
-                start = end;
-            }
-            // this is a light parsing, we should copy JsonParser in this module to make it more reliable
-        } catch (final RuntimeException | IOException re) {
-            return Stream.empty();
         }
     }
 

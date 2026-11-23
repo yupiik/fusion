@@ -15,6 +15,9 @@
  */
 package io.yupiik.fusion.persistence.api;
 
+import io.yupiik.fusion.framework.api.RuntimeContainer;
+import io.yupiik.fusion.persistence.impl.DatabaseConfiguration;
+
 import java.lang.reflect.Type;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -141,6 +144,12 @@ public interface Entity<E, ID> {
     Function<ResultSet, E> mapper(List<String> columns);
 
     Function<ResultSet, E> mapper(final ResultSet resultSet);
+
+    /** Standalone configuration-aware factory backed by a direct callback. */
+    @FunctionalInterface
+    interface Factory<A, B> {
+        Entity<A, B> create(DatabaseConfiguration configuration, RuntimeContainer container);
+    }
 
     interface ColumnMetadata {
         /**

@@ -326,4 +326,18 @@ public class Compiler {
             return fail(e);
         }
     }
+
+    public String readGeneratedSources() {
+        try (final var files = Files.walk(getGeneratedSources())) {
+            return files.filter(it -> it.toString().endsWith(".java")).sorted().map(it -> {
+                try {
+                    return Files.readString(it);
+                } catch (final IOException e) {
+                    return fail(e);
+                }
+            }).collect(joining("\n"));
+        } catch (final IOException e) {
+            return fail(e);
+        }
+    }
 }

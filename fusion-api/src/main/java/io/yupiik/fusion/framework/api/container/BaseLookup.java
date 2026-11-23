@@ -17,6 +17,7 @@ package io.yupiik.fusion.framework.api.container;
 
 import io.yupiik.fusion.framework.api.Instance;
 import io.yupiik.fusion.framework.api.RuntimeContainer;
+import io.yupiik.fusion.framework.api.container.internal.DependencyLookups;
 
 import java.lang.reflect.Type;
 import java.util.List;
@@ -27,30 +28,24 @@ public abstract class BaseLookup {
                                final Class<A> type,
                                final Function<List<Instance<A>>, T> postProcessor,
                                final List<Instance<?>> deps) {
-        final var i = container.lookups(type, postProcessor);
-        deps.add(i);
-        return i.instance();
+        return DependencyLookups.lookups(container, type, postProcessor, deps);
     }
 
     // hosts the list injection post processing to keep the generated beans small (and lambda free)
     protected <A> List<A> orderedList(final RuntimeContainer container, final Class<A> type,
                                       final boolean comparable, final List<Instance<?>> deps) {
-        return lookups(
-                container, type,
+        return lookups(container, type,
                 instances -> (comparable ?
                         instances.stream().map(Instance::instance).sorted() :
                         instances.stream()
                                 .sorted(java.util.Comparator.comparing(i -> i.bean().priority()))
                                 .map(Instance::instance))
                         .map(type::cast)
-                        .collect(java.util.stream.Collectors.toList()),
-                deps);
+                        .collect(java.util.stream.Collectors.toList()), deps);
     }
 
     protected Object lookup(final RuntimeContainer container, final Type type, final List<Instance<?>> deps) {
-        final var i = container.lookup(type);
-        deps.add(i);
-        return i.instance();
+        return DependencyLookups.lookup(container, type, deps);
     }
 
     protected <T> T lookup(final RuntimeContainer container, final Class<T> type, final List<Instance<?>> deps) {

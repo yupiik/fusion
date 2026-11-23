@@ -19,14 +19,12 @@ import io.yupiik.fusion.framework.api.Instance;
 import io.yupiik.fusion.framework.api.RuntimeContainer;
 import io.yupiik.fusion.framework.api.configuration.Configuration;
 import io.yupiik.fusion.framework.api.container.FusionBean;
-import io.yupiik.fusion.framework.api.container.bean.BaseBean;
 import io.yupiik.fusion.framework.processor.internal.Elements;
 import io.yupiik.fusion.framework.processor.internal.metadata.MetadataContributorRegistry;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Supplier;
 
 public class BeanConfigurationGenerator extends BaseGenerator implements Supplier<BaseGenerator.GeneratedClass> {
@@ -49,29 +47,18 @@ public class BeanConfigurationGenerator extends BaseGenerator implements Supplie
         final var simpleName = className + "$RootConfiguration$" + FusionBean.class.getSimpleName();
         final var confBeanClassName = pckPrefix + simpleName;
 
-        final var out = new StringBuilder();
-        if (!packageName.isBlank()) {
-            out.append("package ").append(packageName).append(";\n\n");
-        }
-        out.append("public class ").append(simpleName).append(" extends ")
-                .append(BaseBean.class.getName()).append("<").append(pckPrefix).append(className.replace('$', '.')).append("> {\n");
-        out.append("  public ").append(simpleName).append("() {\n");
-        out.append("    super(")
-                .append(pckPrefix).append(className.replace('$', '.')).append(".class, ")
-                .append(findScope(element)).append(".class, ")
-                .append(findPriority(element)).append(", ")
-                .append(metadata(element)).append(");\n");
-        out.append("  }\n");
-        out.append("\n");
-        out.append("  @Override\n");
-        out.append("  public ").append(className.replace('$', '.')).append(" create(final ").append(RuntimeContainer.class.getName())
-                .append(" container, final ")
-                .append(List.class.getName()).append("<").append(Instance.class.getName()).append("<?>> dependents) {\n");
-        out.append("    final var conf = lookup(container, ").append(Configuration.class.getName()).append(".class, dependents);\n");
-        out.append("    return new ").append(pckPrefix).append(className).append(ConfigurationFactoryGenerator.SUFFIX).append("(conf).get();\n");
-        out.append("  }\n");
-        out.append("}\n\n");
-
-        return new GeneratedClass(confBeanClassName, out.toString());
+        final var type = processingEnv.getTypeUtils().erasure(element.asType()).toString();
+        return new GeneratedClass(confBeanClassName, new Binding(packageName, "bean",
+                FusionBean.class.getName() + "<?>",
+                "new io.yupiik.fusion.framework.api.container.bean.FunctionalBean<>(" +
+                        type + ".class, " + findScope(element) + ".class, " + findPriority(element) + ", 0, " +
+                        metadata(element) + ", " + Binding.helperReference(0) + ", null, null, null, false)",
+                List.of(new Binding.Method(0,
+                        "private static " + type + " $method(final " + RuntimeContainer.class.getName() +
+                                " container, final java.util.List<" + Instance.class.getName() + "<?>> dependents) {\n" +
+                                "final var conf = lookup(container, " + Configuration.class.getName() + ".class, dependents);\n" +
+                                "return " + Binding.reference(pckPrefix + className + ConfigurationFactoryGenerator.SUFFIX) +
+                                ".apply(conf, java.util.function.Function.identity());\n}",
+                        ""))));
     }
 }

@@ -20,28 +20,19 @@ import io.yupiik.fusion.framework.processor.internal.Elements;
 import io.yupiik.fusion.framework.processor.internal.ParsedType;
 import io.yupiik.fusion.framework.processor.internal.metadata.MetadataContributorRegistry;
 import io.yupiik.fusion.http.server.api.Request;
-import io.yupiik.fusion.http.server.impl.io.RequestBodyAggregator;
-import io.yupiik.fusion.json.JsonMapper;
-import io.yupiik.fusion.json.deserialization.AvailableCharArrayReader;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.VariableElement;
-import java.io.InputStream;
-import java.io.Reader;
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
-import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.joining;
 
@@ -72,11 +63,6 @@ public abstract class BaseHttpEndpointGenerator extends BaseGenerator {
         this.knownJsonModels = knownJsonModels;
     }
 
-    // avoids an unused parameter warning when the handler does not consume the request, "_" needs java >= 22 sources
-    protected String requestParameterName(final String handlerBody) {
-        return handlerBody.contains("request") || processingEnv.getSourceVersion().ordinal() < 22 ? "request" : "_";
-    }
-
     protected boolean isDirectVoid(final ParsedType returnType) {
         return "void".equals(returnType.className()) ||
                 Void.class.getName().equals(returnType.className());
@@ -100,43 +86,7 @@ public abstract class BaseHttpEndpointGenerator extends BaseGenerator {
         });
     }
 
-    protected String createBeanInstance(final boolean isReturnTypeJson, final String methodClassName,
-                                        final String enclosingClassName, final List<Param> params) {
-        return Stream.concat(
-                        Stream.of("lookup(container, " + enclosingClassName + ".class, dependents)"),
-                        Stream.concat(
-                                        !isReturnTypeJson ?
-                                                Stream.empty() :
-                                                Stream.of("lookup(container, " + JsonMapper.class.getName() + ".class, dependents)"),
-                                        params.stream()
-                                                .map(Param::lookup)
-                                                .filter(Objects::nonNull))
-                                .distinct())
-                .collect(joining(
-                        ", ",
-                        "    return new " + methodClassName + "(",
-                        ");\n"));
-    }
-
-    protected String declareConstructor(final String endpointClassName, final String enclosingClassName,
-                                        final List<Param> params, final boolean isReturnTypeJson) {
-        return Stream.concat(
-                        Stream.of("final " + enclosingClassName + " root"),
-                        Stream.concat(
-                                        !isReturnTypeJson ?
-                                                Stream.empty() :
-                                                Stream.of("final " + JsonMapper.class.getName() + " jsonMapper"),
-                                        params.stream()
-                                                .map(Param::constructorParam)
-                                                .filter(Objects::nonNull))
-                                .distinct())
-                .collect(joining(
-                        ", ",
-                        "  public " + endpointClassName + "(",
-                        ") {\n"));
-    }
-
-    protected List<Param> prepareParams() {
+    protected List<String> prepareParams() {
         final var index = new AtomicInteger();
         return method.getParameters().stream()
                 .map(it -> {
@@ -153,28 +103,76 @@ public abstract class BaseHttpEndpointGenerator extends BaseGenerator {
                 .toList();
     }
 
-    protected Param createJsonParam(final VariableElement it, final ParsedType param, final int index) {
-        final var type = switch (param.type()) {
-            case CLASS -> param.className() + ".class";
-            case PARAMETERIZED_TYPE -> // todo: store it in fields for speed - avoid alloc - or is it rare enough, it is a bad practise anyway?
-                    param.createParameterizedTypeImpl();
-        };
-        return new Param(
-                "final " + JsonMapper.class.getName() + " jsonMapper",
-                "lookup(container, " + JsonMapper.class.getName() + ".class, dependents)",
-                // prefer the byte stream (mapper does the utf-8 decoding, skips the container char conversion), then the reader, then the reactive body
-                Optional.class.getName() + ".ofNullable(request.unwrapOrNull(" + InputStream.class.getName() + ".class))\n" +
-                        "          .map(stream -> " + CompletableFuture.class.getName() + ".completedStage(jsonMapper.read(" + type + ", stream)))\n" +
-                        "          .or(() -> " + Optional.class.getName() + ".ofNullable(request.unwrapOrNull(" + Reader.class.getName() + ".class))\n" +
-                        "              .map(reader -> " + CompletableFuture.class.getName() + ".completedStage(jsonMapper.read(" + type + ", reader))))\n" +
-                        "          .orElseGet(() -> new " + RequestBodyAggregator.class.getName() + "(request.fullBody(), " + StandardCharsets.class.getName() + ".UTF_8)\n" +
-                        "              .promise()\n" +
-                        "              .thenApply(payload -> jsonMapper.read(" + type + ", new " + AvailableCharArrayReader.class.getName() + "(payload))))",
-                "payload");
+    protected String createJsonParam(final VariableElement it, final ParsedType param, final int index) {
+        return "(" + it.asType() + ") payload[" + index + "]";
     }
 
-    protected Param createRequestParameter() {
-        return new Param(null, null, "request", null);
+    protected Binding.Artifact companion(final String id, final String type, final String create) {
+        final var beanId = id + ".FusionBean";
+        final var binding = new Binding(packageName, "bean", "io.yupiik.fusion.framework.api.container.FusionBean<?>",
+                "new io.yupiik.fusion.framework.api.container.bean.FunctionalBean<>(" + type + ".class, " +
+                        findScope(method) + ".class, " + findPriority(method) + ", 0, " + metadata(method) + ", " + Binding.helperReference(0) + ", null, null, null, false)",
+                List.of(new Binding.Method(0,
+                        "private static " + type + " $method(io.yupiik.fusion.framework.api.RuntimeContainer container, java.util.List<io.yupiik.fusion.framework.api.Instance<?>> dependents) {\n" + create + "\n}", "")));
+        return new Binding.Artifact(beanId, binding);
+    }
+
+    protected Generation compactHttp(final String suffix, final int priority, final String match, final String pattern) {
+        final var id = (packageName.isBlank() ? "" : packageName + '.') + className + suffix;
+        final var root = processingEnv.getTypeUtils().erasure(method.getEnclosingElement().asType()).toString();
+        final var params = prepareParams();
+        final var returnType = ParsedType.of(method.getReturnType());
+        final var unwrapped = returnType.type() == ParsedType.Type.PARAMETERIZED_TYPE &&
+                ("java.util.concurrent.CompletionStage".equals(returnType.raw()) || "java.util.concurrent.CompletableFuture".equals(returnType.raw())) ?
+                new ParsedType(ParsedType.Type.CLASS, returnType.args().get(0), null, null, null) : returnType;
+        final boolean json = isJson(unwrapped) || method.getReturnType().getAnnotation(JsonModel.class) != null;
+        final var bodies = method.getParameters().stream().filter(p -> !isRequest(ParsedType.of(p.asType()))).toList();
+        if (bodies.size() > 1) {
+            throw new IllegalArgumentException("HTTP endpoints support at most one JSON body parameter, in " +
+                    method.getEnclosingElement() + "." + method + ".");
+        }
+        final boolean mapper = json || !bodies.isEmpty();
+        final var methods = new java.util.ArrayList<Binding.Method>();
+        methods.add(new Binding.Method(5,
+                "private static io.yupiik.fusion.http.server.impl.DefaultEndpoint $method(Object[] dependencies) {\n" +
+                        "  final var root = (" + root + ") dependencies[0];\n" +
+                        (mapper ? "  final var jsonMapper = (io.yupiik.fusion.json.JsonMapper) dependencies[1];\n" : "") +
+                        "  final java.util.regex.Pattern pattern = " + pattern + ";\n" +
+                        "  return (io.yupiik.fusion.http.server.impl.DefaultEndpoint) io.yupiik.fusion.http.server.spi.Endpoint.of(req -> $helper{6}(root, pattern, req), " +
+                        "new io.yupiik.fusion.http.server.spi.DirectEndpointHandler(new java.lang.reflect.Type[]{" +
+                        bodies.stream().map(p -> { final var t = ParsedType.of(p.asType()); return t.type() == ParsedType.Type.CLASS ? t.className() + ".class" : t.createParameterizedTypeImpl(); }).collect(joining(", ")) +
+                        "}, (request, payload) -> $helper{7}(root, request, payload), " +
+                        (mapper ? "(type, body) -> $helper{8}(jsonMapper, type, body)" : "null") + ", " +
+                        (json ? "value -> $helper{9}(jsonMapper, value)" : "null") + "), " + priority + ");\n}", ""));
+        methods.add(new Binding.Method(6,
+                "private static boolean $method(" + root + " root, java.util.regex.Pattern pattern, io.yupiik.fusion.http.server.api.Request req) {\n" + match + "\n}", ""));
+        final var call = forceCompletionStageResult(returnType, "root." + method.getSimpleName() + "(" + String.join(", ", params) + ")");
+        methods.add(new Binding.Method(7,
+                "private static java.util.concurrent.CompletionStage<?> $method(" + root + " root, io.yupiik.fusion.http.server.api.Request request, Object[] payload) {\n" + (call.contains("; return ") ? call : "return " + call + ";") + "\n}", ""));
+        if (mapper) {
+            methods.add(new Binding.Method(8,
+                    "private static Object $method(io.yupiik.fusion.json.JsonMapper mapper, java.lang.reflect.Type type, Object body) {\n" +
+                            "  if (body instanceof java.io.InputStream stream) { return mapper.read(type, stream); }\n" +
+                            "  if (body instanceof java.io.Reader reader) { return mapper.read(type, reader); }\n" +
+                            "  return mapper.read(type, new io.yupiik.fusion.json.deserialization.AvailableCharArrayReader((char[]) body));\n}", ""));
+        }
+        if (json) {
+            methods.add(new Binding.Method(9,
+                    "private static io.yupiik.fusion.http.server.api.Response $method(io.yupiik.fusion.json.JsonMapper mapper, Object value) { return io.yupiik.fusion.http.server.api.Response.of().status(200).header(\"content-type\", \"application/json;charset=utf-8\").body(mapper.toString(value)).build(); }", ""));
+        }
+        final var artifacts = new java.util.ArrayList<Binding.Artifact>();
+        artifacts.add(new Binding.Artifact(id, new Binding(packageName, null,
+                "java.util.function.Function<Object[], io.yupiik.fusion.http.server.impl.DefaultEndpoint>", "(java.util.function.Function<Object[], io.yupiik.fusion.http.server.impl.DefaultEndpoint>) " + Binding.helperReference(5), methods)));
+        if (generateBean) {
+            artifacts.add(companion(id, "io.yupiik.fusion.http.server.impl.DefaultEndpoint",
+                    "return " + Binding.reference(id) + ".apply(new Object[]{lookup(container, " + root + ".class, dependents)" +
+                            (mapper ? ", lookup(container, io.yupiik.fusion.json.JsonMapper.class, dependents)" : "") + "});"));
+        }
+        return new Generation(new GeneratedClass(id, null, artifacts), generateBean ? id + ".FusionBean" : null);
+    }
+
+    protected String createRequestParameter() {
+        return "request";
     }
 
     protected boolean isRequest(final ParsedType param) {
@@ -192,7 +190,4 @@ public abstract class BaseHttpEndpointGenerator extends BaseGenerator {
     public record Generation(BaseGenerator.GeneratedClass endpoint, String beanClassName) {
     }
 
-    public record Param(String constructorParam, String lookup,
-                        String invocation, String promiseName) {
-    }
 }

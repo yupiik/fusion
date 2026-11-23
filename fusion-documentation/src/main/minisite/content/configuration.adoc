@@ -122,3 +122,37 @@ The following implicit keys are read directly from `Configuration` by the runtim
 |===
 
 Module specific keys (`fusion.http-server.*`, `fusion.persistence.datasource.*`, the JWT and operator keys) are documented in their own pages.
+
+== Standalone configuration factories
+
+Numeric defaults must remain assignment-compatible with the property type; implicit narrowing or truncation is not permitted.
+The root configuration bean remains optional; `fusion.generateBeanForRootConfiguration=false` disables that bean without removing the standalone factory.
+`fusion.generateModule=false` likewise leaves the standalone factory available.
+
+For a root record `com.acme.Settings`, configure `-Afusion.moduleFqn=com.acme.FusionModule` in the model's package and call `com.acme.FusionModule.Settings$FusionConfigurationFactory()`.
+This typed construction method returns a `BiFunction<Configuration, Function<String, String>, Settings>`.
+With module generation disabled, inspect the generated sources for the actual package construction owner; split owner names are implementation details.
+After calling that method, apply the factory to `configuration` and `Function.identity()` to obtain the settings.
+See xref:tooling.adoc#manual-binding-lookup[standalone factories] for construction-owner and packaging details.
+
+Each application constructs a fresh root and fresh configured nested values; user-supplied default expressions retain their own lifetime semantics.
+`@Property(defaultValue = "...")` Java expressions can reference `configuration` and `keyMapper`, and defaults inside nested models can also reference `prefix` (the enclosing model's configuration path).
+For example, `@Property(defaultValue = "configuration.get(\"OPENAI_API_KEY\").orElse(\"\")")` uses another configuration key as a fallback without changing the annotated application model.
+Scalar, delimited-list and properties-map defaults are evaluated eagerly, even when a configured value is present, just like `Optional.orElse` arguments.
+Lookup and conversion finish before the default is evaluated, so a failed conversion does not execute that property's default expression.
+Indexed object-list and object-map defaults remain lazy: they run only when `.length` is missing or negative, with the enclosing model's context rather than the collection's path.
+User-written lambdas in defaults have their own parameter scope, including parameters named `raw`, `converted`, `value`, `configuration`, `keyMapper` or `prefix`.
+Block locals, catch parameters, loop variables and try-with-resources variables also shadow context names only within their Java lexical scopes.
+Default expressions are compiled unchanged by the application's compiler, using its configured Java language level rather than a separate Java 17 parser.
+The key mapper controls missing-required-value diagnostics, while the `Configuration` argument owns lookup-key remapping.
+Prefix `-`, nested records, indexed list/map notation and configuration documentation remain supported.
+See xref:tooling.adoc#manual-binding-lookup[standalone factories] for manual configuration construction.
+
+== Metadata aliases from dependencies
+
+Dependency annotation types do not need to be duplicated on a separately configured processor path.
+This includes transitive dependencies when their annotation-defining JARs are on the effective compilation classpath.
+For duplicate dependency types, the compiler's classpath selection determines the annotation definition used.
+Handwritten `MetadataContributor` ServiceLoader providers remain supported on the processor path and override dependency alias defaults in provider-class-name order.
+Explicit current-compilation registrations take precedence over handwritten providers.
+Annotation members named `name` and `value` continue to override contributor defaults.

@@ -204,10 +204,21 @@ public CompletionStage<Response> myGreetingEndpoint() {
 ----
 
 TIP: if your endpoint is fully synchronous you can drop the `CompletionStage` wrapper: `public CompletionStage<Response> myGreetingEndpoint();`.
-You can also pass as first parameter a `Request` parameter.
+You can also pass `Request` parameters in any position.
 
 [[server-tracing]]
 == Tracing
 
 `fusion-tracing` module provides a Tomcat valve you can set up on your web container to add tracing capabilities - see the xref:tracing.adoc[tracing] page.
 
+== Endpoint priorities and JSON bodies
+
+Route priority is separate from container bean priority, and generated JSON body handling prefers an unwrapped input stream, then a reader, then reactive UTF-8 aggregation.
+Methods annotated with `@HttpMatcher` or `@HttpJavaMatcher` accept zero or one JSON body parameter, optionally mixed with `Request` parameters in any position.
+More than one JSON body parameter is rejected at compile time: the request body is consumed once, not replayed for each parameter.
+To bind multiple values from JSON, use a single JSON model containing those values.
+The shared runtime handler also rejects multiple body types at construction and takes a defensive copy of its body type array.
+Handwritten implementations of `Endpoint` remain supported.
+`fusion.generateBeanForHttpEndpoints=false` disables the generated bean companions, while standalone endpoint factories remain available even with `fusion.generateModule=false`.
+See xref:tooling.adoc#manual-binding-lookup[typed standalone factories] instead of constructing generated endpoint classes.
+User-written Java matcher expressions, including explicit lambdas or method references, remain user code.

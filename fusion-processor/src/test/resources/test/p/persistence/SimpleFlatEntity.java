@@ -28,6 +28,8 @@ public record SimpleFlatEntity(
         byte[] arr,
         @Column(name = "SIMPLE_AGE") int age,
         Kind kind) {
+    public static int loadCount;
+
     @OnInsert
     public SimpleFlatEntity onInsert() {
         return id() == null ?
@@ -37,6 +39,7 @@ public record SimpleFlatEntity(
 
     @OnLoad
     public SimpleFlatEntity onLoad() {
+        loadCount++;
         return "loaded".equals(name) ?
                 new SimpleFlatEntity(id() == null ? name() : id(), name(), null, 1, kind()) :
                 this;

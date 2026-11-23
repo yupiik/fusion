@@ -22,3 +22,46 @@ Beyond the core runtime, Fusion ships a set of standalone modules for building C
 * xref:documentation.adoc[Documentation generation] - convert OpenRPC/configuration/CLI metadata to Asciidoc, OpenAPI or Postman.
 * xref:handlebars.adoc[Handlebars templating] - a dependency-free Handlebars engine with helpers and partials.
 * xref:ai-skills.adoc[AI skills] - install Fusion coding-agent skills for opencode and Claude.
+
+[#generated-bindings]
+== Generated bindings
+
+Generated modules register application beans and listeners through normal container discovery.
+Use registered business types, scopes and priorities for container selection rather than generated implementation class names.
+
+NOTE: See xref:processor-internals.adoc[annotation processor internals] for source composition, compiler metadata discovery and incremental state.
+
+[#manual-binding-lookup]
+=== Standalone factories
+
+Setting `fusion.generateModule=false` suppresses automatic module registration but retains standalone factories.
+The family-specific `fusion.generateBeanFor...` options likewise omit bean companions, not standalone factories.
+For manual calls, configure `-Afusion.moduleFqn=com.acme.FusionModule` with the module in the model's package and call its public typed construction method.
+Method names include `$` for nested types, for example `Model$FusionJsonCodec()`.
+Ordinary bean and listener registrations do not have standalone descriptor factories: enable module generation to register them automatically.
+The configured root module provides the manual entry point for models in its package without exposing size-dependent shard names.
+With module generation disabled or models in other packages, inspect generated sources for the actual construction owner; those split owner names are implementation details.
+Each standalone call returns a codec or a typed factory; lifecycle and business-instance caching remain container responsibilities.
+The Java compiler checks that the referenced construction owner and method exist and that the return type matches the caller.
+
+[cols="1,2,2",options="header"]
+|===
+| Family | Factory result | Follow-up
+| JSON record | `JsonCodec` | Register with a custom mapper, including required nested-model codecs.
+| Root configuration | `BiFunction<Configuration, Function<String, String>, Settings>` | Apply to the configuration and diagnostic key mapper.
+| HTTP endpoint | `Function<Object[], Endpoint>` | Apply to an array containing the business endpoint object and JSON mapper, when required.
+| JSON-RPC method | `Function<Object[], JsonRpcMethod>` | Apply to an array containing the business endpoint object and JSON mapper, when required.
+| CLI command | `Function<RuntimeContainer, CliCommand<?>>` | Apply to the container to create the command descriptor.
+| Persistence entity | `Entity.Factory` | Create entity metadata with database configuration and an optional container for injected callbacks.
+|===
+
+The service factories use `java.util.function.Function`, and `Entity.Factory` is in `io.yupiik.fusion.persistence.api`.
+A standalone factory does not construct a complete application container or transfer lifecycle ownership to a global registry.
+CLI runnable dependencies are acquired and closed per invocation, not when the command descriptor is created.
+HTTP route priority remains independent of bean priority.
+See xref:json.adoc[JSON], xref:configuration.adoc[configuration] and xref:persistence.adoc[persistence] for registration and lifecycle requirements.
+
+=== Compilation outputs
+
+Generated implementation owners derive their namespace from the configured module name and portable project/output-layout identity.
+See xref:setup.adoc[setup] for compiler and packaging requirements and xref:testing.adoc[testing] for local descriptor discovery controls.

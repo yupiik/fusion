@@ -162,6 +162,21 @@ Disabling suffix checks does not enable permissive JSON syntax, relax typed-valu
 Input can be read ahead during tokenization and mapper reads still close it; strict document reads require end-of-input.
 Custom parser factories must report remaining input honestly through the `Parser` contract for the mapper to validate their suffixes.
 
+== Generated codec registration
+
+`fusion.generateBeanForJsonCodec=false` disables codec bean registration without disabling standalone codec bindings.
+`fusion.generateModule=false` disables the generated container module without removing standalone typed factories.
+
+=== Models in dependencies
+
+A record using `@JsonProperty` or `@JsonOthers` is also an implicit JSON model, even without `@JsonModel`.
+These annotations and `@JsonModel` are retained in class files so the compiler can recognize models from dependency JARs, including nested records, with JSON schema generation disabled.
+The dependency JAR must include its generated codecs; discovery does not regenerate dependency codecs in the consuming application.
+Keep transitive model dependencies on the compilation classpath even when the annotation processor uses a separate processor path.
+No additional packaged model index is needed, and `fusion-build-api` remains a build-time dependency, not a runtime requirement.
+`@JsonIgnore` alone does not opt a record into JSON model generation.
+When replacing a dependency model with local source, keep a model annotation if that replacement should remain a JSON model; an unannotated source replacement does not inherit the dependency's model status.
+
 == Collections
 
 Root collections can contain values of different types, nested collections, maps, and nulls.
@@ -190,6 +205,9 @@ public record MyModel(
 <.> `internalSecret` is a pure build metadata attribute: it is never written to the JSON payload and, if an incoming payload happens to carry the `internalSecret` key, it is skipped so the attribute ends up with its default value (primitive default for primitives such as `0`/`false`/`0.0`, `null` for anything else).
 
 `@JsonIgnore` is entirely handled at build time: it only drives the generated keysets, no reflection is involved at runtime.
+When the record also declares `@JsonOthers`, an ignored input key is recognized and skipped rather than captured in that map, while the ignored constructor slot still keeps its default value.
+An absent primitive property keeps its Java default; an explicit JSON null for a non-ignored primitive resets it to that default.
+When duplicate members are permitted, the last applicable value wins, including an explicit null for reference types or a reset to the Java default for primitives.
 
 == Enums
 
@@ -472,3 +490,26 @@ public class MyListener {
     }
 }
 ----
+
+== Generated codecs and manual registration
+
+Normal container-based `JsonMapper` injection discovers generated codecs through the generated module.
+A codec's `type()` identifies its JSON model.
+
+For a mapper created outside the container, configure `-Afusion.moduleFqn=com.acme.FusionModule` in the model's package, create each required codec through its typed construction method and register it explicitly:
+
+[source,java]
+----
+import io.yupiik.fusion.json.serialization.JsonCodec;
+
+final JsonCodec<com.acme.Model> codec = com.acme.FusionModule.Model$FusionJsonCodec();
+----
+
+Use `$` in nested construction method names, for example `com.acme.FusionModule.Models$Item$FusionJsonCodec()`.
+Register the codecs needed by nested models too; a standalone factory does not build a complete application mapper for you.
+Include these codecs when configuring a custom mapper rather than depending on its internal implementation classes.
+Record codec bindings remain available with `fusion.generateModule=false` or `fusion.generateBeanForJsonCodec=false`; these options disable automatic registrations, not the standalone record codec.
+With module generation disabled, inspect generated sources for the actual package construction owner rather than hardcoding a size-dependent shard name.
+Models exposed to other modules are discovered from `@JsonModel` or implicit `@JsonProperty`/`@JsonOthers` constructor parameters retained in class files, independently of optional schema generation.
+The model-defining JAR must be on the effective compilation classpath, including when reached through transitive dependencies; it does not need to be on a separate processor path.
+See xref:tooling.adoc#manual-binding-lookup[standalone factories] for the generated API.

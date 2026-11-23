@@ -29,6 +29,12 @@
   <description>Fusion annotation processor generating beans, JSON codecs, configuration binding and persistence models at build time.</description>
 
   <dependencies>
+    <dependency>
+      <groupId>org.eclipse.jdt</groupId>
+      <artifactId>ecj</artifactId>
+      <version>3.42.0</version>
+      <scope>provided</scope> <!-- optional Java 17 compiler integration; supplied by ECJ itself -->
+    </dependency>
     <!--
     here it is ok-ish to depends on ${project.groupId}:*
     but not transitive deps - we don't want to bring tomcat for ex
@@ -135,6 +141,11 @@
         <artifactId>maven-jar-plugin</artifactId>
         <version>3.5.1</version>
         <configuration>
+          <archive>
+            <manifestEntries>
+              <Multi-Release>true</Multi-Release>
+            </manifestEntries>
+          </archive>
           <excludes>
             <exclude>**/build/**</exclude>
           </excludes>
@@ -167,6 +178,22 @@
         <configuration>
           <proc>none</proc>
         </configuration>
+        <executions>
+          <execution>
+            <id>java18</id>
+            <phase>compile</phase>
+            <goals>
+              <goal>compile</goal>
+            </goals>
+            <configuration>
+              <release>18</release>
+              <multiReleaseOutput>true</multiReleaseOutput>
+              <compileSourceRoots>
+                <compileSourceRoot>${project.basedir}/src/main/java18</compileSourceRoot>
+              </compileSourceRoots>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
