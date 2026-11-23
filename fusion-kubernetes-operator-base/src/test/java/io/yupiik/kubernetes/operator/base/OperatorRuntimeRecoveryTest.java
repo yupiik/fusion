@@ -1113,8 +1113,13 @@ class OperatorRuntimeRecoveryTest {
             two.respond(200, "", true);
             fixture.scheduler.retry();
             assertTrue(fixture.client.next().request.uri().getPath().contains("/two/"));
+            // Reconnecting the other watch does not wait for this watch's event worker.
+            final var deadline = System.nanoTime() + SECONDS.toNanos(15);
+            while (fixture.runtime.isReady() && System.nanoTime() < deadline) {
+                Thread.onSpinWait();
+            }
+            assertFalse(fixture.runtime.isReady(), "malformed bookmark must stop the affected watch");
             assertEquals(inventory, Files.readString(storage.resolve("samples-one.items")));
-            assertFalse(fixture.runtime.isReady());
             assertTrue(fixture.scheduler.retries.isEmpty());
         }
     }
