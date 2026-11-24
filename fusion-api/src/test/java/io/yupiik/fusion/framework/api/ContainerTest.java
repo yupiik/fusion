@@ -161,7 +161,7 @@ class ContainerTest {
     }
 
     @Test
-    void closeIsIdempotent() {
+    void closeTwiceFails() {
         final var stopListener = new ArrayList<Stop>();
         final var container = ConfiguringContainer.of().register(new FusionListener<Stop>() {
                     @Override
@@ -176,7 +176,8 @@ class ContainerTest {
                 })
                 .start();
         container.close();
-        container.close(); // the owner and an extension (JUnit store for example) can both close it
+        // a second close is a lifecycle bug of the caller, don't hide it (nor fire Stop again)
+        assertThrows(IllegalStateException.class, container::close);
         assertEquals(1, stopListener.size());
     }
 

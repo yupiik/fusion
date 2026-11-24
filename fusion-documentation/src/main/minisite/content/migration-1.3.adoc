@@ -51,6 +51,12 @@ Use `target/classes:target/test-classes` on Unix-like systems and `target/classe
 In portable Java launchers, join paths with `File.pathSeparator`.
 See xref:testing.adoc[testing] for the discovery boundaries and container test helpers.
 
+== Closing the runtime container
+
+`RuntimeContainer#close()` now fires `Stop` and closes the contexts only once; any further call throws an `IllegalStateException`.
+A second call is a lifecycle bug of the caller (with 1.2.x it silently fired `Stop` again), so make a single owner close the container.
+`Launcher`, `@FusionSupport` and `@MonoFusionSupport` already close it once; code combining, for example, a try-with-resources and a shutdown hook on the same container must guard its own close.
+
 == CLASS-retained build annotations on the compile classpath
 
 `@JsonProperty`, `@JsonOthers`, `@JsonModel` and `@BeanMetadataAlias` now have `CLASS` retention so the processor can read annotation metadata from compiled libraries.
