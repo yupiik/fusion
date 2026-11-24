@@ -52,7 +52,12 @@ The endpoint is served by default at `/jsonrpc` with:
 
 == Reactive endpoints
 
-A method can return a `CompletionStage` to handle asynchronous responses without blocking:
+A method can return a `CompletionStage<T>` or `CompletableFuture<T>` to handle asynchronous responses without blocking.
+The payload `T` can be a JSON scalar, a `@JsonModel` model, or a supported JSON collection or map, such as `List<String>` or `Map<String, String>`.
+An asynchronous `PartialResponse<T>` payload is also supported to include custom HTTP response headers.
+OpenRPC describes the resolved JSON result rather than the asynchronous wrapper.
+
+For example:
 
 [source,java]
 ----

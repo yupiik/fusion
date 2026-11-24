@@ -35,10 +35,14 @@ import io.yupiik.fusion.http.server.spi.DirectEndpointHandler;
 import io.yupiik.fusion.json.internal.JsonMapperImpl;
 import io.yupiik.fusion.json.serialization.JsonCodec;
 import io.yupiik.fusion.jsonrpc.JsonRpcException;
+import io.yupiik.fusion.jsonrpc.JsonRpcHandler;
+import io.yupiik.fusion.jsonrpc.JsonRpcRegistry;
 import io.yupiik.fusion.jsonrpc.impl.DefaultJsonRpcMethod;
 import io.yupiik.fusion.jsonrpc.impl.JsonRpcMethod;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import javax.tools.ToolProvider;
 import java.io.ByteArrayInputStream;
@@ -69,6 +73,7 @@ import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -535,6 +540,167 @@ class CompactServiceProcessorTest {
             assertTrue(Files.readString(metadata.get(0)).contains("parameter documentation"));
         }
         assertCompactOutput();
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void rpcAsyncParameterizedResults(final boolean openRpc) throws Exception {
+        final var declarations = new StringBuilder();
+        for (final var wrapper : List.of("CompletableFuture", "CompletionStage")) {
+            declarations.append("""
+                    @JsonRpc("%1$sMap") public %1$s<Map<String, String>> map%1$s() { return pending; }
+                    @JsonRpc("%1$sList") public %1$s<List<String>> list%1$s() { return CompletableFuture.completedFuture(List.of("value")); }
+                    @JsonRpc("%1$sSet") public %1$s<Set<String>> set%1$s() { return CompletableFuture.completedFuture(Set.of("value")); }
+                    @JsonRpc("%1$sCollection") public %1$s<Collection<String>> collection%1$s() { return CompletableFuture.completedFuture(List.of("value")); }
+                    @JsonRpc("%1$sPartial") public %1$s<PartialResponse<Map<String, String>>> partial%1$s() {
+                        return pending.thenApply(value -> new PartialResponse<>(value).setHttpResponseHeaders(Map.of("X-Result", "async")));
+                    }
+                    @JsonRpc("%1$sModel") public %1$s<Model> model%1$s() { return CompletableFuture.completedFuture(new Model("value")); }
+                    @JsonRpc("%1$sScalar") public %1$s<String> scalar%1$s() { return CompletableFuture.completedFuture("value"); }
+                    @JsonRpc("%1$sVoid") public %1$s<Void> void%1$s() { return CompletableFuture.completedFuture(null); }
+                    @JsonRpc("%1$sPartialVoid") public %1$s<PartialResponse<Void>> partialVoid%1$s() { return CompletableFuture.completedFuture(new PartialResponse<>(null)); }
+                    """.formatted(wrapper));
+        }
+        compile("""
+                package demo;
+                import io.yupiik.fusion.framework.build.api.jsonrpc.JsonRpc;
+                import io.yupiik.fusion.framework.build.api.json.JsonModel;
+                import io.yupiik.fusion.jsonrpc.api.PartialResponse;
+                import java.util.*;
+                import java.util.concurrent.*;
+                public class App {
+                    public final CompletableFuture<Map<String, String>> pending = new CompletableFuture<>();
+                    @JsonModel public record Model(String value) {}
+                    @JsonRpc("syncMap") public Map<String, String> syncMap() { return Map.of("key", "value"); }
+                    @JsonRpc("syncPartial") public PartialResponse<Map<String, String>> syncPartial() { return new PartialResponse<>(Map.of("key", "value")); }
+                    @JsonRpc("boxedVoid") public Void boxedVoid() { return null; }
+                    @JsonRpc("partialVoid") public PartialResponse<Void> partialVoid() { return new PartialResponse<>(null); }
+                    @JsonRpc("partialStageVoid") public PartialResponse<CompletionStage<Void>> partialStageVoid() { return new PartialResponse<>(CompletableFuture.completedStage(null)); }
+                    @JsonRpc("partialFutureVoid") public PartialResponse<CompletableFuture<Void>> partialFutureVoid() { return new PartialResponse<>(CompletableFuture.completedFuture(null)); }
+                    %s
+                }
+                """.formatted(declarations), "-Afusion.generateModule=false", "-Afusion.generatePartialOpenRPC=" + openRpc);
+        try (final var loader = loader();
+             final var mapper = new JsonMapperImpl(List.of(), key -> Optional.empty());
+             final var container = ConfiguringContainer.of().disableAutoDiscovery(true).start()) {
+            final var root = loader.loadClass("demo.App").getConstructor().newInstance();
+            final var methods = methods(loader, root, mapper);
+            final var handler = new JsonRpcHandler(container, mapper, new JsonRpcRegistry(new ArrayList<>(methods)));
+            final var payload = Map.of("key", "value");
+            final var pendingResponses = new ArrayList<CompletionStage<io.yupiik.fusion.jsonrpc.Response>>();
+            final var partialRequests = new ArrayList<TestRequest>();
+            for (final var wrapper : List.of("CompletableFuture", "CompletionStage")) {
+                for (final var suffix : List.of("Map", "Partial")) {
+                    final var request = new TestRequest("POST", "/jsonrpc", "", "stream");
+                    if ("Partial".equals(suffix)) {
+                        partialRequests.add(request);
+                    }
+                    final var response = handler.doHandle(Map.of("method", wrapper + suffix, "id", "1"), request);
+                    assertFalse(response.isDone(), wrapper + suffix + " must remain asynchronous");
+                    pendingResponses.add(response);
+                }
+            }
+            @SuppressWarnings("unchecked")
+            final var pending = (CompletableFuture<Map<String, String>>) root.getClass().getField("pending").get(root);
+            pending.complete(payload);
+            for (final var response : pendingResponses) {
+                final var result = response.toCompletableFuture().join();
+                assertNull(result.error());
+                assertEquals(payload, result.result());
+                assertEquals("{\"key\":\"value\"}", mapper.toString(result.result()));
+            }
+            for (final var request : partialRequests) {
+                assertEquals(Map.of("X-Result", "async"), request.attribute("yupiik.jsonrpc.response.headers", Map.class));
+            }
+            for (final var name : List.of("boxedVoid", "partialVoid", "partialStageVoid", "partialFutureVoid")) {
+                assertNull(handler.doHandle(Map.of("method", name, "id", "1"), null).join());
+            }
+            for (final var wrapper : List.of("CompletableFuture", "CompletionStage")) {
+                for (final var suffix : List.of("List", "Set", "Collection", "Model", "Scalar", "Void", "PartialVoid")) {
+                    final var response = handler.doHandle(Map.of("method", wrapper + suffix, "id", "1"), null).join();
+                    if (suffix.endsWith("Void")) {
+                        assertNull(response);
+                    } else {
+                        assertNull(response.error());
+                        switch (suffix) {
+                            case "Model" -> assertEquals("Model[value=value]", response.result().toString());
+                            case "Scalar" -> assertEquals("value", response.result());
+                            default -> assertEquals("[\"value\"]", mapper.toString(response.result()));
+                        }
+                    }
+                }
+            }
+            for (final var name : List.of("syncMap", "syncPartial")) {
+                assertEquals(payload, handler.doHandle(Map.of("method", name, "id", "1"), null).join().result());
+            }
+
+            final var failingRoot = loader.loadClass("demo.App").getConstructor().newInstance();
+            final var failure = new IllegalStateException("async failure");
+            final var failedResponses = new ArrayList<CompletionStage<?>>();
+            for (final var method : methods(loader, failingRoot, mapper)) {
+                if (method.name().endsWith("Map") || method.name().endsWith("Partial")) {
+                    if (!method.name().startsWith("sync")) {
+                        final var response = method.invoke(new JsonRpcMethod.Context(null, Map.of()));
+                        assertFalse(response.toCompletableFuture().isDone());
+                        failedResponses.add(response);
+                    }
+                }
+            }
+            final var failingPending = (CompletableFuture<?>) failingRoot.getClass().getField("pending").get(failingRoot);
+            failingPending.completeExceptionally(failure);
+            assertEquals(4, failedResponses.size());
+            for (final var response : failedResponses) {
+                assertSame(failure, assertThrows(CompletionException.class, () -> response.toCompletableFuture().join()).getCause());
+            }
+
+            final var metadataPath = work.resolve("classes/META-INF/fusion/jsonrpc/openrpc.json");
+            assertEquals(openRpc, Files.exists(metadataPath));
+            if (openRpc) {
+                final var metadata = (Map<?, ?>) mapper.fromString(Object.class, Files.readString(metadataPath));
+                final var documentedMethods = (Map<?, ?>) metadata.get("methods");
+                for (final var method : methods) {
+                    final var documented = (Map<?, ?>) documentedMethods.get(method.name());
+                    final var result = (Map<?, ?>) documented.get("result");
+                    final var schema = (Map<?, ?>) result.get("schema");
+                    if (method.name().endsWith("Map") || method.name().endsWith("Partial")) {
+                        assertEquals("object", schema.get("type"));
+                        assertEquals("string", ((Map<?, ?>) schema.get("additionalProperties")).get("type"));
+                    } else if (method.name().endsWith("Model")) {
+                        assertEquals("#/schemas/demo.App.Model", schema.get("$ref"));
+                    } else if (method.name().endsWith("Scalar")) {
+                        assertEquals("string", schema.get("type"));
+                    } else if (method.name().endsWith("Void")) {
+                        assertEquals("null", schema.get("type"));
+                    } else {
+                        assertEquals("array", schema.get("type"));
+                        assertEquals("string", ((Map<?, ?>) schema.get("items")).get("type"));
+                    }
+                }
+            }
+        }
+        assertCompactOutput();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "CompletionStage<CompletionStage<String>>",
+            "CompletableFuture<CompletableFuture<Void>>",
+            "CompletionStage<PartialResponse<PartialResponse<String>>>",
+            "CompletableFuture<PartialResponse<CompletionStage<Void>>>",
+            "PartialResponse<CompletionStage<String>>",
+            "PartialResponse<PartialResponse<String>>"
+    })
+    void rpcRejectsUnsupportedResultWrapperNesting(final String returnType) {
+        final var error = assertThrows(AssertionError.class, () -> compile("""
+                package demo;
+                import io.yupiik.fusion.framework.build.api.jsonrpc.JsonRpc;
+                import io.yupiik.fusion.jsonrpc.api.PartialResponse;
+                import java.util.concurrent.*;
+                public class App {
+                    @JsonRpc("invalid") public %s invalid() { return null; }
+                }
+                """.formatted(returnType)));
+        assertTrue(error.getMessage().contains("JSON-RPC method must return a JSON instance, invalid type:"), error.getMessage());
     }
 
     private DefaultEndpoint route(final List<DefaultEndpoint> endpoints, final String path) {

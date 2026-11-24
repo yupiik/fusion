@@ -72,9 +72,12 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
 
     @Override
     public BaseHttpEndpointGenerator.Generation get() {
-        final var returnType = unwrapReturnedType(method.getReturnType(), ParsedType.of(method.getReturnType()));
-        final boolean isReturnTypeJson = isJson(returnType) || method.getReturnType().getAnnotation(JsonModel.class) != null;
-        final boolean isVoid = isVoidLike(returnType);
+        final var returnType = unwrapReturnedType(method.getReturnType());
+        final boolean isReturnTypeJson = !isResultWrapper(returnType.raw()) &&
+                (isJson(returnType) || method.getReturnType().getAnnotation(JsonModel.class) != null);
+        // Keep legacy PartialResponse<CompletionStage<Void>> notifications, but do not accept extra async layers.
+        final boolean isVoid = isDirectVoid(returnType) ||
+                (PartialResponse.class.getName().equals(ParsedType.of(method.getReturnType()).raw()) && isVoidLike(returnType));
         if (!isVoid && !isReturnTypeJson) {
             throw new IllegalArgumentException("JSON-RPC method must return a JSON instance, invalid type: '" + method.getReturnType() +
                     "'; annotate exported models with @JsonModel and ensure they are on the compilation classpath");
@@ -152,16 +155,22 @@ public class JsonRpcEndpointGenerator extends BaseHttpEndpointGenerator implemen
                         Void.class.getName().equals(returnType.args().get(0)));
     }
 
-    private ParsedType unwrapReturnedType(final TypeMirror typeMirror, final ParsedType type) {
+    private ParsedType unwrapReturnedType(final TypeMirror typeMirror) {
+        var payload = typeMirror;
+        var type = ParsedType.of(payload);
+        if (type.type() == ParsedType.Type.PARAMETERIZED_TYPE && type.args().size() == 1 &&
+                (CompletionStage.class.getName().equals(type.raw()) || CompletableFuture.class.getName().equals(type.raw()))) {
+            payload = ((DeclaredType) payload).getTypeArguments().get(0);
+            type = ParsedType.of(payload);
+        }
+        // The handler awaits one stage, then unwraps one PartialResponse, not arbitrary wrapper nesting.
         return type.type() == ParsedType.Type.PARAMETERIZED_TYPE && PartialResponse.class.getName().equals(type.raw()) ?
-                ParsedType.of(((DeclaredType) typeMirror).getTypeArguments().get(0)) :
-                type;
+                ParsedType.of(((DeclaredType) payload).getTypeArguments().get(0)) : type;
     }
 
     /**
-     * Unlike {@link #unwrapReturnedType(TypeMirror, ParsedType)} - which the generated invocation relies on and
-     * must keep seeing the declared type - this describes what is actually serialized: the value the wrappers
-     * resolve to. {@code JsonRpcHandler} awaits the promise then unwraps a {@link PartialResponse}, so
+     * Describes what is actually serialized: the value the wrappers resolve to.
+     * {@code JsonRpcHandler} awaits the promise then unwraps a {@link PartialResponse}, so
      * {@code CompletionStage<PartialResponse<T>>} is a {@code T} on the wire.
      *
      * @param typeMirror the declared returned type.
