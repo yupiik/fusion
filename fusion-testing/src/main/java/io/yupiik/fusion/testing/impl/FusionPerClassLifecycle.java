@@ -60,7 +60,8 @@ public class FusionPerClassLifecycle extends FusionParameterResolver implements 
     @Override
     public void afterAll(final ExtensionContext context) {
         super.afterAll(context);
-        ofNullable(context.getStore(NAMESPACE).get(RuntimeContainer.class, RuntimeContainer.class))
+        // removed from the store, else JUnit (>= 5.13) closes it again at the end of the class
+        ofNullable(context.getStore(NAMESPACE).remove(RuntimeContainer.class, RuntimeContainer.class))
                 .ifPresent(RuntimeContainer::close);
     }
 }

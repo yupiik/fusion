@@ -174,8 +174,8 @@ public class RuntimeContainerImpl implements RuntimeContainer {
 
     @Override
     public void close() {
-        if (!closed.compareAndSet(false, true)) { // idempotent, Stop must be fired once
-            return;
+        if (!closed.compareAndSet(false, true)) { // Stop must be fired once, closing twice is a caller bug
+            throw new IllegalStateException("Container already closed");
         }
 
         final var error = new IllegalStateException("Can't close the container properly");

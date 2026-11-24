@@ -51,6 +51,7 @@ class FusionSupportLifecycleTest {
         final var failures = new StringWriter();
         summary.getSummary().printFailuresTo(new PrintWriter(failures), 20);
         assertEquals(1, summary.getSummary().getTestsSucceededCount(), failures::toString);
+        assertEquals(0, summary.getSummary().getTotalFailureCount(), failures::toString); // closing the container must not fail
         assertEquals(1, stops.get());
     }
 
