@@ -20,7 +20,7 @@
   <parent>
     <groupId>io.yupiik.fusion</groupId>
     <artifactId>fusion-httpclient-parent</artifactId>
-    <version>1.3.0-SNAPSHOT</version>
+    <version>1.3.0</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
@@ -36,7 +36,7 @@
         <configuration>
           <systemPropertyVariables>
             <!-- Enable Basic authentication only in the test JVM for the CONNECT regression test. -->
-            <jdk.http.auth.tunneling.disabledSchemes></jdk.http.auth.tunneling.disabledSchemes>
+            <jdk.http.auth.tunneling.disabledSchemes />
           </systemPropertyVariables>
         </configuration>
       </plugin>
