@@ -21,7 +21,7 @@
 
   <groupId>io.yupiik.fusion</groupId>
   <artifactId>fusion</artifactId>
-  <version>1.3.0</version>
+  <version>1.3.1-SNAPSHOT</version>
   <packaging>pom</packaging>
   <name>Fusion</name>
   <description>Reflectionless and selfcontained framework (no business code dependency on jakarta/spring/guice).</description>
@@ -31,7 +31,7 @@
     <maven.compiler.release>17</maven.compiler.release>
 
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <project.build.outputTimestamp>2026-11-27T08:43:50Z</project.build.outputTimestamp>
+    <project.build.outputTimestamp>2026-11-27T09:04:16Z</project.build.outputTimestamp>
 
     <tomcat.version>11.0.29</tomcat.version>
     <yupiik-logging.version>1.0.9</yupiik-logging.version>

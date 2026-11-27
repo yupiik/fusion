@@ -21,7 +21,7 @@
   <parent>
     <groupId>io.yupiik.fusion</groupId>
     <artifactId>fusion-http-server-parent</artifactId>
-    <version>1.3.0</version>
+    <version>1.3.1-SNAPSHOT</version>
   </parent>
 
   <artifactId>fusion-http-server-observability</artifactId>
